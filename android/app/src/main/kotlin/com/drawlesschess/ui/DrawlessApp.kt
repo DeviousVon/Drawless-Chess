@@ -6,6 +6,7 @@
 package com.drawlesschess.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -17,22 +18,26 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.drawlesschess.core.*
 import com.drawlesschess.core.chess.PieceType
+import com.drawlesschess.core.presentation.BoardTheme
 
 @Composable
 internal fun DrawlessApp(viewModel: DrawlessAppViewModel, soundPlayer: GameSoundPlayer) {
+    var showThemePicker by rememberSaveable { mutableStateOf(false) }
+
     when (viewModel.route) {
         AppRoute.HOME -> HomeScreen(
             resumeState = viewModel.resumeState,
+            selectedTheme = viewModel.selectedTheme,
             onResume = viewModel::resumeGame,
             onQuickPlay = viewModel::startQuickPlay,
             onCustomGame = viewModel::showNewGameSetup,
+            onShowThemes = { showThemePicker = true },
             onShowRules = viewModel::showRulesGuide,
             onDiscard = viewModel::discardSavedGame,
         )
@@ -56,6 +61,8 @@ internal fun DrawlessApp(viewModel: DrawlessAppViewModel, soundPlayer: GameSound
                 GameRoute(
                     runtime = runtime,
                     soundPlayer = soundPlayer,
+                    selectedTheme = viewModel.selectedTheme,
+                    onShowThemes = { showThemePicker = true },
                     onExit = viewModel::exitGame,
                     onRematch = viewModel::rematchGame,
                 )
@@ -66,26 +73,44 @@ internal fun DrawlessApp(viewModel: DrawlessAppViewModel, soundPlayer: GameSound
     if (viewModel.route == AppRoute.HOME && viewModel.showRulesGuide) {
         RulesGuideDialog(onDismiss = viewModel::dismissRulesGuide)
     }
+
+    if (showThemePicker) {
+        ThemePickerDialog(
+            selectedTheme = viewModel.selectedTheme,
+            onSelect = viewModel::selectTheme,
+            onDismiss = { showThemePicker = false },
+        )
+    }
 }
 
 @Composable
 private fun HomeScreen(
     resumeState: ResumeState,
+    selectedTheme: BoardTheme,
     onResume: () -> Unit,
     onQuickPlay: () -> Unit,
     onCustomGame: () -> Unit,
+    onShowThemes: () -> Unit,
     onShowRules: () -> Unit,
     onDiscard: () -> Unit,
 ) {
     var showLicense by rememberSaveable { mutableStateOf(false) }
+    val visualTheme = LocalDrawlessVisualTheme.current
+    val home = visualTheme.home
+    val primaryButtonColors = ButtonDefaults.buttonColors(
+        containerColor = home.accent,
+        contentColor = home.onAccent,
+        disabledContainerColor = home.accent.copy(alpha = 0.34f),
+        disabledContentColor = home.title.copy(alpha = 0.55f),
+    )
+    val outlinedButtonColors = ButtonDefaults.outlinedButtonColors(contentColor = home.accent)
+    val textButtonColors = ButtonDefaults.textButtonColors(contentColor = home.accent)
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(
-                Brush.verticalGradient(
-                    listOf(Color(0xFF0B1216), Color(0xFF17262C), Color(0xFF0D1519)),
-                ),
+                Brush.verticalGradient(home.gradient),
             )
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 28.dp, vertical = 32.dp),
@@ -98,7 +123,7 @@ private fun HomeScreen(
             verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
             Surface(
-                color = Color(0x2256C7A5),
+                color = home.accent.copy(alpha = 0.14f),
                 shape = RoundedCornerShape(30.dp),
                 tonalElevation = 10.dp,
             ) {
@@ -110,13 +135,13 @@ private fun HomeScreen(
             }
             Text(
                 "Drawless Chess",
-                color = Color(0xFFF2F5F6),
+                color = home.title,
                 fontSize = 38.sp,
                 fontWeight = FontWeight.SemiBold,
             )
             Text(
                 "Every game has a winner.",
-                color = Color(0xFFB7C7CF),
+                color = home.subtitle,
                 fontSize = 18.sp,
             )
             when (resumeState) {
@@ -125,6 +150,7 @@ private fun HomeScreen(
                         onClick = onResume,
                         modifier = Modifier.fillMaxWidth().height(56.dp),
                         shape = RoundedCornerShape(18.dp),
+                        colors = primaryButtonColors,
                     ) {
                         Text("Resume game", fontSize = 17.sp)
                     }
@@ -135,6 +161,7 @@ private fun HomeScreen(
                         enabled = false,
                         modifier = Modifier.fillMaxWidth().height(56.dp),
                         shape = RoundedCornerShape(18.dp),
+                        colors = primaryButtonColors,
                     ) {
                         Text("Checking saved game…", fontSize = 17.sp)
                     }
@@ -143,10 +170,12 @@ private fun HomeScreen(
                 is ResumeState.Failed -> {
                     Text(
                         resumeState.message,
-                        color = MaterialTheme.colorScheme.error,
+                        color = visualTheme.darkColors.error,
                         style = MaterialTheme.typography.bodyMedium,
                     )
-                    TextButton(onClick = onDiscard) { Text("Discard saved game") }
+                    TextButton(onClick = onDiscard, colors = textButtonColors) {
+                        Text("Discard saved game")
+                    }
                 }
             }
             if (resumeState != ResumeState.Loading) {
@@ -154,32 +183,48 @@ private fun HomeScreen(
                     onClick = onQuickPlay,
                     modifier = Modifier.fillMaxWidth().height(56.dp),
                     shape = RoundedCornerShape(18.dp),
+                    colors = primaryButtonColors,
                 ) {
                     Text("Quick Play", fontSize = 17.sp)
                 }
                 Text(
                     "Drawless rules · Casual opponent · No clock",
-                    color = Color(0xFF9EAFB7),
+                    color = home.muted,
                     fontSize = 13.sp,
                 )
                 OutlinedButton(
                     onClick = onCustomGame,
                     modifier = Modifier.fillMaxWidth().height(54.dp),
                     shape = RoundedCornerShape(18.dp),
+                    colors = outlinedButtonColors,
+                    border = BorderStroke(1.dp, home.accent.copy(alpha = 0.72f)),
                 ) {
                     Text("Custom game", fontSize = 16.sp)
+                }
+                OutlinedButton(
+                    onClick = onShowThemes,
+                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                    shape = RoundedCornerShape(18.dp),
+                    colors = outlinedButtonColors,
+                    border = BorderStroke(1.dp, home.accent.copy(alpha = 0.72f)),
+                ) {
+                    Text("Theme · ${selectedTheme.name}", fontSize = 15.sp)
                 }
             }
             FlowRow(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.Center,
             ) {
-                TextButton(onClick = onShowRules) { Text("How Drawless works") }
-                TextButton(onClick = { showLicense = true }) { Text("Open-source license") }
+                TextButton(onClick = onShowRules, colors = textButtonColors) {
+                    Text("How Drawless works")
+                }
+                TextButton(onClick = { showLicense = true }, colors = textButtonColors) {
+                    Text("Open-source license")
+                }
             }
             Text(
                 "Offline • Decisive rules • Modern play",
-                color = Color(0xFF82949D),
+                color = home.faint,
                 fontSize = 13.sp,
             )
         }

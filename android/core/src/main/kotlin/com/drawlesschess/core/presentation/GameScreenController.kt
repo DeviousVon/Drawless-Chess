@@ -55,7 +55,7 @@ class GameScreenController(
     private val coordinator: GameCoordinator,
     private val config: GameConfig,
     private val onEffect: (GameUiEffect) -> Unit = {},
-    initialTheme: BoardTheme = BoardThemes.OBSIDIAN_GLASS,
+    initialTheme: BoardTheme = BoardThemes.DEFAULT,
     initialPieceSet: PieceSet = PieceSets.MODERN_FLAT,
 ) {
     private var theme = initialTheme

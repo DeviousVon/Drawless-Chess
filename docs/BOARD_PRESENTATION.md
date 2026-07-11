@@ -47,13 +47,20 @@ layouts reserve vertical space for the clock row below the board and are selecte
 the resulting board is at least 360 dp. Compose uses these metrics as policy input rather
 than hard-coded device names.
 
-## Initial visual system
+## Visual system
 
-Three semantic board themes are defined:
+Five semantic board themes are exposed in the app:
 
 - Obsidian Glass
 - Arctic Slate
 - Modern Walnut
+- Emerald Court
+- Royal Amethyst
+
+Obsidian Glass remains the default. Selecting a theme updates the board, app surfaces,
+home gradient, and code-native piece colors immediately. The selected stable theme ID is
+stored as a presentation preference, so it survives relaunches without becoming part of a
+game checkpoint or rules contract. Unknown or retired IDs safely fall back to Obsidian.
 
 Three piece-set contracts are reserved:
 

@@ -52,6 +52,8 @@ import kotlin.math.roundToInt
 internal fun GameRoute(
     runtime: GameRuntime,
     soundPlayer: GameSoundPlayer,
+    selectedTheme: BoardTheme,
+    onShowThemes: () -> Unit,
     onExit: () -> Unit,
     onRematch: () -> Unit,
 ) {
@@ -82,6 +84,12 @@ internal fun GameRoute(
             uiScope.launch { model = controller.model() }
         }
         onDispose(registration::close)
+    }
+
+    LaunchedEffect(controller, selectedTheme.id) {
+        if (model.board.theme.id != selectedTheme.id) {
+            model = controller.selectTheme(selectedTheme)
+        }
     }
 
     val visiblePlyCount = model.history.plyCount()
@@ -148,6 +156,14 @@ internal fun GameRoute(
                     }
                 },
                 navigationIcon = { TextButton(onClick = exitGame) { Text("Exit") } },
+                actions = {
+                    TextButton(
+                        onClick = onShowThemes,
+                        modifier = Modifier.testTag("game_theme_selector"),
+                    ) {
+                        Text("Theme")
+                    }
+                },
             )
         },
         bottomBar = {
@@ -328,6 +344,7 @@ private fun ChessBoard(
     Box(
         modifier = Modifier
             .size(boardSizeDp.dp)
+            .testTag("chess_board_${model.theme.id}")
             .onSizeChanged { boardPixels = it.width.coerceAtLeast(1) }
             .pointerInput(model.positionMarker, model.interaction.orientation) {
                 detectDragGestures(

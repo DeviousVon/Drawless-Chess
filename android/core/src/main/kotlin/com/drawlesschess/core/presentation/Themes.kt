@@ -40,8 +40,30 @@ object BoardThemes {
         ArgbColor(0x883F8E7C), ArgbColor(0x99BC493E), ArgbColor(0x88E0A83A),
         ArgbColor(0xB3C83E4D), ArgbColor(0xFF211A17), ArgbColor(0xFFF7F0E8),
     )
+    val EMERALD_COURT = BoardTheme(
+        "emerald_court", "Emerald Court",
+        ArgbColor(0xFFDDE8C7), ArgbColor(0xFF4F6946), ArgbColor(0xCCF1B84B),
+        ArgbColor(0xA34FB477), ArgbColor(0xB3E25A4F), ArgbColor(0x99D8C34A),
+        ArgbColor(0xB3D7464E), ArgbColor(0xFF111C13), ArgbColor(0xFFF2F8E9),
+    )
+    val ROYAL_AMETHYST = BoardTheme(
+        "royal_amethyst", "Royal Amethyst",
+        ArgbColor(0xFFE2D8F1), ArgbColor(0xFF59406F), ArgbColor(0xCCF1C75B),
+        ArgbColor(0xA356C596), ArgbColor(0xB3FF6B6B), ArgbColor(0x99E9B949),
+        ArgbColor(0xB3D9465F), ArgbColor(0xFF1B1324), ArgbColor(0xFFF7F1FF),
+    )
 
-    val all = listOf(OBSIDIAN_GLASS, ARCTIC_SLATE, MODERN_WALNUT)
+    val DEFAULT = OBSIDIAN_GLASS
+    val all = listOf(
+        OBSIDIAN_GLASS,
+        ARCTIC_SLATE,
+        MODERN_WALNUT,
+        EMERALD_COURT,
+        ROYAL_AMETHYST,
+    )
+
+    /** Stable-id lookup for persisted presentation preferences. */
+    fun fromId(id: String?): BoardTheme = all.firstOrNull { it.id == id } ?: DEFAULT
 }
 
 data class PieceSet(

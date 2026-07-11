@@ -36,8 +36,8 @@ See `docs/BOARD_PRESENTATION.md`.
 
 The Compose application adds Quick Play, custom/advanced setup, a first-run rules guide,
 Room resume, clocks, SAN history, gestures, original code-native pieces, synthesized
-move/capture sounds, post-game results, and rematches. Its verified and unverified
-boundaries are documented in `docs/COMPOSE_APP.md`.
+move/capture sounds, five persisted visual themes, post-game results, and rematches. Its
+verified and unverified boundaries are documented in `docs/COMPOSE_APP.md`.
 
 The production engine-facing core now adds strict UCI parsing, lifecycle and timeout
 control, cancellation draining, patch identity checks, named/custom/adaptive difficulty,
@@ -70,15 +70,17 @@ SDK/JDK setup and commands for both host lanes are in `docs/ANDROID_MACHINE_VERI
 - The nine-test app instrumentation suite passes on the x86-64 emulator and ARM64 physical
   tablet; the preceding eight-test checkpoint also passed on the ARM64 phone. It covers Room codec and
   reopen/restore behavior, stale-write protection, rapid game replacement, a real hint
-  followed by a bot move through the same native session, advanced setup, rematch, and
+  followed by a bot move through the same native session, persisted/live theme switching,
+  advanced setup, rematch, and
   deterministic two-second-plus finish timelines and procedural sound cues.
-- Both machine manifests agree on the current private-test package bytes: debug APK
-  16,612,314 bytes (`21e363135bcccb69c142d94e124c8d75a5ee2204fb14a9bb975f0fe5a1a5a151`)
-  and unsigned release APK 11,717,623 bytes
-  (`a5d80768f93ce0bb583ed6ed03777fb20c1ffaf560d461416db5ffce803f2c6e`).
+- The theme checkpoint debug APK is 16,816,327 bytes with SHA-256
+  `b37d389b88b89843410148f2e3bf06710ec1b3e60e9927bf1bbcbceb431e3bb1`; that exact APK
+  passed the app suite on both devices and is installed on the tablet. The latest complete
+  dual-ABI debug/release machine-manifest pair remains the preceding `f4b9c05` checkpoint;
+  no replacement release evidence is claimed for this UI-only checkpoint.
 
-These are engineering artifacts, not a public release. Their manifests remain
-`privateTestOnly: true` and `distributionAuthorized: false`; no signed APK/AAB is claimed.
+These are engineering artifacts, not a public release. Distribution authorization remains
+false, and no signed APK/AAB is claimed.
 
 ## Run the rules tests
 

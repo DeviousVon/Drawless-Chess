@@ -975,7 +975,13 @@ fun main() {
         assertThat(key == "modern_flat_black_queen")
     }
     suite.test("built-in theme and piece identifiers are unique") {
+        assertThat(BoardThemes.all.size == 5)
         assertThat(BoardThemes.all.map { it.id }.distinct().size == BoardThemes.all.size)
+        assertThat(BoardThemes.all.map { it.name }.distinct().size == BoardThemes.all.size)
+        assertThat(BoardThemes.all.all { it.lightSquare != it.darkSquare })
+        assertThat(BoardThemes.fromId("royal_amethyst") == BoardThemes.ROYAL_AMETHYST)
+        assertThat(BoardThemes.fromId("removed-or-corrupt") == BoardThemes.DEFAULT)
+        assertThat(BoardThemes.fromId(null) == BoardThemes.DEFAULT)
         assertThat(PieceSets.all.map { it.id }.distinct().size == PieceSets.all.size)
     }
     suite.test("phone layout stacks controls below board") {
@@ -1127,6 +1133,14 @@ fun main() {
         val config = coordinatorConfig()
         val fixture = coordinatorFixture(config)
         val controller = GameScreenController(fixture.coordinator, config)
+        val before = controller.model()
+        BoardThemes.all.forEach { theme ->
+            val themed = controller.selectTheme(theme)
+            assertThat(themed.board.theme == theme)
+            assertThat(themed.board.positionMarker == before.board.positionMarker)
+            assertThat(themed.history == before.history)
+            assertThat(themed.board.interaction == before.board.interaction)
+        }
         var model = controller.selectTheme(BoardThemes.MODERN_WALNUT)
         model = controller.selectPieceSet(PieceSets.SCULPTED)
         assertThat(model.board.theme == BoardThemes.MODERN_WALNUT)

@@ -11,6 +11,8 @@ import com.drawlesschess.core.GameMode
 import com.drawlesschess.core.coordinator.CoordinatorCheckpoint
 import com.drawlesschess.core.coordinator.GameConfig
 import com.drawlesschess.core.engine.BotDifficultyCatalog
+import com.drawlesschess.core.presentation.BoardTheme
+import com.drawlesschess.core.presentation.BoardThemes
 import com.drawlesschess.persistence.RoomCheckpointStore
 
 internal enum class AppRoute {
@@ -35,6 +37,7 @@ internal class DrawlessAppViewModel(
         PREFERENCES_NAME,
         Context.MODE_PRIVATE,
     )
+    private val themePreferences = ThemePreferenceStore(this.applicationContext)
     private var activeSelection: SetupSelection? = null
 
     var route: AppRoute by mutableStateOf(AppRoute.HOME)
@@ -47,6 +50,9 @@ internal class DrawlessAppViewModel(
         private set
 
     var setupSelection: SetupSelection by mutableStateOf(SetupSelection())
+        private set
+
+    var selectedTheme: BoardTheme by mutableStateOf(themePreferences.load())
         private set
 
     var showRulesGuide: Boolean by mutableStateOf(
@@ -82,6 +88,13 @@ internal class DrawlessAppViewModel(
         setupSelection = selection
     }
 
+    fun selectTheme(theme: BoardTheme) {
+        val supported = BoardThemes.fromId(theme.id)
+        if (selectedTheme == supported) return
+        selectedTheme = supported
+        themePreferences.save(supported)
+    }
+
     fun leaveSetup() {
         route = AppRoute.HOME
     }
@@ -89,7 +102,12 @@ internal class DrawlessAppViewModel(
     fun startNewGame(selection: SetupSelection) {
         val casualSelection = selection.copy(mode = GameMode.CASUAL)
         replaceRuntime {
-            GameRuntime(casualSelection, applicationContext, checkpointStore.activateNewGame())
+            GameRuntime(
+                casualSelection,
+                applicationContext,
+                checkpointStore.activateNewGame(),
+                initialTheme = selectedTheme,
+            )
                 .also { activeSelection = casualSelection }
         }
     }
@@ -113,6 +131,7 @@ internal class DrawlessAppViewModel(
                                 checkpoint,
                                 applicationContext,
                                 checkpointStore.activateResume(),
+                                initialTheme = selectedTheme,
                             ).also { activeSelection = resumedSelection }
                         }
                     }

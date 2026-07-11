@@ -20,11 +20,12 @@ internal fun ChessPiece(
     type: PieceType,
     modifier: Modifier = Modifier,
 ) {
+    val palette = LocalDrawlessVisualTheme.current.pieces
     Canvas(modifier) {
-        val fill = if (side == Side.WHITE) Color(0xFFF8F1DD) else Color(0xFF172126)
-        val outline = if (side == Side.WHITE) Color(0xFF283238) else Color(0xFFE8E1CF)
-        val detail = if (side == Side.WHITE) Color(0xFF665D4E) else Color(0xFFB9B19E)
-        val kingAccent = if (side == Side.WHITE) Color(0xFFB3261E) else Color(0xFFFFC857)
+        val fill = if (side == Side.WHITE) palette.whiteFill else palette.blackFill
+        val outline = if (side == Side.WHITE) palette.whiteOutline else palette.blackOutline
+        val detail = if (side == Side.WHITE) palette.whiteDetail else palette.blackDetail
+        val kingAccent = if (side == Side.WHITE) palette.whiteKingAccent else palette.blackKingAccent
         val scaleX = size.width / 100f
         val scaleY = size.height / 100f
         withTransform({ scale(scaleX, scaleY, pivot = Offset.Zero) }) {

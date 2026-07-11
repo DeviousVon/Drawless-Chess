@@ -171,7 +171,8 @@ runtime ABIs.
 
 The checked-in machine gate locks the SDK/JDK/Gradle/NDK/CMake inputs, audits debug and
 release AAR/APK native bytes, runs exactly one bounded native test on the explicitly selected
-device, and retains failure-safe evidence. The final x86-64 and ARM64 manifests both report
+device, and retains failure-safe evidence. At the `f4b9c05` checkpoint, the final x86-64 and
+ARM64 manifests both report
 `result: passed`, both packaged ABIs, and the same app artifacts: debug APK 16,612,314 bytes
 with SHA-256 `21e363135bcccb69c142d94e124c8d75a5ee2204fb14a9bb975f0fe5a1a5a151`,
 and unsigned release APK 11,717,623 bytes with SHA-256

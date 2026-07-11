@@ -38,6 +38,7 @@ class GameRuntime private constructor(
     checkpoint: CoordinatorCheckpoint?,
     applicationContext: Context,
     checkpointSink: CheckpointSink,
+    initialTheme: BoardTheme,
 ) : AutoCloseable {
     private val closed = AtomicBoolean(false)
     private val modelInvalidationListeners = CopyOnWriteArraySet<() -> Unit>()
@@ -62,13 +63,15 @@ class GameRuntime private constructor(
         selection: SetupSelection,
         applicationContext: Context,
         checkpointSink: CheckpointSink,
-    ) : this(selection.gameConfig(), null, applicationContext, checkpointSink)
+        initialTheme: BoardTheme = BoardThemes.DEFAULT,
+    ) : this(selection.gameConfig(), null, applicationContext, checkpointSink, initialTheme)
 
     constructor(
         checkpoint: CoordinatorCheckpoint,
         applicationContext: Context,
         checkpointSink: CheckpointSink,
-    ) : this(checkpoint.config, checkpoint, applicationContext, checkpointSink)
+        initialTheme: BoardTheme = BoardThemes.DEFAULT,
+    ) : this(checkpoint.config, checkpoint, applicationContext, checkpointSink, initialTheme)
 
     val controller: GameScreenController
 
@@ -77,6 +80,7 @@ class GameRuntime private constructor(
         createdController = GameScreenController(
             coordinator = coordinator,
             config = config,
+            initialTheme = initialTheme,
             onEffect = { effect: GameUiEffect ->
                 if (effect is GameUiEffect.RequestHintAnalysis) {
                     Log.d(HINT_LOG_TAG, "Submitting coordinator-owned hint analysis")

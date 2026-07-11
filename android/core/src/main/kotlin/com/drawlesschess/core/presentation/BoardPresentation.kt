@@ -223,7 +223,7 @@ object BoardPresenter {
         snapshot: CoordinatorSnapshot,
         config: GameConfig,
         interactionState: BoardInteractionState,
-        theme: BoardTheme = BoardThemes.OBSIDIAN_GLASS,
+        theme: BoardTheme = BoardThemes.DEFAULT,
         pieceSet: PieceSet = PieceSets.MODERN_FLAT,
     ): BoardScreenState {
         val position = ChessPosition.fromFen(snapshot.currentFen)

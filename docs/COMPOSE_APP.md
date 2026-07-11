@@ -28,6 +28,7 @@ Official references:
 6. Untimed, 3-minute, 5-minute, 10-minute, and 15+10 clocks.
 7. White or Black player side and seven descriptive opponent levels without numeric Elo claims.
 8. Responsive game screen, durable Room-backed Resume, post-game result, Home, and Rematch.
+9. Five full visual themes with home and in-game selection plus relaunch persistence.
 
 The game screen renders:
 
@@ -39,6 +40,7 @@ The game screen renders:
 - SAN move history.
 - Pause/resume, undo, hint, flip, and resign controls.
 - Promotion and resignation confirmation dialogs.
+- Immediate theme switching for the board, pieces, and app chrome.
 - Per-square accessibility semantics.
 - Explicit Victory/Defeat feedback with a finite code-native fireworks or cracked-glass
   finish effect and synchronized procedural pop/crack cues. Victory runs for 2.6 seconds and
@@ -103,10 +105,10 @@ chess-piece drawings and launcher icon are original code/vector assets, and move
 firework/glass finish sounds are synthesized by project code rather than loaded from a sampled recording. Their
 release provenance is recorded in root `NOTICE` and `THIRD_PARTY_NOTICES.md`.
 
-The exposed piece set, launcher mark, and move/capture sounds are now self-contained release
-assets rather than placeholders. Unexposed theme contracts and future motion work remain
-optional product extensions; the release build must still not ship while release-blocking
-adapters or legal gates remain unresolved.
+The exposed piece set, five visual themes, launcher mark, and move/capture sounds are now
+self-contained release assets rather than placeholders. Future piece-set and motion work
+remain optional product extensions; the release build must still not ship while
+release-blocking adapters or legal gates remain unresolved.
 
 The `:app` module now depends on `:engine`. That library contains the factory, Android
 timeout scheduler, managed JNI port, native command bridge, pinned Fairy-Stockfish source
@@ -127,13 +129,16 @@ the API-37 ARM64 phone. The suite verifies:
 - file-backed Room close/reopen followed by `GameCoordinator.restore`;
 - a fast first-game exit, second-game creation, and real native bot response;
 - full-strength hint publication followed by a bot move through the same native session;
-- descriptive custom setup with Escape kept under Advanced Rules; and
+- persisted full-app theme selection, live in-game board switching, and descriptive custom
+  setup with Escape kept under Advanced Rules;
 - a completed-game Rematch flow; and
 - deterministic two-second-plus finish timing, cue ordering, and bounded procedural PCM.
 
 A separate host-driven physical-phone acceptance run has also covered force-stop,
-relaunch, and Resume. The current machine manifests agree on the debug and unsigned-release
-APK hashes; both remain private-test artifacts with distribution authorization false.
+relaunch, and Resume. The latest complete dual-ABI debug/release manifests are retained from
+the preceding `f4b9c05` checkpoint. This theme checkpoint independently passed the complete
+app suite on the x86-64 emulator and ARM64 tablet, but does not claim replacement release
+evidence; distribution authorization remains false.
 
 Async hint completion explicitly invalidates the Compose model on the UI coroutine scope.
 This prevents a completed result from being lost if coordinator polling observes the return

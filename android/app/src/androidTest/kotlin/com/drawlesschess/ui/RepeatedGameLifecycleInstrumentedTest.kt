@@ -1,13 +1,17 @@
 package com.drawlesschess.ui
 
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import com.drawlesschess.MainActivity
+import com.drawlesschess.core.presentation.BoardThemes
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -29,6 +33,15 @@ class RepeatedGameLifecycleInstrumentedTest {
         waitForText("Quick Play")
         compose.onNodeWithText("Quick Play").performClick()
         waitForText("Exit")
+
+        compose.onNodeWithTag("game_theme_selector").performClick()
+        compose.onNodeWithTag("theme_option_emerald_court").performClick().assertIsSelected()
+        compose.onNodeWithText("Done").performClick()
+        compose.waitUntil(timeoutMillis = 10_000L) {
+            runCatching {
+                compose.onNodeWithTag("chess_board_emerald_court").fetchSemanticsNode()
+            }.isSuccess
+        }
 
         compose.onNodeWithContentDescription("White pawn on e2").performClick()
         compose.onNodeWithContentDescription("Empty e4, legal move").performClick()
@@ -80,6 +93,16 @@ class RepeatedGameLifecycleInstrumentedTest {
     @Test
     fun customGameUsesDescriptiveLevelsAndKeepsEscapeAdvanced() {
         dismissRulesGuideIfShown()
+        waitForText("Theme ·", substring = true)
+        compose.onNodeWithText("Theme ·", substring = true).performClick()
+        BoardThemes.all.forEach { theme ->
+            compose.onNodeWithTag("theme_option_${theme.id}").fetchSemanticsNode()
+        }
+        compose.onNodeWithTag("theme_option_royal_amethyst").performClick().assertIsSelected()
+        assertEquals(BoardThemes.ROYAL_AMETHYST, ThemePreferenceStore(compose.activity).load())
+        compose.onNodeWithText("Done").performClick()
+        waitForText("Theme · Royal Amethyst")
+
         waitForText("Custom game")
         compose.onNodeWithText("Custom game").performClick()
         waitForText("Start game")
@@ -111,9 +134,9 @@ class RepeatedGameLifecycleInstrumentedTest {
         assertTrue(compose.onAllNodesWithText("Defeat").fetchSemanticsNodes().isEmpty())
     }
 
-    private fun waitForText(value: String) {
+    private fun waitForText(value: String, substring: Boolean = false) {
         compose.waitUntil(timeoutMillis = 10_000L) {
-            compose.onAllNodesWithText(value).fetchSemanticsNodes().isNotEmpty()
+            compose.onAllNodesWithText(value, substring = substring).fetchSemanticsNodes().isNotEmpty()
         }
     }
 
