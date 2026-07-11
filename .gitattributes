@@ -1,0 +1,10 @@
+# Byte-locked native inputs must survive Windows checkouts unchanged.
+/engine/patches/** text eol=lf
+/engine/patches/*.patch whitespace=-blank-at-eol,-blank-at-eof
+/engine/variants.ini text eol=lf
+/engine/native/*.properties text eol=lf
+/engine/native/*.txt text eol=lf
+/scripts/*.sh text eol=lf
+/scripts/*.ps1 text eol=lf
+/android/gradlew text eol=lf
+/android/gradlew.bat text eol=crlf

@@ -1,0 +1,41 @@
+{
+  "name": "drawless-chess",
+  "version": "0.1.0",
+  "description": "Offline decisive chess for Android with a pinned Drawless Fairy-Stockfish engine.",
+  "license": "GPL-3.0-or-later",
+  "private": true,
+  "author": "DeviousVon",
+  "homepage": "https://github.com/DeviousVon/Drawless-Chess#readme",
+  "bugs": {
+    "url": "https://github.com/DeviousVon/Drawless-Chess/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DeviousVon/Drawless-Chess.git"
+  },
+  "type": "module",
+  "scripts": {
+    "test": "node --test src/test/js/*.test.js",
+    "test:engine": "node scripts/engine-poc.js",
+    "test:kotlin": "bash scripts/test-kotlin.sh",
+    "test:license": "bash scripts/license-validate-structure.sh",
+    "test:native-structure": "bash scripts/native-validate-structure.sh",
+    "test:native-source": "bash scripts/native-validate-structure.sh --require-source",
+    "test:native-patch": "bash engine/patches/verify-patch.sh",
+    "test:native-jni-host": "bash scripts/native-verify-jni-host.sh",
+    "test:native-jni-host:sanitize": "DRAWLESS_HOST_SANITIZERS=1 bash scripts/native-verify-jni-host.sh",
+    "test:ui-structure": "bash scripts/check-compose-structure.sh",
+    "test:android-structure": "bash scripts/android-validate-structure.sh",
+    "test:android-machine": "bash scripts/android-machine-verify.sh",
+    "test:android-machine:windows": "pwsh -NoProfile -NonInteractive -ExecutionPolicy Bypass -File scripts/android-machine-verify.ps1",
+    "bundle:source": "bash scripts/source-bundle.sh",
+    "test:all": "npm test && npm run test:kotlin && npm run test:license && npm run test:ui-structure && npm run test:engine && npm run test:native-structure && npm run test:android-structure"
+  },
+  "dependencies": {
+    "fairy-stockfish-nnue.wasm": "1.1.11",
+    "ffish-es6": "0.7.9"
+  },
+  "devDependencies": {
+    "kotlin-compiler": "^2.4.0"
+  }
+}

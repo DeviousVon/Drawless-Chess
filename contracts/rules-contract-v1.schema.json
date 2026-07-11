@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://drawlesschess.example/contracts/rules-contract-v1.schema.json",
+  "title": "Drawless Chess Rules Contract v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "preset", "stalemate", "repetition", "deadPosition", "fiftyMove", "materialValues"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "preset": { "enum": ["drawless", "escape"] },
+    "stalemate": { "enum": ["trapped_player_loses", "trapped_player_wins"] },
+    "repetition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["threshold", "completingPlayerLoses", "forcedMoveException"],
+      "properties": {
+        "threshold": { "const": 3 },
+        "completingPlayerLoses": { "const": true },
+        "forcedMoveException": { "const": true }
+      }
+    },
+    "deadPosition": { "enum": ["material_victory", "final_capture_victory"] },
+    "fiftyMove": { "enum": ["disabled", "completing_player_loses", "forced_move_exception"] },
+    "materialValues": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pawn", "knight", "bishop", "rook", "queen"],
+      "properties": {
+        "pawn": { "const": 1 },
+        "knight": { "const": 3 },
+        "bishop": { "const": 3 },
+        "rook": { "const": 5 },
+        "queen": { "const": 9 }
+      }
+    }
+  }
+}

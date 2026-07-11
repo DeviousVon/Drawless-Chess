@@ -1,0 +1,136 @@
+# Drawless Chess
+
+This repository contains the current offline Android implementation of Drawless Chess.
+The app combines a versioned no-draw rules core, Room-backed resume flow, Jetpack Compose
+UI, and a pinned, patched Fairy-Stockfish engine behind an in-process JNI boundary. The
+older JavaScript/WASM proof of concept remains as a fast regression lane; it is not the
+runtime shipped in the Android private-test package.
+
+Project source: https://github.com/DeviousVon/Drawless-Chess
+
+The design and release controls are documented here:
+
+- `docs/ARCHITECTURE.md` — Android module boundaries, runtime flow, persistence, and testing.
+- `docs/ADR-001-ENGINE.md` — Fairy-Stockfish integration and forced-repetition decision.
+- `docs/ADR-002-RULES-AND-SAVES.md` — rules versioning and saved-game compatibility.
+- `docs/ADR-003-ANDROID-ENGINE-RUNTIME.md` — accepted JNI runtime and GPL release boundary.
+- `docs/NATIVE_ENGINE.md` — pinned patch, native package boundary, verification, and release gates.
+- `docs/ANDROID_MACHINE_VERIFICATION.md` — pinned Android toolchain and device evidence gate.
+- `contracts/` — language-neutral JSON contracts for rules and saved games.
+
+The Android foundation lives under `android/` and includes a dependency-free Kotlin
+core, immutable game sessions, position history, saved-game contracts, and an engine API.
+See `docs/ANDROID_FOUNDATION.md` for its verified scope and toolchain boundary.
+
+The chess-law layer now includes FEN, complete legal move generation, replay, repetition
+keys, dead-position detection, and Drawless transition construction. Its perft evidence
+and conservative boundaries are in `docs/CHESS_CORE.md`.
+
+The game coordinator adds turn orchestration, clocks, rated/casual restrictions, engine
+cancellation, stale-response protection, undo, and process-death checkpoints. See
+`docs/GAME_COORDINATOR.md`.
+
+The presentation layer adds pure board interaction, promotion, orientation, highlighting,
+responsive layout policy, themes, piece-set contracts, and accessibility descriptions.
+See `docs/BOARD_PRESENTATION.md`.
+
+The Compose application adds Quick Play, custom/advanced setup, a first-run rules guide,
+Room resume, clocks, SAN history, gestures, original code-native pieces, synthesized
+move/capture sounds, post-game results, and rematches. Its verified and unverified
+boundaries are documented in `docs/COMPOSE_APP.md`.
+
+The production engine-facing core now adds strict UCI parsing, lifecycle and timeout
+control, cancellation draining, patch identity checks, named/custom/adaptive difficulty,
+offline rating pools, hint/review request planning, and a JVM-tested native byte-transport
+boundary. See `docs/ENGINE_RUNTIME.md`.
+
+The forced-repetition exception is an actual pinned Fairy-Stockfish patch with both-color
+parity and history isolation. The Android `:engine` module contains the in-process JNI
+runtime, and the app selects it by default without silent fallback. The native host gate
+and real Android instrumentation now pass: packaged JNI load, forced-repetition search,
+close, and sequential restart were exercised independently on an API-36 x86-64 emulator
+and an API-37 ARM64 physical phone. See
+`docs/FORCED_REPETITION_PATCH.md`, `docs/NATIVE_ENGINE.md`, and
+`docs/ADR-003-ANDROID-ENGINE-RUNTIME.md`.
+
+The project includes a checksum-locked Gradle 9.4.1 wrapper and a stable API-36 machine
+gate. The required x86-64 emulator and ARM64 physical-device runs have both passed for the
+current private-test checkpoint. Windows users can reproduce the same evidence gate
+directly in PowerShell 7—without WSL—using
+`pwsh -NoProfile -NonInteractive -ExecutionPolicy Bypass -File scripts/android-machine-verify.ps1`.
+The Windows gate accepts a complete stable build JDK 17 or 21, including Android Studio's
+bundled JBR 21, while keeping project Java/Kotlin compatibility at 17. Exact Android Studio
+SDK/JDK setup and commands for both host lanes are in `docs/ANDROID_MACHINE_VERIFICATION.md`.
+
+## Current verification checkpoint
+
+- `npm run test:kotlin` passes 195 JVM/core/endpoint tests.
+- The native engine instrumentation passes once on each runtime ABI: x86-64 emulator and
+  ARM64 physical phone.
+- The seven-test app instrumentation suite passes on both devices. It covers Room codec and
+  reopen/restore behavior, stale-write protection, rapid game replacement, a real hint
+  followed by a bot move through the same native session, advanced setup, and rematch.
+- Both machine manifests agree on the current private-test package bytes: debug APK
+  16,563,078 bytes (`67ab4c621b55315971d091be5b03c61544e2493aa49876de06b723ec2ba9d522`)
+  and unsigned release APK 11,684,783 bytes
+  (`04ce7a3843952fd654350f1f82bbe0cbf035f2dedf975005563b3970d8f31ce8`).
+
+These are engineering artifacts, not a public release. Their manifests remain
+`privateTestOnly: true` and `distributionAuthorized: false`; no signed APK/AAB is claimed.
+
+## Run the rules tests
+
+```bash
+npm test
+```
+
+## Run the Kotlin core tests
+
+```bash
+npm run test:kotlin
+```
+
+## Run every verification gate
+
+```bash
+npm run test:all
+```
+
+`test:all` includes the Android wrapper/toolchain contract and native lock/package
+structure gates. The full clean-source native
+compile is intentionally separate because it is slow and can require a network fetch:
+
+```bash
+scripts/native-fetch-fairy.sh
+npm run test:native-source
+npm run test:native-patch
+npm run test:native-jni-host
+```
+
+## Run the Fairy-Stockfish experiment
+
+```bash
+npm run test:engine
+```
+
+The older WASM engine experiment is deliberately isolated from the pinned native source.
+
+## License and release source
+
+Drawless Chess has adopted GPL-3.0-or-later for the complete application, including the
+Android work linked in process with the modified Fairy-Stockfish engine. See `LICENSE`,
+`NOTICE`, and `THIRD_PARTY_NOTICES.md`. The GPL permits paid distribution, but every
+recipient must retain the GPL freedoms and receive access to the complete corresponding
+source for the exact binary.
+
+Create the whole-project source archive only from the exact release tree:
+
+```bash
+npm run bundle:source -- build/releases/drawless-chess-0.1.0-source.tar.gz
+```
+
+The archive includes the complete prepared Fairy-Stockfish checkout and all Drawless
+source/build material while rejecting signing secrets and generated binaries.
+`docs/RELEASE_LICENSING.md` is the mandatory public-release checklist. It intentionally
+keeps distribution blocked until a real immutable release identity, public source URL,
+resolved third-party notice/SBOM, signing setup, and matching release evidence exist.

@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://drawlesschess.example/contracts/saved-game-v1.schema.json",
+  "title": "Drawless Chess Saved Game v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "gameId", "createdAt", "mode", "initialFen", "rules", "timeControl", "moves", "engine"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "gameId": { "type": "string", "minLength": 1 },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "mode": { "enum": ["casual", "rated"] },
+    "initialFen": { "type": "string", "minLength": 1 },
+    "rules": { "$ref": "rules-contract-v1.schema.json" },
+    "timeControl": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind"],
+      "properties": {
+        "kind": { "enum": ["untimed", "clock"] },
+        "initialMs": { "type": "integer", "minimum": 1 },
+        "incrementMs": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "moves": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["uci"],
+        "properties": {
+          "uci": { "type": "string", "pattern": "^[a-h][1-8][a-h][1-8][qrbn]?$" },
+          "whiteRemainingMs": { "type": "integer", "minimum": 0 },
+          "blackRemainingMs": { "type": "integer", "minimum": 0 }
+        }
+      }
+    },
+    "engine": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "build", "drawlessPatch"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "build": { "type": "string", "minLength": 1 },
+        "drawlessPatch": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "assistance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hints", "undos", "pauses"],
+      "properties": {
+        "hints": { "type": "integer", "minimum": 0 },
+        "undos": { "type": "integer", "minimum": 0 },
+        "pauses": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["winner", "reason", "atPly"],
+      "properties": {
+        "winner": { "enum": ["WHITE", "BLACK"] },
+        "reason": { "enum": ["CHECKMATE", "STALEMATE", "REPETITION", "DEAD_POSITION_MATERIAL", "DEAD_POSITION_FINAL_CAPTURE", "FIFTY_MOVE_LIMIT", "RESIGNATION", "TIMEOUT"] },
+        "atPly": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

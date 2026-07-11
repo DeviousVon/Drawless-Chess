@@ -1,0 +1,41 @@
+node_modules/
+build/
+.pnpm-store/
+.agents/
+pids/
+*.class
+
+# Local editor, OS, profiling, service, and signing material.
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+.env
+.env.*
+key.properties
+google-services.json
+*.jks
+*.keystore
+*.pem
+*.p12
+*.pfx
+*.hprof
+*.trace
+captures/
+
+# Recreated from the pinned upstream revision and ordered Drawless patches.
+# Exact prepared source is included in each corresponding-source release archive.
+engine/native/upstream/Fairy-Stockfish/
+
+# Obsolete mirror copies retained locally for now; authoritative files live at root.
+src/docs/
+src/engine/
+src/scripts/
+
+# Android/Gradle machine-local state and generated binaries
+android/.gradle/
+android/.kotlin/
+android/local.properties
+android/**/build/
+android/**/.cxx/

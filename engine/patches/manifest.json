@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "patchVersion": 1,
+  "upstream": {
+    "repository": "https://github.com/fairy-stockfish/Fairy-Stockfish.git",
+    "commit": "fb78cb561aa01708338e35b3dc3b65a42149a3c4",
+    "tree": "dfe4b96037c10ab60e22613bf634452612fc2b04",
+    "commitDate": "2026-07-01T11:31:25+02:00"
+  },
+  "patches": [
+    {
+      "order": 1,
+      "file": "0001-drawless-forced-repetition-v1.patch",
+      "sha256": "5bf9ec8dbd1254ed48bc6d29c92741c56c776124e87ef39b36f4a5d14b416ca2",
+      "patchCommit": "b83e5c04029fb1c47ec277da585778c46fd19e51",
+      "resultTree": "090d26be47498b99a23fdb1b9ff7587740b95664"
+    }
+  ],
+  "activation": {
+    "variantAttribute": "drawlessForcedRepetition",
+    "value": true,
+    "inheritedByEscape": true
+  },
+  "binaryIdentity": {
+    "option": "Drawless Patch Version",
+    "uciDeclaration": "option name Drawless Patch Version type spin default 1 min 1 max 1"
+  },
+  "transpositionTablePolicy": "move-ordering-only-no-bound-read-or-write",
+  "license": "GPL-3.0-or-later"
+}

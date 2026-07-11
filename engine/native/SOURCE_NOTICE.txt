@@ -1,0 +1,49 @@
+Fairy-Stockfish notice for Drawless Chess
+=========================================
+
+Drawless Chess uses and modifies Fairy-Stockfish, a chess-variant engine derived
+from Stockfish. Fairy-Stockfish is licensed under the GNU General Public License,
+version 3 or (at your option) any later version (GPL-3.0-or-later).
+
+Canonical native source identity:
+
+  Project: Fairy-Stockfish
+  Upstream: https://github.com/fairy-stockfish/Fairy-Stockfish.git
+  Commit: fb78cb561aa01708338e35b3dc3b65a42149a3c4
+  Upstream tree: dfe4b96037c10ab60e22613bf634452612fc2b04
+  Patched tree: 090d26be47498b99a23fdb1b9ff7587740b95664
+  Patch-series SHA-256: 3f5eafc2ce5e4fec083477310b09abbe0a1bcdcb689f75e0b2edf47f31939a32
+  Drawless variant-config SHA-256: 749b110d8871629174be75c34688379813b74679dedc8c3af271f0c4cb6a1e8d
+  Drawless patch interface: version 1
+
+The exact Drawless modifications are recorded by the ordered patch series under
+engine/patches/. Reproduction metadata and Android build files are under
+engine/native/ and android/engine/. The build packages upstream Copying.txt,
+AUTHORS, this notice, the source locks, and the Drawless patch series in the AAR.
+
+The WebAssembly proof of concept is a different artifact and is not the native
+source pin. Its independent package identity is recorded in
+engine/native/wasm-poc.properties.
+
+NO WARRANTY: this software is provided without any warranty, to the extent
+permitted by applicable law. See the GNU GPL for the complete terms.
+
+Drawless project license and distributor requirement
+----------------------------------------------------
+
+Drawless Chess has adopted GPL-3.0-or-later for the combined Android application,
+including the code linked to this engine through JNI. Before any APK, App Bundle,
+or AAR containing it is distributed, the distributor must make the complete corresponding source
+for that exact binary available by a GPL-compliant method and
+include the full license text and required notices. Run scripts/source-bundle.sh
+to create the whole-project archive. scripts/native-source-bundle.sh is a
+compatibility alias and no longer creates a native-only compliance artifact. The
+release owner must record a real public source location; this repository does not
+embed a URL that has not been published and verified.
+
+The in-process JNI boundary is not treated as a way to avoid GPL obligations.
+Charging for the app is compatible with the GPL, but withholding corresponding
+source or recipient rights is not. Root LICENSE, NOTICE,
+THIRD_PARTY_NOTICES.md, and docs/RELEASE_LICENSING.md define the engineering
+release controls. They are not legal advice or, by themselves, proof of license
+compliance.

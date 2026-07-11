@@ -1,0 +1,338 @@
+From b83e5c04029fb1c47ec277da585778c46fd19e51 Mon Sep 17 00:00:00 2001
+From: Drawless Chess <engine@drawless.invalid>
+Date: Thu, 9 Jul 2026 23:11:29 -0500
+Subject: [PATCH] Add Drawless forced repetition patch v1
+
+---
+ src/parser.cpp    |  1 +
+ src/position.cpp  | 50 +++++++++++++++++++++++++++++--
+ src/position.h    | 21 +++++++++++++
+ src/search.cpp    | 75 ++++++++++++++++++++++++++++++++++++++++-------
+ src/ucioption.cpp |  1 +
+ src/variant.cpp   |  9 ++++++
+ src/variant.h     |  1 +
+ src/variants.ini  |  1 +
+ 8 files changed, 145 insertions(+), 14 deletions(-)
+
+diff --git a/src/parser.cpp b/src/parser.cpp
+index cbd24046..7d372856 100644
+--- a/src/parser.cpp
++++ b/src/parser.cpp
+@@ -502,6 +502,7 @@ Variant* VariantParser<DoCheck>::parse(Variant* v) {
+     parse_attribute("nFoldRule", v->nFoldRule);
+     parse_attribute("nFoldValue", v->nFoldValue);
+     parse_attribute("nFoldValueAbsolute", v->nFoldValueAbsolute);
++    parse_attribute("drawlessForcedRepetition", v->drawlessForcedRepetition);
+     parse_attribute("perpetualCheckIllegal", v->perpetualCheckIllegal);
+     parse_attribute("moveRepetitionIllegal", v->moveRepetitionIllegal);
+     parse_attribute("chasingRule", v->chasingRule);
+diff --git a/src/position.cpp b/src/position.cpp
+index 352b6d58..16d1fee5 100644
+--- a/src/position.cpp
++++ b/src/position.cpp
+@@ -2696,10 +2696,18 @@ bool Position::is_optional_game_end(Value& result, int ply, int countStarted) co
+               stp = stp->previous->previous;
+               perpetualThem &= bool(stp->checkersBB);
+ 
+-              // Return a draw score if a position repeats once earlier but strictly
+-              // after the root, or repeats twice before or at the root.
++              // Ordinary variants may resolve an in-search cycle after one prior
++              // occurrence. Drawless must count the exact configured occurrence;
++              // an early cycle result would incorrectly end the game on occurrence two.
+               if (   stp->key == st->key
+-                  && ++cnt + 1 >= (ply > i && !moveRepetition && !chaseUs && !chaseThem && !perpetualUs && !perpetualThem ? 2 : n_fold_rule()))
++                  && ++cnt + 1 >= (  !uses_drawless_forced_repetition()
++                                   && ply > i
++                                   && !moveRepetition
++                                   && !chaseUs
++                                   && !chaseThem
++                                   && !perpetualUs
++                                   && !perpetualThem
++                                   ? 2 : n_fold_rule()))
+               {
+                   result = convert_mate_value(  (perpetualThem || perpetualUs) ? (!perpetualUs ? VALUE_MATE : !perpetualThem ? -VALUE_MATE : VALUE_DRAW)
+                                               : (chaseThem || chaseUs) ? (!chaseUs ? VALUE_MATE : !chaseThem ? -VALUE_MATE : VALUE_DRAW)
+@@ -3107,6 +3115,42 @@ bool Position::has_repeated() const {
+ }
+ 
+ 
++/// Position::all_legal_moves_complete_drawless_repetition() determines the
++/// forced branch of the Drawless repetition rule before search pruning can
++/// discard siblings. The complete LEGAL list is required: pseudo-legal moves
++/// that expose a king are not repetition escapes.
++
++bool Position::all_legal_moves_complete_drawless_repetition(Move& firstMove) {
++
++  // A move can only create occurrence three if some position in the current
++  // reversible history has already repeated. This fast guard keeps ordinary
++  // opening and middlegame nodes out of the full legal-move classification.
++  if (!uses_drawless_forced_repetition() || !has_repeated())
++      return false;
++
++  const MoveList<LEGAL> legalMoves(*this);
++  if (!legalMoves.size())
++      return false;
++
++  firstMove = *legalMoves.begin();
++
++  for (Move move : legalMoves)
++  {
++      StateInfo nextState;
++      ASSERT_ALIGNED(&nextState, Eval::NNUE::CacheLineSize);
++
++      do_move(move, nextState);
++      const bool repeats = completes_drawless_repetition();
++      undo_move(move);
++
++      if (!repeats)
++          return false;
++  }
++
++  return true;
++}
++
++
+ /// Position::has_game_cycle() tests if the position has a move which draws by repetition,
+ /// or an earlier position has a move that directly reaches the current position.
+ 
+diff --git a/src/position.h b/src/position.h
+index 685c0799..81e171e8 100644
+--- a/src/position.h
++++ b/src/position.h
+@@ -328,6 +328,10 @@ public:
+   bool is_draw(int ply) const;
+   bool has_game_cycle(int ply) const;
+   bool has_repeated() const;
++  bool uses_drawless_forced_repetition() const;
++  bool completes_drawless_repetition() const;
++  bool all_legal_moves_complete_drawless_repetition(Move& firstMove);
++  Value drawless_forced_repetition_value(int ply) const;
+   Bitboard chased() const;
+   int count_limit(Color sideToCount) const;
+   int board_honor_counting_ply(int countStarted) const;
+@@ -1154,6 +1158,23 @@ inline bool Position::is_draw(int ply) const {
+   return is_optional_game_end(result, ply);
+ }
+ 
++inline bool Position::uses_drawless_forced_repetition() const {
++  assert(var != nullptr);
++  return var->drawlessForcedRepetition;
++}
++
++inline bool Position::completes_drawless_repetition() const {
++  assert(var != nullptr);
++  // StateInfo::repetition is negative from the third occurrence onward.
++  return uses_drawless_forced_repetition() && st->repetition < 0;
++}
++
++inline Value Position::drawless_forced_repetition_value(int ply) const {
++  assert(uses_drawless_forced_repetition());
++  // The forced mover wins after making one move from this parent node.
++  return convert_mate_value(var->nFoldValue, ply + 1);
++}
++
+ inline bool Position::is_game_end(Value& result, int ply) const {
+   return is_immediate_game_end(result, ply) || is_optional_game_end(result, ply);
+ }
+diff --git a/src/search.cpp b/src/search.cpp
+index 651f6bd9..5f6465e0 100644
+--- a/src/search.cpp
++++ b/src/search.cpp
+@@ -700,6 +700,7 @@ namespace {
+     ss->inCheck        = pos.checkers();
+     priorCapture       = pos.captured_piece();
+     Color us           = pos.side_to_move();
++    const bool drawlessRepetition = pos.uses_drawless_forced_repetition();
+     moveCount          = captureCount = quietCount = ss->moveCount = 0;
+     bestValue          = -VALUE_INFINITE;
+     maxValue           = VALUE_INFINITE;
+@@ -724,6 +725,37 @@ namespace {
+             return (ss->ply >= MAX_PLY && !ss->inCheck) ? evaluate(pos)
+                                                         : value_draw(pos.this_thread());
+ 
++    }
++
++    // The forced branch is a property of the complete legal move set. Resolve
++    // it before TT cutoffs, null move, futility, LMR, or move ordering can
++    // discard a sibling. A mixed set needs no override: the ordinary n-fold
++    // terminal makes each completing move lose for its mover.
++    Move forcedRepetitionMove = MOVE_NONE;
++    if (pos.all_legal_moves_complete_drawless_repetition(forcedRepetitionMove))
++    {
++        Value forcedValue = pos.drawless_forced_repetition_value(ss->ply);
++
++        if (rootNode)
++        {
++            RootMove& rm = thisThread->rootMoves[thisThread->pvIdx];
++            Move rootMove = rm.pv[0];
++            rm.score = forcedValue;
++            rm.selDepth = thisThread->selDepth;
++            rm.pv.assign(1, rootMove);
++        }
++        else if (PvNode)
++        {
++            assert(ss->pv);
++            ss->pv[0] = forcedRepetitionMove;
++            ss->pv[1] = MOVE_NONE;
++        }
++
++        return forcedValue;
++    }
++
++    if (!rootNode)
++    {
+         // Step 3. Mate distance pruning. Even if we mate at the next move our score
+         // would be at best mate_in(ss->ply+1), but if alpha is already bigger because
+         // a shorter mate was found upward in the tree then there is no need to search
+@@ -757,10 +789,14 @@ namespace {
+     // position key in case of an excluded move.
+     excludedMove = ss->excludedMove;
+     posKey = excludedMove == MOVE_NONE ? pos.key() : pos.key() ^ make_key(excludedMove);
+-    tte = TT.probe(posKey, ss->ttHit);
++    bool ttProbeHit;
++    tte = TT.probe(posKey, ttProbeHit);
++    // Board-only TT bounds are not valid for Drawless repetition histories.
++    // Keep a legal TT move for ordering, but never trust the stored score.
++    ss->ttHit = ttProbeHit && !drawlessRepetition;
+     ttValue = ss->ttHit ? value_from_tt(tte->value(), ss->ply, pos.rule50_count()) : VALUE_NONE;
+     ttMove =  rootNode ? thisThread->rootMoves[thisThread->pvIdx].pv[0]
+-            : ss->ttHit    ? tte->move() : MOVE_NONE;
++            : ttProbeHit   ? tte->move() : MOVE_NONE;
+     if (!excludedMove)
+         ss->ttPv = PvNode || (ss->ttHit && tte->is_pv());
+ 
+@@ -1038,7 +1074,8 @@ namespace {
+                 if (value >= probCutBeta)
+                 {
+                     // if transposition table doesn't have equal or more deep info write probCut data into it
+-                    if ( !(ss->ttHit
++                    if ( !drawlessRepetition
++                      && !(ss->ttHit
+                        && tte->depth() >= depth - 3
+                        && ttValue != VALUE_NONE))
+                         tte->save(posKey, value_to_tt(value, ss->ply), ttPv,
+@@ -1498,7 +1535,7 @@ moves_loop: // When in check, search starts from here
+         ss->ttPv = ss->ttPv && (ss+1)->ttPv;
+ 
+     // Write gathered information in transposition table
+-    if (!excludedMove && !(rootNode && thisThread->pvIdx))
++    if (!drawlessRepetition && !excludedMove && !(rootNode && thisThread->pvIdx))
+         tte->save(posKey, value_to_tt(bestValue, ss->ply), ss->ttPv,
+                   bestValue >= beta ? BOUND_LOWER :
+                   PvNode && bestMove ? BOUND_EXACT : BOUND_UPPER,
+@@ -1550,6 +1587,19 @@ moves_loop: // When in check, search starts from here
+     if (pos.is_game_end(gameResult, ss->ply))
+         return gameResult;
+ 
++    const bool drawlessRepetition = pos.uses_drawless_forced_repetition();
++    Move forcedRepetitionMove = MOVE_NONE;
++    if (pos.all_legal_moves_complete_drawless_repetition(forcedRepetitionMove))
++    {
++        if (PvNode)
++        {
++            assert(ss->pv);
++            ss->pv[0] = forcedRepetitionMove;
++            ss->pv[1] = MOVE_NONE;
++        }
++        return pos.drawless_forced_repetition_value(ss->ply);
++    }
++
+     // Check for maximum ply reached
+     if (ss->ply >= MAX_PLY)
+         return !ss->inCheck ? evaluate(pos) : VALUE_DRAW;
+@@ -1567,9 +1617,11 @@ moves_loop: // When in check, search starts from here
+                                                   : DEPTH_QS_NO_CHECKS;
+     // Transposition table lookup
+     posKey = pos.key();
+-    tte = TT.probe(posKey, ss->ttHit);
++    bool ttProbeHit;
++    tte = TT.probe(posKey, ttProbeHit);
++    ss->ttHit = ttProbeHit && !drawlessRepetition;
+     ttValue = ss->ttHit ? value_from_tt(tte->value(), ss->ply, pos.rule50_count()) : VALUE_NONE;
+-    ttMove = ss->ttHit ? tte->move() : MOVE_NONE;
++    ttMove = ttProbeHit ? tte->move() : MOVE_NONE;
+     pvHit = ss->ttHit && tte->is_pv();
+ 
+     if (  !PvNode
+@@ -1610,7 +1662,7 @@ moves_loop: // When in check, search starts from here
+         if (bestValue >= beta)
+         {
+             // Save gathered info in transposition table
+-            if (!ss->ttHit)
++            if (!drawlessRepetition && !ss->ttHit)
+                 tte->save(posKey, value_to_tt(bestValue, ss->ply), false, BOUND_LOWER,
+                           DEPTH_NONE, MOVE_NONE, ss->staticEval);
+ 
+@@ -1740,10 +1792,11 @@ moves_loop: // When in check, search starts from here
+     }
+ 
+     // Save gathered info in transposition table
+-    tte->save(posKey, value_to_tt(bestValue, ss->ply), pvHit,
+-              bestValue >= beta ? BOUND_LOWER :
+-              PvNode && bestValue > oldAlpha  ? BOUND_EXACT : BOUND_UPPER,
+-              ttDepth, bestMove, ss->staticEval);
++    if (!drawlessRepetition)
++        tte->save(posKey, value_to_tt(bestValue, ss->ply), pvHit,
++                  bestValue >= beta ? BOUND_LOWER :
++                  PvNode && bestValue > oldAlpha  ? BOUND_EXACT : BOUND_UPPER,
++                  ttDepth, bestMove, ss->staticEval);
+ 
+     assert(bestValue > -VALUE_INFINITE && bestValue < VALUE_INFINITE);
+ 
+diff --git a/src/ucioption.cpp b/src/ucioption.cpp
+index 0326e047..6e69240a 100644
+--- a/src/ucioption.cpp
++++ b/src/ucioption.cpp
+@@ -196,6 +196,7 @@ void init(OptionsMap& o) {
+   o["UCI_LimitStrength"]     << Option(false);
+   o["UCI_Elo"]               << Option(1350, 500, 2850);
+   o["UCI_ShowWDL"]           << Option(false);
++  o["Drawless Patch Version"] << Option(1, 1, 1);
+   o["SyzygyPath"]            << Option("<empty>", on_tb_path);
+   o["SyzygyProbeDepth"]      << Option(1, 1, 100);
+   o["Syzygy50MoveRule"]      << Option(true);
+diff --git a/src/variant.cpp b/src/variant.cpp
+index e722d259..fa9ecbc5 100644
+--- a/src/variant.cpp
++++ b/src/variant.cpp
+@@ -1978,6 +1978,15 @@ void VariantMap::init() {
+ 
+ // Pre-calculate derived properties
+ Variant* Variant::conclude() {
++    // Drawless forced repetition has one exact v1 rules contract. Keep the
++    // configuration self-contained and color-neutral when it is enabled.
++    if (drawlessForcedRepetition)
++    {
++        nFoldRule = 3;
++        nFoldValue = VALUE_MATE;
++        nFoldValueAbsolute = false;
++    }
++
+     // Enforce consistency to allow runtime optimizations
+     if (!doubleStep)
+         doubleStepRegion[WHITE] = doubleStepRegion[BLACK] = 0;
+diff --git a/src/variant.h b/src/variant.h
+index 0e6d44c3..0c9208c4 100644
+--- a/src/variant.h
++++ b/src/variant.h
+@@ -125,6 +125,7 @@ struct Variant {
+   int nFoldRule = 3;
+   Value nFoldValue = VALUE_DRAW;
+   bool nFoldValueAbsolute = false;
++  bool drawlessForcedRepetition = false;
+   bool perpetualCheckIllegal = false;
+   bool moveRepetitionIllegal = false;
+   ChasingRule chasingRule = NO_CHASING;
+diff --git a/src/variants.ini b/src/variants.ini
+index 5d330f7a..1389b9f0 100644
+--- a/src/variants.ini
++++ b/src/variants.ini
+@@ -254,6 +254,7 @@
+ # nFoldRule: move count for 3/n-fold repetition rule [int] (default: 3)
+ # nFoldValue: result in case of 3/n-fold repetition [Value] (default: draw)
+ # nFoldValueAbsolute: result in case of 3/n-fold repetition is from white's point of view [bool] (default: false)
++# drawlessForcedRepetition: completing nFoldRule loses unless every legal move repeats [bool] (default: false)
+ # perpetualCheckIllegal: prohibit perpetual checks [bool] (default: false)
+ # moveRepetitionIllegal: prohibit moving back and forth with the same piece nFoldRule-1 times [bool] (default: false)
+ # chasingRule: enable chasing rules [ChasingRule] (default: none)
+

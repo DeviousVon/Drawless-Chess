@@ -1,0 +1,92 @@
+{
+  "schemaVersion": 1,
+  "description": "Cross-layer fixtures for app adjudication and Fairy-Stockfish search parity.",
+  "fixtures": [
+    {
+      "id": "drawless-stalemate-terminal",
+      "gate": "current-poc",
+      "variant": "drawless",
+      "initialFen": "k7/2Q5/2K5/8/8/8/8/8 b - - 0 1",
+      "moves": [],
+      "expected": {
+        "bestMove": null,
+        "winner": "WHITE",
+        "reason": "STALEMATE"
+      }
+    },
+    {
+      "id": "escape-stalemate-terminal",
+      "gate": "current-poc",
+      "variant": "escape",
+      "initialFen": "k7/2Q5/2K5/8/8/8/8/8 b - - 0 1",
+      "moves": [],
+      "expected": {
+        "bestMove": null,
+        "winner": "BLACK",
+        "reason": "STALEMATE"
+      }
+    },
+    {
+      "id": "checkmate-terminal",
+      "gate": "current-poc",
+      "variant": "drawless",
+      "initialFen": "rnb1kbnr/pppp1ppp/8/4p3/6Pq/5P2/PPPPP2P/RNBQKBNR w KQkq - 1 3",
+      "moves": [],
+      "expected": {
+        "bestMove": null,
+        "winner": "BLACK",
+        "reason": "CHECKMATE"
+      }
+    },
+    {
+      "id": "avoidable-third-repetition",
+      "gate": "current-poc",
+      "variant": "drawless",
+      "initialFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "moves": ["g1f3", "g8f6", "f3g1", "f6g8", "g1f3", "g8f6", "f3g1"],
+      "expected": {
+        "forbiddenBestMoves": ["f6g8"],
+        "loserIfPlayed": "BLACK",
+        "reason": "REPETITION"
+      }
+    },
+    {
+      "id": "avoidable-third-repetition-white",
+      "gate": "current-poc",
+      "variant": "drawless",
+      "initialFen": "rnbqkbnr/pppppppp/8/8/8/5N2/PPPPPPPP/RNBQKB1R b KQkq - 1 1",
+      "moves": ["g8f6", "f3g1", "f6g8", "g1f3", "g8f6", "f3g1", "f6g8"],
+      "expected": {
+        "forbiddenBestMoves": ["g1f3"],
+        "loserIfPlayed": "WHITE",
+        "reason": "REPETITION"
+      }
+    },
+    {
+      "id": "forced-third-repetition-exception",
+      "gate": "drawless-patch-v1",
+      "variant": "drawless",
+      "initialFen": "6k1/7p/5Q2/8/8/8/8/6K1 w - - 0 1",
+      "moves": ["f6f7", "g8h8", "f7f6", "h8g8", "f6f7", "g8h8", "f7f6"],
+      "expected": {
+        "onlyLegalMove": "h8g8",
+        "winner": "BLACK",
+        "loser": "WHITE",
+        "reason": "REPETITION"
+      }
+    },
+    {
+      "id": "forced-third-repetition-exception-white",
+      "gate": "drawless-patch-v1",
+      "variant": "drawless",
+      "initialFen": "1k6/8/8/8/8/2q5/P7/1K6 b - - 0 1",
+      "moves": ["c3c2", "b1a1", "c2c3", "a1b1", "c3c2", "b1a1", "c2c3"],
+      "expected": {
+        "onlyLegalMove": "a1b1",
+        "winner": "WHITE",
+        "loser": "BLACK",
+        "reason": "REPETITION"
+      }
+    }
+  ]
+}

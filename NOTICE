@@ -1,0 +1,61 @@
+Drawless Chess
+==============
+
+Drawless Chess is free software. Except for third-party material identified
+below or in its own notice, the Drawless Chess source and the combined Android
+application are licensed under the GNU General Public License, version 3 or (at
+your option) any later version (GPL-3.0-or-later). The complete terms are in
+LICENSE.
+
+You may copy, modify, redistribute, and charge for copies under those terms.
+Those permissions include an obligation to provide recipients the complete
+corresponding source for the exact binary they receive and to preserve their GPL
+rights. There is no warranty, to the extent permitted by law.
+
+Source for a release
+--------------------
+
+The public project source is at:
+
+    https://github.com/DeviousVon/Drawless-Chess
+
+Every public APK or App Bundle release must also identify the corresponding
+source location for that exact version. The release owner must publish the
+archive made by scripts/source-bundle.sh, its SHA-256, and the matching binary
+identity. The repository alone is not a substitute for that versioned archive.
+See docs/RELEASE_LICENSING.md for the release checklist.
+
+Third-party material
+--------------------
+
+* Fairy-Stockfish, derived from Stockfish, is GPL-3.0-or-later. Its exact
+  revision, authors, license, Drawless patch series, and source identity are
+  recorded under engine/native/ and engine/patches/.
+* fairy-stockfish-nnue.wasm and ffish-es6 are GPL-family packages used by the
+  separate JavaScript proof of concept. Their versions are locked in
+  package-lock.json; they are not the Android native source pin.
+* AndroidX, Jetpack Compose, Room, Kotlin, the Android Gradle Plugin, and Gradle
+  contain Apache-2.0 material. Their upstream notices remain authoritative.
+
+Third-party copyright and attribution notices remain the property of their
+respective authors. This NOTICE summarizes the repository boundary; it does not
+replace any third-party license text or notice packaged with a dependency.
+
+Original visual and audio material
+----------------------------------
+
+The code-native chess-piece drawings, launcher icon vectors, and supporting color
+resources under android/app/src/main are original project material and are covered
+by the Drawless Chess GPL-3.0-or-later grant. Move and capture sounds are synthesized
+at runtime by the project source; no sampled or stock audio recording is embedded.
+If packaged art or audio is added later, its provenance and license must be recorded
+before release.
+
+Name and identity
+-----------------
+
+The GPL governs copyright permissions in the code and original assets. “Drawless
+Chess” and its logo also identify this project. No trademark registration is claimed
+here, and this notice does not restrict truthful attribution or any copyright right
+granted by the GPL. Modified versions should avoid names, icons, or presentation that
+falsely imply they are official releases or endorsed by the original project.

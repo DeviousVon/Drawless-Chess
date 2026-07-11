@@ -1,0 +1,32 @@
+# Fairy-Stockfish translation units linked into libdrawless_fairy.so.
+# Paths are relative to the pinned checkout's src/ directory.
+# main.cpp is excluded; android/engine/src/main/cpp/native_bridge.cpp supplies the
+# provisional private-test JNI entry point. The final release boundary remains gated.
+benchmark.cpp
+bitbase.cpp
+bitboard.cpp
+endgame.cpp
+evaluate.cpp
+material.cpp
+misc.cpp
+movegen.cpp
+movepick.cpp
+pawns.cpp
+position.cpp
+psqt.cpp
+search.cpp
+thread.cpp
+timeman.cpp
+tt.cpp
+uci.cpp
+ucioption.cpp
+tune.cpp
+syzygy/tbprobe.cpp
+nnue/evaluate_nnue.cpp
+nnue/features/half_ka_v2.cpp
+partner.cpp
+parser.cpp
+piece.cpp
+variant.cpp
+xboard.cpp
+nnue/features/half_ka_v2_variants.cpp

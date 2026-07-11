@@ -1,0 +1,13 @@
+{
+  global:
+    JNI_OnLoad;
+    drawless_fairy_android_abi;
+    drawless_fairy_bridge_abi_version;
+    drawless_fairy_patch_series_sha256;
+    drawless_fairy_patch_version;
+    drawless_fairy_patched_tree;
+    drawless_fairy_upstream_revision;
+    drawless_fairy_upstream_tree;
+  local:
+    *;
+};
