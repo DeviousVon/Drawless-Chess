@@ -23,10 +23,15 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -55,6 +60,8 @@ fun GameRoute(
     val soundPlayer = remember(controller) { MoveSoundPlayer() }
     var soundedPlyCount by remember(controller) { mutableIntStateOf(model.history.plyCount()) }
     var confirmResign by remember { mutableStateOf(false) }
+    var previousPhase by remember(controller) { mutableStateOf(model.board.phase) }
+    var completionEffect by remember(controller) { mutableStateOf<GameResultView?>(null) }
     val lifecycleOwner = LocalLifecycleOwner.current
     var lifecycleStarted by remember(lifecycleOwner) {
         mutableStateOf(lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED))
@@ -84,6 +91,15 @@ fun GameRoute(
             soundPlayer.play(capture = 'x' in latestSan)
         }
         soundedPlyCount = visiblePlyCount
+    }
+
+    LaunchedEffect(model.board.phase, model.result) {
+        if (previousPhase != CoordinatorPhase.COMPLETED &&
+            model.board.phase == CoordinatorPhase.COMPLETED
+        ) {
+            completionEffect = model.result
+        }
+        previousPhase = model.board.phase
     }
 
     val shouldTick = model.board.phase == CoordinatorPhase.BOT_THINKING ||
@@ -119,27 +135,36 @@ fun GameRoute(
             )
         },
         bottomBar = {
-            if (model.board.phase == CoordinatorPhase.COMPLETED) {
+            model.result?.let { result ->
                 PostGameBar(
-                    result = model.board.statusText,
+                    result = result,
                     onHome = onExit,
                     onRematch = onRematch,
                 )
             }
         },
     ) { padding ->
-        GameBody(
-            model = model,
-            modifier = Modifier.padding(padding),
-            onBoardEvent = { model = controller.boardEvent(it) },
-            onPause = { model = controller.pauseOrResume() },
-            onUndo = { model = controller.undo() },
-            onHint = { model = controller.hint() },
-            onFlip = { model = controller.boardEvent(BoardEvent.FlipBoard) },
-            onRetryBot = { model = controller.retryBot() },
-            onResign = { confirmResign = true },
-            onDismissMessage = { model = controller.dismissMessage() },
-        )
+        Box(Modifier.fillMaxSize().padding(padding)) {
+            GameBody(
+                model = model,
+                modifier = Modifier.fillMaxSize(),
+                onBoardEvent = { model = controller.boardEvent(it) },
+                onPause = { model = controller.pauseOrResume() },
+                onUndo = { model = controller.undo() },
+                onHint = { model = controller.hint() },
+                onFlip = { model = controller.boardEvent(BoardEvent.FlipBoard) },
+                onRetryBot = { model = controller.retryBot() },
+                onResign = { confirmResign = true },
+                onDismissMessage = { model = controller.dismissMessage() },
+            )
+            completionEffect?.let { result ->
+                CompletionEffectOverlay(
+                    result = result,
+                    modifier = Modifier.fillMaxSize(),
+                    onFinished = { completionEffect = null },
+                )
+            }
+        }
     }
 
     model.board.promotionPrompt?.let { prompt ->
@@ -170,18 +195,47 @@ fun GameRoute(
 }
 
 @Composable
-private fun PostGameBar(
-    result: String,
+internal fun PostGameBar(
+    result: GameResultView,
     onHome: () -> Unit,
     onRematch: () -> Unit,
 ) {
-    Surface(tonalElevation = 10.dp, shadowElevation = 8.dp) {
+    val headline = if (result.playerWon) "Victory" else "Defeat"
+    val container = if (result.playerWon) {
+        MaterialTheme.colorScheme.primaryContainer
+    } else {
+        MaterialTheme.colorScheme.errorContainer
+    }
+    val onContainer = if (result.playerWon) {
+        MaterialTheme.colorScheme.onPrimaryContainer
+    } else {
+        MaterialTheme.colorScheme.onErrorContainer
+    }
+    Surface(color = container, tonalElevation = 10.dp, shadowElevation = 8.dp) {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag("post_game_feedback")
+                .semantics {
+                    stateDescription = headline
+                    liveRegion = LiveRegionMode.Polite
+                }
+                .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Text("Game over", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-            Text(result, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                headline,
+                modifier = Modifier.semantics { heading() },
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = onContainer,
+            )
+            Text(
+                if (result.playerWon) "You won this game." else "Your opponent won this game.",
+                fontWeight = FontWeight.SemiBold,
+                color = onContainer,
+            )
+            Text(result.explanation, color = onContainer.copy(alpha = 0.82f))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),

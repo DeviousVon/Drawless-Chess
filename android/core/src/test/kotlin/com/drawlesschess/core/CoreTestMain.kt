@@ -1046,6 +1046,32 @@ fun main() {
         val model = GameScreenController(fixture.coordinator, config).model()
         assertThat(model.history == listOf(MoveHistoryRow(1, "e4", "e5")))
     }
+    suite.test("screen controller maps completed outcomes to the local player") {
+        val blackConfig = coordinatorConfig(humanSide = Side.BLACK)
+        val checkmate = coordinatorFixture(blackConfig)
+        checkmate.engine.respond(move = "f2f3")
+        checkmate.coordinator.playHuman(UciMove("e7e5"))
+        checkmate.engine.respond(move = "g2g4")
+        checkmate.coordinator.playHuman(UciMove("d8h4"))
+
+        val winningResult = GameScreenController(checkmate.coordinator, blackConfig).model().result
+        assertThat(winningResult == GameResultView(
+            playerWon = true,
+            playerSide = Side.BLACK,
+            reason = EndReason.CHECKMATE,
+            explanation = "BLACK wins by checkmate",
+        ))
+
+        val whiteConfig = coordinatorConfig(humanSide = Side.WHITE)
+        val resignation = coordinatorFixture(whiteConfig)
+        val losingResult = GameScreenController(resignation.coordinator, whiteConfig).resign().result
+        assertThat(losingResult == GameResultView(
+            playerWon = false,
+            playerSide = Side.WHITE,
+            reason = EndReason.RESIGNATION,
+            explanation = "WHITE resigns",
+        ))
+    }
     suite.test("screen controller exposes casual controls") {
         val config = coordinatorConfig()
         val fixture = coordinatorFixture(config)

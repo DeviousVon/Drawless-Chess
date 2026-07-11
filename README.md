@@ -64,10 +64,10 @@ SDK/JDK setup and commands for both host lanes are in `docs/ANDROID_MACHINE_VERI
 
 ## Current verification checkpoint
 
-- `npm run test:kotlin` passes 195 JVM/core/endpoint tests.
+- `npm run test:kotlin` passes 196 JVM/core/endpoint tests.
 - The native engine instrumentation passes once on each runtime ABI: x86-64 emulator and
   ARM64 physical phone.
-- The seven-test app instrumentation suite passes on both devices. It covers Room codec and
+- The eight-test app instrumentation suite passes on both devices. It covers Room codec and
   reopen/restore behavior, stale-write protection, rapid game replacement, a real hint
   followed by a bot move through the same native session, advanced setup, and rematch.
 - Both machine manifests agree on the current private-test package bytes: debug APK

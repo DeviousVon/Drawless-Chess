@@ -144,7 +144,7 @@ should calibrate the labels before public release.
 
 ## Verification boundary
 
-At this checkpoint, `npm run test:kotlin` passes 195 JVM/core-and-endpoint tests. Of those,
+At this checkpoint, `npm run test:kotlin` passes 196 JVM/core-and-endpoint tests. Of those,
 25 native bridge tests cover split UTF-8/CRLF framing, malformed and oversized input, bounded FIFO
 writes, synchronous and asynchronous completions, backpressure, stdout/stderr separation,
 consumer isolation, open/write/close failures, duplicate completion, explicit and
@@ -177,7 +177,7 @@ with SHA-256 `67ab4c621b55315971d091be5b03c61544e2493aa49876de06b723ec2ba9d522`,
 and unsigned release APK 11,684,783 bytes with SHA-256
 `04ce7a3843952fd654350f1f82bbe0cbf035f2dedf975005563b3970d8f31ce8`.
 
-The app instrumentation suite also passes seven tests on each device. In particular, its
+The app instrumentation suite also passes eight tests on each device. In particular, its
 native-hint acceptance case publishes a full-strength MultiPV hint and then completes a bot
 move through the same process-global session; rapid game replacement also completes a real
 bot move without reproducing the former second-game session failure.

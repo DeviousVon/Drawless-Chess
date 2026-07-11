@@ -40,6 +40,8 @@ The game screen renders:
 - Pause/resume, undo, hint, flip, and resign controls.
 - Promotion and resignation confirmation dialogs.
 - Per-square accessibility semantics.
+- Explicit Victory/Defeat feedback with a finite code-native fireworks or cracked-glass
+  finish effect; the stable result text and Home/Rematch controls remain immediately available.
 
 ## Verified outside Android
 
@@ -55,7 +57,7 @@ The game screen renders:
   structure.
 - The structure gate requires `:app` to depend on `:engine`, verifies the factory API,
   and rejects a release configuration that can select the development bot.
-- `npm run test:kotlin` passes 195 tests at this checkpoint. This includes the core,
+- `npm run test:kotlin` passes 196 tests at this checkpoint. This includes the core,
   native transport, and fake-native JNI-port lifecycle suites; it is not an Android
   binary or device test.
 
@@ -111,7 +113,7 @@ binary remains blocked by the exact-source, notices/SBOM, signing, and release-e
 
 The Windows-native gate has compiled and audited both packaged ABIs, built debug and release
 artifacts, and run the real JNI instrumentation independently on an API-36 x86-64 emulator
-and an API-37 ARM64 physical device. The seven-test app instrumentation suite passes on both
+and an API-37 ARM64 physical device. The eight-test app instrumentation suite passes on both
 targets and verifies:
 
 - exact checkpoint codec round trips for the shipped defaults and alternate tagged variants;

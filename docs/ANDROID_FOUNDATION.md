@@ -98,7 +98,7 @@ The Kotlin-only gate is:
 npm run test:kotlin
 ```
 
-At this checkpoint that command passes 195 JVM/core-and-endpoint tests. Twenty-five target the
+At this checkpoint that command passes 196 JVM/core-and-endpoint tests. Twenty-five target the
 native boundary specifically: line framing, bounded FIFO writes, backpressure, lifecycle
 and failure behavior, ABI/artifact metadata, `NativeFairyEngineSession` composition, and
 endpoint-crash propagation. Nine more exercise the managed JNI port lifecycle and exact

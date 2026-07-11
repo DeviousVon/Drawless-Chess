@@ -47,6 +47,10 @@ fi
 
 rg -q 'fun DrawlessApp\(' "$root/android/app/src/main/kotlin"
 rg -q 'fun GameRoute\(' "$root/android/app/src/main/kotlin"
+rg -q 'fun CompletionEffectOverlay\(' "$root/android/app/src/main/kotlin"
+rg -q 'drawVictoryFireworks' "$root/android/app/src/main/kotlin/com/drawlesschess/ui/CompletionEffectOverlay.kt"
+rg -q 'drawDefeatCracks' "$root/android/app/src/main/kotlin/com/drawlesschess/ui/CompletionEffectOverlay.kt"
+rg -Fq 'testTag("post_game_feedback")' "$root/android/app/src/main/kotlin/com/drawlesschess/ui/GameScreen.kt"
 rg -q 'class MainActivity' "$root/android/app/src/main/kotlin"
 rg -q 'android.intent.action.MAIN' "$root/android/app/src/main/AndroidManifest.xml"
 rg -Fq 'android:launchMode="singleTask"' "$root/android/app/src/main/AndroidManifest.xml"

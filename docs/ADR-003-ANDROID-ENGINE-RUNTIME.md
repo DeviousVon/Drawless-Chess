@@ -86,7 +86,7 @@ forced-repetition search, close, and sequential restart. The machine evidence se
 records both compiled/package ABIs and the one runtime ABI exercised by each run; together
 the two passing manifests complete the intended runtime matrix.
 
-The seven-test app suite also passes on both devices, including rapid runtime replacement
+The eight-test app suite also passes on both devices, including rapid runtime replacement
 and a full-strength hint followed by a bot move through the same native session. Separate
 physical acceptance has covered Room-backed force-stop/relaunch/Resume. These checks do
 not establish low-memory/native-crash resilience, sustained performance, every form factor,

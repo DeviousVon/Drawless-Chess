@@ -102,12 +102,13 @@ class RepeatedGameLifecycleInstrumentedTest {
         compose.onNodeWithText("Resign").performClick()
         waitForText("Resign this game?")
         compose.onNodeWithText("Resign game").performClick()
-        waitForText("Game over")
+        waitForText("Defeat")
+        waitForText("Your opponent won this game.")
         waitForText("Rematch")
 
         compose.onNodeWithText("Rematch").performClick()
         waitForText("Your move")
-        assertTrue(compose.onAllNodesWithText("Game over").fetchSemanticsNodes().isEmpty())
+        assertTrue(compose.onAllNodesWithText("Defeat").fetchSemanticsNodes().isEmpty())
     }
 
     private fun waitForText(value: String) {

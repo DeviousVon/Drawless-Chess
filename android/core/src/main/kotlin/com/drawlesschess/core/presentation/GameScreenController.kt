@@ -25,6 +25,13 @@ data class GameControlsView(
     val canFlip: Boolean = true,
 )
 
+data class GameResultView(
+    val playerWon: Boolean,
+    val playerSide: Side,
+    val reason: EndReason,
+    val explanation: String,
+)
+
 data class GameScreenModel(
     val board: BoardScreenState,
     val whiteClock: ClockView,
@@ -33,6 +40,7 @@ data class GameScreenModel(
     val controls: GameControlsView,
     val rulesLabel: String,
     val modeLabel: String,
+    val result: GameResultView?,
     val transientMessage: String?,
 )
 
@@ -71,6 +79,14 @@ class GameScreenController(
             controls = controls(snapshot),
             rulesLabel = if (config.rules.preset == RulesContractV1.Preset.DRAWLESS) "Drawless" else "Escape",
             modeLabel = if (config.mode == GameMode.RATED) "Rated" else "Casual",
+            result = snapshot.session.outcome?.let { outcome ->
+                GameResultView(
+                    playerWon = outcome.winner == config.humanSide,
+                    playerSide = config.humanSide,
+                    reason = outcome.reason,
+                    explanation = outcome.explanation,
+                )
+            },
             transientMessage = transientMessage,
         )
     }

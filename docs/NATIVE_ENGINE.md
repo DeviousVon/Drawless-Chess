@@ -137,7 +137,7 @@ but its licensing direction is no longer provisional: the combined work is GPL. 
 to a worker is not required as a licensing workaround and would not automatically remove
 GPL obligations.
 
-At this checkpoint, `npm run test:kotlin` passes 195 tests. Twenty-five exercise the
+At this checkpoint, `npm run test:kotlin` passes 196 tests. Twenty-five exercise the
 JVM-neutral native transport/composition and nine more exercise the real managed JNI-port
 code and exact static-native signature contract. The Compose structure gate also verifies that the
 app selects the factory and that release cannot select the development bot. Beyond those
