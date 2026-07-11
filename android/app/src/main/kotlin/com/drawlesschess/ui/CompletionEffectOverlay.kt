@@ -1,7 +1,7 @@
 package com.drawlesschess.ui
 
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -21,6 +21,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -38,6 +39,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.drawlesschess.core.chess.PieceType
 import com.drawlesschess.core.presentation.GameResultView
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.launch
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.max
@@ -50,19 +55,33 @@ import kotlin.math.sin
 @Composable
 internal fun CompletionEffectOverlay(
     result: GameResultView,
+    onCue: (CompletionEffectCue) -> Unit,
     onFinished: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val progress = remember(result) { Animatable(0f) }
+    val spec = remember(result.playerWon) { CompletionEffectTimeline.forResult(result.playerWon) }
+    val latestOnCue by rememberUpdatedState(onCue)
     val latestOnFinished by rememberUpdatedState(onFinished)
-    val durationMillis = if (result.playerWon) 1_300 else 1_050
 
     LaunchedEffect(result) {
         progress.snapTo(0f)
-        progress.animateTo(
-            targetValue = 1f,
-            animationSpec = tween(durationMillis, easing = FastOutSlowInEasing),
-        )
+        coroutineScope {
+            val cursor = CompletionCueCursor(spec.cues)
+            val cueJob = launch {
+                snapshotFlow { progress.value }.collect { fraction ->
+                    cursor.advanceTo(fraction).forEach(latestOnCue)
+                }
+            }
+            progress.animateTo(
+                targetValue = 1f,
+                animationSpec = tween(spec.durationMillis, easing = LinearEasing),
+            )
+            // A zero-duration system animation can finish before snapshotFlow is rescheduled.
+            // Advancing once here guarantees the single pre-timed outcome buffer still starts.
+            cursor.advanceTo(progress.value).forEach(latestOnCue)
+            cueJob.cancelAndJoin()
+        }
         latestOnFinished()
     }
 
@@ -82,9 +101,9 @@ internal fun CompletionEffectOverlay(
         )
         Canvas(Modifier.fillMaxSize()) {
             if (result.playerWon) {
-                drawVictoryFireworks(fraction, veil, accent)
+                drawVictoryFireworks(fraction, veil, accent, spec.cues)
             } else {
-                drawDefeatCracks(fraction)
+                drawDefeatCracks(fraction, spec.cues)
             }
         }
         FinishCallout(
@@ -166,18 +185,21 @@ private fun DrawScope.drawVictoryFireworks(
     progress: Float,
     primary: Color,
     accent: Color,
+    cues: List<TimedCompletionCue>,
 ) {
-    val reveal = (progress / 0.7f).coerceIn(0f, 1f)
-    val fade = (1f - ((progress - 0.58f) / 0.42f)).coerceIn(0f, 1f)
     val palette = listOf(accent, Color(0xFFFFC857), Color(0xFFFF7A66), primary, Color.White)
     val bursts = listOf(
         Offset(size.width * 0.22f, size.height * 0.24f),
         Offset(size.width * 0.78f, size.height * 0.30f),
         Offset(size.width * 0.52f, size.height * 0.16f),
     )
-    val baseRadius = size.minDimension * 0.20f * reveal
 
     bursts.forEachIndexed { burstIndex, center ->
+        val start = cues[burstIndex].progress
+        val localProgress = ((progress - start) / (1f - start)).coerceIn(0f, 1f)
+        val reveal = (localProgress / 0.34f).coerceIn(0f, 1f)
+        val fade = (1f - ((localProgress - 0.68f) / 0.32f)).coerceIn(0f, 1f)
+        val baseRadius = size.minDimension * 0.20f * reveal
         val localRadius = baseRadius * (0.78f + burstIndex * 0.12f)
         repeat(18) { ray ->
             val angle = ((ray / 18f) * 2f * PI + burstIndex * 0.31f).toFloat()
@@ -206,9 +228,11 @@ private fun DrawScope.drawVictoryFireworks(
         )
     }
 
+    val firstCue = cues.first().progress
+    val confettiProgress = ((progress - firstCue) / (1f - firstCue)).coerceIn(0f, 1f)
     repeat(30) { index ->
         val delay = (index % 6) * 0.035f
-        val fall = ((progress - delay) / (1f - delay)).coerceIn(0f, 1f)
+        val fall = ((confettiProgress - delay) / (1f - delay)).coerceIn(0f, 1f)
         if (fall <= 0f) return@repeat
         val seededX = ((index * 37) % 101) / 101f
         val x = size.width * (0.05f + seededX * 0.90f) +
@@ -227,8 +251,11 @@ private fun DrawScope.drawVictoryFireworks(
     }
 }
 
-private fun DrawScope.drawDefeatCracks(progress: Float) {
-    val reveal = (progress / 0.34f).coerceIn(0f, 1f)
+private fun DrawScope.drawDefeatCracks(
+    progress: Float,
+    cues: List<TimedCompletionCue>,
+) {
+    val impactReveal = ((progress - cues[0].progress) / 0.20f).coerceIn(0f, 1f)
     val fade = (1f - ((progress - 0.62f) / 0.38f)).coerceIn(0f, 1f)
     val impact = Offset(size.width * 0.54f, size.height * 0.34f)
     val lineColor = Color.White.copy(alpha = fade * 0.88f)
@@ -237,12 +264,14 @@ private fun DrawScope.drawDefeatCracks(progress: Float) {
 
     drawCircle(
         color = lineColor.copy(alpha = fade * 0.45f),
-        radius = size.minDimension * 0.05f * reveal,
+        radius = size.minDimension * 0.05f * impactReveal,
         center = impact,
         style = Stroke(width = max(2f, size.minDimension * 0.004f)),
     )
 
     angles.forEachIndexed { index, angle ->
+        val cueIndex = (index * cues.size / angles.size).coerceAtMost(cues.lastIndex)
+        val reveal = ((progress - cues[cueIndex].progress) / 0.24f).coerceIn(0f, 1f)
         val direction = Offset(cos(angle), sin(angle))
         val length = size.minDimension * (0.24f + (index % 4) * 0.055f) * reveal
         val end = impact + Offset(direction.x * length, direction.y * length)
@@ -261,10 +290,17 @@ private fun DrawScope.drawDefeatCracks(progress: Float) {
         drawLine(lineColor.copy(alpha = fade * 0.78f), branchStart, branchEnd, stroke * 0.72f)
     }
 
+    val shardReveal = ((progress - cues.last().progress) / 0.22f).coerceIn(0f, 1f)
     val shard = Path().apply {
-        moveTo(impact.x - size.minDimension * 0.035f * reveal, impact.y)
-        lineTo(impact.x + size.minDimension * 0.018f * reveal, impact.y - size.minDimension * 0.045f * reveal)
-        lineTo(impact.x + size.minDimension * 0.042f * reveal, impact.y + size.minDimension * 0.028f * reveal)
+        moveTo(impact.x - size.minDimension * 0.035f * shardReveal, impact.y)
+        lineTo(
+            impact.x + size.minDimension * 0.018f * shardReveal,
+            impact.y - size.minDimension * 0.045f * shardReveal,
+        )
+        lineTo(
+            impact.x + size.minDimension * 0.042f * shardReveal,
+            impact.y + size.minDimension * 0.028f * shardReveal,
+        )
         close()
     }
     drawPath(shard, Color.White.copy(alpha = fade * 0.20f))

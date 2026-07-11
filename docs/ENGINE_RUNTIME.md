@@ -172,15 +172,19 @@ runtime ABIs.
 The checked-in machine gate locks the SDK/JDK/Gradle/NDK/CMake inputs, audits debug and
 release AAR/APK native bytes, runs exactly one bounded native test on the explicitly selected
 device, and retains failure-safe evidence. The final x86-64 and ARM64 manifests both report
-`result: passed`, both packaged ABIs, and the same app artifacts: debug APK 16,563,078 bytes
-with SHA-256 `67ab4c621b55315971d091be5b03c61544e2493aa49876de06b723ec2ba9d522`,
-and unsigned release APK 11,684,783 bytes with SHA-256
-`04ce7a3843952fd654350f1f82bbe0cbf035f2dedf975005563b3970d8f31ce8`.
+`result: passed`, both packaged ABIs, and the same app artifacts: debug APK 16,612,314 bytes
+with SHA-256 `21e363135bcccb69c142d94e124c8d75a5ee2204fb14a9bb975f0fe5a1a5a151`,
+and unsigned release APK 11,717,623 bytes with SHA-256
+`a5d80768f93ce0bb583ed6ed03777fb20c1ffaf560d461416db5ffce803f2c6e`.
 
-The app instrumentation suite also passes eight tests on each device. In particular, its
+The app instrumentation suite now contains nine tests and passes on the API-36 x86-64
+emulator and API-33 ARM64 tablet; the preceding eight-test checkpoint also passed on the
+API-37 ARM64 phone. In particular, its
 native-hint acceptance case publishes a full-strength MultiPV hint and then completes a bot
 move through the same process-global session; rapid game replacement also completes a real
-bot move without reproducing the former second-game session failure.
+bot move without reproducing the former second-game session failure. The ninth test locks the
+two-second-plus finish timelines, exactly-once cue ordering, reduced-motion collapse behavior,
+and deterministic bounded procedural waveforms.
 
 This evidence does not cover sustained performance, low-memory/native-crash resilience,
 every form factor, a signed release, or an App Bundle. The licensing decision is complete:

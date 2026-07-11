@@ -295,9 +295,11 @@ have now passed for the private-test checkpoint.
 All generated binaries are private-test artifacts. The manifest records
 `distributionAuthorized: false`; successful compilation does not clear the GPL/release gate.
 
-The separate eight-test app suite now passes on both the x86-64 emulator and ARM64 phone,
+The separate nine-test app suite now passes on the x86-64 emulator and ARM64 tablet; its
+preceding eight-test checkpoint also passed on the ARM64 phone,
 covering Room reopen/restore, rapid first-game-exit/second-game native behavior, same-session
-hint then bot analysis, advanced setup, and rematch. Separate physical acceptance has covered
+hint then bot analysis, advanced setup, rematch, and deterministic finish timing/audio cues.
+Separate physical acceptance has covered
 force-stop/relaunch/Resume. Folding the app suite into this immutable machine manifest,
 low-memory/native-crash behavior, sustained performance, and broader UI coverage remain
 later checkpoints.

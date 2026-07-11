@@ -21,31 +21,40 @@ object ResponsiveBoardLayout {
             widthDp < 840 -> WindowWidthClass.MEDIUM
             else -> WindowWidthClass.EXPANDED
         }
-        return if (widthClass == WindowWidthClass.COMPACT) {
+        val sidePadding = 24
+        val sidePanel = if (widthClass == WindowWidthClass.MEDIUM) 260 else 320
+        val sideBoardSize = min(
+            (widthDp - sidePanel - sidePadding * 3).coerceAtLeast(1),
+            (heightDp - sidePadding * 2 - SIDE_CLOCK_RESERVE_DP).coerceAtLeast(1),
+        )
+        val useSidePanel = widthClass != WindowWidthClass.COMPACT &&
+            (widthClass == WindowWidthClass.EXPANDED || widthDp > heightDp) &&
+            sideBoardSize >= MIN_SIDE_BOARD_DP
+
+        return if (!useSidePanel) {
             val padding = 16
             BoardLayoutSpec(
                 widthClass,
                 ControlPlacement.BELOW_BOARD,
                 boardSizeDp = min(
                     (widthDp - padding * 2).coerceAtLeast(1),
-                    (heightDp - 220).coerceAtLeast(1),
+                    (heightDp - STACKED_CONTENT_RESERVE_DP).coerceAtLeast(1),
                 ),
                 outerPaddingDp = padding,
                 panelWidthDp = widthDp - padding * 2,
             )
         } else {
-            val padding = 24
-            val panel = if (widthClass == WindowWidthClass.MEDIUM) 260 else 320
             BoardLayoutSpec(
                 widthClass,
                 ControlPlacement.BESIDE_BOARD,
-                boardSizeDp = min(
-                    (widthDp - panel - padding * 3).coerceAtLeast(1),
-                    (heightDp - padding * 2).coerceAtLeast(1),
-                ),
-                outerPaddingDp = padding,
-                panelWidthDp = panel,
+                boardSizeDp = sideBoardSize,
+                outerPaddingDp = sidePadding,
+                panelWidthDp = sidePanel,
             )
         }
     }
+
+    private const val STACKED_CONTENT_RESERVE_DP = 300
+    private const val SIDE_CLOCK_RESERVE_DP = 76
+    private const val MIN_SIDE_BOARD_DP = 360
 }

@@ -49,15 +49,15 @@ import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 @Composable
-fun GameRoute(
+internal fun GameRoute(
     runtime: GameRuntime,
+    soundPlayer: GameSoundPlayer,
     onExit: () -> Unit,
     onRematch: () -> Unit,
 ) {
     val controller = runtime.controller
     var model by remember(controller) { mutableStateOf(controller.model()) }
     val uiScope = rememberCoroutineScope()
-    val soundPlayer = remember(controller) { MoveSoundPlayer() }
     var soundedPlyCount by remember(controller) { mutableIntStateOf(model.history.plyCount()) }
     var confirmResign by remember { mutableStateOf(false) }
     var previousPhase by remember(controller) { mutableStateOf(model.board.phase) }
@@ -75,7 +75,7 @@ fun GameRoute(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
     DisposableEffect(soundPlayer) {
-        onDispose(soundPlayer::close)
+        onDispose(soundPlayer::stopAll)
     }
     DisposableEffect(runtime, controller, uiScope) {
         val registration = runtime.addModelInvalidationListener {
@@ -85,15 +85,20 @@ fun GameRoute(
     }
 
     val visiblePlyCount = model.history.plyCount()
-    LaunchedEffect(soundPlayer, visiblePlyCount) {
-        if (visiblePlyCount > soundedPlyCount) {
+    LaunchedEffect(soundPlayer, visiblePlyCount, lifecycleStarted) {
+        if (lifecycleStarted && visiblePlyCount > soundedPlyCount) {
             val latestSan = model.history.lastPlayedSan().orEmpty()
-            soundPlayer.play(capture = 'x' in latestSan)
+            soundPlayer.playMove(capture = 'x' in latestSan)
         }
         soundedPlyCount = visiblePlyCount
     }
 
-    LaunchedEffect(model.board.phase, model.result) {
+    LaunchedEffect(soundPlayer, lifecycleStarted) {
+        if (!lifecycleStarted) soundPlayer.stopAll()
+    }
+
+    LaunchedEffect(model.board.phase, model.result, lifecycleStarted) {
+        if (!lifecycleStarted) return@LaunchedEffect
         if (previousPhase != CoordinatorPhase.COMPLETED &&
             model.board.phase == CoordinatorPhase.COMPLETED
         ) {
@@ -118,6 +123,17 @@ fun GameRoute(
         }
     }
 
+    val exitGame = {
+        completionEffect = null
+        soundPlayer.stopAll()
+        onExit()
+    }
+    val rematchGame = {
+        completionEffect = null
+        soundPlayer.stopAll()
+        onRematch()
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -131,15 +147,15 @@ fun GameRoute(
                         )
                     }
                 },
-                navigationIcon = { TextButton(onClick = onExit) { Text("Exit") } },
+                navigationIcon = { TextButton(onClick = exitGame) { Text("Exit") } },
             )
         },
         bottomBar = {
             model.result?.let { result ->
                 PostGameBar(
                     result = result,
-                    onHome = onExit,
-                    onRematch = onRematch,
+                    onHome = exitGame,
+                    onRematch = rematchGame,
                 )
             }
         },
@@ -161,6 +177,7 @@ fun GameRoute(
                 CompletionEffectOverlay(
                     result = result,
                     modifier = Modifier.fillMaxSize(),
+                    onCue = soundPlayer::playCompletionCue,
                     onFinished = { completionEffect = null },
                 )
             }

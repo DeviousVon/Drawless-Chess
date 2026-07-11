@@ -26,7 +26,7 @@ import com.drawlesschess.core.*
 import com.drawlesschess.core.chess.PieceType
 
 @Composable
-internal fun DrawlessApp(viewModel: DrawlessAppViewModel) {
+internal fun DrawlessApp(viewModel: DrawlessAppViewModel, soundPlayer: GameSoundPlayer) {
     when (viewModel.route) {
         AppRoute.HOME -> HomeScreen(
             resumeState = viewModel.resumeState,
@@ -55,6 +55,7 @@ internal fun DrawlessApp(viewModel: DrawlessAppViewModel) {
                 BackHandler(onBack = viewModel::exitGame)
                 GameRoute(
                     runtime = runtime,
+                    soundPlayer = soundPlayer,
                     onExit = viewModel::exitGame,
                     onRematch = viewModel::rematchGame,
                 )

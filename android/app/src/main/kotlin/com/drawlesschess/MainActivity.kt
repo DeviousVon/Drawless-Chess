@@ -18,7 +18,7 @@ class MainActivity : ComponentActivity() {
         )[DrawlessAppViewModel::class.java]
         setContent {
             DrawlessTheme {
-                DrawlessApp(viewModel)
+                DrawlessApp(viewModel, drawlessApplication.gameSoundPlayer)
             }
         }
     }

@@ -67,13 +67,15 @@ SDK/JDK setup and commands for both host lanes are in `docs/ANDROID_MACHINE_VERI
 - `npm run test:kotlin` passes 196 JVM/core/endpoint tests.
 - The native engine instrumentation passes once on each runtime ABI: x86-64 emulator and
   ARM64 physical phone.
-- The eight-test app instrumentation suite passes on both devices. It covers Room codec and
+- The nine-test app instrumentation suite passes on the x86-64 emulator and ARM64 physical
+  tablet; the preceding eight-test checkpoint also passed on the ARM64 phone. It covers Room codec and
   reopen/restore behavior, stale-write protection, rapid game replacement, a real hint
-  followed by a bot move through the same native session, advanced setup, and rematch.
+  followed by a bot move through the same native session, advanced setup, rematch, and
+  deterministic two-second-plus finish timelines and procedural sound cues.
 - Both machine manifests agree on the current private-test package bytes: debug APK
-  16,563,078 bytes (`67ab4c621b55315971d091be5b03c61544e2493aa49876de06b723ec2ba9d522`)
-  and unsigned release APK 11,684,783 bytes
-  (`04ce7a3843952fd654350f1f82bbe0cbf035f2dedf975005563b3970d8f31ce8`).
+  16,612,314 bytes (`21e363135bcccb69c142d94e124c8d75a5ee2204fb14a9bb975f0fe5a1a5a151`)
+  and unsigned release APK 11,717,623 bytes
+  (`a5d80768f93ce0bb583ed6ed03777fb20c1ffaf560d461416db5ffce803f2c6e`).
 
 These are engineering artifacts, not a public release. Their manifests remain
 `privateTestOnly: true` and `distributionAuthorized: false`; no signed APK/AAB is claimed.

@@ -46,8 +46,8 @@ Original visual and audio material
 
 The code-native chess-piece drawings, launcher icon vectors, and supporting color
 resources under android/app/src/main are original project material and are covered
-by the Drawless Chess GPL-3.0-or-later grant. Move and capture sounds are synthesized
-at runtime by the project source; no sampled or stock audio recording is embedded.
+by the Drawless Chess GPL-3.0-or-later grant. Move, capture, firework, and glass-crack
+sounds are synthesized at runtime by the project source; no sampled or stock audio recording is embedded.
 If packaged art or audio is added later, its provenance and license must be recorded
 before release.
 

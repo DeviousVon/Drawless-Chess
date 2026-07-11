@@ -39,11 +39,13 @@ White-at-bottom and Black-at-bottom therefore share all interaction logic.
 | Width class | Threshold | Arrangement |
 | --- | --- | --- |
 | Compact | Below 600 dp | Board above controls |
-| Medium | 600–839 dp | Board beside 260 dp panel |
-| Expanded | 840 dp and above | Board beside 320 dp panel |
+| Medium | 600–839 dp | Portrait stacks the board above controls; a sufficiently wide landscape window uses a 260 dp side panel |
+| Expanded | 840 dp and above | Uses a 320 dp side panel when at least a 360 dp board fits; otherwise stacks the board above controls |
 
-The board remains square and is constrained by both available width and height. Compose
-will use these metrics as policy input rather than hard-coded device names.
+The board remains square and is constrained by both available width and height. Side-panel
+layouts reserve vertical space for the clock row below the board and are selected only when
+the resulting board is at least 360 dp. Compose uses these metrics as policy input rather
+than hard-coded device names.
 
 ## Initial visual system
 

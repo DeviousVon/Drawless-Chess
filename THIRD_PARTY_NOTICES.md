@@ -38,7 +38,7 @@ material; each component remains under its own license.
 ## Original UI assets
 
 The chess pieces and launcher icon are vector/code-native original project work,
-and move/capture sounds are generated procedurally at runtime. They are not
+and move/capture plus firework/glass-crack sounds are generated procedurally at runtime. They are not
 third-party dependencies and are licensed with Drawless Chess under
 GPL-3.0-or-later. This statement must be revisited if packaged imagery, fonts, or
 sampled audio are introduced.

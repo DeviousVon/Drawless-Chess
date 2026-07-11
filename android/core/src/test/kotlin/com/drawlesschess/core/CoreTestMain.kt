@@ -984,17 +984,30 @@ fun main() {
         assertThat(layout.controlPlacement == ControlPlacement.BELOW_BOARD)
         assertThat(layout.boardSizeDp == 380)
     }
-    suite.test("tablet layout places controls beside board") {
-        val layout = ResponsiveBoardLayout.calculate(1_200, 800)
-        assertThat(layout.widthClass == WindowWidthClass.EXPANDED)
-        assertThat(layout.controlPlacement == ControlPlacement.BESIDE_BOARD)
-        assertThat(layout.boardSizeDp == 752)
+    suite.test("tablet layout stays large at the medium boundary and fits landscape clocks") {
+        val beforeBoundary = ResponsiveBoardLayout.calculate(599, 1_000)
+        val atBoundary = ResponsiveBoardLayout.calculate(600, 1_000)
+        assertThat(beforeBoundary.boardSizeDp == 567)
+        assertThat(atBoundary.widthClass == WindowWidthClass.MEDIUM)
+        assertThat(atBoundary.controlPlacement == ControlPlacement.BELOW_BOARD)
+        assertThat(atBoundary.boardSizeDp == 568)
+
+        val portrait = ResponsiveBoardLayout.calculate(706, 1_152)
+        assertThat(portrait.controlPlacement == ControlPlacement.BELOW_BOARD)
+        assertThat(portrait.boardSizeDp == 674)
+
+        val landscape = ResponsiveBoardLayout.calculate(1_176, 706)
+        assertThat(landscape.widthClass == WindowWidthClass.EXPANDED)
+        assertThat(landscape.controlPlacement == ControlPlacement.BESIDE_BOARD)
+        assertThat(landscape.boardSizeDp == 582)
+        assertThat(landscape.boardSizeDp + 76 <= 706 - landscape.outerPaddingDp * 2)
     }
-    suite.test("medium window reserves a stable side panel") {
+    suite.test("medium portrait keeps controls below a full-width board") {
         val layout = ResponsiveBoardLayout.calculate(800, 1_200)
         assertThat(layout.widthClass == WindowWidthClass.MEDIUM)
-        assertThat(layout.panelWidthDp == 260)
-        assertThat(layout.boardSizeDp == 468)
+        assertThat(layout.controlPlacement == ControlPlacement.BELOW_BOARD)
+        assertThat(layout.panelWidthDp == 768)
+        assertThat(layout.boardSizeDp == 768)
     }
     suite.test("SAN formats a quiet pawn move") {
         assertThat(SanNotation.format(ChessPosition.starting(), UciMove("e2e4")) == "e4")
