@@ -1,4 +1,5 @@
 # Byte-locked native inputs must survive Windows checkouts unchanged.
+/.gitattributes text eol=lf
 /engine/patches/** text eol=lf
 /engine/patches/*.patch whitespace=-blank-at-eol,-blank-at-eof
 /engine/variants.ini text eol=lf
@@ -8,3 +9,11 @@
 /scripts/*.ps1 text eol=lf
 /android/gradlew text eol=lf
 /android/gradlew.bat text eol=crlf
+
+# Release legal and dependency evidence is verified byte-for-byte.
+/LICENSE text eol=lf
+/APACHE-2.0.txt text eol=lf
+/PRIVACY.md text eol=lf
+/THIRD_PARTY_NOTICES.md text eol=lf
+/release/reports/*.txt text eol=lf
+/release/reports/*.json text eol=lf
