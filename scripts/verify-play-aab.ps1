@@ -691,7 +691,11 @@ $signatureText = ($signatureOutput | ForEach-Object { $_.ToString() }) -join "`n
 if ($LASTEXITCODE -ne 0 -or $signatureText -notmatch '(?m)^jar verified\.$') {
     Fail 'bundle does not have a valid JAR signature from an upload key'
 }
-if ($signatureText -match '(?i)jar is unsigned|unsigned entries|not signed') {
+# JDK jarsigner can warn that entries verified through JarFile are "not signed in
+# JarInputStream" when the signature metadata follows those entries. That does not
+# mean the entries are unsigned. Its actual unsigned-content diagnostics use the
+# phrases below, while the required "jar verified." result above proves integrity.
+if ($signatureText -match '(?i)jar is unsigned|unsigned entries') {
     Fail 'bundle contains unsigned content'
 }
 if ($signatureText -match '(?i)CN\s*=\s*Android Debug') {

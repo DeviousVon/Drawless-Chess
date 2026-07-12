@@ -13,6 +13,7 @@
 # Release legal and dependency evidence is verified byte-for-byte.
 /LICENSE text eol=lf
 /APACHE-2.0.txt text eol=lf
+/NOTICE text eol=lf
 /PRIVACY.md text eol=lf
 /THIRD_PARTY_NOTICES.md text eol=lf
 /release/reports/*.txt text eol=lf
