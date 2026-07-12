@@ -1,8 +1,8 @@
 # Third-party notices
 
-This file records the direct dependency families known at the Drawless Chess
-0.1.0 checkpoint. It is not a substitute for the notices inside the dependencies
-or for a dependency/SBOM scan of the exact release build.
+This file records the third-party material in the Drawless Chess 0.1.0 release
+checkpoint. The exact resolved Android runtime inventory is generated from
+Gradle and recorded in `release/reports/release-sbom.cdx.json`.
 
 ## Fairy-Stockfish and Stockfish
 
@@ -24,16 +24,29 @@ The repository's non-Android experiment directly depends on
 `fairy-stockfish-nnue.wasm` 1.1.11 and `ffish-es6` 0.7.9. The npm lockfile reports
 GPL-3.0 for both. These packages do not define the native Android source identity.
 
-## Android and build ecosystem
+## Android release runtime
 
-The source uses AndroidX Activity, Jetpack Compose, Room, AndroidX Test, Espresso,
-Kotlin, the Android Gradle Plugin, Gradle, KSP, and their transitive dependencies.
-These ecosystems predominantly use Apache-2.0, but the release owner must derive
-the exact list from the resolved release dependency graph and preserve every
-license and NOTICE required by the exact versions that are shipped.
+The resolved `app:releaseRuntimeClasspath` contains 115 external Maven modules.
+`scripts/generate-release-sbom.ps1` recreates the Gradle dependency report and a
+deterministic CycloneDX 1.5 SBOM, then fails if any resolved module lacks locally
+cached Maven POM license evidence or uses an unreviewed license.
+
+All 115 modules currently resolve to Apache-2.0. For 114 modules, the license is
+declared directly in the module POM. `com.google.guava:listenablefuture:1.0`
+inherits Apache-2.0 from its declared parent POM,
+`com.google.guava:guava-parent:26.0-android`; both POM hashes and the inheritance
+evidence are preserved on that SBOM component. The complete Apache-2.0 text is
+in `APACHE-2.0.txt` and is packaged with the SBOM in the Android artifact.
+
+Regenerate and review this evidence whenever dependencies change:
+
+```powershell
+pwsh -NoProfile -File scripts/generate-release-sbom.ps1
+```
 
 Apache-2.0 is compatible with GPLv3. Nothing in this file relicenses third-party
-material; each component remains under its own license.
+material; each component remains under its own license, and upstream notices
+remain authoritative.
 
 ## Original UI assets
 

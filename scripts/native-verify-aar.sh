@@ -92,6 +92,9 @@ for legal_path in \
     assets/legal/drawless-chess/LICENSE \
     assets/legal/drawless-chess/NOTICE \
     assets/legal/drawless-chess/THIRD_PARTY_NOTICES.md \
+    assets/third_party/android-runtime/APACHE-2.0.txt \
+    assets/third_party/android-runtime/release-sbom.cdx.json \
+    assets/release/SOURCE-COMMIT \
     assets/third_party/fairy-stockfish/Copying.txt \
     assets/third_party/fairy-stockfish/AUTHORS \
     assets/third_party/fairy-stockfish/SOURCE_NOTICE.txt \

@@ -9,6 +9,7 @@ ANDROID_ENGINE="$REPOSITORY_ROOT/android/engine"
 LOCK_FILE="$NATIVE_ROOT/upstream.properties"
 WASM_LOCK="$NATIVE_ROOT/wasm-poc.properties"
 SOURCE_MANIFEST="$NATIVE_ROOT/source-manifest.txt"
+ARCHIVE_SOURCE_MANIFEST="$NATIVE_ROOT/archive-fairy-source.sha256"
 NATIVE_BRIDGE="$ANDROID_ENGINE/src/main/cpp/native_bridge.cpp"
 NATIVE_EXPORTS="$ANDROID_ENGINE/src/main/cpp/native_exports.map"
 KOTLIN_BINDINGS="$ANDROID_ENGINE/src/main/kotlin/com/drawlesschess/engine/FairyNativeBindings.kt"
@@ -187,6 +188,7 @@ require_text "$ANDROID_ENGINE/build.gradle.kts" 'abiFilters += listOf("arm64-v8a
 require_text "$ANDROID_ENGINE/build.gradle.kts" 'ndkVersion = nativePin("androidNdkVersion")'
 require_text "$ANDROID_ENGINE/build.gradle.kts" '"-DANDROID_STL=c++_static"'
 require_text "$ANDROID_ENGINE/build.gradle.kts" 'gitOutput("write-tree")'
+require_text "$ANDROID_ENGINE/build.gradle.kts" 'archive-fairy-source.sha256'
 require_text "$ANDROID_ENGINE/build.gradle.kts" 'patchesApplied" to "true"'
 require_text "$ANDROID_ENGINE/build.gradle.kts" 'consumerProguardFiles("consumer-rules.pro")'
 require_text "$ANDROID_ENGINE/build.gradle.kts" '"NATIVE_BRIDGE_ABI_VERSION"'
@@ -202,6 +204,7 @@ require_text "$ANDROID_ENGINE/src/main/cpp/CMakeLists.txt" 'native_bridge.cpp'
 require_text "$ANDROID_ENGINE/src/main/cpp/CMakeLists.txt" 'native_identity.cpp'
 require_text "$ANDROID_ENGINE/src/main/cpp/CMakeLists.txt" 'DRAWLESS_BRIDGE_ABI_VERSION=${DRAWLESS_BRIDGE_ABI_VERSION}'
 require_text "$ANDROID_ENGINE/src/main/cpp/CMakeLists.txt" 'COMMAND "${GIT_EXECUTABLE}" -C "${FAIRY_SOURCE_DIR}" write-tree'
+require_text "$ANDROID_ENGINE/src/main/cpp/CMakeLists.txt" 'archive-fairy-source.sha256'
 require_text "$ANDROID_ENGINE/src/main/cpp/CMakeLists.txt" 'find_library(ANDROID_LOG_LIBRARY log REQUIRED)'
 reject_text "$ANDROID_ENGINE/src/main/cpp/CMakeLists.txt" 'ANDROID_ATOMIC_LIBRARY'
 require_text "$ANDROID_ENGINE/src/main/cpp/CMakeLists.txt" 'target_link_options(drawless_fairy PRIVATE -Wl,--no-gc-sections)'
@@ -264,12 +267,6 @@ if [[ ! -d "$SOURCE" ]]; then
     exit 0
 fi
 
-[[ -d "$SOURCE/.git" ]] || die "source directory is not the pinned Git checkout"
-ACTUAL_REVISION=$(git -C "$SOURCE" rev-parse HEAD)
-ACTUAL_TREE=$(git -C "$SOURCE" rev-parse 'HEAD^{tree}')
-[[ "$ACTUAL_REVISION" == "$REVISION" ]] || die "source revision does not match lock"
-[[ "$ACTUAL_TREE" == "$TREE" ]] || die "source base tree does not match lock"
-
 STATE_FILE="$SOURCE/.drawless-source-state.properties"
 [[ -f "$STATE_FILE" ]] || die "missing source-state marker; rerun native-fetch-fairy.sh"
 [[ "$(property_from "$STATE_FILE" upstreamRevision)" == "$REVISION" ]] \
@@ -291,26 +288,63 @@ done
 [[ -f "$SOURCE/Copying.txt" ]] || die "checkout is missing the full GPL text"
 [[ -f "$SOURCE/AUTHORS" ]] || die "checkout is missing AUTHORS"
 
-EXPECTED_INDEX=$(mktemp "${TMPDIR:-/tmp}/drawless-index.XXXXXX")
-rm -f "$EXPECTED_INDEX"
-GIT_INDEX_FILE="$EXPECTED_INDEX" git -C "$SOURCE" read-tree HEAD
-for patch_entry in "${PATCH_ENTRIES[@]}"; do
-    GIT_INDEX_FILE="$EXPECTED_INDEX" git -C "$SOURCE" apply --cached \
-        "$PATCH_DIRECTORY/$patch_entry"
-done
-EXPECTED_PATCHED_TREE=$(GIT_INDEX_FILE="$EXPECTED_INDEX" git -C "$SOURCE" write-tree)
-ACTUAL_PATCHED_TREE=$(git -C "$SOURCE" write-tree)
-[[ "$ACTUAL_PATCHED_TREE" == "$EXPECTED_PATCHED_TREE" ]] \
-    || die "staged source does not exactly match the ordered Drawless patch series"
-[[ "$ACTUAL_PATCHED_TREE" == "$PATCHED_TREE" ]] \
-    || die "patched source tree does not match the native lock"
+if [[ -d "$SOURCE/.git" ]]; then
+    ACTUAL_REVISION=$(git -C "$SOURCE" rev-parse HEAD)
+    ACTUAL_TREE=$(git -C "$SOURCE" rev-parse 'HEAD^{tree}')
+    [[ "$ACTUAL_REVISION" == "$REVISION" ]] || die "source revision does not match lock"
+    [[ "$ACTUAL_TREE" == "$TREE" ]] || die "source base tree does not match lock"
 
-git -C "$SOURCE" diff --quiet || die "source has unstaged modifications"
-git -C "$SOURCE" diff --cached --check
-UNEXPECTED_UNTRACKED=$(git -C "$SOURCE" ls-files --others --exclude-standard \
-    | grep -Fvx '.drawless-source-state.properties' || true)
-[[ -z "$UNEXPECTED_UNTRACKED" ]] \
-    || die "source contains unexpected untracked files: $UNEXPECTED_UNTRACKED"
+    EXPECTED_INDEX=$(mktemp "${TMPDIR:-/tmp}/drawless-index.XXXXXX")
+    rm -f "$EXPECTED_INDEX"
+    GIT_INDEX_FILE="$EXPECTED_INDEX" git -C "$SOURCE" read-tree HEAD
+    for patch_entry in "${PATCH_ENTRIES[@]}"; do
+        GIT_INDEX_FILE="$EXPECTED_INDEX" git -C "$SOURCE" apply --cached \
+            "$PATCH_DIRECTORY/$patch_entry"
+    done
+    EXPECTED_PATCHED_TREE=$(GIT_INDEX_FILE="$EXPECTED_INDEX" git -C "$SOURCE" write-tree)
+    ACTUAL_PATCHED_TREE=$(git -C "$SOURCE" write-tree)
+    [[ "$ACTUAL_PATCHED_TREE" == "$EXPECTED_PATCHED_TREE" ]] \
+        || die "staged source does not exactly match the ordered Drawless patch series"
+    [[ "$ACTUAL_PATCHED_TREE" == "$PATCHED_TREE" ]] \
+        || die "patched source tree does not match the native lock"
+
+    git -C "$SOURCE" diff --quiet || die "source has unstaged modifications"
+    git -C "$SOURCE" diff --cached --check
+    UNEXPECTED_UNTRACKED=$(git -C "$SOURCE" ls-files --others --exclude-standard \
+        | grep -Fvx '.drawless-source-state.properties' || true)
+    [[ -z "$UNEXPECTED_UNTRACKED" ]] \
+        || die "source contains unexpected untracked files: $UNEXPECTED_UNTRACKED"
+elif [[ -f "$ARCHIVE_SOURCE_MANIFEST" ]]; then
+    ARCHIVE_ENTRIES=()
+    while IFS= read -r manifest_line || [[ -n "$manifest_line" ]]; do
+        manifest_line=${manifest_line%$'\r'}
+        if [[ ! "$manifest_line" =~ ^([0-9a-f]{64})[[:space:]]+\*?\./(.+)$ ]]; then
+            die "invalid native archive manifest row: $manifest_line"
+        fi
+        expected_hash=${BASH_REMATCH[1]}
+        relative_path=${BASH_REMATCH[2]}
+        case "$relative_path" in
+            /*|*\\*|*:|*:*|../*|*/../*|*/..|.|..)
+                die "unsafe native archive manifest path: $relative_path" ;;
+        esac
+        [[ -f "$SOURCE/$relative_path" ]] \
+            || die "native archive manifest file is absent: $relative_path"
+        [[ "$(hash_file "$SOURCE/$relative_path")" == "$expected_hash" ]] \
+            || die "native archive source hash mismatch: $relative_path"
+        ARCHIVE_ENTRIES+=("$relative_path")
+    done < "$ARCHIVE_SOURCE_MANIFEST"
+    ((${#ARCHIVE_ENTRIES[@]} > 0)) || die "native archive source manifest is empty"
+    UNIQUE_ARCHIVE_COUNT=$(printf '%s\n' "${ARCHIVE_ENTRIES[@]}" | sort -u | wc -l | tr -d ' ')
+    [[ "$UNIQUE_ARCHIVE_COUNT" == "${#ARCHIVE_ENTRIES[@]}" ]] \
+        || die "duplicate native archive source manifest entry"
+    EXPECTED_ARCHIVE_FILES=$(printf './%s\n' "${ARCHIVE_ENTRIES[@]}" | sort)
+    ACTUAL_ARCHIVE_FILES=$(cd "$SOURCE" && find . -type f -print | sort)
+    [[ "$ACTUAL_ARCHIVE_FILES" == "$EXPECTED_ARCHIVE_FILES" ]] \
+        || die "native archive source file set differs from its manifest"
+    ACTUAL_PATCHED_TREE="$PATCHED_TREE"
+else
+    die "source has neither pinned Git metadata nor an archive source manifest"
+fi
 
 printf 'Native structure and pinned source PASS.\n'
 printf '  native pin: %s\n' "$REVISION"

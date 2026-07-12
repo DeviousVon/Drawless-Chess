@@ -134,6 +134,20 @@ class RepeatedGameLifecycleInstrumentedTest {
         assertTrue(compose.onAllNodesWithText("Defeat").fetchSemanticsNodes().isEmpty())
     }
 
+    @Test
+    fun privacyInformationIsAvailableFromHome() {
+        dismissRulesGuideIfShown()
+        waitForText("Privacy")
+
+        compose.onNodeWithText("Privacy").performClick()
+        waitForText("Drawless Chess works entirely offline", substring = true)
+        waitForText("realitymaster@protonmail.ch", substring = true)
+        waitForText("View policy")
+
+        compose.onNodeWithText("Close").performClick()
+        waitForText("Quick Play")
+    }
+
     private fun waitForText(value: String, substring: Boolean = false) {
         compose.waitUntil(timeoutMillis = 10_000L) {
             compose.onAllNodesWithText(value, substring = substring).fetchSemanticsNodes().isNotEmpty()

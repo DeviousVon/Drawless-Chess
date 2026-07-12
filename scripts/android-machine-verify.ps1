@@ -510,6 +510,9 @@ function Test-AndroidStructure {
     Require-Text $engineBuild 'androidComponents {'
     Require-Text $engineBuild 'assets.addGeneratedSourceDirectory('
     Require-Text $engineBuild 'GenerateFairyLegalAssetsTask::outputDirectory'
+    Require-Text $engineBuild 'third_party/android-runtime'
+    Require-Text $engineBuild 'release/reports/release-sbom.cdx.json'
+    Require-Text $engineBuild 'generated/release-identity/SOURCE-COMMIT'
     Reject-Text $engineBuild 'sourceSets.getByName('
     Reject-Text $engineBuild 'sourceSets.named('
     Reject-Text $engineBuild 'assets.srcDir(legalAssetsDirectory)'
@@ -998,6 +1001,9 @@ function Test-NativeAar {
         'assets/legal/drawless-chess/LICENSE',
         'assets/legal/drawless-chess/NOTICE',
         'assets/legal/drawless-chess/THIRD_PARTY_NOTICES.md',
+        'assets/third_party/android-runtime/APACHE-2.0.txt',
+        'assets/third_party/android-runtime/release-sbom.cdx.json',
+        'assets/release/SOURCE-COMMIT',
         'assets/third_party/fairy-stockfish/Copying.txt',
         'assets/third_party/fairy-stockfish/AUTHORS',
         'assets/third_party/fairy-stockfish/SOURCE_NOTICE.txt',
@@ -1190,6 +1196,9 @@ function Test-NativeApkSet {
         'assets/legal/drawless-chess/LICENSE',
         'assets/legal/drawless-chess/NOTICE',
         'assets/legal/drawless-chess/THIRD_PARTY_NOTICES.md',
+        'assets/third_party/android-runtime/APACHE-2.0.txt',
+        'assets/third_party/android-runtime/release-sbom.cdx.json',
+        'assets/release/SOURCE-COMMIT',
         'assets/third_party/fairy-stockfish/Copying.txt',
         'assets/third_party/fairy-stockfish/AUTHORS',
         'assets/third_party/fairy-stockfish/SOURCE_NOTICE.txt',
@@ -1223,6 +1232,12 @@ function Test-NativeApkSet {
         Compare-ArchiveMember $AppDebug $assetPath $EngineDebugAar $assetPath "app debug APK asset differs: $assetPath"
         Compare-ArchiveMember $AppRelease $assetPath $EngineReleaseAar $assetPath "app release APK asset differs: $assetPath"
         Compare-ArchiveMember $EngineTest $assetPath $EngineDebugAar $assetPath "engine test APK asset differs: $assetPath"
+    }
+    $packagedSourceCommit = $Utf8NoBom.GetString((
+        Get-ZipMemberBytes $AppRelease 'assets/release/SOURCE-COMMIT' 'app release APK'
+    )).Trim()
+    if ($packagedSourceCommit -cne $script:State.ProjectGitCommit) {
+        Fail-Gate 'packaged release source commit differs from repository HEAD'
     }
     $variantHash = Get-Sha256Bytes (Get-ZipMemberBytes $AppDebug 'assets/engine/drawless-variants.ini' 'app debug APK')
     if ($variantHash -ne (Get-NativeProperty 'variantConfigSha256')) {

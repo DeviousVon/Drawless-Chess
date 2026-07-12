@@ -95,6 +95,7 @@ private fun HomeScreen(
     onDiscard: () -> Unit,
 ) {
     var showLicense by rememberSaveable { mutableStateOf(false) }
+    var showPrivacy by rememberSaveable { mutableStateOf(false) }
     val visualTheme = LocalDrawlessVisualTheme.current
     val home = visualTheme.home
     val primaryButtonColors = ButtonDefaults.buttonColors(
@@ -221,6 +222,9 @@ private fun HomeScreen(
                 TextButton(onClick = { showLicense = true }, colors = textButtonColors) {
                     Text("Open-source license")
                 }
+                TextButton(onClick = { showPrivacy = true }, colors = textButtonColors) {
+                    Text("Privacy")
+                }
             }
             Text(
                 "Offline • Decisive rules • Modern play",
@@ -232,6 +236,9 @@ private fun HomeScreen(
 
     if (showLicense) {
         LicenseDialog(onDismiss = { showLicense = false })
+    }
+    if (showPrivacy) {
+        PrivacyDialog(onDismiss = { showPrivacy = false })
     }
 }
 
@@ -260,22 +267,54 @@ private fun LicenseDialog(onDismiss: () -> Unit) {
     val uriHandler = LocalUriHandler.current
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Free and open-source") },
+        title = { Text("Open-source software") },
         text = {
             Text(
                 "Drawless Chess is licensed under GNU GPL version 3 or later. " +
-                    "Public source is hosted at github.com/DeviousVon/Drawless-Chess. " +
-                    "Exact corresponding source and third-party notices accompany each official release.",
+                    "Exact corresponding source and third-party notices accompany " +
+                    "the official v0.1.0 release.",
             )
         },
         confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } },
         dismissButton = {
             TextButton(
                 onClick = {
-                    uriHandler.openUri("https://github.com/DeviousVon/Drawless-Chess")
+                    uriHandler.openUri(
+                        "https://github.com/DeviousVon/Drawless-Chess/releases/tag/v0.1.0",
+                    )
                 },
             ) {
                 Text("View source")
+            }
+        },
+    )
+}
+
+@Composable
+private fun PrivacyDialog(onDismiss: () -> Unit) {
+    val uriHandler = LocalUriHandler.current
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Privacy") },
+        text = {
+            Text(
+                "Drawless Chess works entirely offline. BB_Games does not collect, " +
+                    "transmit, share, or sell personal data. Saved games and settings " +
+                    "are stored on your device and may be included in Android backups if " +
+                    "you enable them; BB_Games cannot access those backups. " +
+                    "Privacy questions: realitymaster@protonmail.ch",
+            )
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } },
+        dismissButton = {
+            TextButton(
+                onClick = {
+                    uriHandler.openUri(
+                        "https://github.com/DeviousVon/Drawless-Chess/blob/main/PRIVACY.md",
+                    )
+                },
+            ) {
+                Text("View policy")
             }
         },
     )

@@ -9,9 +9,9 @@ recipients still receive the freedoms to study, modify, and redistribute it.
 No technical process boundary is being used as a licensing workaround.
 
 `LICENSE` is the authoritative project license. `NOTICE` explains the source
-promise and high-level attributions. `THIRD_PARTY_NOTICES.md` records the known
-direct dependency families. Files carrying a different license or third-party
-notice keep that license.
+promise and high-level attributions. `THIRD_PARTY_NOTICES.md` and the CycloneDX
+SBOM record the exact resolved Android runtime inventory. Files carrying a
+different license or third-party notice keep that license.
 
 The GPL copyright license does not authorize a fork to misrepresent itself as an
 official or endorsed release. “Drawless Chess” and the project logo are source
@@ -51,7 +51,9 @@ publish. Before each public release:
    transitives. Resolve any license that is not GPLv3-compatible.
 3. Run the normal tests, native-source/patch checks, Android machine verification,
    and signed-release verification. Preserve their reports.
-4. Create the whole-project source archive from the same tree used for the binary:
+4. Create the whole-project source archive from the same clean Git commit used for
+   the binary. The bundler records that commit in `SOURCE-COMMIT` and refuses a
+   dirty tree:
 
    ```bash
    scripts/source-bundle.sh build/releases/drawless-chess-0.1.0-source.tar.gz

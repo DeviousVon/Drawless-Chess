@@ -31,9 +31,16 @@ fi
 [[ "$OUTPUT" == *.tar.gz ]] || die "output must end in .tar.gz"
 [[ ! -e "$OUTPUT" ]] || die "output already exists: $OUTPUT"
 
-for command_name in tar gzip cp find sort xargs awk; do
+for command_name in tar gzip cp find sort xargs awk grep git bash chmod; do
     command -v "$command_name" >/dev/null 2>&1 || die "$command_name is required"
 done
+
+SOURCE_COMMIT=$(git -C "$REPOSITORY_ROOT" rev-parse --verify HEAD 2>/dev/null) \
+    || die "repository HEAD could not be resolved"
+[[ "$SOURCE_COMMIT" =~ ^[0-9a-f]{40}$ ]] || die "repository HEAD is not a full Git commit"
+WORKTREE_STATUS=$(git -C "$REPOSITORY_ROOT" status --porcelain --untracked-files=all)
+[[ -z "$WORKTREE_STATUS" ]] \
+    || die "repository must be clean before creating exact release source"
 if command -v sha256sum >/dev/null 2>&1; then
     HASH_COMMAND=(sha256sum)
 elif command -v shasum >/dev/null 2>&1; then
@@ -42,8 +49,9 @@ else
     die "sha256sum or shasum is required"
 fi
 
-for required_file in LICENSE NOTICE THIRD_PARTY_NOTICES.md README.md package.json \
-    package-lock.json docs/RELEASE_LICENSING.md; do
+for required_file in LICENSE APACHE-2.0.txt NOTICE THIRD_PARTY_NOTICES.md README.md package.json \
+    package-lock.json docs/RELEASE_LICENSING.md release/reports/release-runtime-dependencies.txt \
+    release/reports/release-sbom.cdx.json; do
     [[ -f "$REPOSITORY_ROOT/$required_file" ]] \
         || die "required release file is missing: $required_file"
 done
@@ -67,84 +75,82 @@ trap cleanup EXIT
 BUNDLE_ROOT="$TEMP_ROOT/$BUNDLE_NAME"
 mkdir -p "$BUNDLE_ROOT"
 
-# Deliberate allowlist: root VCS metadata, caches, logs, package stores, and
-# machine-local directories never enter the staging tree.
-ROOT_FILES=(
-    .gitattributes
-    .gitignore
-    LICENSE
-    NOTICE
-    THIRD_PARTY_NOTICES.md
-    README.md
-    package.json
-    package-lock.json
-)
-SOURCE_DIRECTORIES=(android contracts docs engine scripts src)
-
-for source_file in "${ROOT_FILES[@]}"; do
-    cp "$REPOSITORY_ROOT/$source_file" "$BUNDLE_ROOT/$source_file"
-done
-
-# Exclude generated Android state while staging rather than copying it and then
-# deleting it. Besides avoiding unnecessary multi-gigabyte I/O, this keeps the
-# corresponding-source operation stable if an idle Gradle daemon still owns a
-# cache lock or a prior native build left a large .cxx tree behind.
-tar -C "$REPOSITORY_ROOT" \
-    --exclude='*/build' \
-    --exclude='*/.gradle' \
-    --exclude='*/.kotlin' \
-    --exclude='*/.cxx' \
-    --exclude='*/.idea' \
-    --exclude='*/.vscode' \
-    --exclude='*/captures' \
-    --exclude='android/local.properties' \
-    --exclude='*/__pycache__' \
-    --exclude='src/docs' \
-    --exclude='src/engine' \
-    --exclude='src/scripts' \
-    --exclude='*.class' \
-    --exclude='*.pyc' \
-    --exclude='*.iml' \
-    --exclude='.DS_Store' \
-    --exclude='Thumbs.db' \
-    --exclude='*.hprof' \
-    --exclude='*.trace' \
-    -cf - "${SOURCE_DIRECTORIES[@]}" \
+# Export the exact committed project blobs. This is independent of working-tree
+# line-ending conversion, global ignore rules, caches, and untracked files.
+git -C "$REPOSITORY_ROOT" archive --format=tar "$SOURCE_COMMIT" \
     | tar -C "$BUNDLE_ROOT" -xf -
 
-# Defense in depth: reject/remove named generated locations if a future tar or
-# platform implementation handles an exclusion differently.
-rm -f "$BUNDLE_ROOT/android/local.properties"
-find "$BUNDLE_ROOT/android" -depth -type d \
-    \( -name build -o -name .gradle -o -name .kotlin -o -name .cxx \
-       -o -name .idea -o -name .vscode -o -name captures \) \
-    -exec rm -rf -- {} +
-find "$BUNDLE_ROOT" -depth -type d -name __pycache__ -exec rm -rf -- {} +
-find "$BUNDLE_ROOT" -type f \
-    \( -name '*.class' -o -name '*.pyc' -o -name '*.iml' \
-       -o -name '.DS_Store' -o -name 'Thumbs.db' \
-       -o -name '*.hprof' -o -name '*.trace' \) -delete
+# The prepared Fairy tree is intentionally excluded from the outer repository.
+# Its staged index was already proved to equal the locked patched tree, so export
+# those canonical index blobs and the single reviewed source-state marker only.
+NATIVE_SOURCE_RELATIVE=$(awk -F= '
+    $1 == "sourceDirectory" { sub(/\r$/, "", $2); print $2; exit }
+' "$REPOSITORY_ROOT/engine/native/upstream.properties")
+[[ "$NATIVE_SOURCE_RELATIVE" == upstream/Fairy-Stockfish ]] \
+    || die "unexpected native source directory: $NATIVE_SOURCE_RELATIVE"
+NATIVE_SOURCE="$REPOSITORY_ROOT/engine/native/$NATIVE_SOURCE_RELATIVE"
+ARCHIVE_FAIRY="$BUNDLE_ROOT/engine/native/$NATIVE_SOURCE_RELATIVE"
+mkdir -p "$ARCHIVE_FAIRY"
+EXPECTED_NATIVE_PATCHED_TREE=$(awk -F= '
+    $1 == "patchedTree" { sub(/\r$/, "", $2); print $2; exit }
+' "$REPOSITORY_ROOT/engine/native/upstream.properties")
+ACTUAL_NATIVE_PATCHED_TREE=$(git -C "$NATIVE_SOURCE" write-tree)
+[[ "$ACTUAL_NATIVE_PATCHED_TREE" == "$EXPECTED_NATIVE_PATCHED_TREE" ]] \
+    || die "native staged tree differs from the locked patched tree"
+git -C "$NATIVE_SOURCE" archive --format=tar "$ACTUAL_NATIVE_PATCHED_TREE" \
+    | tar -C "$ARCHIVE_FAIRY" -xf -
+cp "$NATIVE_SOURCE/.drawless-source-state.properties" \
+    "$ARCHIVE_FAIRY/.drawless-source-state.properties"
 
-# The native checkout's small Git database is intentionally retained: Gradle and
-# the native verifier check HEAD, the upstream tree, and the staged patched tree.
-# Reflogs and sample hooks are not required to rebuild and can carry local identity.
-FAIRY_GIT="$BUNDLE_ROOT/engine/native/upstream/Fairy-Stockfish/.git"
-[[ -d "$FAIRY_GIT" ]] || die "prepared Fairy-Stockfish Git metadata was not copied"
-rm -rf "$FAIRY_GIT/logs" "$FAIRY_GIT/hooks"
-rm -f "$FAIRY_GIT/FETCH_HEAD" "$FAIRY_GIT/ORIG_HEAD" "$FAIRY_GIT/COMMIT_EDITMSG"
-if grep -Eiq '(credential|extraheader|user\.(name|email)|insteadof)' "$FAIRY_GIT/config"; then
-    die "native Git config contains local identity or credential configuration"
-fi
+# The prepared native source was already proved against its pinned Git revision,
+# tree, staged patched tree, and ordered patch series before staging. Administrative
+# Git data is neither Corresponding Source nor safe/deterministic release content.
+# Replace it with a complete, sorted byte manifest of the actual patched source.
+ARCHIVE_FAIRY_MANIFEST="$BUNDLE_ROOT/engine/native/archive-fairy-source.sha256"
+[[ -d "$ARCHIVE_FAIRY" ]] || die "prepared Fairy-Stockfish source was not copied"
+[[ ! -e "$ARCHIVE_FAIRY/.git" ]] || die "native administrative Git data reached staging"
+UNSAFE_LINK=$(find "$BUNDLE_ROOT" -type l -print -quit)
+[[ -z "$UNSAFE_LINK" ]] || die "symbolic link reached the staging tree: $UNSAFE_LINK"
+while IFS= read -r -d '' native_file; do
+    case "$native_file" in
+        *$'\n'*|*$'\r'*|*\\*|*:*)
+            die "native source contains a non-portable filename: $native_file" ;;
+    esac
+done < <(find "$ARCHIVE_FAIRY" -type f -print0)
+(
+    cd "$ARCHIVE_FAIRY"
+    find . -type f -print0 | sort -z | xargs -0 "${HASH_COMMAND[@]}"
+) > "$ARCHIVE_FAIRY_MANIFEST"
+[[ -s "$ARCHIVE_FAIRY_MANIFEST" ]] || die "native archive source manifest is empty"
+bash "$BUNDLE_ROOT/scripts/native-validate-structure.sh" --require-source
 
 SENSITIVE_FILE=$(find "$BUNDLE_ROOT" -type f \
     \( -iname '*.jks' -o -iname '*.keystore' -o -iname '*.p12' \
        -o -iname '*.pfx' -o -iname '*.pem' -o -iname '*.key' \
        -o -iname '*.der' -o -iname '*.mobileprovision' \
        -o -iname 'key.properties' -o -iname 'local.properties' \
+       -o -iname 'signing.properties' \
        -o -iname 'google-services.json' -o -iname '.env' -o -iname '.env.*' \) \
     -print -quit)
 [[ -z "$SENSITIVE_FILE" ]] \
     || die "sensitive or machine-local file reached the staging tree: $SENSITIVE_FILE"
+
+SIGNING_EXAMPLE="$BUNDLE_ROOT/android/signing.properties.example"
+[[ "$(grep -Fxc 'storePassword=replace-locally' "$SIGNING_EXAMPLE")" == 1 ]] \
+    || die "signing properties example does not contain the exact store-password sentinel"
+[[ "$(grep -Fxc 'keyPassword=replace-locally' "$SIGNING_EXAMPLE")" == 1 ]] \
+    || die "signing properties example does not contain the exact key-password sentinel"
+SENSITIVE_CONTENT=$(grep -RIlm1 --include='*.properties' \
+    -E '^[[:space:]]*(storePassword|keyPassword)[[:space:]]*=' \
+    "$BUNDLE_ROOT" || true)
+while IFS= read -r sensitive_file; do
+    [[ -z "$sensitive_file" || "$sensitive_file" == "$SIGNING_EXAMPLE" ]] \
+        || die "signing-password content reached the staging tree: $sensitive_file"
+done <<< "$SENSITIVE_CONTENT"
+ENV_SECRET=$(grep -RIlm1 \
+    -E '^[[:space:]]*DRAWLESS_UPLOAD_(STORE_PASSWORD|KEY_PASSWORD)[[:space:]]*=' \
+    "$BUNDLE_ROOT" || true)
+[[ -z "$ENV_SECRET" ]] || die "release signing environment secret reached staging: $ENV_SECRET"
 
 GENERATED_BINARY=$(find "$BUNDLE_ROOT" -type f \
     \( -iname '*.apk' -o -iname '*.aab' -o -iname '*.aar' \
@@ -158,8 +164,9 @@ cat > "$BUNDLE_ROOT/SOURCE-BUNDLE-README.md" <<EOF
 
 This archive contains the complete project source selected by the Drawless Chess
 release bundler, including the exact prepared and patched Fairy-Stockfish Git
-checkout used by the Android native build. See LICENSE, NOTICE,
-THIRD_PARTY_NOTICES.md, and docs/RELEASE_LICENSING.md.
+source tree used by the Android native build. See LICENSE, APACHE-2.0.txt, NOTICE,
+THIRD_PARTY_NOTICES.md, release/reports/release-sbom.cdx.json, and
+docs/RELEASE_LICENSING.md.
 
 From this directory, validate the source and run the project gates with:
 
@@ -177,6 +184,8 @@ binary identity and provide the actual public source URL. This archive does not 
 itself authorize distribution.
 EOF
 
+printf '%s\n' "$SOURCE_COMMIT" > "$BUNDLE_ROOT/SOURCE-COMMIT"
+
 (
     cd "$BUNDLE_ROOT"
     find . -type f ! -path './SOURCE-MANIFEST.sha256' -print0 \
@@ -184,6 +193,14 @@ EOF
         | xargs -0 "${HASH_COMMAND[@]}" \
         > SOURCE-MANIFEST.sha256
 )
+"${HASH_COMMAND[@]}" "$BUNDLE_ROOT/SOURCE-MANIFEST.sha256" \
+    | awk '{ print $1 }' > "$BUNDLE_ROOT/SOURCE-MANIFEST.sha256.digest"
+
+# Normalize archive modes so independent clean checkouts produce the same tarball.
+find "$BUNDLE_ROOT" -type d -exec chmod 0755 {} +
+find "$BUNDLE_ROOT" -type f -exec chmod 0644 {} +
+find "$BUNDLE_ROOT" -type f -name '*.sh' -exec chmod 0755 {} +
+chmod 0755 "$BUNDLE_ROOT/android/gradlew"
 
 mkdir -p "$(dirname -- "$OUTPUT")"
 tar --sort=name \

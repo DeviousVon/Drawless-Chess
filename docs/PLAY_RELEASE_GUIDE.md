@@ -13,6 +13,13 @@ The project owner should personally complete these signup actions involving iden
 3. Link or create the Google Payments profile and enter accurate legal and contact information. Be prepared to verify a private contact email and phone number, provide a public developer email, and submit a government identity document if Google requests it. All identity documents must match the Payments profile. See [identity verification](https://support.google.com/googleplay/android-developer/answer/10841920) and [required account information](https://support.google.com/googleplay/android-developer/answer/13628312).
 4. Complete device verification in the Play Console mobile app. Google requires a non-rooted physical Android phone running Android 10 or newer. See [device verification](https://support.google.com/googleplay/android-developer/answer/14316361).
 
+For a personal account, Google publicly displays the verified legal name, country, and
+developer email. If the developer monetizes on Google Play, Google also displays the full
+address from the linked payments profile. Review those disclosures before choosing paid
+distribution or any other monetization. See Google's [developer information shown on
+Play](https://support.google.com/googleplay/android-developer/answer/13628312) and
+[personal-account information requirements](https://support.google.com/googleplay/android-developer/answer/13634081).
+
 After steps 1–4 are approved, stop and report that account and device verification passed. The remaining work happens later:
 
 - If the game will be paid, enter and verify merchant banking and tax information directly in Play Console. Bank verification may use a small deposit or official bank document and can take up to five days.
@@ -22,7 +29,7 @@ The project owner must never share Google passwords, one-time codes, government 
 
 ## 2. Work the assistant can prepare
 
-The package ID is already approved as `com.drawlesschess`. The assistant will recommend a signing strategy and explain its tradeoffs for the project owner's approval. The project owner chooses whether the game is free or paid. The assistant can then prepare:
+The package ID is already approved as `com.drawlesschess`. The assistant will recommend a signing strategy and explain its tradeoffs for the project owner's approval. The project owner chooses whether the game is free or paid. This choice is asymmetric: after this package has been offered for free, Google does not allow changing that same package to paid; a paid app may later be made free. See [pricing an app](https://support.google.com/googleplay/android-developer/answer/6334373). The assistant can then prepare:
 
 - A signed release Android App Bundle (`.aab`) using a locally retained upload key and secrets that never enter chat or the repository.
 - Release checks for target API, 16 KB native-library compatibility, supported ABIs, and Play packaging.
@@ -45,6 +52,64 @@ Complete these before starting the required closed test:
 - Verify every native library and the final bundle for [16 KB page-size support](https://developer.android.com/guide/practices/page-sizes).
 - Publish a real, public, non-PDF privacy-policy URL and provide privacy-policy text or a link inside the app. Even an offline app that collects no data needs a policy. See the [User Data policy](https://support.google.com/googleplay/android-developer/answer/10144311).
 - Complete the Data safety form accurately. It is required for closed, open, and production tracks even when the answer is "no data collected or shared." See [Data safety requirements](https://support.google.com/googleplay/android-developer/answer/10787469).
+
+### Build and verify the Play bundle
+
+Debug builds install as `com.drawlesschess.debug`; the Play release remains
+`com.drawlesschess`, so private development builds no longer replace the store app.
+
+Keep the upload keystore outside the repository. Signing values may come from the four
+`DRAWLESS_UPLOAD_*` environment variables listed in
+`android/signing.properties.example`, or from a private copy named
+`android/signing.properties`. Environment variables take precedence. The properties file,
+keystores, and common private-key formats are ignored by Git, and Gradle rejects a keystore
+path inside the repository. If `DRAWLESS_SIGNING_PROPERTIES` is used, its custom file must
+also live outside the repository.
+
+Before building, regenerate the exact dependency evidence, review and commit every release
+source change, and require a clean worktree. Then create the corresponding-source archive;
+the bundler refuses dirty trees and records the full source commit:
+
+```powershell
+pwsh -NoProfile -File .\scripts\generate-release-sbom.ps1
+& 'C:\Program Files\Git\bin\bash.exe' -lc `
+  'cd /c/src && scripts/source-bundle.sh release/drawless-chess-0.1.0-source.tar.gz'
+```
+
+The final AAB verifier independently regenerates the dependency reports and the complete
+canonical source manifest. It rejects a stale SBOM, a different Git commit, any source
+manifest/hash mismatch, an omitted source file, or any content difference from source
+rebuilt from the clean repository.
+
+With the upload-key configuration present, build from `C:\src\android`:
+
+```powershell
+.\gradlew.bat :app:bundleRelease
+```
+
+Without all four signing values and an external keystore, that command fails instead of
+creating a new unsigned Play bundle. Do not upload a stale file merely because one remains in
+the build directory from an earlier diagnostic build.
+
+Verify the signed result from `C:\src` and preserve its public evidence report:
+
+```powershell
+pwsh -NoProfile -File .\scripts\verify-play-aab.ps1 `
+  -Bundle .\android\app\build\outputs\bundle\release\app-release.aab `
+  -SourceArchive .\release\drawless-chess-0.1.0-source.tar.gz `
+  -ExpectedUploadCertificateSha256 '<64-HEX-UPLOAD-CERTIFICATE-FINGERPRINT>' `
+  -OutputManifest .\build\release-evidence\play-aab.json
+```
+
+The verifier reads the final AAB and checks its upload-key signature, application ID,
+version, SDK levels, exact `arm64-v8a`/`x86_64` ABI set, native engine presence, every native
+ELF load segment, bundletool's 16 KB APK page-alignment setting, exact packaged legal/SBOM
+assets, current dependency inventory, clean Git commit, and matching corresponding-source
+archive. The evidence report contains hashes and the public upload-certificate fingerprint,
+never a private key, password, username, or absolute local path.
+The expected certificate fingerprint is public metadata produced from the locally created
+upload key; pinning it prevents a validly signed bundle made with the wrong or debug key
+from passing release verification.
 
 ## 4. Required closed-test process
 

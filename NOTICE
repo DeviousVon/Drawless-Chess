@@ -34,8 +34,10 @@ Third-party material
 * fairy-stockfish-nnue.wasm and ffish-es6 are GPL-family packages used by the
   separate JavaScript proof of concept. Their versions are locked in
   package-lock.json; they are not the Android native source pin.
-* AndroidX, Jetpack Compose, Room, Kotlin, the Android Gradle Plugin, and Gradle
-  contain Apache-2.0 material. Their upstream notices remain authoritative.
+* The exact Android release runtime dependency inventory and per-module Maven
+  POM license evidence are in release/reports/release-sbom.cdx.json. All 115
+  resolved modules at this checkpoint are Apache-2.0; the complete terms are in
+  APACHE-2.0.txt. Their upstream notices remain authoritative.
 
 Third-party copyright and attribution notices remain the property of their
 respective authors. This NOTICE summarizes the repository boundary; it does not
