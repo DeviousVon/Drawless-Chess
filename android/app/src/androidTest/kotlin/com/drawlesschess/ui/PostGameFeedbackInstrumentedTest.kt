@@ -1,5 +1,6 @@
 package com.drawlesschess.ui
 
+import android.media.AudioTrack
 import android.os.SystemClock
 import android.util.Log
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -114,5 +115,27 @@ class PostGameFeedbackInstrumentedTest {
         val renderMillis = (SystemClock.elapsedRealtimeNanos() - renderStarted) / 1_000_000
         Log.i("DrawlessAudioTiming", "two_pass_sequence_render_ms=$renderMillis")
         assertTrue("Procedural audio rendering took ${renderMillis}ms", renderMillis < 2_000)
+    }
+
+    @Test
+    fun staticAudioTrackAcceptsPcmBeforeBecomingInitializedAndStartsPlayback() {
+        val pcm = renderCompletionSequence(CompletionEffectTimeline.Victory)
+        val track = createStaticAudioTrack(pcm)
+        assertTrue("The platform rejected the prepared static audio track", track != null)
+        track ?: return
+
+        try {
+            assertEquals(AudioTrack.STATE_INITIALIZED, track.state)
+            track.play()
+            SystemClock.sleep(100)
+            assertEquals(AudioTrack.PLAYSTATE_PLAYING, track.playState)
+        } finally {
+            try {
+                track.pause()
+            } catch (_: RuntimeException) {
+                // The assertion above should report playback failure; still release the track.
+            }
+            track.release()
+        }
     }
 }

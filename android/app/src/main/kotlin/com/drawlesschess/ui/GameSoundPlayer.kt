@@ -3,6 +3,7 @@ package com.drawlesschess.ui
 import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioTrack
+import android.util.Log
 import java.util.EnumMap
 import kotlin.math.PI
 import kotlin.math.abs
@@ -90,17 +91,17 @@ internal class GameSoundPlayer : AutoCloseable {
         }
         prepared.forEach { track ->
             stopTrack(track)
-            releaseTrack(track)
+            releaseAudioTrack(track)
         }
     }
 
     private fun prepare(slot: SoundSlot, pcm: ShortArray) {
-        val track = createTrack(pcm) ?: return
+        val track = createStaticAudioTrack(pcm) ?: return
         synchronized(lock) {
             if (closed) {
-                releaseTrack(track)
+                releaseAudioTrack(track)
             } else {
-                tracks.put(slot, track)?.let(::releaseTrack)
+                tracks.put(slot, track)?.let(::releaseAudioTrack)
                 if (pendingCompletion == slot) {
                     pendingCompletion = null
                     rewindAndPlay(track)
@@ -117,7 +118,8 @@ internal class GameSoundPlayer : AutoCloseable {
                 track.reloadStaticData() == AudioTrack.SUCCESS
             if (!rewound) return
             track.play()
-        } catch (_: RuntimeException) {
+        } catch (exception: RuntimeException) {
+            Log.w(AUDIO_LOG_TAG, "Audio playback failed", exception)
             // Audio output can disappear while backgrounded; chess must keep running.
         }
     }
@@ -131,49 +133,70 @@ internal class GameSoundPlayer : AutoCloseable {
             // Already stopped, released by the platform, or never initialized.
         }
     }
+}
 
-    private fun createTrack(pcm: ShortArray): AudioTrack? {
-        var track: AudioTrack? = null
-        return try {
-            track = AudioTrack.Builder()
-                .setAudioAttributes(
-                    AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_GAME)
-                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                        .build(),
+/**
+ * Builds one reusable static track. MODE_STATIC tracks intentionally report
+ * STATE_NO_STATIC_DATA until their first successful write; only then may they be
+ * required to report STATE_INITIALIZED.
+ *
+ * Kept internal so the Android regression suite can exercise the real platform state
+ * transition instead of validating synthesized PCM alone.
+ */
+internal fun createStaticAudioTrack(pcm: ShortArray): AudioTrack? {
+    var track: AudioTrack? = null
+    return try {
+        track = AudioTrack.Builder()
+            .setAudioAttributes(
+                AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_GAME)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .build(),
+            )
+            .setAudioFormat(
+                AudioFormat.Builder()
+                    .setSampleRate(SOUND_SAMPLE_RATE)
+                    .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                    .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+                    .build(),
+            )
+            .setTransferMode(AudioTrack.MODE_STATIC)
+            .setBufferSizeInBytes(pcm.size * Short.SIZE_BYTES)
+            .build()
+        if (track.state == AudioTrack.STATE_UNINITIALIZED) {
+            Log.w(AUDIO_LOG_TAG, "Static AudioTrack was uninitialized after construction")
+            releaseAudioTrack(track)
+            null
+        } else {
+            val written = track.write(pcm, 0, pcm.size)
+            if (written != pcm.size || track.state != AudioTrack.STATE_INITIALIZED) {
+                Log.w(
+                    AUDIO_LOG_TAG,
+                    "Static AudioTrack rejected PCM: written=$written expected=${pcm.size} " +
+                        "state=${track.state}",
                 )
-                .setAudioFormat(
-                    AudioFormat.Builder()
-                        .setSampleRate(SOUND_SAMPLE_RATE)
-                        .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
-                        .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
-                        .build(),
-                )
-                .setTransferMode(AudioTrack.MODE_STATIC)
-                .setBufferSizeInBytes(pcm.size * Short.SIZE_BYTES)
-                .build()
-            if (track.state != AudioTrack.STATE_INITIALIZED ||
-                track.write(pcm, 0, pcm.size) != pcm.size
-            ) {
-                releaseTrack(track)
+                releaseAudioTrack(track)
                 null
             } else {
                 track
             }
-        } catch (_: RuntimeException) {
-            track?.let(::releaseTrack)
-            null
         }
-    }
-
-    private fun releaseTrack(track: AudioTrack) {
-        try {
-            track.release()
-        } catch (_: RuntimeException) {
-            // Some vendor audio drivers throw when a half-initialized track is released.
-        }
+    } catch (exception: RuntimeException) {
+        Log.w(AUDIO_LOG_TAG, "Static AudioTrack initialization failed", exception)
+        track?.let(::releaseAudioTrack)
+        null
     }
 }
+
+private fun releaseAudioTrack(track: AudioTrack) {
+    try {
+        track.release()
+    } catch (_: RuntimeException) {
+        // Some vendor audio drivers throw when a half-initialized track is released.
+    }
+}
+
+private const val AUDIO_LOG_TAG = "DrawlessAudio"
 
 internal const val SOUND_SAMPLE_RATE = 22_050
 
