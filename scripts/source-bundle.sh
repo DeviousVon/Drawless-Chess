@@ -77,7 +77,8 @@ mkdir -p "$BUNDLE_ROOT"
 
 # Export the exact committed project blobs. This is independent of working-tree
 # line-ending conversion, global ignore rules, caches, and untracked files.
-git -C "$REPOSITORY_ROOT" archive --format=tar "$SOURCE_COMMIT" \
+git -C "$REPOSITORY_ROOT" -c core.autocrlf=false \
+    archive --format=tar "$SOURCE_COMMIT" \
     | tar -C "$BUNDLE_ROOT" -xf -
 
 # The prepared Fairy tree is intentionally excluded from the outer repository.
@@ -97,7 +98,8 @@ EXPECTED_NATIVE_PATCHED_TREE=$(awk -F= '
 ACTUAL_NATIVE_PATCHED_TREE=$(git -C "$NATIVE_SOURCE" write-tree)
 [[ "$ACTUAL_NATIVE_PATCHED_TREE" == "$EXPECTED_NATIVE_PATCHED_TREE" ]] \
     || die "native staged tree differs from the locked patched tree"
-git -C "$NATIVE_SOURCE" archive --format=tar "$ACTUAL_NATIVE_PATCHED_TREE" \
+git -C "$NATIVE_SOURCE" -c core.autocrlf=false \
+    archive --format=tar "$ACTUAL_NATIVE_PATCHED_TREE" \
     | tar -C "$ARCHIVE_FAIRY" -xf -
 cp "$NATIVE_SOURCE/.drawless-source-state.properties" \
     "$ARCHIVE_FAIRY/.drawless-source-state.properties"
