@@ -1,0 +1,64 @@
+name: Build sampled audio pack
+
+on:
+  push:
+    branches:
+      - codex/audio-foley-pack
+    paths:
+      - .github/workflows/build-sampled-audio-pack.yml
+      - scripts/audio/**
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-audio:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out work branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install audio tooling
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes ffmpeg zip python3-numpy
+
+      - name: Build Android-ready sampled assets
+        run: python3 scripts/audio/build_sampled_audio_pack.py --repo-root . --clean
+
+      - name: Verify generated pack
+        run: python3 scripts/audio/verify_sampled_audio_pack.py .
+
+      - name: Create portable pack archive
+        run: |
+          rm -f build/drawless-chess-sampled-audio-pack.zip
+          zip -q -r build/drawless-chess-sampled-audio-pack.zip \
+            android/app/src/main/res/raw \
+            android/app/src/main/kotlin/com/drawlesschess/ui/SampledSoundCatalog.kt \
+            docs/audio
+
+      - name: Commit generated resources to the work branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add android/app/src/main/res/raw \
+            android/app/src/main/kotlin/com/drawlesschess/ui/SampledSoundCatalog.kt \
+            docs/audio
+          if git diff --cached --quiet; then
+            echo "Generated audio pack is already current."
+          else
+            git commit -m "Add sampled CC0 chess audio pack"
+            git push origin HEAD:codex/audio-foley-pack
+          fi
+
+      - name: Upload portable pack
+        uses: actions/upload-artifact@v4
+        with:
+          name: drawless-chess-sampled-audio-pack
+          path: build/drawless-chess-sampled-audio-pack.zip
+          if-no-files-found: error
+          retention-days: 30
