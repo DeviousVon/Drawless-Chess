@@ -1,0 +1,1319 @@
+{
+  "schema": 2,
+  "pack": "Drawless Chess Curated Physical Foley Pack",
+  "format": {
+    "codec": "Ogg Vorbis",
+    "sample_rate_hz": 48000,
+    "channels": 1,
+    "quality": 5
+  },
+  "sources": {
+    "disk_drop_1": {
+      "title": "Chess Pieces Move (Close) — extracted take 1",
+      "author": "JJTaynos",
+      "license": "CC0-1.0",
+      "source": "https://freesound.org/s/733927/",
+      "intermediate": "https://github.com/DeLinev/HanoiTower/blob/2f0e3114859e948a8ed7ae5da1663f9762e58986/public/audio/disk-drop-1.mp3",
+      "intermediate_sha256": "50db9c0c10fe2c996a84ddff78ac2f3b092f240c56538d85fe5119eb697471cb",
+      "intermediate_git_blob_sha1": "4d4f97cb9bd0af6785a9093f3842e235e9733b2e",
+      "local_sha256": "b9f726616d930b374f76b43452733f3d6da06d3e6942fcdcb446e1d5d8facba3"
+    },
+    "disk_drop_2": {
+      "title": "Chess Pieces Move (Close) — extracted take 2",
+      "author": "JJTaynos",
+      "license": "CC0-1.0",
+      "source": "https://freesound.org/s/733927/",
+      "intermediate": "https://github.com/DeLinev/HanoiTower/blob/2f0e3114859e948a8ed7ae5da1663f9762e58986/public/audio/disk-drop-2.mp3",
+      "intermediate_sha256": "490714dc3c2c4cad096290936f6881a5b5e4b3c393b1f751df9785bc5b4aa049",
+      "intermediate_git_blob_sha1": "3a511930e98e0c3e76845aa8c79a29d7d45ee487",
+      "local_sha256": "3321847c25952b933f319ae5ae88603708c2a34f7c1498ff5695ce336990e1a7"
+    },
+    "disk_drop_3": {
+      "title": "Chess Pieces Move (Close) — extracted take 3",
+      "author": "JJTaynos",
+      "license": "CC0-1.0",
+      "source": "https://freesound.org/s/733927/",
+      "intermediate": "https://github.com/DeLinev/HanoiTower/blob/2f0e3114859e948a8ed7ae5da1663f9762e58986/public/audio/disk-drop-3.mp3",
+      "intermediate_sha256": "0c6872979dadc5db4ce2ccbc020f1074843a4ea56849a790780462438b91f52b",
+      "intermediate_git_blob_sha1": "10bb19bd0ae4013adbfa44111c8b5e731f484698",
+      "local_sha256": "b9ef04e617b8ae697f3e339ea795c81e984011a60501e75c377a54bb41c1609f"
+    },
+    "disk_drop_4": {
+      "title": "Chess Pieces Move (Close) — extracted take 4",
+      "author": "JJTaynos",
+      "license": "CC0-1.0",
+      "source": "https://freesound.org/s/733927/",
+      "intermediate": "https://github.com/DeLinev/HanoiTower/blob/2f0e3114859e948a8ed7ae5da1663f9762e58986/public/audio/disk-drop-4.mp3",
+      "intermediate_sha256": "615d3a29ce662309502d2c7974be7932c1567d27af6fd582692c43d9e32e8d1a",
+      "intermediate_git_blob_sha1": "751bc037574c76183258ee7158df814752541111",
+      "local_sha256": "65e9352d7013c19612b54fb7db6198b76c55c8f1dd0be9517876daa280c0eb27"
+    },
+    "disk_drop_5": {
+      "title": "Chess Pieces Move (Close) — extracted take 5",
+      "author": "JJTaynos",
+      "license": "CC0-1.0",
+      "source": "https://freesound.org/s/733927/",
+      "intermediate": "https://github.com/DeLinev/HanoiTower/blob/2f0e3114859e948a8ed7ae5da1663f9762e58986/public/audio/disk-drop-5.mp3",
+      "intermediate_sha256": "cd8107216728f392fe4108a6b16ecc02b5aba09659ec800e98c9443198aeb582",
+      "intermediate_git_blob_sha1": "2e1b4691f2949864e79507822776d3db867edd16",
+      "local_sha256": "b81d68435d061f4cfad8ddc2793efc520a5b04055501fb9f846e1da7e037f4d0"
+    },
+    "ion_sound": {
+      "title": "ion.sound bundled physical sound library",
+      "author": "Denis Ineshin",
+      "license": "MIT",
+      "source": "https://github.com/IonDen/ion.sound/tree/74d51c5bd14be428f06b3afb5e40125b8e407fbc",
+      "version": "3.0.7",
+      "commit": "74d51c5bd14be428f06b3afb5e40125b8e407fbc"
+    },
+    "branch_break": {
+      "title": "ion.sound branch_break.mp3",
+      "author": "Denis Ineshin",
+      "license": "MIT",
+      "source": "https://github.com/IonDen/ion.sound/blob/74d51c5bd14be428f06b3afb5e40125b8e407fbc/sounds/branch_break.mp3",
+      "upstream_git_blob_sha1": "ab209433c70ea191df6d184d48af4e3888666cb3",
+      "local_sha256": "790800b97b0b7a3361d9c28ea304aeab86742f281c42044234685ceab0ef9326"
+    },
+    "button_tiny": {
+      "title": "ion.sound button_tiny.mp3",
+      "author": "Denis Ineshin",
+      "license": "MIT",
+      "source": "https://github.com/IonDen/ion.sound/blob/74d51c5bd14be428f06b3afb5e40125b8e407fbc/sounds/button_tiny.mp3",
+      "upstream_git_blob_sha1": "db9949506970504a85db22bbec1263c97e30425f",
+      "local_sha256": "d876491eae8b449f3c9d0c9cc0764caf9e13c484afab0c7a7bb7751eee5b69a5"
+    },
+    "glass": {
+      "title": "ion.sound glass.mp3",
+      "author": "Denis Ineshin",
+      "license": "MIT",
+      "source": "https://github.com/IonDen/ion.sound/blob/74d51c5bd14be428f06b3afb5e40125b8e407fbc/sounds/glass.mp3",
+      "upstream_git_blob_sha1": "e195690915feec22e20fa5668db3280bc0d05047",
+      "local_sha256": "cc50371ec59dee02314e7e315f5612979a81228adadb5e5effd8a492cbc56e22"
+    },
+    "keyboard_desk": {
+      "title": "ion.sound keyboard_desk.mp3 (retained source, unused by runtime assets)",
+      "author": "Denis Ineshin",
+      "license": "MIT",
+      "source": "https://github.com/IonDen/ion.sound/blob/74d51c5bd14be428f06b3afb5e40125b8e407fbc/sounds/keyboard_desk.mp3",
+      "upstream_git_blob_sha1": "6bf2827fb63d12dda2037b5998073f3fb33c73ba",
+      "local_sha256": "1413caf7060873b12eacb60d0a1373a1b705dcfd7c06dc9ede89d79822649242"
+    },
+    "light_bulb_breaking": {
+      "title": "ion.sound light_bulb_breaking.mp3",
+      "author": "Denis Ineshin",
+      "license": "MIT",
+      "source": "https://github.com/IonDen/ion.sound/blob/74d51c5bd14be428f06b3afb5e40125b8e407fbc/sounds/light_bulb_breaking.mp3",
+      "upstream_git_blob_sha1": "7e2277875ca89ed384aeb1b845c5d69197225434",
+      "local_sha256": "1dccdc34ed60da946284ca988cc582993a356129fb18be516eecc08a80fbfeec"
+    },
+    "snap": {
+      "title": "ion.sound snap.mp3",
+      "author": "Denis Ineshin",
+      "license": "MIT",
+      "source": "https://github.com/IonDen/ion.sound/blob/74d51c5bd14be428f06b3afb5e40125b8e407fbc/sounds/snap.mp3",
+      "upstream_git_blob_sha1": "8a004685cd0ed8ced54ff173898ae73aa1b5f6f7",
+      "local_sha256": "127f81f3512fa4535574857bd13d9dd05acf1660c0d323f3f2da6a5b9bfb9e89"
+    },
+    "mh2o_alabaster": {
+      "title": "chess_move_on_alabaster.wav — Freesound HQ preview",
+      "author": "mh2o",
+      "license": "CC0-1.0",
+      "source": "https://freesound.org/s/351518/",
+      "original_download": "https://freesound.org/people/mh2o/sounds/351518/download/351518__mh2o__chess_move_on_alabaster.wav",
+      "source_preview": "https://cdn.freesound.org/previews/351/351518_4502687-hq.mp3",
+      "source_preview_sha256": "c13803890bd531fee08b167e780b0a7bab2c4e21b1b232366b8df3860792b25b",
+      "original_metadata": "WAV, 0.072 seconds, 8000 Hz, 16-bit mono",
+      "retained_representation": "Public Freesound HQ MP3 preview auditioned by the product owner",
+      "local_sha256": "c13803890bd531fee08b167e780b0a7bab2c4e21b1b232366b8df3860792b25b"
+    },
+    "rudmer_firework_pops": {
+      "title": "2 Firework pops — Freesound HQ preview",
+      "author": "Rudmer_Rotteveel",
+      "license": "CC0-1.0",
+      "source": "https://freesound.org/s/334042/",
+      "original_download": "https://freesound.org/people/Rudmer_Rotteveel/sounds/334042/download/334042__rudmer_rotteveel__2-firework-pops.wav",
+      "source_preview": "https://cdn.freesound.org/previews/334/334042_4921277-hq.mp3",
+      "source_preview_sha256": "f05e0daf120e5ee516c07ebcdd241bcf5b630a77100d09507100f091bddb3a2e",
+      "original_metadata": "WAV, 3.536 seconds, 44100 Hz, 16-bit stereo",
+      "retained_representation": "Public Freesound HQ MP3 preview auditioned by the product owner",
+      "local_sha256": "f05e0daf120e5ee516c07ebcdd241bcf5b630a77100d09507100f091bddb3a2e"
+    },
+    "rudmer_firework_rocket": {
+      "title": "Whistle and Explosion Single_Firework — Freesound HQ preview",
+      "author": "Rudmer_Rotteveel",
+      "license": "CC0-1.0",
+      "source": "https://freesound.org/s/336008/",
+      "original_download": "https://freesound.org/people/Rudmer_Rotteveel/sounds/336008/download/336008__rudmer_rotteveel__whistle-and-explosion-single_firework.wav",
+      "source_preview": "https://cdn.freesound.org/previews/336/336008_4921277-hq.mp3",
+      "source_preview_sha256": "662c9cc0565d1256f29145a2ceca6868815df2a193c36cbb1e55858602dc0fa2",
+      "original_metadata": "WAV, 2.391 seconds, 44100 Hz, 16-bit stereo",
+      "retained_representation": "Public Freesound HQ MP3 preview auditioned by the product owner",
+      "local_sha256": "662c9cc0565d1256f29145a2ceca6868815df2a193c36cbb1e55858602dc0fa2"
+    }
+  },
+  "counts": {
+    "capture": 12,
+    "castle": 6,
+    "check": 4,
+    "firework_high": 2,
+    "firework_low": 2,
+    "firework_mid": 2,
+    "game_start": 3,
+    "glass_fracture": 3,
+    "glass_impact": 3,
+    "glass_shards": 3,
+    "hint": 3,
+    "low_time": 4,
+    "move": 50,
+    "promotion": 4,
+    "undo": 3
+  },
+  "assets": [
+    {
+      "file": "chess_move_wood_01.ogg",
+      "category": "move",
+      "duration_seconds": 0.108,
+      "sha256": "91ec0a95a8555b7e02a85a2550221ff51fe77b33c6e258927c0eafe04c55421b",
+      "sources": [
+        "disk_drop_1",
+        "mh2o_alabaster"
+      ],
+      "processing": "Two genuine piece/board contacts; deterministic 1-5 ms offset, restrained EQ, level matching, trim and fade. No slide, sweep, pitch shift, or synthesis."
+    },
+    {
+      "file": "chess_move_wood_02.ogg",
+      "category": "move",
+      "duration_seconds": 0.0716,
+      "sha256": "7a9c4754eb37a3952d2c8bd99484ee3b8e3677e62de45155064ef6265b34a6fe",
+      "sources": [
+        "disk_drop_5",
+        "disk_drop_4"
+      ],
+      "processing": "Two real chess-piece takes at natural speed; subtle EQ, millisecond contact offset, trim, gain and fades. No synthesis."
+    },
+    {
+      "file": "chess_move_wood_03.ogg",
+      "category": "move",
+      "duration_seconds": 0.0823,
+      "sha256": "0fe9a9f4c8bcc0529c3805c550bc72c9c11c63ff9f51b13686851646c82e3377",
+      "sources": [
+        "disk_drop_4",
+        "disk_drop_5"
+      ],
+      "processing": "Two real chess-piece takes at natural speed; subtle EQ, millisecond contact offset, trim, gain and fades. No synthesis."
+    },
+    {
+      "file": "chess_move_wood_04.ogg",
+      "category": "move",
+      "duration_seconds": 0.115,
+      "sha256": "b204cd6e518bef164b62529f6a439130860222a4295ae910084cff7a88ae04e1",
+      "sources": [
+        "disk_drop_2",
+        "mh2o_alabaster"
+      ],
+      "processing": "Two genuine piece/board contacts; deterministic 1-5 ms offset, restrained EQ, level matching, trim and fade. No slide, sweep, pitch shift, or synthesis."
+    },
+    {
+      "file": "chess_move_wood_05.ogg",
+      "category": "move",
+      "duration_seconds": 0.0797,
+      "sha256": "65746709ff9fb7740e7b232b8e839749f63a2d337882a9c4a654c955a7dfb3b5",
+      "sources": [
+        "disk_drop_2",
+        "disk_drop_1"
+      ],
+      "processing": "Two real chess-piece takes at natural speed; subtle EQ, millisecond contact offset, trim, gain and fades. No synthesis."
+    },
+    {
+      "file": "chess_move_wood_06.ogg",
+      "category": "move",
+      "duration_seconds": 0.1035,
+      "sha256": "419e79d73f0da3e135ebc33f950834744ab0f6560e1b9b591d3c0b9772683acf",
+      "sources": [
+        "disk_drop_1",
+        "disk_drop_2"
+      ],
+      "processing": "Two real chess-piece takes at natural speed; subtle EQ, millisecond contact offset, trim, gain and fades. No synthesis."
+    },
+    {
+      "file": "chess_move_wood_07.ogg",
+      "category": "move",
+      "duration_seconds": 0.122,
+      "sha256": "0df773c6dc48544f4e2b33fd63eaa4f59a4030347be4bf587f27a429c4a70732",
+      "sources": [
+        "disk_drop_3",
+        "mh2o_alabaster"
+      ],
+      "processing": "Two genuine piece/board contacts; deterministic 1-5 ms offset, restrained EQ, level matching, trim and fade. No slide, sweep, pitch shift, or synthesis."
+    },
+    {
+      "file": "chess_move_wood_08.ogg",
+      "category": "move",
+      "duration_seconds": 0.129,
+      "sha256": "bd366e8356ae04e8483e031662653285677d73d97f5b932138027632330a987a",
+      "sources": [
+        "disk_drop_4",
+        "mh2o_alabaster"
+      ],
+      "processing": "Two genuine piece/board contacts; deterministic 1-5 ms offset, restrained EQ, level matching, trim and fade. No slide, sweep, pitch shift, or synthesis."
+    },
+    {
+      "file": "chess_move_wood_09.ogg",
+      "category": "move",
+      "duration_seconds": 0.136,
+      "sha256": "376c4f945adc94e91506f3afaaa64de6dc057292e9c0bb7d21c9728f02dcc38c",
+      "sources": [
+        "disk_drop_5",
+        "mh2o_alabaster"
+      ],
+      "processing": "Two genuine piece/board contacts; deterministic 1-5 ms offset, restrained EQ, level matching, trim and fade. No slide, sweep, pitch shift, or synthesis."
+    },
+    {
+      "file": "chess_move_wood_10.ogg",
+      "category": "move",
+      "duration_seconds": 0.108,
+      "sha256": "f5b9e7d63d29ba0a0787b141d97ae18d5f6c2ade49b95994e49e5e0d9dfa1f3c",
+      "sources": [
+        "mh2o_alabaster",
+        "disk_drop_1"
+      ],
+      "processing": "Two genuine piece/board contacts; deterministic 1-5 ms offset, restrained EQ, level matching, trim and fade. No slide, sweep, pitch shift, or synthesis."
+    },
+    {
+      "file": "chess_move_wood_11.ogg",
+      "category": "move",
+      "duration_seconds": 0.0941,
+      "sha256": "8aea62c177a6983700e33c6648d76885a20a0dcdb049880f9d5e35a6cc820ebb",
+      "sources": [
+        "disk_drop_3",
+        "disk_drop_1"
+      ],
+      "processing": "Two real chess-piece takes at natural speed; subtle EQ, millisecond contact offset, trim, gain and fades. No synthesis."
+    },
+    {
+      "file": "chess_move_wood_12.ogg",
+      "category": "move",
+      "duration_seconds": 0.0798,
+      "sha256": "2a519aab88f502c6ea40619832366c6f66f5b5685bbe2e40ad702efbf05ba9c7",
+      "sources": [
+        "disk_drop_2",
+        "disk_drop_3"
+      ],
+      "processing": "Two real chess-piece takes at natural speed; subtle EQ, millisecond contact offset, trim, gain and fades. No synthesis."
+    },
+    {
+      "file": "chess_move_wood_13.ogg",
+      "category": "move",
+      "duration_seconds": 0.1035,
+      "sha256": "f4cd242e35435d69bdfd9080e95c3906a354481ed21dc0e1f8a21de74b538ad4",
+      "sources": [
+        "disk_drop_1",
+        "disk_drop_4"
+      ],
+      "processing": "Two real chess-piece takes at natural speed; subtle EQ, millisecond contact offset, trim, gain and fades. No synthesis."
+    },
+    {
+      "file": "chess_move_wood_14.ogg",
+      "category": "move",
+      "duration_seconds": 0.115,
+      "sha256": "881402fcf48240dbfde4edeeb9d8b7f8075e19321bfe167b56deb3d3e2a2f6eb",
+      "sources": [
+        "mh2o_alabaster",
+        "disk_drop_2"
+      ],
+      "processing": "Two genuine piece/board contacts; deterministic 1-5 ms offset, restrained EQ, level matching, trim and fade. No slide, sweep, pitch shift, or synthesis."
+    },
+    {
+      "file": "chess_move_wood_15.ogg",
+      "category": "move",
+      "duration_seconds": 0.122,
+      "sha256": "c52845e910233397726d62fa4d285f5cb9d5dc23299a42b78414a643e1fd6fad",
+      "sources": [
+        "mh2o_alabaster",
+        "disk_drop_3"
+      ],
+      "processing": "Two genuine piece/board contacts; deterministic 1-5 ms offset, restrained EQ, level matching, trim and fade. No slide, sweep, pitch shift, or synthesis."
+    },
+    {
+      "file": "chess_move_wood_16.ogg",
+      "category": "move",
+      "duration_seconds": 0.0716,
+      "sha256": "6cd13661a7542c10277ff8f84c2bc4ec110c88549795296d173ceedfbf86df05",
+      "sources": [
+        "disk_drop_5",
+        "disk_drop_1"
+      ],
+      "processing": "Two real chess-piece takes at natural speed; subtle EQ, millisecond contact offset, trim, gain and fades. No synthesis."
+    },
+    {
+      "file": "chess_move_wood_17.ogg",
+      "category": "move",
+      "duration_seconds": 0.0892,
+      "sha256": "b67ea30d7bde32f72983a1b30f9dcf193847506019131ad2881124547aea3da7",
+      "sources": [
+        "disk_drop_4",
+        "disk_drop_2"
+      ],
+      "processing": "Two real chess-piece takes at natural speed; subtle EQ, millisecond contact offset, trim, gain and fades. No synthesis."
+    },
+    {
+      "file": "chess_move_wood_18.ogg",
+      "category": "move",
+      "duration_seconds": 0.094,
+      "sha256": "bb4585dd8067d42bc4aa4eeca2e41d66cdf40e50c5d8f61a3e39b164798a44b8",
+      "sources": [
+        "disk_drop_3",
+        "disk_drop_4"
+      ],
+      "processing": "Two real chess-piece takes at natural speed; subtle EQ, millisecond contact offset, trim, gain and fades. No synthesis."
+    },
+    {
+      "file": "chess_move_wood_19.ogg",
+      "category": "move",
+      "duration_seconds": 0.0799,
+      "sha256": "5259e015a2d459688bd5e678a56595f2bb93938dee1ae72403942c3630e60b08",
+      "sources": [
+        "disk_drop_2",
+        "disk_drop_4"
+      ],
+      "processing": "Two real chess-piece takes at natural speed; subtle EQ, millisecond contact offset, trim, gain and fades. No synthesis."
+    },
+    {
+      "file": "chess_move_wood_20.ogg",
+      "category": "move",
+      "duration_seconds": 0.0929,
+      "sha256": "eae702c2b151230d5e84c36a884fefd581a18952daa3cb7fad23046231ba5d82",
+      "sources": [
+        "disk_drop_1",
+        "disk_drop_5"
+      ],
+      "processing": "Two real chess-piece takes at natural speed; subtle EQ, millisecond contact offset, trim, gain and fades. No synthesis."
+    },
+    {
+      "file": "chess_move_wood_21.ogg",
+      "category": "move",
+      "duration_seconds": 0.129,
+      "sha256": "a208141e1446cdcc9a78297039f9b4ccf71fd026c3bbac6e693883cfb5681e7d",
+      "sources": [
+        "mh2o_alabaster",
+        "disk_drop_4"
+      ],
+      "processing": "Two genuine piece/board contacts; deterministic 1-5 ms offset, restrained EQ, level matching, trim and fade. No slide, sweep, pitch shift, or synthesis."
+    },
+    {
+      "file": "chess_move_wood_22.ogg",
+      "category": "move",
+      "duration_seconds": 0.136,
+      "sha256": "b34a1e9fc4977f63eacb71a63debfd10bfc70648cae3723a86ecf37e29587b6c",
+      "sources": [
+        "mh2o_alabaster",
+        "disk_drop_5"
+      ],
+      "processing": "Two genuine piece/board contacts; deterministic 1-5 ms offset, restrained EQ, level matching, trim and fade. No slide, sweep, pitch shift, or synthesis."
+    },
+    {
+      "file": "chess_move_wood_23.ogg",
+      "category": "move",
+      "duration_seconds": 0.0717,
+      "sha256": "219269e05b2d5dd448f7ba37cbe4fb6bce6e48bd6ed38ab641507c31b51187f2",
+      "sources": [
+        "disk_drop_5",
+        "disk_drop_3"
+      ],
+      "processing": "Two real chess-piece takes at natural speed; subtle EQ, millisecond contact offset, trim, gain and fades. No synthesis."
+    },
+    {
+      "file": "chess_move_wood_24.ogg",
+      "category": "move",
+      "duration_seconds": 0.0891,
+      "sha256": "dbecb48d43a133922b49cef9ccfcf316dcbbe6ce5f041f241454cc53398172e4",
+      "sources": [
+        "disk_drop_4",
+        "disk_drop_5"
+      ],
+      "processing": "Two real chess-piece takes at natural speed; subtle EQ, millisecond contact offset, trim, gain and fades. No synthesis."
+    },
+    {
+      "file": "chess_move_wood_25.ogg",
+      "category": "move",
+      "duration_seconds": 0.0872,
+      "sha256": "e54aa479b332a0385661039f822f4a8b71c3b2a48658ba49e501d1f3ede43757",
+      "sources": [
+        "disk_drop_3",
+        "disk_drop_5"
+      ],
+      "processing": "Two real chess-piece takes at natural speed; subtle EQ, millisecond contact offset, trim, gain and fades. No synthesis."
+    },
+    {
+      "file": "chess_move_wood_26.ogg",
+      "category": "move",
+      "duration_seconds": 0.108,
+      "sha256": "5cbf4a135b6a5efc13ce8ac23ec32647802b54b6a2eefe33955aad9459595269",
+      "sources": [
+        "disk_drop_1",
+        "disk_drop_3"
+      ],
+      "processing": "Two genuine piece/board contacts; deterministic 1-5 ms offset, restrained EQ, level matching, trim and fade. No slide, sweep, pitch shift, or synthesis."
+    },
+    {
+      "file": "chess_move_wood_27.ogg",
+      "category": "move",
+      "duration_seconds": 0.1035,
+      "sha256": "b013adfe8bc3de048f038719e41dbf5ab4b49ace5d69804b4a0971106af447fe",
+      "sources": [
+        "disk_drop_1",
+        "disk_drop_2"
+      ],
+      "processing": "Two real chess-piece takes at natural speed; subtle EQ, millisecond contact offset, trim, gain and fades. No synthesis."
+    },
+    {
+      "file": "chess_move_wood_28.ogg",
+      "category": "move",
+      "duration_seconds": 0.115,
+      "sha256": "7f8e3ac8100fbc3b6bd0328fe299a5c8dee13dde23a3681dc614529340881d66",
+      "sources": [
+        "disk_drop_2",
+        "disk_drop_4"
+      ],
+      "processing": "Two genuine piece/board contacts; deterministic 1-5 ms offset, restrained EQ, level matching, trim and fade. No slide, sweep, pitch shift, or synthesis."
+    },
+    {
+      "file": "chess_move_wood_29.ogg",
+      "category": "move",
+      "duration_seconds": 0.122,
+      "sha256": "aa55796295bd0ae86c98a78a4e55c929ee9d3c1a6fc3931c19e7119abad45dbe",
+      "sources": [
+        "disk_drop_3",
+        "disk_drop_5"
+      ],
+      "processing": "Two genuine piece/board contacts; deterministic 1-5 ms offset, restrained EQ, level matching, trim and fade. No slide, sweep, pitch shift, or synthesis."
+    },
+    {
+      "file": "chess_move_wood_30.ogg",
+      "category": "move",
+      "duration_seconds": 0.0716,
+      "sha256": "088562cf53b6f1c4360ec3dbf4d9b29cfea4911d74d5befa49339879de3e6b6e",
+      "sources": [
+        "disk_drop_5",
+        "disk_drop_4"
+      ],
+      "processing": "Two real chess-piece takes at natural speed; subtle EQ, millisecond contact offset, trim, gain and fades. No synthesis."
+    },
+    {
+      "file": "chess_move_wood_31.ogg",
+      "category": "move",
+      "duration_seconds": 0.0906,
+      "sha256": "1d4a2cb6ff8b00a0c0b8d393ef76a9539c513531f955811f598c9570d0cf11ea",
+      "sources": [
+        "disk_drop_4",
+        "disk_drop_5"
+      ],
+      "processing": "Two real chess-piece takes at natural speed; subtle EQ, millisecond contact offset, trim, gain and fades. No synthesis."
+    },
+    {
+      "file": "chess_move_wood_32.ogg",
+      "category": "move",
+      "duration_seconds": 0.129,
+      "sha256": "1037aee306ef67922394015fdbcefb2b3d1b29a7ae2951bcc213401cd759ed21",
+      "sources": [
+        "disk_drop_4",
+        "disk_drop_1"
+      ],
+      "processing": "Two genuine piece/board contacts; deterministic 1-5 ms offset, restrained EQ, level matching, trim and fade. No slide, sweep, pitch shift, or synthesis."
+    },
+    {
+      "file": "chess_move_wood_33.ogg",
+      "category": "move",
+      "duration_seconds": 0.0798,
+      "sha256": "d3ba5a20e547c32df6536a15ef96bf25e443163e885a318b452480ee3b26358b",
+      "sources": [
+        "disk_drop_2",
+        "disk_drop_1"
+      ],
+      "processing": "Two real chess-piece takes at natural speed; subtle EQ, millisecond contact offset, trim, gain and fades. No synthesis."
+    },
+    {
+      "file": "chess_move_wood_34.ogg",
+      "category": "move",
+      "duration_seconds": 0.1035,
+      "sha256": "a4cc31756c37ab18e56208fe47f0481441b82c283b7737f6376cb1319dae15e8",
+      "sources": [
+        "disk_drop_1",
+        "disk_drop_3"
+      ],
+      "processing": "Two real chess-piece takes at natural speed; subtle EQ, millisecond contact offset, trim, gain and fades. No synthesis."
+    },
+    {
+      "file": "chess_move_wood_35.ogg",
+      "category": "move",
+      "duration_seconds": 0.136,
+      "sha256": "9a953032ed5f1d9dda9f1ecffe2295729fcec72c825134392b4049262bfb8f29",
+      "sources": [
+        "disk_drop_5",
+        "disk_drop_2"
+      ],
+      "processing": "Two genuine piece/board contacts; deterministic 1-5 ms offset, restrained EQ, level matching, trim and fade. No slide, sweep, pitch shift, or synthesis."
+    },
+    {
+      "file": "chess_move_wood_36.ogg",
+      "category": "move",
+      "duration_seconds": 0.108,
+      "sha256": "29785673983ee75bf6e8c1c577d4749d8bd166ca91854aed4e0f159f281fcb5d",
+      "sources": [
+        "disk_drop_1",
+        "disk_drop_4"
+      ],
+      "processing": "Two genuine piece/board contacts; deterministic 1-5 ms offset, restrained EQ, level matching, trim and fade. No slide, sweep, pitch shift, or synthesis."
+    },
+    {
+      "file": "chess_move_wood_37.ogg",
+      "category": "move",
+      "duration_seconds": 0.115,
+      "sha256": "b47b311b4581a0283e37b28d77d30969ec0dfee8de0891e7fe20f322420bef0c",
+      "sources": [
+        "disk_drop_2",
+        "disk_drop_5"
+      ],
+      "processing": "Two genuine piece/board contacts; deterministic 1-5 ms offset, restrained EQ, level matching, trim and fade. No slide, sweep, pitch shift, or synthesis."
+    },
+    {
+      "file": "chess_move_wood_38.ogg",
+      "category": "move",
+      "duration_seconds": 0.0905,
+      "sha256": "696f1b643e391550edab433da694d918fe8481f2016c2383df3b45aa795176d5",
+      "sources": [
+        "disk_drop_4",
+        "disk_drop_1"
+      ],
+      "processing": "Two real chess-piece takes at natural speed; subtle EQ, millisecond contact offset, trim, gain and fades. No synthesis."
+    },
+    {
+      "file": "chess_move_wood_39.ogg",
+      "category": "move",
+      "duration_seconds": 0.0941,
+      "sha256": "45b860fa7838f0f10805dca7bb667b099e337e4e6421ea0e948cd9eff39c2750",
+      "sources": [
+        "disk_drop_3",
+        "disk_drop_2"
+      ],
+      "processing": "Two real chess-piece takes at natural speed; subtle EQ, millisecond contact offset, trim, gain and fades. No synthesis."
+    },
+    {
+      "file": "chess_move_wood_40.ogg",
+      "category": "move",
+      "duration_seconds": 0.0825,
+      "sha256": "8674bb6272055612984f519d8787ded9aeede47192c027d9f8867c59391d42d2",
+      "sources": [
+        "disk_drop_2",
+        "disk_drop_3"
+      ],
+      "processing": "Two real chess-piece takes at natural speed; subtle EQ, millisecond contact offset, trim, gain and fades. No synthesis."
+    },
+    {
+      "file": "chess_move_wood_41.ogg",
+      "category": "move",
+      "duration_seconds": 0.1035,
+      "sha256": "84c2ac71ddee62047eb8fa7ba01faa49e23a72104eb3365f38305c4edd8d3f1d",
+      "sources": [
+        "disk_drop_1",
+        "disk_drop_4"
+      ],
+      "processing": "Two real chess-piece takes at natural speed; subtle EQ, millisecond contact offset, trim, gain and fades. No synthesis."
+    },
+    {
+      "file": "chess_move_wood_42.ogg",
+      "category": "move",
+      "duration_seconds": 0.122,
+      "sha256": "7386b31f0faef06ddd215a581f46f8471c7139ba27957d4f07c4577b027b7512",
+      "sources": [
+        "disk_drop_3",
+        "disk_drop_1"
+      ],
+      "processing": "Two genuine piece/board contacts; deterministic 1-5 ms offset, restrained EQ, level matching, trim and fade. No slide, sweep, pitch shift, or synthesis."
+    },
+    {
+      "file": "chess_move_wood_43.ogg",
+      "category": "move",
+      "duration_seconds": 0.129,
+      "sha256": "a0a8e61538e63bb35414e470ee5f922a3fe24e33d69d3e19ab4843522443ed56",
+      "sources": [
+        "disk_drop_4",
+        "disk_drop_2"
+      ],
+      "processing": "Two genuine piece/board contacts; deterministic 1-5 ms offset, restrained EQ, level matching, trim and fade. No slide, sweep, pitch shift, or synthesis."
+    },
+    {
+      "file": "chess_move_wood_44.ogg",
+      "category": "move",
+      "duration_seconds": 0.0716,
+      "sha256": "d25652679a0f950b6137883b93750a38cba32972f4857b8471656cd3f26e0b05",
+      "sources": [
+        "disk_drop_5",
+        "disk_drop_1"
+      ],
+      "processing": "Two real chess-piece takes at natural speed; subtle EQ, millisecond contact offset, trim, gain and fades. No synthesis."
+    },
+    {
+      "file": "chess_move_wood_45.ogg",
+      "category": "move",
+      "duration_seconds": 0.0891,
+      "sha256": "17796f5c2db803d0d94d7dcc99534c4a13cc515cd9582a0a8013f030ae7a8c40",
+      "sources": [
+        "disk_drop_4",
+        "disk_drop_3"
+      ],
+      "processing": "Two real chess-piece takes at natural speed; subtle EQ, millisecond contact offset, trim, gain and fades. No synthesis."
+    },
+    {
+      "file": "chess_move_wood_46.ogg",
+      "category": "move",
+      "duration_seconds": 0.0941,
+      "sha256": "c8875206b24d9d7bacee7076047c633164c0267b67bf8ecaffc419c854926114",
+      "sources": [
+        "disk_drop_3",
+        "disk_drop_4"
+      ],
+      "processing": "Two real chess-piece takes at natural speed; subtle EQ, millisecond contact offset, trim, gain and fades. No synthesis."
+    },
+    {
+      "file": "chess_move_wood_47.ogg",
+      "category": "move",
+      "duration_seconds": 0.0785,
+      "sha256": "6582383de49d8c6df96ab41c822d976da83dec50c77ba64a77cb55b5351e7eb0",
+      "sources": [
+        "disk_drop_2",
+        "disk_drop_5"
+      ],
+      "processing": "Two real chess-piece takes at natural speed; subtle EQ, millisecond contact offset, trim, gain and fades. No synthesis."
+    },
+    {
+      "file": "chess_move_wood_48.ogg",
+      "category": "move",
+      "duration_seconds": 0.136,
+      "sha256": "0ed49b01e6db50286dd913253094208e34243400e77a96c7e5813e110c61fd85",
+      "sources": [
+        "disk_drop_5",
+        "disk_drop_3"
+      ],
+      "processing": "Two genuine piece/board contacts; deterministic 1-5 ms offset, restrained EQ, level matching, trim and fade. No slide, sweep, pitch shift, or synthesis."
+    },
+    {
+      "file": "chess_move_wood_49.ogg",
+      "category": "move",
+      "duration_seconds": 0.108,
+      "sha256": "479806ea36d10b3e927a2cc575a81ed1b597ed14390b163e34a5d78e0086d1a5",
+      "sources": [
+        "disk_drop_1",
+        "disk_drop_5"
+      ],
+      "processing": "Two genuine piece/board contacts; deterministic 1-5 ms offset, restrained EQ, level matching, trim and fade. No slide, sweep, pitch shift, or synthesis."
+    },
+    {
+      "file": "chess_move_wood_50.ogg",
+      "category": "move",
+      "duration_seconds": 0.115,
+      "sha256": "58135e131565a57a513074bd2be59ec0fb7e3722044ec679a2c6a38de2098846",
+      "sources": [
+        "disk_drop_2",
+        "disk_drop_3"
+      ],
+      "processing": "Two genuine piece/board contacts; deterministic 1-5 ms offset, restrained EQ, level matching, trim and fade. No slide, sweep, pitch shift, or synthesis."
+    },
+    {
+      "file": "chess_capture_wood_01.ogg",
+      "category": "capture",
+      "duration_seconds": 0.172,
+      "sha256": "3e943a3a2d3d556e2533eecf157b295151df0cc21ec8a486782e9a238ef24308",
+      "sources": [
+        "disk_drop_1",
+        "disk_drop_4",
+        "disk_drop_2"
+      ],
+      "processing": "Two-action physical capture: quieter recorded-piece removal followed by a firmer recorded-piece placement and restrained board body. No slide, household impact, or synthesis."
+    },
+    {
+      "file": "chess_capture_wood_02.ogg",
+      "category": "capture",
+      "duration_seconds": 0.184,
+      "sha256": "94bd1c4c8c6f66625894aaac7b5d15452c85743f1eb687eab7a402dc1fd15121",
+      "sources": [
+        "disk_drop_2",
+        "disk_drop_5",
+        "disk_drop_3"
+      ],
+      "processing": "Two-action physical capture: quieter recorded-piece removal followed by a firmer recorded-piece placement and restrained board body. No slide, household impact, or synthesis."
+    },
+    {
+      "file": "chess_capture_wood_03.ogg",
+      "category": "capture",
+      "duration_seconds": 0.196,
+      "sha256": "b5f2ee8ce1cd4599abaafb31af9632370df7f93e9358d05501837d471096943a",
+      "sources": [
+        "disk_drop_3",
+        "mh2o_alabaster",
+        "disk_drop_4"
+      ],
+      "processing": "Two-action physical capture: quieter recorded-piece removal followed by a firmer recorded-piece placement and restrained board body. No slide, household impact, or synthesis."
+    },
+    {
+      "file": "chess_capture_wood_04.ogg",
+      "category": "capture",
+      "duration_seconds": 0.208,
+      "sha256": "bfd1e1a54e713b4fa317bc643d540db7313d3f20c59ba106a277252ca9ad95ef",
+      "sources": [
+        "disk_drop_4",
+        "disk_drop_1",
+        "disk_drop_5"
+      ],
+      "processing": "Two-action physical capture: quieter recorded-piece removal followed by a firmer recorded-piece placement and restrained board body. No slide, household impact, or synthesis."
+    },
+    {
+      "file": "chess_capture_wood_05.ogg",
+      "category": "capture",
+      "duration_seconds": 0.172,
+      "sha256": "3b48d06702b4f730167117a697b05b88bdf673d2fc149a59a653cd91ebd389ad",
+      "sources": [
+        "disk_drop_5",
+        "disk_drop_2",
+        "mh2o_alabaster"
+      ],
+      "processing": "Two-action physical capture: quieter recorded-piece removal followed by a firmer recorded-piece placement and restrained board body. No slide, household impact, or synthesis."
+    },
+    {
+      "file": "chess_capture_wood_06.ogg",
+      "category": "capture",
+      "duration_seconds": 0.184,
+      "sha256": "f5f6570379d464c589476707d50865a921bab033a0d326f18bff326bcadc7f30",
+      "sources": [
+        "mh2o_alabaster",
+        "disk_drop_3",
+        "disk_drop_1"
+      ],
+      "processing": "Two-action physical capture: quieter recorded-piece removal followed by a firmer recorded-piece placement and restrained board body. No slide, household impact, or synthesis."
+    },
+    {
+      "file": "chess_capture_wood_07.ogg",
+      "category": "capture",
+      "duration_seconds": 0.196,
+      "sha256": "5f71b9ebc6deb3af703ea31a0e7978a397d968909e478f2f142511c5ace21e64",
+      "sources": [
+        "disk_drop_2",
+        "disk_drop_5",
+        "disk_drop_3"
+      ],
+      "processing": "Two-action physical capture: quieter recorded-piece removal followed by a firmer recorded-piece placement and restrained board body. No slide, household impact, or synthesis."
+    },
+    {
+      "file": "chess_capture_wood_08.ogg",
+      "category": "capture",
+      "duration_seconds": 0.208,
+      "sha256": "366636ae356a40c7f0c9af47778f1caa45612be5e46431df2f9b54a0e23576d0",
+      "sources": [
+        "disk_drop_3",
+        "mh2o_alabaster",
+        "disk_drop_4"
+      ],
+      "processing": "Two-action physical capture: quieter recorded-piece removal followed by a firmer recorded-piece placement and restrained board body. No slide, household impact, or synthesis."
+    },
+    {
+      "file": "chess_capture_wood_09.ogg",
+      "category": "capture",
+      "duration_seconds": 0.172,
+      "sha256": "b9c77393e1ddaac6529bbbdccdee1d250e52e2608929dfbd6f82f261714b9d2d",
+      "sources": [
+        "disk_drop_4",
+        "disk_drop_1",
+        "disk_drop_5"
+      ],
+      "processing": "Two-action physical capture: quieter recorded-piece removal followed by a firmer recorded-piece placement and restrained board body. No slide, household impact, or synthesis."
+    },
+    {
+      "file": "chess_capture_wood_10.ogg",
+      "category": "capture",
+      "duration_seconds": 0.184,
+      "sha256": "526f1b70d6f3716e6162ff55f046a6fa174d90072e176651d8c6a8a038a4f37a",
+      "sources": [
+        "disk_drop_5",
+        "disk_drop_2",
+        "mh2o_alabaster"
+      ],
+      "processing": "Two-action physical capture: quieter recorded-piece removal followed by a firmer recorded-piece placement and restrained board body. No slide, household impact, or synthesis."
+    },
+    {
+      "file": "chess_capture_wood_11.ogg",
+      "category": "capture",
+      "duration_seconds": 0.196,
+      "sha256": "49b78e295ccb0f5904043f7877e18e9fff8e954b9d656350fa4c7500dbfe8cc9",
+      "sources": [
+        "mh2o_alabaster",
+        "disk_drop_3",
+        "disk_drop_1"
+      ],
+      "processing": "Two-action physical capture: quieter recorded-piece removal followed by a firmer recorded-piece placement and restrained board body. No slide, household impact, or synthesis."
+    },
+    {
+      "file": "chess_capture_wood_12.ogg",
+      "category": "capture",
+      "duration_seconds": 0.208,
+      "sha256": "86b4a359a9bcf66be6a8c28aeb19ad6a35d404584f8ac00a2f6829faf5a3266b",
+      "sources": [
+        "disk_drop_1",
+        "disk_drop_4",
+        "disk_drop_2"
+      ],
+      "processing": "Two-action physical capture: quieter recorded-piece removal followed by a firmer recorded-piece placement and restrained board body. No slide, household impact, or synthesis."
+    },
+    {
+      "file": "chess_castle_wood_01.ogg",
+      "category": "castle",
+      "duration_seconds": 0.255,
+      "sha256": "1b64d84741937af486c7488897a8b871e9dc5e25260305aa532e818396a98c3e",
+      "sources": [
+        "disk_drop_1",
+        "disk_drop_4"
+      ],
+      "processing": "Two distinct genuine piece/board placements with a deterministic king/rook gap. No generic tap or synthesis."
+    },
+    {
+      "file": "chess_castle_wood_02.ogg",
+      "category": "castle",
+      "duration_seconds": 0.267,
+      "sha256": "772a3e6ab048cca429d9a87fe31af874fb98b3f649a8d4a0d5250e1b0c85f2a2",
+      "sources": [
+        "disk_drop_2",
+        "disk_drop_5"
+      ],
+      "processing": "Two distinct genuine piece/board placements with a deterministic king/rook gap. No generic tap or synthesis."
+    },
+    {
+      "file": "chess_castle_wood_03.ogg",
+      "category": "castle",
+      "duration_seconds": 0.279,
+      "sha256": "46d22c692f43c17923e40f49f5a98e71be81418226e967f9496bd46cd3e7dfd4",
+      "sources": [
+        "disk_drop_3",
+        "mh2o_alabaster"
+      ],
+      "processing": "Two distinct genuine piece/board placements with a deterministic king/rook gap. No generic tap or synthesis."
+    },
+    {
+      "file": "chess_castle_wood_04.ogg",
+      "category": "castle",
+      "duration_seconds": 0.291,
+      "sha256": "b4a987d531f29afcbe0a8c2f68b7a04058b309cb05eb42c2d8f66960e87545f3",
+      "sources": [
+        "disk_drop_4",
+        "disk_drop_1"
+      ],
+      "processing": "Two distinct genuine piece/board placements with a deterministic king/rook gap. No generic tap or synthesis."
+    },
+    {
+      "file": "chess_castle_wood_05.ogg",
+      "category": "castle",
+      "duration_seconds": 0.303,
+      "sha256": "a67b27df99131f84dc1cf701a70f4fc22946f6e87cb66fc84f939545bc75140f",
+      "sources": [
+        "disk_drop_5",
+        "disk_drop_2"
+      ],
+      "processing": "Two distinct genuine piece/board placements with a deterministic king/rook gap. No generic tap or synthesis."
+    },
+    {
+      "file": "chess_castle_wood_06.ogg",
+      "category": "castle",
+      "duration_seconds": 0.315,
+      "sha256": "45a159e823da1f162f99d47b060770929b76421f0f6b3f6c4bba7323002e15d2",
+      "sources": [
+        "mh2o_alabaster",
+        "disk_drop_3"
+      ],
+      "processing": "Two distinct genuine piece/board placements with a deterministic king/rook gap. No generic tap or synthesis."
+    },
+    {
+      "file": "chess_firework_low_01.ogg",
+      "category": "firework_low",
+      "duration_seconds": 0.65,
+      "sha256": "8785cd3fb4839727ba4f78fdcf251e31f6a3d05098faef1cc37b31452c2b1cb6",
+      "sources": [
+        "rudmer_firework_pops"
+      ],
+      "processing": "Onset-aligned segment from a genuine CC0 firework recording; mono microphone-perspective mix, restrained EQ, trim and tail fade. No pitch shift, synthesis, or household substitute."
+    },
+    {
+      "file": "chess_firework_low_02.ogg",
+      "category": "firework_low",
+      "duration_seconds": 0.65,
+      "sha256": "12fddabd2ac825075e3253d22585decf655513332f5a91349f38aec4582f3595",
+      "sources": [
+        "rudmer_firework_pops"
+      ],
+      "processing": "Onset-aligned segment from a genuine CC0 firework recording; mono microphone-perspective mix, restrained EQ, trim and tail fade. No pitch shift, synthesis, or household substitute."
+    },
+    {
+      "file": "chess_firework_mid_01.ogg",
+      "category": "firework_mid",
+      "duration_seconds": 0.82,
+      "sha256": "37e042ee98e1ef60f7a5804fc31675a29aa346c9ca9d7a1907ea3146626898fc",
+      "sources": [
+        "rudmer_firework_pops"
+      ],
+      "processing": "Onset-aligned segment from a genuine CC0 firework recording; mono microphone-perspective mix, restrained EQ, trim and tail fade. No pitch shift, synthesis, or household substitute."
+    },
+    {
+      "file": "chess_firework_mid_02.ogg",
+      "category": "firework_mid",
+      "duration_seconds": 0.82,
+      "sha256": "09cc3e4e53b5c0633b2c145b77de0725b86df59fb5a59229bfc69f822933ee79",
+      "sources": [
+        "rudmer_firework_pops"
+      ],
+      "processing": "Onset-aligned segment from a genuine CC0 firework recording; mono microphone-perspective mix, restrained EQ, trim and tail fade. No pitch shift, synthesis, or household substitute."
+    },
+    {
+      "file": "chess_firework_high_01.ogg",
+      "category": "firework_high",
+      "duration_seconds": 0.56,
+      "sha256": "55b29168a2397c14718aaabafee8505f3c54f879910e755a293574cfc28c9bb5",
+      "sources": [
+        "rudmer_firework_rocket"
+      ],
+      "processing": "Onset-aligned explosion from a genuine CC0 firework-rocket recording; mono microphone-perspective mix, restrained EQ, trim and tail fade. No pitch shift, synthesis, or household substitute."
+    },
+    {
+      "file": "chess_firework_high_02.ogg",
+      "category": "firework_high",
+      "duration_seconds": 0.56,
+      "sha256": "2b42b6d6d64057ca70a50fc45e5df09487117c4962f3baaab89f9793b328b966",
+      "sources": [
+        "rudmer_firework_rocket"
+      ],
+      "processing": "Onset-aligned explosion from a genuine CC0 firework-rocket recording; mono microphone-perspective mix, restrained EQ, trim and tail fade. No pitch shift, synthesis, or household substitute."
+    },
+    {
+      "file": "chess_glass_impact_01.ogg",
+      "category": "glass_impact",
+      "duration_seconds": 0.194,
+      "sha256": "d71338f4bdd5c9366ee7718e21bba7bedcc171a4ea3508b07191d55ec7251c12",
+      "sources": [
+        "light_bulb_breaking",
+        "branch_break"
+      ],
+      "processing": "Recorded break onset with restrained low body."
+    },
+    {
+      "file": "chess_glass_fracture_01.ogg",
+      "category": "glass_fracture",
+      "duration_seconds": 0.48,
+      "sha256": "7374e4040a3476b4a8795b7eb5512801a0fef838ee9cdb57025339d1760b8440",
+      "sources": [
+        "light_bulb_breaking",
+        "glass"
+      ],
+      "processing": "Recorded crack/fracture body, high-passed for clarity."
+    },
+    {
+      "file": "chess_glass_shards_01.ogg",
+      "category": "glass_shards",
+      "duration_seconds": 0.6666,
+      "sha256": "d53b396d60b26eed78169480a4b2c2e7bd220437e53ae81aef08d32c43c13a55",
+      "sources": [
+        "light_bulb_breaking",
+        "glass"
+      ],
+      "processing": "Recorded falling-shard tail with long natural fade."
+    },
+    {
+      "file": "chess_glass_impact_02.ogg",
+      "category": "glass_impact",
+      "duration_seconds": 0.212,
+      "sha256": "f15c436ec66b264b6d6c6d37e274794f2d7d3639d16c85289fe49d969bd9bd0c",
+      "sources": [
+        "light_bulb_breaking",
+        "branch_break"
+      ],
+      "processing": "Recorded break onset with restrained low body."
+    },
+    {
+      "file": "chess_glass_fracture_02.ogg",
+      "category": "glass_fracture",
+      "duration_seconds": 0.5073,
+      "sha256": "8730f664a8cd9901f6be6aaef2e6773170b8661280c3724d3188faf098c72a87",
+      "sources": [
+        "light_bulb_breaking",
+        "glass"
+      ],
+      "processing": "Recorded crack/fracture body, high-passed for clarity."
+    },
+    {
+      "file": "chess_glass_shards_02.ogg",
+      "category": "glass_shards",
+      "duration_seconds": 0.6357,
+      "sha256": "0224d8187ed17560fcb64ea2b9ca2a6cf846d452f073b0f5cbda37037ea17d4d",
+      "sources": [
+        "light_bulb_breaking",
+        "glass"
+      ],
+      "processing": "Recorded falling-shard tail with long natural fade."
+    },
+    {
+      "file": "chess_glass_impact_03.ogg",
+      "category": "glass_impact",
+      "duration_seconds": 0.2164,
+      "sha256": "8c49f1bcce92f6cf4a5495f8001b72b12fe5f8a38eed50825a06345fbfef5bc2",
+      "sources": [
+        "light_bulb_breaking",
+        "branch_break"
+      ],
+      "processing": "Recorded break onset with restrained low body."
+    },
+    {
+      "file": "chess_glass_fracture_03.ogg",
+      "category": "glass_fracture",
+      "duration_seconds": 0.57,
+      "sha256": "b71f05918fbf80d31ff28a1af3712ab16ac992540edec6d95494958c9b909947",
+      "sources": [
+        "light_bulb_breaking",
+        "glass"
+      ],
+      "processing": "Recorded crack/fracture body, high-passed for clarity."
+    },
+    {
+      "file": "chess_glass_shards_03.ogg",
+      "category": "glass_shards",
+      "duration_seconds": 0.6132,
+      "sha256": "e5405afeb072c1df28a842f0f55185350868e1ceabf64ff45efe18204119e7bc",
+      "sources": [
+        "light_bulb_breaking",
+        "glass"
+      ],
+      "processing": "Recorded falling-shard tail with long natural fade."
+    },
+    {
+      "file": "chess_check_crystal_01.ogg",
+      "category": "check",
+      "duration_seconds": 0.075,
+      "sha256": "2325b1afd87121aec767e158ea82d578cde20b479e1047ed0c97191593bae52f",
+      "sources": [
+        "glass"
+      ],
+      "processing": "Very short recorded glass tick intended at low mix level."
+    },
+    {
+      "file": "chess_check_crystal_02.ogg",
+      "category": "check",
+      "duration_seconds": 0.087,
+      "sha256": "6aa811e715f621fe5c9191ff535815befef94a05cbb6560dedd3dcdef5ee6b0e",
+      "sources": [
+        "glass"
+      ],
+      "processing": "Very short recorded glass tick intended at low mix level."
+    },
+    {
+      "file": "chess_check_crystal_03.ogg",
+      "category": "check",
+      "duration_seconds": 0.099,
+      "sha256": "931116b141bbc38a794e6de0278ef6960401f8bd0b2a117b06b7828523a5c9b4",
+      "sources": [
+        "glass"
+      ],
+      "processing": "Very short recorded glass tick intended at low mix level."
+    },
+    {
+      "file": "chess_check_crystal_04.ogg",
+      "category": "check",
+      "duration_seconds": 0.111,
+      "sha256": "6b557d817496e11f3d9889be2a560bc8ba13c58fbb38f1b7bb74199aac6fa38e",
+      "sources": [
+        "glass"
+      ],
+      "processing": "Very short recorded glass tick intended at low mix level."
+    },
+    {
+      "file": "chess_promotion_01.ogg",
+      "category": "promotion",
+      "duration_seconds": 0.1565,
+      "sha256": "c8c0b3152cb50546e47b16c14a09d3aed2e55619e97594484e5c09840870c971",
+      "sources": [
+        "disk_drop_1",
+        "disk_drop_2",
+        "glass"
+      ],
+      "processing": "Recorded placement with a quiet recorded-glass promotion accent."
+    },
+    {
+      "file": "chess_promotion_02.ogg",
+      "category": "promotion",
+      "duration_seconds": 0.2251,
+      "sha256": "ff2e87132fcadbdab61fe67e2f0acd2049ce6889ba22770162baa9ed0a4bfad5",
+      "sources": [
+        "disk_drop_1",
+        "disk_drop_2",
+        "glass"
+      ],
+      "processing": "Recorded placement with a quiet recorded-glass promotion accent."
+    },
+    {
+      "file": "chess_promotion_03.ogg",
+      "category": "promotion",
+      "duration_seconds": 0.1681,
+      "sha256": "1eed6b9a94bdb230bdb635293127d8aa505637c4f46bb0450d25acdf37daf23e",
+      "sources": [
+        "disk_drop_1",
+        "disk_drop_2",
+        "glass"
+      ],
+      "processing": "Recorded placement with a quiet recorded-glass promotion accent."
+    },
+    {
+      "file": "chess_promotion_04.ogg",
+      "category": "promotion",
+      "duration_seconds": 0.1361,
+      "sha256": "1a484152b9696de837bec5985e0d1fb950821d4ae312b4c6eabdff305c9af174",
+      "sources": [
+        "disk_drop_1",
+        "disk_drop_2",
+        "glass"
+      ],
+      "processing": "Recorded placement with a quiet recorded-glass promotion accent."
+    },
+    {
+      "file": "chess_hint_01.ogg",
+      "category": "hint",
+      "duration_seconds": 0.1548,
+      "sha256": "0e31c16cb7f03a1187254ede4780ab3e8612ca4ba6b157bc5e246777b7b74b9a",
+      "sources": [
+        "disk_drop_1",
+        "disk_drop_2"
+      ],
+      "processing": "Soft real placement cue."
+    },
+    {
+      "file": "chess_hint_02.ogg",
+      "category": "hint",
+      "duration_seconds": 0.0957,
+      "sha256": "e0e5ebe52555a5f1b99045db9d375a7711f377aeb7ebf19a54b881f548b828aa",
+      "sources": [
+        "disk_drop_1",
+        "disk_drop_2"
+      ],
+      "processing": "Soft real placement cue."
+    },
+    {
+      "file": "chess_hint_03.ogg",
+      "category": "hint",
+      "duration_seconds": 0.0661,
+      "sha256": "44ff2ebef055fb4818634d890dbc62a478394cf88657d6a261f3eb87a80df004",
+      "sources": [
+        "disk_drop_1",
+        "disk_drop_2"
+      ],
+      "processing": "Soft real placement cue."
+    },
+    {
+      "file": "chess_low_time_01.ogg",
+      "category": "low_time",
+      "duration_seconds": 0.1192,
+      "sha256": "b6db60c3afa3f38badabd917c67680529e9565ce6b7a34dd6a7af50bd0e707e7",
+      "sources": [
+        "button_tiny"
+      ],
+      "processing": "Short recorded threshold tap; use once, not as a repeating clock tick."
+    },
+    {
+      "file": "chess_low_time_02.ogg",
+      "category": "low_time",
+      "duration_seconds": 0.1017,
+      "sha256": "9989ab5a4d9df110589c8da86454b1985473c0d47e5a32fb681f3276623db0b2",
+      "sources": [
+        "snap"
+      ],
+      "processing": "Short recorded threshold tap; use once, not as a repeating clock tick."
+    },
+    {
+      "file": "chess_low_time_03.ogg",
+      "category": "low_time",
+      "duration_seconds": 0.1192,
+      "sha256": "598caa16f26a43e5bae2e8620a5f29b1f566a522fe4ff5ff368c5aca7f66fc5c",
+      "sources": [
+        "button_tiny"
+      ],
+      "processing": "Short recorded threshold tap; use once, not as a repeating clock tick."
+    },
+    {
+      "file": "chess_low_time_04.ogg",
+      "category": "low_time",
+      "duration_seconds": 0.1017,
+      "sha256": "b510ab160427d1a4d2be6c9d99aa8c38c932d7e2511b7eb4d62f746c677963ae",
+      "sources": [
+        "snap"
+      ],
+      "processing": "Short recorded threshold tap; use once, not as a repeating clock tick."
+    },
+    {
+      "file": "chess_game_start_01.ogg",
+      "category": "game_start",
+      "duration_seconds": 0.2127,
+      "sha256": "cd4ca289411ec7e044c07247792c224a6b19fe7ca8e01dcc43b24f897ab3085b",
+      "sources": [
+        "disk_drop_1",
+        "disk_drop_2"
+      ],
+      "processing": "Two soft recorded placements as the board becomes playable."
+    },
+    {
+      "file": "chess_game_start_02.ogg",
+      "category": "game_start",
+      "duration_seconds": 0.22,
+      "sha256": "861b5d58c5f084ce0c69774e1e45e3456726dfc637ebfc8d32eb9d8bb01dc555",
+      "sources": [
+        "disk_drop_1",
+        "disk_drop_2"
+      ],
+      "processing": "Two soft recorded placements as the board becomes playable."
+    },
+    {
+      "file": "chess_game_start_03.ogg",
+      "category": "game_start",
+      "duration_seconds": 0.3959,
+      "sha256": "4bdcab7f52899ce80df4e5af5a00a592a8217b3bc1919f599d893862e288f0d1",
+      "sources": [
+        "disk_drop_1",
+        "disk_drop_2"
+      ],
+      "processing": "Two soft recorded placements as the board becomes playable."
+    },
+    {
+      "file": "chess_undo_01.ogg",
+      "category": "undo",
+      "duration_seconds": 0.068,
+      "sha256": "f045b4f677a4bc9c3617f6e25453e42b72d2ef7fdcc7900fed4ffcbc549c7bde",
+      "sources": [
+        "disk_drop_1",
+        "disk_drop_2"
+      ],
+      "processing": "Optional very quiet reverse of a recorded placement."
+    },
+    {
+      "file": "chess_undo_02.ogg",
+      "category": "undo",
+      "duration_seconds": 0.0626,
+      "sha256": "59927517556353762451d0d7e7499c8a48f3aad4a21c16b946de441fe0c4dcda",
+      "sources": [
+        "disk_drop_1",
+        "disk_drop_2"
+      ],
+      "processing": "Optional very quiet reverse of a recorded placement."
+    },
+    {
+      "file": "chess_undo_03.ogg",
+      "category": "undo",
+      "duration_seconds": 0.0867,
+      "sha256": "f01fdf00c2054cca7d260ee903793019b456a88404cff934d74ed7919a2a8b20",
+      "sources": [
+        "disk_drop_1",
+        "disk_drop_2"
+      ],
+      "processing": "Optional very quiet reverse of a recorded placement."
+    }
+  ]
+}

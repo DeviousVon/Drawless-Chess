@@ -2,7 +2,7 @@
 
 This directory is the reproducible, GPL-3.0 engine patch boundary for Drawless
 Chess. `series` is the ordered patch list; `manifest.json` pins the only upstream
-revision accepted by patch version 1.
+revision accepted by the current patch set. The Drawless variant interface remains version 1.
 
 ## Apply and verify
 
@@ -49,6 +49,17 @@ rule enabled. It may retain a board-valid TT move for ordering and may store a
 static board evaluation. This intentionally broad policy prevents identical
 boards with different histories from sharing a decisive result. Optimization
 requires a separately reviewed history signature and a patch-version bump.
+
+## Strength calibration correction
+
+The second ordered patch corrects Fairy-Stockfish's stochastic rounding for negative
+fractional skill levels. Low `UCI_Elo` values now alternate between the adjacent integer
+levels with the intended probability instead of always truncating toward the stronger
+level. This changes general strength calibration, not the Drawless variant interface, so
+the advertised `Drawless Patch Version` remains 1; the patched-tree and series hashes pin
+the exact corrected binary source. `verify-elo-rounding.mjs` locks the patched source
+contract and exhaustively checks all 1024 random residues for representative negative,
+exact, and positive fractional levels.
 
 ## Baseline evidence
 

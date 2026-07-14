@@ -1,7 +1,7 @@
 # Privacy Policy for Drawless Chess
 
 **Effective date:** July 11, 2026
-**Last updated:** July 11, 2026
+**Last updated:** July 14, 2026
 
 BB_Games ("we," "us," or "our") publishes Drawless Chess, Android package
 `com.drawlesschess`. This policy explains how the app handles information.
@@ -24,12 +24,16 @@ private app storage. This can include:
 
 - the current or most recently saved game, board position, moves, result, clock state,
   chosen rules, player side, opponent level, and counts of gameplay actions such as
-  hints, undos, and pauses; and
+  hints, undos, and pauses;
+- a random device-local player identifier and completed-game history used to calculate
+  wins, losses, streaks, unassisted wins, and average game score; and
 - app preferences, including the selected visual theme and whether the introductory
   rules guide has been dismissed.
 
-This information is used only to run the game, restore a saved game, and remember your
-preferences. The app does not send it to BB_Games or to an in-app third-party service.
+This information is used only to run the game, restore a saved game, show local player
+statistics, and remember your preferences. The local player identifier is not an account,
+is not linked to an online identity, and is not sent to BB_Games or to an in-app
+third-party service.
 
 ## Android backup
 
@@ -67,11 +71,12 @@ profiling, cross-app tracking, or developer-operated server.
 
 ## Retention and deletion
 
-Local game and preference data remains on the device until it is replaced through normal
-use, discarded in the app where that option is available, cleared through Android's app
-settings, or removed by uninstalling the app. To delete all data stored by the installed
-app, use Android **Settings > Apps > Drawless Chess > Storage > Clear storage/data**, or
-uninstall Drawless Chess.
+An in-progress saved game remains on the device until it is completed, forfeited, or
+cleared with the app's data. Completed-game history, local statistics, and preferences
+remain until the app's data is cleared or the app is uninstalled.
+To delete the completed-game history and all other data stored by the installed app, use
+Android **Settings > Apps > Drawless Chess > Storage > Clear storage/data**, or uninstall
+Drawless Chess.
 
 Clearing app data or uninstalling may not immediately remove a separate Android or cloud
 backup. Manage those copies through your device or Google account backup settings. Because

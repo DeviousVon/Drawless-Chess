@@ -9,14 +9,14 @@ import com.drawlesschess.core.chess.*
 import com.drawlesschess.core.coordinator.*
 import com.drawlesschess.core.presentation.*
 import com.drawlesschess.core.engine.BotDifficultyCatalog
+import com.drawlesschess.core.engine.BotMovePacingEngine
 import com.drawlesschess.core.engine.NamedBotLevel
 import com.drawlesschess.engine.AndroidFairyEngineFactory
+import com.drawlesschess.engine.AndroidUciTimeoutScheduler
 import java.util.UUID
 import java.util.concurrent.CopyOnWriteArraySet
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
-
-val BotLevels = BotDifficultyCatalog.namedLevels
 
 data class SetupSelection(
     val preset: RulesContractV1.Preset = RulesContractV1.Preset.DRAWLESS,
@@ -24,7 +24,7 @@ data class SetupSelection(
     val fiftyMove: FiftyMovePolicy = FiftyMovePolicy.DISABLED,
     val mode: GameMode = GameMode.CASUAL,
     val timeControl: TimeControl = TimeControl.Untimed,
-    val humanSide: Side = Side.WHITE,
+    val startingColor: StartingColor = StartingColor.RANDOM,
     val botLevel: NamedBotLevel = BotDifficultyCatalog.named("casual"),
 ) {
     fun rules(): RulesContractV1 = when (preset) {
@@ -39,23 +39,53 @@ class GameRuntime private constructor(
     applicationContext: Context,
     checkpointSink: CheckpointSink,
     initialTheme: BoardTheme,
+    threatIndicationEnabled: Boolean,
 ) : AutoCloseable {
+    internal val gameId: String get() = config.gameId
+
     private val closed = AtomicBoolean(false)
     private val modelInvalidationListeners = CopyOnWriteArraySet<() -> Unit>()
     private val engineProvision = provisionEngine(applicationContext.applicationContext)
-    private val engine = engineProvision.engine
+    private val movePacingScheduler = AndroidUciTimeoutScheduler()
+    private val engine = BotMovePacingEngine(
+        delegate = engineProvision.engine,
+        scheduler = movePacingScheduler,
+        delayMillis = GamePacing.OPPONENT_MOVE_DELAY_MILLIS,
+    )
+    internal val opponentLevel: NamedBotLevel = BotDifficultyCatalog.displayLevel(
+        explicitLevelId = config.opponentLevelId,
+        strength = config.engineStrength,
+    )
     private val timeSource = CoordinatorTimeSource {
         TimeReading(SystemClock.elapsedRealtime(), System.currentTimeMillis())
     }
     private val idSource = CoordinatorIdSource { UUID.randomUUID().toString() }
     private val coordinator = try {
         if (checkpoint == null) {
-            GameCoordinator.newGame(config, engine, checkpointSink, timeSource, idSource)
+            GameCoordinator.newGame(
+                config,
+                engine,
+                checkpointSink,
+                timeSource,
+                idSource,
+                botMovePresentationDelayMillis = GamePacing.PIECE_MOVE_ANIMATION_MILLIS.toLong(),
+                initialAssistance = AssistanceCounts(
+                    threatIndication = threatIndicationEnabled,
+                ),
+            )
         } else {
-            GameCoordinator.restore(checkpoint, engine, checkpointSink, timeSource, idSource)
+            GameCoordinator.restore(
+                checkpoint,
+                engine,
+                checkpointSink,
+                timeSource,
+                idSource,
+                botMovePresentationDelayMillis = GamePacing.PIECE_MOVE_ANIMATION_MILLIS.toLong(),
+            )
         }
     } catch (error: Throwable) {
-        runCatching { engine.close() }
+        runCatching { engineProvision.engine.close() }
+        runCatching { movePacingScheduler.close() }
         throw error
     }
 
@@ -64,14 +94,30 @@ class GameRuntime private constructor(
         applicationContext: Context,
         checkpointSink: CheckpointSink,
         initialTheme: BoardTheme = BoardThemes.DEFAULT,
-    ) : this(selection.gameConfig(), null, applicationContext, checkpointSink, initialTheme)
+        resolvedHumanSide: Side = selection.startingColor.resolve(),
+        threatIndicationEnabled: Boolean = false,
+    ) : this(
+        selection.gameConfig(resolvedHumanSide),
+        null,
+        applicationContext,
+        checkpointSink,
+        initialTheme,
+        threatIndicationEnabled,
+    )
 
     constructor(
         checkpoint: CoordinatorCheckpoint,
         applicationContext: Context,
         checkpointSink: CheckpointSink,
         initialTheme: BoardTheme = BoardThemes.DEFAULT,
-    ) : this(checkpoint.config, checkpoint, applicationContext, checkpointSink, initialTheme)
+    ) : this(
+        checkpoint.config,
+        checkpoint,
+        applicationContext,
+        checkpointSink,
+        initialTheme,
+        checkpoint.assistance.threatIndication,
+    )
 
     val controller: GameScreenController
 
@@ -81,6 +127,7 @@ class GameRuntime private constructor(
             coordinator = coordinator,
             config = config,
             initialTheme = initialTheme,
+            threatIndicationEnabled = threatIndicationEnabled,
             onEffect = { effect: GameUiEffect ->
                 if (effect is GameUiEffect.RequestHintAnalysis) {
                     Log.d(HINT_LOG_TAG, "Submitting coordinator-owned hint analysis")
@@ -112,7 +159,9 @@ class GameRuntime private constructor(
     override fun close() {
         if (closed.compareAndSet(false, true)) {
             modelInvalidationListeners.clear()
-            engine.close()
+            runCatching { coordinator.close() }
+            runCatching { engineProvision.engine.close() }
+            runCatching { movePacingScheduler.close() }
         }
     }
 
@@ -263,13 +312,14 @@ private class DevelopmentChessEngine : ManagedChessEngineDelegate {
     }
 }
 
-private fun SetupSelection.gameConfig(): GameConfig = GameConfig(
+private fun SetupSelection.gameConfig(resolvedHumanSide: Side): GameConfig = GameConfig(
     gameId = UUID.randomUUID().toString(),
     initialFen = ChessPosition.START_FEN,
     rules = rules(),
     mode = mode,
     timeControl = timeControl,
-    humanSide = humanSide,
+    humanSide = resolvedHumanSide,
     engineStrength = EngineStrength.ApproximateElo(botLevel.approximateElo),
     engineLimits = EngineLimits(moveTimeMillis = 350),
+    opponentLevelId = botLevel.id,
 )

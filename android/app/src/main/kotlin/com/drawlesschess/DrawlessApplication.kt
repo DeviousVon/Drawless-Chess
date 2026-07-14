@@ -14,8 +14,8 @@ class DrawlessApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        // Start the tiny procedural sound library before the player can enter or resume a game.
-        gameSoundPlayer = GameSoundPlayer()
+        // Preload the compact sampled library before the player can enter or resume a game.
+        gameSoundPlayer = GameSoundPlayer(this)
     }
 
     override fun onTerminate() {

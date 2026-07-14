@@ -56,7 +56,7 @@ publish. Before each public release:
    dirty tree:
 
    ```bash
-   scripts/source-bundle.sh build/releases/drawless-chess-0.1.0-source.tar.gz
+   scripts/source-bundle.sh release/drawless-chess-0.1.0-source.tar.gz
    ```
 
    `scripts/native-source-bundle.sh` is a compatibility alias and produces the
@@ -69,9 +69,11 @@ publish. Before each public release:
    store listing or release notes. Verify the link while logged out.
 7. Ship the GPL text, project NOTICE, third-party notices, and Fairy-Stockfish
    attribution in the application. Preserve upstream notices in redistributed
-   source and binaries. Confirm the provenance of every visual and sound asset;
-   current code-native pieces/icons and procedurally synthesized sounds do not rely
-   on external bitmap, font-glyph, or sampled-audio licenses.
+   source and binaries. Confirm the provenance of every visual and sound asset.
+   Current code-native pieces/icons are original; sampled audio combines CC0 chess
+   and firework recordings with MIT-licensed ion.sound recordings. Preserve the complete ion.sound
+   copyright and MIT notice in every APK/App Bundle and corresponding-source archive,
+   and run the sampled-audio verifier before release.
 8. Keep the source available for as long as the chosen GPL conveyance method
    requires. Prefer distributing source alongside every binary rather than relying
    on a written offer.

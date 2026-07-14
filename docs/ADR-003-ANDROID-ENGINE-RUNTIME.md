@@ -81,15 +81,17 @@ The non-Android gates prove:
 - production app selection and release prohibition of the development bot.
 
 The real Android instrumentation smoke now passes independently on an API-36 x86-64
-emulator and API-37 ARM64 phone. It verifies the packaged asset, ART JNI load,
+emulator and API-33 ARM64 tablet. It verifies the packaged asset, ART JNI load,
 forced-repetition search, close, and sequential restart. The machine evidence separately
 records both compiled/package ABIs and the one runtime ABI exercised by each run; together
 the two passing manifests complete the intended runtime matrix.
 
-The nine-test app suite passes on the x86-64 emulator and ARM64 tablet; its preceding
-eight-test checkpoint also passed on the ARM64 phone. It includes rapid runtime replacement,
-a full-strength hint followed by a bot move through the same native session, and deterministic
-finish timing/audio-cue coverage. Separate
+The accepted 51-test app suite passes twice from fresh processes against the exact clean APK pair
+on the API-33 ARM64 tablet, API-36 x86-64 emulator, and Pixel 9 Pro XL. The targeted forfeit
+flow also passes independently on all three. Coverage includes stable opponent identity across
+ladder changes, confirmed-forfeit durability, rapid runtime replacement,
+a full-strength hint followed by a bot move through the same native session, deterministic
+finish timing, and full sampled-audio catalog/platform-loading coverage. Separate
 physical acceptance has covered Room-backed force-stop/relaunch/Resume. These checks do
 not establish low-memory/native-crash resilience, sustained performance, every form factor,
 or signed public-release behavior.

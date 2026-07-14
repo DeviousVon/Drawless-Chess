@@ -35,9 +35,10 @@ responsive layout policy, themes, piece-set contracts, and accessibility descrip
 See `docs/BOARD_PRESENTATION.md`.
 
 The Compose application adds Quick Play, custom/advanced setup, a first-run rules guide,
-Room resume, clocks, SAN history, gestures, original code-native pieces, synthesized
-move/capture sounds, five persisted visual themes, post-game results, and rematches. Its
-verified and unverified boundaries are documented in `docs/COMPOSE_APP.md`.
+Room resume, clocks, SAN history, gestures, original code-native pieces, sampled close-board
+move/capture sounds, five persisted visual themes, post-game results, rematches, and local
+career statistics backed by immutable completed-game records. Its verified and unverified
+boundaries are documented in `docs/COMPOSE_APP.md`.
 
 The production engine-facing core now adds strict UCI parsing, lifecycle and timeout
 control, cancellation draining, patch identity checks, named/custom/adaptive difficulty,
@@ -49,7 +50,7 @@ parity and history isolation. The Android `:engine` module contains the in-proce
 runtime, and the app selects it by default without silent fallback. The native host gate
 and real Android instrumentation now pass: packaged JNI load, forced-repetition search,
 close, and sequential restart were exercised independently on an API-36 x86-64 emulator
-and an API-37 ARM64 physical phone. See
+and an API-33 ARM64 physical tablet. See
 `docs/FORCED_REPETITION_PATCH.md`, `docs/NATIVE_ENGINE.md`, and
 `docs/ADR-003-ANDROID-ENGINE-RUNTIME.md`.
 
@@ -64,20 +65,31 @@ SDK/JDK setup and commands for both host lanes are in `docs/ANDROID_MACHINE_VERI
 
 ## Current verification checkpoint
 
-- `npm run test:kotlin` passes 196 JVM/core/endpoint tests.
-- The native engine instrumentation passes once on each runtime ABI: x86-64 emulator and
-  ARM64 physical phone.
-- The nine-test app instrumentation suite passes on the x86-64 emulator and ARM64 physical
-  tablet; the preceding eight-test checkpoint also passed on the ARM64 phone. It covers Room codec and
-  reopen/restore behavior, stale-write protection, rapid game replacement, a real hint
-  followed by a bot move through the same native session, persisted/live theme switching,
-  advanced setup, rematch, and
-  deterministic two-second-plus finish timelines and procedural sound cues.
-- The theme checkpoint debug APK is 16,816,327 bytes with SHA-256
-  `b37d389b88b89843410148f2e3bf06710ec1b3e60e9927bf1bbcbceb431e3bb1`; that exact APK
-  passed the app suite on both devices and is installed on the tablet. The latest complete
-  dual-ABI debug/release machine-manifest pair remains the preceding `f4b9c05` checkpoint;
-  no replacement release evidence is claimed for this UI-only checkpoint.
+- `npm test` passes 37 JavaScript contract and adjudication tests.
+- `npm run test:kotlin` passes 223 JVM/core-and-endpoint tests.
+- `npm run test:audio` is a required gate over all 104 sampled effects: encoded and decoded
+  uniqueness, hashes, source pins, duration bounds, silence/clipping, format, and CC0/MIT notices.
+- The native engine instrumentation passes once on each runtime ABI: an Android 16/API-36
+  x86-64 emulator and an Android 13/API-33 ARM64 tablet.
+- The accepted 51-test app instrumentation suite passes twice from fresh processes against the
+  exact clean APK pair on the tablet, emulator, and Pixel 9 Pro XL. The targeted forfeit flow
+  also passes independently on all three. The tests load
+  every effect through Android `MediaExtractor` and `SoundPool`. The suite covers
+  Room restore/stale-write protection, rapid game replacement, native hint then bot analysis,
+  responsive layouts, options, captures/history, themes/pieces, rematch, completion feedback,
+  versioned game scoring, stable opponent identity across ladder changes, immutable completed-game
+  history, Room v1-to-v2 migration, and career stats.
+- The tested debug APK is 17,709,024 bytes with SHA-256
+  `25a252a21b65a768c19b74e1dfecdb4ee7af2093ee0761c9fa06e3c85d0b87ff`; the exact acceptance
+  test APK used for the 51-test device runs is 1,355,590 bytes with SHA-256
+  `79d308e03b858b7ae500574ace19287336aef98fdf801037b9e8c7ccb9c75d0b`. The later
+  screenshot-only instrumentation harness leaves the app APK unchanged and produces a
+  1,470,750-byte test APK with SHA-256
+  `41e14c71596c5946aa9e2bb073e31823efcf86f4478cda758059e1ba652aae0c`; its deterministic
+  capture flow and the complete 51-test suite both pass on the emulator and tablet. The debug app is
+  installed on the tablet under its separate debug package, with the production package preserved.
+  The current unsigned release APK builds successfully at 12,736,428 bytes with SHA-256
+  `e4b2215919e220d9e6e21159c6987b16ea0f7f3049b5659bdb0dffcf77e71bda`.
 
 These are engineering artifacts, not a public release. Distribution authorization remains
 false, and no signed APK/AAB is claimed.
@@ -130,7 +142,7 @@ source for the exact binary.
 Create the whole-project source archive only from the exact release tree:
 
 ```bash
-npm run bundle:source -- build/releases/drawless-chess-0.1.0-source.tar.gz
+npm run bundle:source -- release/drawless-chess-0.1.0-source.tar.gz
 ```
 
 The archive includes the complete prepared Fairy-Stockfish checkout and all Drawless

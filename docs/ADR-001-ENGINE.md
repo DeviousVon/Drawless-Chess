@@ -39,12 +39,13 @@ Drawless base variant, so Escape inherits the same repetition law.
 
 ## Source and binary identity
 
-Production patch version 1 is tied to these immutable source identities:
+Production Drawless interface version 1 is tied to these immutable source identities:
 
 - Upstream commit: `fb78cb561aa01708338e35b3dc3b65a42149a3c4`
 - Upstream tree: `dfe4b96037c10ab60e22613bf634452612fc2b04`
-- Patched result tree: `090d26be47498b99a23fdb1b9ff7587740b95664`
-- Patch SHA-256: `5bf9ec8dbd1254ed48bc6d29c92741c56c776124e87ef39b36f4a5d14b416ca2`
+- Patched result tree: `80208e5f35549b88505df983e4bc0f7621083fd4`
+- Ordered patch-series SHA-256:
+  `c44b63516728a3114378b7ee374e12bd8e092f3287b93fe6d2e80a24eac19fe7`
 
 The patch, ordered `series`, checksums, manifest, and verifier live in
 `engine/patches/`. The binary advertises:

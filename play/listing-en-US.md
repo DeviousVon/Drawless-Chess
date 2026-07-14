@@ -28,15 +28,18 @@ PLAY COMPLETELY OFFLINE
 Challenge the built-in chess engine without an account, internet connection, or online matchmaking. Choose from seven descriptive opponent levels, from Learner through Grandmaster.
 
 MAKE THE GAME YOURS
-Start instantly with Quick Play or customize your side, opponent, rules, and clock. Choose untimed play, 3-, 5-, or 10-minute games, or a 15+10 control. An optional Escape variant changes how stalemate is scored.
+Start instantly with Quick Play, which chooses your side at random by default, or customize your side, opponent, rules, and clock. Choose untimed play, 3-, 5-, or 10-minute games, or a 15+10 control. An optional Escape variant changes how stalemate is scored.
 
 BUILT FOR REAL GAMES
 • Automatic local save and Resume
+• Seven illustrated opponents with distinct playing strengths and personalities
 • Tap or drag pieces with legal-move guidance
-• Standard move history
+• Captured-piece tracking, material scores, and piece-marked move history
+• Optional threat indication for learning safer moves
 • Hint, undo, pause, board flip, and resign controls
 • Rematches after a finished game
-• Clear victory and defeat effects with procedural sound
+• Local career record, streaks, opponent breakdown, and motivational game scores
+• Clear victory and defeat effects with synchronized sampled sound
 • Phone and tablet layouts
 
 FIVE DISTINCT THEMES
@@ -55,10 +58,10 @@ https://github.com/DeviousVon/Drawless-Chess/releases/tag/v0.1.0
 Draft for version `0.1.0`:
 
 ```text
-Welcome to Drawless Chess. Play decisive offline games against seven bot levels, use Quick Play or custom rules and clocks, and choose from five visual themes. Games save locally for Resume, with hints, undo, move sounds, rematches, and clear victory or defeat effects. No account, ads, analytics, or in-app purchases.
+Welcome to Drawless Chess. Play decisive offline games against seven illustrated opponents, with random-side Quick Play or custom rules and clocks. Track captures, material, move history, streaks, and game scores; use optional threats, hints, undo, five themes, realistic board sounds, rematches, and clear victory or defeat effects. No account, ads, analytics, or in-app purchases.
 ```
 
-Character count: 318 of 500.
+Character count: 382 of 500.
 
 ## Listing metadata recommendations
 

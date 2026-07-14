@@ -1,137 +1,450 @@
 package com.drawlesschess.ui
 
+import android.content.Context
 import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioTrack
+import android.media.SoundPool
+import android.os.SystemClock
 import android.util.Log
-import java.util.EnumMap
-import kotlin.math.PI
-import kotlin.math.abs
-import kotlin.math.cos
-import kotlin.math.exp
-import kotlin.math.roundToInt
-import kotlin.math.sin
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.ensureActive
-import kotlinx.coroutines.launch
+import java.util.ArrayDeque
+import kotlin.random.Random
 
-/** Procedural game sounds: no network, packaged media, or third-party audio license required. */
-internal class GameSoundPlayer : AutoCloseable {
-    private enum class SoundSlot {
-        MOVE,
-        CAPTURE,
-        VICTORY,
-        DEFEAT,
-    }
+/**
+ * Preloaded, close-range board foley backed by the audited resources in [SampledSoundCatalog].
+ * Playback failures are intentionally non-fatal: losing an audio device must never lose a game.
+ */
+internal class GameSoundPlayer(context: Context) : AutoCloseable {
+    private enum class CompletionKind { VICTORY, DEFEAT }
+
+    private data class CompletionSession(
+        val kind: CompletionKind,
+        val token: Any = Any(),
+        val glassVariant: Int? = null,
+    )
+
+    private data class PendingSample(
+        val volume: Float,
+        val expiresAtMillis: Long,
+        val completionToken: Any?,
+        val bag: SoundShuffleBag? = null,
+        val resource: Int? = null,
+    )
 
     private val lock = Any()
-    private val tracks = EnumMap<SoundSlot, AudioTrack>(SoundSlot::class.java)
-    private val preparationScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val pool = SoundPool.Builder()
+        .setMaxStreams(MAX_SIMULTANEOUS_STREAMS)
+        .setAudioAttributes(
+            AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_GAME)
+                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .build(),
+        )
+        .build()
+    private val resourceToSample = HashMap<Int, Int>(SampledSoundCatalog.all.size)
+    private val sampleToResource = HashMap<Int, Int>(SampledSoundCatalog.all.size)
+    private val loadedSamples = HashSet<Int>(SampledSoundCatalog.all.size)
+    private val failedSamples = HashSet<Int>()
+    private val pendingSamples = HashMap<Int, PendingSample>()
+    private val activeStreams = ArrayDeque<Int>()
+
+    private val moves = SoundShuffleBag(SampledSoundCatalog.moves)
+    private val captures = SoundShuffleBag(SampledSoundCatalog.captures)
+    private val castles = SoundShuffleBag(SampledSoundCatalog.castles)
+    private val fireworkLow = SoundShuffleBag(SampledSoundCatalog.fireworkLow)
+    private val fireworkMid = SoundShuffleBag(SampledSoundCatalog.fireworkMid)
+    private val fireworkHigh = SoundShuffleBag(SampledSoundCatalog.fireworkHigh)
+    private val glassVariants = SoundShuffleBag(
+        IntArray(SampledSoundCatalog.glassImpact.size) { index -> index },
+    )
+    private val checks = SoundShuffleBag(SampledSoundCatalog.checkAccents)
+    private val promotions = SoundShuffleBag(SampledSoundCatalog.promotions)
+    private val hints = SoundShuffleBag(SampledSoundCatalog.hints)
+    private val lowTime = SoundShuffleBag(SampledSoundCatalog.lowTime)
+    private val gameStart = SoundShuffleBag(SampledSoundCatalog.gameStart)
+    private val undo = SoundShuffleBag(SampledSoundCatalog.undo)
+
+    private var enabled = true
     private var closed = false
-    private var pendingCompletion: SoundSlot? = null
+    private var completionSession: CompletionSession? = null
 
     init {
-        // Rendering and AudioTrack allocation can be slow on older devices. Prepare the four
-        // reusable static tracks away from Compose's UI thread, with common actions first.
-        preparationScope.launch {
-            prepare(SoundSlot.MOVE, renderMoveSound(capture = false))
-            ensureActive()
-            prepare(SoundSlot.CAPTURE, renderMoveSound(capture = true))
-            ensureActive()
-            prepare(SoundSlot.DEFEAT, renderCompletionSequence(CompletionEffectTimeline.Defeat))
-            ensureActive()
-            prepare(SoundSlot.VICTORY, renderCompletionSequence(CompletionEffectTimeline.Victory))
-        }
-    }
+        pool.setOnLoadCompleteListener loadListener@{ _, sampleId, status ->
+            synchronized(lock) {
+                if (closed) return@loadListener
+                if (status != 0) {
+                    pendingSamples.remove(sampleId)
+                    failedSamples += sampleId
+                    sampleToResource[sampleId]?.let(::discardResourceLocked)
+                    Log.w(
+                        AUDIO_LOG_TAG,
+                        "Sample load failed: resource=${sampleToResource[sampleId]} status=$status",
+                    )
+                    return@loadListener
+                }
 
-    fun playMove(capture: Boolean) {
-        synchronized(lock) {
-            if (closed) return
-            rewindAndPlay(tracks[if (capture) SoundSlot.CAPTURE else SoundSlot.MOVE])
-        }
-    }
-
-    fun playCompletionCue(cue: CompletionEffectCue) {
-        // Each outcome is one static buffer. Its later sounds are mixed at the exact timeline
-        // offsets, so only the first cue starts playback and no six-track pile-up is possible.
-        val slot = when (cue) {
-            CompletionEffectCue.FIREWORK_LOW -> SoundSlot.VICTORY
-            CompletionEffectCue.GLASS_IMPACT -> SoundSlot.DEFEAT
-            else -> return
-        }
-        synchronized(lock) {
-            if (closed) return
-            val track = tracks[slot]
-            if (track == null) {
-                pendingCompletion = slot
-            } else {
-                pendingCompletion = null
-                rewindAndPlay(track)
+                loadedSamples += sampleId
+                val pending = pendingSamples.remove(sampleId) ?: return@loadListener
+                val stillCurrent = pending.completionToken == null ||
+                    pending.completionToken === completionSession?.token
+                if (enabled && stillCurrent && SystemClock.uptimeMillis() <= pending.expiresAtMillis) {
+                    if (playSampleLocked(sampleId, pending.volume)) {
+                        pending.resource?.let { resource -> pending.bag?.markPlayed(resource) }
+                    }
+                }
             }
         }
-    }
 
-    fun stopAll() {
-        synchronized(lock) {
-            if (closed) return
-            pendingCompletion = null
-            tracks.values.forEach(::stopTrack)
-        }
-    }
-
-    override fun close() {
-        preparationScope.cancel()
-        val prepared = synchronized(lock) {
-            if (closed) return
-            closed = true
-            tracks.values.toList().also { tracks.clear() }
-        }
-        prepared.forEach { track ->
-            stopTrack(track)
-            releaseAudioTrack(track)
-        }
-    }
-
-    private fun prepare(slot: SoundSlot, pcm: ShortArray) {
-        val track = createStaticAudioTrack(pcm) ?: return
-        synchronized(lock) {
-            if (closed) {
-                releaseAudioTrack(track)
+        SampledSoundCatalog.all.forEach { resource ->
+            val sampleId = try {
+                pool.load(context.applicationContext, resource, 1)
+            } catch (exception: RuntimeException) {
+                Log.w(AUDIO_LOG_TAG, "Could not queue sample resource=$resource", exception)
+                0
+            }
+            if (sampleId == 0) {
+                Log.w(AUDIO_LOG_TAG, "SoundPool rejected sample resource=$resource")
+                synchronized(lock) { discardResourceLocked(resource) }
             } else {
-                tracks.put(slot, track)?.let(::releaseAudioTrack)
-                if (pendingCompletion == slot) {
-                    pendingCompletion = null
-                    rewindAndPlay(track)
+                synchronized(lock) {
+                    resourceToSample[resource] = sampleId
+                    sampleToResource[sampleId] = resource
+                    if (sampleId in failedSamples) discardResourceLocked(resource)
                 }
             }
         }
     }
 
-    private fun rewindAndPlay(track: AudioTrack?) {
-        try {
-            if (track == null || track.state != AudioTrack.STATE_INITIALIZED) return
-            if (track.playState == AudioTrack.PLAYSTATE_PLAYING) track.pause()
-            val rewound = track.setPlaybackHeadPosition(0) == AudioTrack.SUCCESS ||
-                track.reloadStaticData() == AudioTrack.SUCCESS
-            if (!rewound) return
-            track.play()
-        } catch (exception: RuntimeException) {
-            Log.w(AUDIO_LOG_TAG, "Audio playback failed", exception)
-            // Audio output can disappear while backgrounded; chess must keep running.
+    /** Compatibility overload retained for callers that only know whether a move captured. */
+    fun playMove(capture: Boolean) {
+        synchronized(lock) {
+            if (closed || !enabled) return
+            playBagLocked(if (capture) captures else moves, if (capture) 0.54f else 0.46f)
         }
     }
 
-    private fun stopTrack(track: AudioTrack?) {
-        try {
-            if (track == null || track.state != AudioTrack.STATE_INITIALIZED) return
-            if (track.playState == AudioTrack.PLAYSTATE_PLAYING) track.pause()
-            if (track.setPlaybackHeadPosition(0) != AudioTrack.SUCCESS) track.reloadStaticData()
-        } catch (_: RuntimeException) {
-            // Already stopped, released by the platform, or never initialized.
+    /** SAN distinguishes the two-piece castling cue without coupling audio to engine internals. */
+    fun playMove(san: String) {
+        synchronized(lock) {
+            if (closed || !enabled) return
+            when {
+                san.startsWith("O-O") -> playBagLocked(castles, 0.55f)
+                'x' in san -> playBagLocked(captures, 0.54f)
+                else -> playBagLocked(moves, 0.46f)
+            }
         }
+    }
+
+    /** Applies the persisted sound preference without rebuilding the preloaded sample library. */
+    fun setEnabled(value: Boolean) {
+        synchronized(lock) {
+            if (closed || enabled == value) return
+            enabled = value
+            if (!value) stopAllLocked()
+        }
+    }
+
+    /** Plays the sample at the exact marker crossed by the shared visual animation clock. */
+    fun playCompletionCue(cue: CompletionEffectCue) {
+        synchronized(lock) {
+            if (closed || !enabled) return
+            when (cue) {
+                CompletionEffectCue.FIREWORK_LOW -> startVictoryLocked()
+                CompletionEffectCue.FIREWORK_MID -> continueVictoryLocked(fireworkMid, 0.52f)
+                CompletionEffectCue.FIREWORK_HIGH -> continueVictoryLocked(fireworkHigh, 0.48f)
+                CompletionEffectCue.GLASS_IMPACT -> startDefeatLocked()
+                CompletionEffectCue.GLASS_FRACTURE -> continueDefeatLocked(cue, 0.52f)
+                CompletionEffectCue.GLASS_SHARDS -> continueDefeatLocked(cue, 0.42f)
+            }
+        }
+    }
+
+    // Reserved for the matching UI events; intentionally not wired until those event contracts
+    // can guarantee one-shot playback across recreation and saved-game restore.
+    fun playCheck() = playOptional(checks, 0.16f)
+    fun playPromotion() = playOptional(promotions, 0.24f)
+    fun playHint() = playOptional(hints, 0.24f)
+    fun playLowTime() = playOptional(lowTime, 0.24f)
+    fun playGameStart() = playOptional(gameStart, 0.28f)
+    fun playUndo() = playOptional(undo, 0.20f)
+
+    fun stopAll() {
+        synchronized(lock) {
+            if (closed) return
+            stopAllLocked()
+        }
+    }
+
+    override fun close() {
+        val release = synchronized(lock) {
+            if (closed) return
+            closed = true
+            stopAllLocked()
+            resourceToSample.clear()
+            sampleToResource.clear()
+            loadedSamples.clear()
+            failedSamples.clear()
+            true
+        }
+        if (release) {
+            try {
+                pool.release()
+            } catch (_: RuntimeException) {
+                // A vendor implementation may already have torn down its audio service.
+            }
+        }
+    }
+
+    private fun playOptional(bag: SoundShuffleBag, volume: Float) {
+        synchronized(lock) {
+            if (closed || !enabled) return
+            playBagLocked(bag, volume)
+        }
+    }
+
+    private fun startVictoryLocked() {
+        cancelCompletionLocked()
+        val session = CompletionSession(CompletionKind.VICTORY)
+        completionSession = session
+        playBagLocked(fireworkLow, 0.55f, session.token)
+    }
+
+    private fun continueVictoryLocked(bag: SoundShuffleBag, volume: Float) {
+        val session = completionSession?.takeIf { it.kind == CompletionKind.VICTORY } ?: return
+        playBagLocked(bag, volume, session.token)
+    }
+
+    private fun startDefeatLocked() {
+        cancelCompletionLocked()
+        discardUnavailableGlassVariantsLocked()
+        val variant = glassVariants.nextOrNull() ?: return
+        val session = CompletionSession(CompletionKind.DEFEAT, glassVariant = variant)
+        completionSession = session
+        playResourceLocked(
+            SampledSoundCatalog.glassImpact[variant],
+            0.64f,
+            session.token,
+        )
+    }
+
+    private fun continueDefeatLocked(cue: CompletionEffectCue, volume: Float) {
+        val session = completionSession?.takeIf { it.kind == CompletionKind.DEFEAT } ?: return
+        val variant = session.glassVariant ?: return
+        val resource = when (cue) {
+            CompletionEffectCue.GLASS_FRACTURE -> SampledSoundCatalog.glassFracture[variant]
+            CompletionEffectCue.GLASS_SHARDS -> SampledSoundCatalog.glassShards[variant]
+            else -> error("$cue is not a continuation of the defeat effect")
+        }
+        playResourceLocked(resource, volume, session.token)
+    }
+
+    private fun playBagLocked(
+        bag: SoundShuffleBag,
+        volume: Float,
+        completionToken: Any? = null,
+    ) {
+        discardUnavailableResourcesLocked(bag)
+        val loadedResource = bag.peekMatchingOrNull { resource ->
+            resourceToSample[resource]?.let(loadedSamples::contains) == true
+        }
+        if (loadedResource != null) {
+            if (completionToken == null) clearOrdinaryPendingLocked()
+            val sampleId = checkNotNull(resourceToSample[loadedResource])
+            if (playSampleLocked(sampleId, volume)) bag.markPlayed(loadedResource)
+            return
+        }
+
+        // Do not consume unloaded variants while searching for something playable. The selected
+        // item leaves the bag only after SoundPool actually starts it, preserving each full cycle
+        // even when an older device is still decoding the startup library.
+        val pendingResource = bag.peekMatchingOrNull { resource ->
+            resourceToSample[resource]?.let { sampleId -> sampleId !in failedSamples } == true
+        } ?: return
+        playResourceLocked(pendingResource, volume, completionToken, bag)
+    }
+
+    private fun discardUnavailableResourcesLocked(bag: SoundShuffleBag) {
+        bag.discardWhere { resource ->
+            val sampleId = resourceToSample[resource]
+            sampleId == null || sampleId in failedSamples
+        }
+    }
+
+    private fun discardUnavailableGlassVariantsLocked() {
+        SampledSoundCatalog.glassImpact.indices.forEach { index ->
+            val resources = intArrayOf(
+                SampledSoundCatalog.glassImpact[index],
+                SampledSoundCatalog.glassFracture[index],
+                SampledSoundCatalog.glassShards[index],
+            )
+            if (resources.any { resource ->
+                    val sampleId = resourceToSample[resource]
+                    sampleId == null || sampleId in failedSamples
+                }
+            ) {
+                glassVariants.discard(index)
+            }
+        }
+    }
+
+    private fun discardResourceLocked(resource: Int) {
+        listOf(
+            moves,
+            captures,
+            castles,
+            fireworkLow,
+            fireworkMid,
+            fireworkHigh,
+            checks,
+            promotions,
+            hints,
+            lowTime,
+            gameStart,
+            undo,
+        ).forEach { bag -> bag.discard(resource) }
+        val glassIndex = SampledSoundCatalog.glassImpact.indices.firstOrNull { index ->
+            resource == SampledSoundCatalog.glassImpact[index] ||
+                resource == SampledSoundCatalog.glassFracture[index] ||
+                resource == SampledSoundCatalog.glassShards[index]
+        }
+        if (glassIndex != null) {
+            glassVariants.discard(glassIndex)
+            val session = completionSession
+            if (session?.kind == CompletionKind.DEFEAT && session.glassVariant == glassIndex) {
+                // Never continue a linked three-layer effect with a different or broken variant.
+                cancelCompletionLocked()
+            }
+        }
+    }
+
+    private fun playResourceLocked(
+        resource: Int,
+        volume: Float,
+        token: Any?,
+        bag: SoundShuffleBag? = null,
+    ) {
+        val sampleId = resourceToSample[resource] ?: run {
+            Log.w(AUDIO_LOG_TAG, "No SoundPool id for sample resource=$resource")
+            return
+        }
+        if (sampleId in loadedSamples) {
+            if (token == null) clearOrdinaryPendingLocked()
+            if (playSampleLocked(sampleId, volume)) bag?.markPlayed(resource)
+            return
+        }
+
+        if (token == null) {
+            // Keep only the newest ordinary action. A burst of startup actions must not replay
+            // as a delayed train of ghost moves when asynchronous preloading completes.
+            clearOrdinaryPendingLocked()
+        }
+        pendingSamples[sampleId] = PendingSample(
+            volume = volume,
+            expiresAtMillis = SystemClock.uptimeMillis() + PENDING_SAMPLE_MAX_AGE_MS,
+            completionToken = token,
+            bag = bag,
+            resource = resource,
+        )
+    }
+
+    private fun playSampleLocked(sampleId: Int, volume: Float): Boolean =
+        try {
+            val streamId = pool.play(sampleId, volume, volume, 1, 0, 1f)
+            if (streamId == 0) {
+                Log.w(AUDIO_LOG_TAG, "SoundPool could not start sample=$sampleId")
+                false
+            } else {
+                activeStreams.addLast(streamId)
+                while (activeStreams.size > MAX_TRACKED_STREAMS) {
+                    pool.stop(activeStreams.removeFirst())
+                }
+                true
+            }
+        } catch (exception: RuntimeException) {
+            Log.w(AUDIO_LOG_TAG, "Sample playback failed", exception)
+            false
+        }
+
+    private fun clearOrdinaryPendingLocked() {
+        pendingSamples.entries.removeAll { entry -> entry.value.completionToken == null }
+    }
+
+    private fun stopAllLocked() {
+        cancelCompletionLocked()
+        pendingSamples.clear()
+        while (activeStreams.isNotEmpty()) {
+            try {
+                pool.stop(activeStreams.removeFirst())
+            } catch (_: RuntimeException) {
+                // Already stopped or released by the platform.
+            }
+        }
+    }
+
+    private fun cancelCompletionLocked() {
+        completionSession = null
+        pendingSamples.entries.removeAll { entry -> entry.value.completionToken != null }
+    }
+}
+
+/** Shuffle bag with cycle-boundary repeat prevention; callers provide their own synchronization. */
+internal class SoundShuffleBag(
+    source: IntArray,
+    private val random: Random = Random.Default,
+) {
+    private val available = source.toMutableList()
+    private val remaining = ArrayList<Int>(source.size)
+    private var last = Int.MIN_VALUE
+
+    val size: Int
+        get() = available.size
+
+    fun nextOrNull(): Int? {
+        val value = peekMatchingOrNull { true } ?: return null
+        check(markPlayed(value))
+        return value
+    }
+
+    fun peekMatchingOrNull(predicate: (Int) -> Boolean): Int? {
+        if (available.isEmpty()) return null
+        if (remaining.isEmpty()) refill()
+        return remaining.firstOrNull(predicate)
+    }
+
+    fun markPlayed(value: Int): Boolean {
+        val index = remaining.indexOf(value)
+        if (index < 0) return false
+        remaining.removeAt(index)
+        last = value
+        return true
+    }
+
+    fun discard(value: Int): Boolean {
+        val removed = available.remove(value)
+        remaining.remove(value)
+        return removed
+    }
+
+    fun discardWhere(predicate: (Int) -> Boolean) {
+        available.filter(predicate).toList().forEach(::discard)
+    }
+
+    private fun refill() {
+        val shuffled = available.toIntArray()
+        for (index in shuffled.lastIndex downTo 1) {
+            val swap = random.nextInt(index + 1)
+            val value = shuffled[index]
+            shuffled[index] = shuffled[swap]
+            shuffled[swap] = value
+        }
+        if (shuffled.size > 1 && shuffled[0] == last) {
+            val swap = random.nextInt(1, shuffled.size)
+            val value = shuffled[0]
+            shuffled[0] = shuffled[swap]
+            shuffled[swap] = value
+        }
+        remaining.clear()
+        shuffled.forEach(remaining::add)
     }
 }
 
@@ -197,187 +510,6 @@ private fun releaseAudioTrack(track: AudioTrack) {
 }
 
 private const val AUDIO_LOG_TAG = "DrawlessAudio"
-
-internal const val SOUND_SAMPLE_RATE = 22_050
-
-internal fun renderCompletionCue(cue: CompletionEffectCue): ShortArray = when (cue) {
-    CompletionEffectCue.FIREWORK_LOW -> renderFireworkPop(variant = 0)
-    CompletionEffectCue.FIREWORK_MID -> renderFireworkPop(variant = 1)
-    CompletionEffectCue.FIREWORK_HIGH -> renderFireworkPop(variant = 2)
-    CompletionEffectCue.GLASS_IMPACT -> renderGlassImpact()
-    CompletionEffectCue.GLASS_FRACTURE -> renderGlassFracture()
-    CompletionEffectCue.GLASS_SHARDS -> renderGlassShards()
-}
-
-/** Mixes one outcome into one static buffer, keeping every sound on its visual cue marker. */
-internal fun renderCompletionSequence(spec: CompletionEffectSpec): ShortArray {
-    val firstProgress = spec.cues.first().progress
-    val clips = spec.cues.map { timedCue ->
-        val offsetSeconds = (timedCue.progress - firstProgress) * spec.durationMillis / 1_000f
-        (offsetSeconds * SOUND_SAMPLE_RATE).roundToInt() to renderCompletionCue(timedCue.cue)
-    }
-    val mixed = FloatArray(clips.maxOf { (offset, pcm) -> offset + pcm.size })
-    clips.forEach { (offset, pcm) ->
-        pcm.forEachIndexed { index, sample ->
-            mixed[offset + index] += sample.toFloat() / Short.MAX_VALUE
-        }
-    }
-    return normalizePcm(mixed, targetPeak = 0.62f)
-}
-
-private fun renderMoveSound(capture: Boolean): ShortArray {
-    val duration = if (capture) 0.095 else 0.055
-    val samples = ShortArray((SOUND_SAMPLE_RATE * duration).toInt())
-    val primary = SineOscillator(if (capture) 185.0 else 720.0)
-    val secondary = SineOscillator(if (capture) 1_050.0 else 1_180.0)
-    val mainDecay = ExponentialDecay(if (capture) 29.0 else 43.0)
-    val clickDecay = ExponentialDecay(70.0)
-    for (index in samples.indices) {
-        val value = if (capture) {
-            val click = secondary.next() * clickDecay.next()
-            0.72 * primary.next() + 0.28 * click
-        } else {
-            0.70 * primary.next() + 0.30 * secondary.next()
-        }
-        samples[index] = (value * mainDecay.next() * Short.MAX_VALUE * 0.42)
-            .roundToInt()
-            .coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt())
-            .toShort()
-    }
-    return samples
-}
-
-private fun renderFireworkPop(variant: Int): ShortArray {
-    val duration = 0.52 - variant * 0.035
-    val samples = FloatArray((SOUND_SAMPLE_RATE * duration).toInt())
-    val noise = DeterministicNoise(seed = 0x51F15E + variant * 977)
-    val baseFrequency = 152.0 + variant * 34.0
-    val highThump = SineOscillator(baseFrequency)
-    val lowThump = SineOscillator(baseFrequency * 0.78)
-    val thumpDecay = ExponentialDecay(7.2)
-    val snapDecay = ExponentialDecay(42.0)
-    val crackleDecay = ExponentialDecay(7.5)
-    for (index in samples.indices) {
-        val time = index.toDouble() / SOUND_SAMPLE_RATE
-        val attack = (time / 0.006).coerceIn(0.0, 1.0)
-        val sweep = (time / duration).coerceIn(0.0, 1.0)
-        val thump = ((1.0 - sweep) * highThump.next() + sweep * lowThump.next()) *
-            thumpDecay.next()
-        val snap = noise.next() * snapDecay.next()
-        val crackleGate = if ((index + variant * 41) % 149 < 11) 1.0 else 0.10
-        val crackle = noise.next() * crackleGate * crackleDecay.next()
-        samples[index] = (attack * (0.64 * thump + 0.25 * snap + 0.11 * crackle)).toFloat()
-    }
-    return normalizePcm(samples, targetPeak = 0.60f)
-}
-
-private fun renderGlassImpact(): ShortArray {
-    val samples = FloatArray((SOUND_SAMPLE_RATE * 0.62).toInt())
-    val noise = DeterministicNoise(seed = 0x6A5511)
-    val weightOscillator = SineOscillator(178.0)
-    val ringLow = SineOscillator(1_280.0)
-    val ringHigh = SineOscillator(2_430.0)
-    val crackDecay = ExponentialDecay(30.0)
-    val weightDecay = ExponentialDecay(9.0)
-    val ringDecay = ExponentialDecay(8.2)
-    for (index in samples.indices) {
-        val time = index.toDouble() / SOUND_SAMPLE_RATE
-        val attack = (time / 0.003).coerceIn(0.0, 1.0)
-        val crack = noise.next() * crackDecay.next()
-        val weight = weightOscillator.next() * weightDecay.next()
-        val ring = (ringLow.next() + 0.62 * ringHigh.next()) * ringDecay.next()
-        samples[index] = (attack * (0.55 * crack + 0.28 * weight + 0.17 * ring)).toFloat()
-    }
-    return normalizePcm(samples, targetPeak = 0.58f)
-}
-
-private fun renderGlassFracture(): ShortArray {
-    val samples = FloatArray((SOUND_SAMPLE_RATE * 0.54).toInt())
-    val noise = DeterministicNoise(seed = 0x31AC7)
-    val ringLow = SineOscillator(1_710.0)
-    val ringHigh = SineOscillator(3_080.0)
-    val crackDecay = ExponentialDecay(24.0)
-    val branchDecay = ExponentialDecay(9.0)
-    val ringDecay = ExponentialDecay(10.5)
-    for (index in samples.indices) {
-        val crack = noise.next() * crackDecay.next()
-        val branchPulse = if (index % 223 < 18) 1.0 else 0.18
-        val branches = noise.next() * branchPulse * branchDecay.next()
-        val ring = (ringLow.next() + 0.55 * ringHigh.next()) * ringDecay.next()
-        samples[index] = (0.49 * crack + 0.25 * branches + 0.26 * ring).toFloat()
-    }
-    return normalizePcm(samples, targetPeak = 0.54f)
-}
-
-private fun renderGlassShards(): ShortArray {
-    val duration = 1.02
-    val samples = FloatArray((SOUND_SAMPLE_RATE * duration).toInt())
-    val starts = doubleArrayOf(0.00, 0.12, 0.27, 0.43, 0.62)
-    val frequencies = doubleArrayOf(1_340.0, 1_780.0, 2_260.0, 2_910.0, 3_540.0)
-    val oscillators = frequencies.map(::SineOscillator)
-    val decays = frequencies.indices.map { shard -> ExponentialDecay(8.5 + shard * 0.9) }
-    for (index in samples.indices) {
-        val time = index.toDouble() / SOUND_SAMPLE_RATE
-        var value = 0.0
-        for (shard in starts.indices) {
-            val local = time - starts[shard]
-            if (local >= 0.0) {
-                val attack = (local / 0.004).coerceIn(0.0, 1.0)
-                value += attack * oscillators[shard].next() *
-                    decays[shard].next() * (0.72 - shard * 0.08)
-            }
-        }
-        samples[index] = value.toFloat()
-    }
-    return normalizePcm(samples, targetPeak = 0.50f)
-}
-
-private fun normalizePcm(samples: FloatArray, targetPeak: Float): ShortArray {
-    var maximum = 0f
-    samples.forEach { sample -> maximum = maxOf(maximum, abs(sample)) }
-    if (maximum < 0.000_001f) return ShortArray(samples.size)
-    val scale = Short.MAX_VALUE * targetPeak / maximum
-    return ShortArray(samples.size) { index ->
-        (samples[index] * scale)
-            .roundToInt()
-            .coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt())
-            .toShort()
-    }
-}
-
-private class DeterministicNoise(seed: Int) {
-    private var state = seed
-
-    fun next(): Double {
-        state = state * 1_664_525 + 1_013_904_223
-        return (((state ushr 8) and 0xFFFF) / 32_767.5) - 1.0
-    }
-}
-
-/** Stable sine recurrence: one sin/cos pair per tone instead of one trig call per sample. */
-private class SineOscillator(frequency: Double) {
-    private val step = 2.0 * PI * frequency / SOUND_SAMPLE_RATE
-    private val coefficient = 2.0 * cos(step)
-    private var previous = -sin(step)
-    private var current = 0.0
-
-    fun next(): Double {
-        val value = current
-        val next = coefficient * current - previous
-        previous = current
-        current = next
-        return value
-    }
-}
-
-/** Exact sample-to-sample exponential envelope with one exp call per decay, not per sample. */
-private class ExponentialDecay(rate: Double) {
-    private val multiplier = exp(-rate / SOUND_SAMPLE_RATE)
-    private var value = 1.0
-
-    fun next(): Double {
-        val current = value
-        value *= multiplier
-        return current
-    }
-}
+private const val MAX_SIMULTANEOUS_STREAMS = 8
+private const val MAX_TRACKED_STREAMS = 64
+private const val PENDING_SAMPLE_MAX_AGE_MS = 250L

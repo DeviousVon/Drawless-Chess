@@ -20,8 +20,10 @@ them to the current Console wording, and revisit every answer if the app changes
 - **In-app purchases:** None.
 - **Subscriptions:** None.
 - **Play Billing integration:** None.
-- A one-time Play Store purchase price, if selected by the owner, is storefront pricing
-  and does not change these in-app-product answers.
+- The selected one-time Play Store purchase price is storefront pricing and does not change
+  these in-app-product answers.
+- Play's managed 60-minute paid-game trial is storefront protection applied by Play; it is
+  not an in-app product and requires no Play Billing integration in Drawless Chess.
 
 ## Target audience
 
@@ -90,8 +92,10 @@ PEGI, or regional result in the listing.
 
 ## Items that still require real Console output or owner action
 
-- Identity and physical-device verification approval.
-- Free versus paid storefront choice, price, countries/regions, tax, and merchant setup.
+- Identity, contact, and physical-device verification were confirmed complete in Play Console
+  on July 14, 2026.
+- Standard price, any launch sale, countries/regions, tax, and merchant setup for the
+  selected one-time paid listing.
 - Final target-audience confirmation.
 - IARC rating generated from the completed questionnaire.
 - Public privacy-policy URL verification.

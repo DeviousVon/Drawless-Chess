@@ -3,7 +3,7 @@
 Status: **copy-ready for the inspected build, but re-audit the exact release AAB**
 Inspected package: `com.drawlesschess`
 Inspected version: `0.1.0` (`versionCode` 1)
-Inspection date: July 11, 2026
+Source-candidate re-audit date: July 14, 2026 (repeat against the exact signed release AAB)
 
 ## Recommended Play Console answers
 
@@ -29,11 +29,14 @@ The app stores the following only in Android private app storage:
 - rule, side, opponent, and clock selections;
 - game result and clock state;
 - counts of hints, undos, and pauses needed to restore game state;
+- a random local player identifier, immutable completed-game records, calculated game
+  scores, and derived wins, losses, averages, and streaks;
 - selected theme; and
 - whether the introductory guide has been seen.
 
-This local processing supports gameplay, Resume, and preferences. It is not sent to
-BB_Games and is therefore not declared as collected or shared in the Data Safety form.
+This local processing supports gameplay, Resume, player statistics, and preferences. It is
+not sent to BB_Games and is therefore not declared as collected or shared in the Data Safety
+form.
 
 ## Android system backup nuance
 

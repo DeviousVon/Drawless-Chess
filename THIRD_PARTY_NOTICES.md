@@ -50,8 +50,56 @@ remain authoritative.
 
 ## Original UI assets
 
-The chess pieces and launcher icon are vector/code-native original project work,
-and move/capture plus firework/glass-crack sounds are generated procedurally at runtime. They are not
-third-party dependencies and are licensed with Drawless Chess under
-GPL-3.0-or-later. This statement must be revisited if packaged imagery, fonts, or
-sampled audio are introduced.
+The chess pieces and launcher icon are vector/code-native original project work
+licensed with Drawless Chess under GPL-3.0-or-later. Sampled audio is separately
+identified below. See `docs/AUDIO_PROVENANCE.md`.
+
+## Sampled chess audio — CC0-1.0
+
+Move, capture, and castling effects derive from:
+
+- “Chess Pieces Move (Close)” by JJTaynos:
+  <https://freesound.org/people/JJTaynos/sounds/733927/>
+- “chess_move_on_alabaster.wav” by mh2o:
+  <https://freesound.org/people/mh2o/sounds/351518/>
+
+Victory fireworks derive from genuine pyrotechnic recordings by Rudmer_Rotteveel:
+
+- “2 Firework pops”: <https://freesound.org/people/Rudmer_Rotteveel/sounds/334042/>
+- “Whistle and Explosion Single_Firework”:
+  <https://freesound.org/people/Rudmer_Rotteveel/sounds/336008/>
+
+All four source pages designate the recordings Creative Commons Zero 1.0. CC0
+does not require attribution, but the identities, retained HQ preview files and
+hashes, original-download identities, and processing descriptions are preserved
+under `docs/audio/`. The complete CC0 legal text is in
+`docs/audio/licenses/CC0-1.0.txt` in the corresponding source distribution.
+
+## ion.sound 3.0.7 — MIT License
+
+Glass and reserved UI layers include modified recordings from ion.sound 3.0.7 by
+Denis Ineshin. The retained recordings match upstream commit
+`74d51c5bd14be428f06b3afb5e40125b8e407fbc`. Full provenance and hashes are in
+`docs/audio/audio_manifest.json`.
+
+The MIT License
+
+Copyright © 2019 by Denis Ineshin (http://ionden.com)
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of
+this software and associated documentation files (the “Software”), to deal in
+the Software without restriction, including without limitation the rights to
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software is furnished to do so,
+subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.

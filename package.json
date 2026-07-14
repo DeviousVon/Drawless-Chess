@@ -17,6 +17,7 @@
   "scripts": {
     "test": "node --test src/test/js/*.test.js",
     "test:engine": "node scripts/engine-poc.js",
+    "test:audio": "pwsh -NoProfile -NonInteractive -File scripts/verify-sampled-audio.ps1 -RequireDecode",
     "test:kotlin": "bash scripts/test-kotlin.sh",
     "test:license": "bash scripts/license-validate-structure.sh",
     "test:native-structure": "bash scripts/native-validate-structure.sh",
@@ -29,7 +30,7 @@
     "test:android-machine": "bash scripts/android-machine-verify.sh",
     "test:android-machine:windows": "pwsh -NoProfile -NonInteractive -ExecutionPolicy Bypass -File scripts/android-machine-verify.ps1",
     "bundle:source": "bash scripts/source-bundle.sh",
-    "test:all": "npm test && npm run test:kotlin && npm run test:license && npm run test:ui-structure && npm run test:engine && npm run test:native-structure && npm run test:android-structure"
+    "test:all": "npm test && npm run test:audio && npm run test:kotlin && npm run test:license && npm run test:ui-structure && npm run test:engine && npm run test:native-structure && npm run test:android-structure"
   },
   "dependencies": {
     "fairy-stockfish-nnue.wasm": "1.1.11",

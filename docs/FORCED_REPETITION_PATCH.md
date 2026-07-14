@@ -28,7 +28,9 @@ The reproducible patch set is under `engine/patches/`:
 - Patch SHA-256: `5bf9ec8dbd1254ed48bc6d29c92741c56c776124e87ef39b36f4a5d14b416ca2`
 - Patch commit recorded in the mail-format artifact:
   `b83e5c04029fb1c47ec277da585778c46fd19e51`
-- Resulting patched tree: `090d26be47498b99a23fdb1b9ff7587740b95664`
+- Intermediate tree after this rule patch: `090d26be47498b99a23fdb1b9ff7587740b95664`
+- Current ordered patch-set tree (including low-Elo rounding correction):
+  `80208e5f35549b88505df983e4bc0f7621083fd4`
 
 `engine/patches/manifest.json` is the machine-readable authority and `series` is the
 ordered patch list. These identities describe the source proven by the native verifier;
@@ -123,7 +125,7 @@ the test checks winner polarity rather than merely move legality.
 
 The host build uses the upstream Linux x86-64 make target with classical evaluation. The
 separate Android gate now establishes NDK compilation, JNI loading, ABI packaging, and
-forced-search behavior in the app's engine package on an API-36 x86-64 emulator and API-37
-ARM64 phone. The Android build deliberately uses classical evaluation (`NNUE_EMBEDDING_OFF`),
+forced-search behavior in the app's engine package on an API-36 x86-64 emulator and API-33
+ARM64 tablet. The Android build deliberately uses classical evaluation (`NNUE_EMBEDDING_OFF`),
 so no NNUE asset claim is made. Sustained device performance and low-memory/native-crash
 resilience remain release gates.

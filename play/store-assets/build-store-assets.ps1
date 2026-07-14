@@ -369,67 +369,67 @@ Export-FeatureGraphic -Destination $featureGraphic
 
 $phoneScreenshots = @(
     @{
-        Source = 'play\store-assets\source-captures\phone-home-final.png'
+        Source = 'play\store-assets\source-captures\current\phone-home-current.png'
         Destination = (Join-Path $phoneDir 'phone-01-home.png')
-        Crop = @(0, 240, 1080, 1920)
+        Crop = @(0, 160, 1080, 1920)
         Output = @(1080, 1920)
     },
     @{
-        Source = 'build\theme-visuals\phone-picker.png'
+        Source = 'play\store-assets\source-captures\current\phone-themes-current.png'
         Destination = (Join-Path $phoneDir 'phone-02-themes.png')
-        Crop = @(0, 240, 1080, 1920)
+        Crop = @(0, 200, 1080, 1920)
         Output = @(1080, 1920)
     },
     @{
-        Source = 'build\theme-visuals\phone-game-status-fixed.png'
+        Source = 'play\store-assets\source-captures\current\phone-gameplay-current.png'
         Destination = (Join-Path $phoneDir 'phone-03-gameplay.png')
-        Crop = @(0, 0, 1080, 1920)
+        Crop = @(0, 80, 1080, 1920)
         Output = @(1080, 1920)
     },
     @{
-        Source = 'build\visual-checks\drawless-victory-probe-2.png'
+        Source = 'play\store-assets\source-captures\current\phone-victory-current.png'
         Destination = (Join-Path $phoneDir 'phone-04-victory.png')
-        Crop = @(0, 140, 1008, 1792)
+        Crop = @(0, 80, 1080, 1920)
         Output = @(1080, 1920)
     },
     @{
-        Source = 'build\visual-checks\drawless-defeat-slow-1150.png'
+        Source = 'play\store-assets\source-captures\current\phone-defeat-current.png'
         Destination = (Join-Path $phoneDir 'phone-05-defeat.png')
-        Crop = @(0, 120, 1008, 1792)
+        Crop = @(0, 80, 1080, 1920)
         Output = @(1080, 1920)
     }
 )
 
 $tabletScreenshots = @(
     @{
-        Source = 'play\store-assets\source-captures\tablet-home-final.png'
+        Source = 'play\store-assets\source-captures\current\tablet-home-current.png'
         Destination = (Join-Path $tabletDir 'tablet-01-home.png')
-        Fit = $true
-        Output = @(1080, 1920)
+        Crop = @(0, 41, 1200, 1918)
+        Output = @(1200, 1918)
     },
     @{
-        Source = 'build\theme-visuals\theme-picker.png'
+        Source = 'play\store-assets\source-captures\current\tablet-themes-current.png'
         Destination = (Join-Path $tabletDir 'tablet-02-themes.png')
-        Fit = $true
-        Output = @(1080, 1920)
+        Crop = @(0, 41, 1200, 1918)
+        Output = @(1200, 1918)
     },
     @{
-        Source = 'build\theme-visuals\board-verified-modern_walnut.png'
+        Source = 'play\store-assets\source-captures\current\tablet-gameplay-current.png'
         Destination = (Join-Path $tabletDir 'tablet-03-gameplay.png')
-        Fit = $true
-        Output = @(1080, 1920)
+        Crop = @(0, 41, 1200, 1918)
+        Output = @(1200, 1918)
     },
     @{
-        Source = 'build\visual-checks\tablet-final\victory-mid.png'
+        Source = 'play\store-assets\source-captures\current\tablet-victory-current.png'
         Destination = (Join-Path $tabletDir 'tablet-04-victory.png')
-        Fit = $true
-        Output = @(1080, 1920)
+        Crop = @(0, 41, 1200, 1918)
+        Output = @(1200, 1918)
     },
     @{
-        Source = 'build\visual-checks\tablet-final\defeat-mid.png'
+        Source = 'play\store-assets\source-captures\current\tablet-defeat-landscape-current.png'
         Destination = (Join-Path $tabletDir 'tablet-05-defeat-landscape.png')
-        Crop = @(0, 40, 2000, 1125)
-        Output = @(1920, 1080)
+        Crop = @(0, 41, 2000, 1118)
+        Output = @(2000, 1118)
     }
 )
 
@@ -451,23 +451,6 @@ foreach ($item in $phoneScreenshots + $tabletScreenshots) {
             -OutputWidth $item.Output[0] `
             -OutputHeight $item.Output[1]
     }
-}
-
-# Remove unrelated notification/service identifiers from the device chrome while
-# preserving the clock, network, battery, and every pixel of the app itself.
-Clear-StatusBarIdentifiers `
-    -Path (Join-Path $phoneDir 'phone-03-gameplay.png') `
-    -X 157 -Y 28 -Width 67 -Height 68 -SampleX 240 -SampleY 50
-
-foreach ($tabletName in @(
-    'tablet-01-home.png',
-    'tablet-02-themes.png',
-    'tablet-03-gameplay.png',
-    'tablet-04-victory.png'
-)) {
-    Clear-StatusBarIdentifiers `
-        -Path (Join-Path $tabletDir $tabletName) `
-        -X 55 -Y 0 -Width 210 -Height 37 -SampleX 300 -SampleY 12
 }
 
 $assets = Get-ChildItem -LiteralPath $iconDir, $featureDir, $phoneDir, $tabletDir -File -Filter '*.png'

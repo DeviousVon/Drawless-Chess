@@ -13,6 +13,7 @@ class GameCoordinator private constructor(
     private val checkpointSink: CheckpointSink,
     private val timeSource: CoordinatorTimeSource,
     private val idSource: CoordinatorIdSource,
+    private val botMovePresentationDelayMillis: Long,
     initialSession: GameSession,
     initialPosition: ChessPosition,
     initialClock: CoordinatorClock,
@@ -20,6 +21,10 @@ class GameCoordinator private constructor(
     initialAssistance: AssistanceCounts,
     initialRevision: Long,
 ) {
+    init {
+        require(botMovePresentationDelayMillis >= 0) { "Bot move presentation delay must not be negative" }
+    }
+
     private val lock = Any()
     private var session = initialSession
     private var position = initialPosition
@@ -28,6 +33,7 @@ class GameCoordinator private constructor(
     private var assistance = initialAssistance
     private var revision = initialRevision
     private var started = false
+    private var closed = false
     private var activeRequestId: String? = null
     private var activeRequestPurpose: EnginePurpose? = null
     private var activeCancellation: EngineCancellation? = null
@@ -35,12 +41,22 @@ class GameCoordinator private constructor(
 
     fun start() {
         synchronized(lock) {
+            check(!closed) { "Coordinator is closed" }
             if (started) return
             started = true
             persistLocked()
         }
         tick()
         launchBotIfNeeded()
+    }
+
+    fun close() {
+        val cancellation = synchronized(lock) {
+            if (closed) return
+            closed = true
+            clearActiveEngineLocked()
+        }
+        cancellation?.cancel()
     }
 
     fun snapshot(): CoordinatorSnapshot = synchronized(lock) {
@@ -76,7 +92,7 @@ class GameCoordinator private constructor(
 
     fun tick() {
         val cancellation = synchronized(lock) {
-            if (!started || session.outcome != null || clock.paused) return
+            if (!started || closed || session.outcome != null || clock.paused) return
             if (expireClockLocked(timeSource.now())) clearActiveEngineLocked() else null
         }
         cancellation?.cancel()
@@ -154,9 +170,6 @@ class GameCoordinator private constructor(
             ).also {
                 activeRequestId = requestId
                 activeRequestPurpose = EnginePurpose.HINT
-                assistance = assistance.copy(hints = assistance.hints + 1)
-                revision++
-                persistLocked()
             }
         }
 
@@ -193,6 +206,7 @@ class GameCoordinator private constructor(
         synchronized(lock) {
             requireStartedLocked()
             require(config.mode == GameMode.CASUAL) { "Rated games cannot undo" }
+            require(session.outcome == null) { "Game is complete" }
             val lastHumanIndex = session.moves.indexOfLast { it.mover == config.humanSide }
             require(lastHumanIndex >= 0) { "No human move is available to undo" }
             cancellation = clearActiveEngineLocked()
@@ -247,7 +261,7 @@ class GameCoordinator private constructor(
 
     private fun launchBotIfNeeded() {
         val request = synchronized(lock) {
-            if (!started || session.outcome != null || clock.paused ||
+            if (!started || closed || session.outcome != null || clock.paused ||
                 session.sideToMove == config.humanSide || activeRequestId != null || engineError != null) {
                 return
             }
@@ -291,7 +305,7 @@ class GameCoordinator private constructor(
 
     private fun handleEngineResult(request: EngineRequest, result: Result<EngineResponse>) {
         synchronized(lock) {
-            if (activeRequestId != request.requestId || activeRequestPurpose != EnginePurpose.BOT_MOVE ||
+            if (closed || activeRequestId != request.requestId || activeRequestPurpose != EnginePurpose.BOT_MOVE ||
                 session.outcome != null || clock.paused) return
             activeRequestId = null
             activeRequestPurpose = null
@@ -313,7 +327,12 @@ class GameCoordinator private constructor(
             try {
                 val transition = ChessAdapter.transition(position, response.bestMove)
                 val after = ChessRules.apply(position, response.bestMove)
-                commitMoveLocked(transition, after, now)
+                commitMoveLocked(
+                    transition = transition,
+                    after = after,
+                    now = now,
+                    nextSideStartDelayMillis = botMovePresentationDelayMillis,
+                )
             } catch (error: IllegalArgumentException) {
                 engineError = "Engine returned illegal move ${response.bestMove.value}: ${error.message}"
                 revision++
@@ -329,13 +348,13 @@ class GameCoordinator private constructor(
     ) {
         var delivery: Result<EngineResponse>? = null
         synchronized(lock) {
-            if (activeRequestId != request.requestId || activeRequestPurpose != EnginePurpose.HINT ||
+            if (closed || activeRequestId != request.requestId || activeRequestPurpose != EnginePurpose.HINT ||
                 session.outcome != null || clock.paused || session.positionId != request.positionId) return
 
             clearActiveEngineLocked()
             if (expireClockLocked(timeSource.now())) return
 
-            delivery = result.fold(
+            val validatedResult = result.fold(
                 onSuccess = { response ->
                     when {
                         !response.matches(request) -> Result.failure(
@@ -349,8 +368,12 @@ class GameCoordinator private constructor(
                 },
                 onFailure = { Result.failure(it) },
             )
-            revision++
-            persistLocked()
+            delivery = validatedResult
+            if (validatedResult.isSuccess) {
+                assistance = assistance.copy(hints = assistance.hints + 1)
+                revision++
+                persistLocked()
+            }
         }
         delivery?.let { value -> runCatching { onResult(value) } }
     }
@@ -359,11 +382,18 @@ class GameCoordinator private constructor(
         transition: MoveTransition,
         after: ChessPosition,
         now: TimeReading,
+        nextSideStartDelayMillis: Long = 0,
     ) {
         val increment = (config.timeControl as? TimeControl.Clock)?.incrementMillis ?: 0
         session = session.apply(transition)
         position = after
-        clock = clock.completeMove(transition.mover, session.sideToMove, increment, now)
+        clock = clock.completeMove(
+            mover = transition.mover,
+            nextSide = session.sideToMove,
+            incrementMillis = increment,
+            now = now,
+            nextSideStartDelayMillis = nextSideStartDelayMillis,
+        )
         if (session.outcome != null) clock = clock.stop(now)
         moveClocks = moveClocks + MoveClockSnapshot(
             ply = session.moves.size,
@@ -421,6 +451,7 @@ class GameCoordinator private constructor(
 
     private fun requireStartedLocked() {
         check(started) { "Coordinator has not started" }
+        check(!closed) { "Coordinator is closed" }
     }
 
     private fun persistLocked() = checkpointSink.persist(checkpointLocked())
@@ -443,15 +474,20 @@ class GameCoordinator private constructor(
             checkpointSink: CheckpointSink,
             timeSource: CoordinatorTimeSource,
             idSource: CoordinatorIdSource,
+            botMovePresentationDelayMillis: Long = 0,
+            initialAssistance: AssistanceCounts = AssistanceCounts(),
         ): GameCoordinator {
+            require(config.mode != GameMode.RATED || !initialAssistance.wasUsed) {
+                "Rated games cannot start with assistance"
+            }
             val position = ChessPosition.fromFen(config.initialFen)
             val session = GameSession.newGame(
                 config.gameId, config.rules, RepetitionKey.of(position), position.sideToMove,
             )
             return GameCoordinator(
-                config, engine, checkpointSink, timeSource, idSource,
+                config, engine, checkpointSink, timeSource, idSource, botMovePresentationDelayMillis,
                 session, position, CoordinatorClock.initial(config.timeControl, position.sideToMove, timeSource.now()),
-                emptyList(), AssistanceCounts(), 0,
+                emptyList(), initialAssistance, 0,
             )
         }
 
@@ -461,6 +497,7 @@ class GameCoordinator private constructor(
             checkpointSink: CheckpointSink,
             timeSource: CoordinatorTimeSource,
             idSource: CoordinatorIdSource,
+            botMovePresentationDelayMillis: Long = 0,
         ): GameCoordinator {
             require(
                 (checkpoint.config.timeControl == TimeControl.Untimed && !checkpoint.clock.timed) ||
@@ -503,7 +540,7 @@ class GameCoordinator private constructor(
             }
             val restoredClock = if (session.outcome == null) checkpoint.clock else checkpoint.clock.stop(timeSource.now())
             return GameCoordinator(
-                checkpoint.config, engine, checkpointSink, timeSource, idSource,
+                checkpoint.config, engine, checkpointSink, timeSource, idSource, botMovePresentationDelayMillis,
                 session, rebuiltPosition, restoredClock, checkpoint.moveClocks,
                 checkpoint.assistance, checkpoint.revision,
             )

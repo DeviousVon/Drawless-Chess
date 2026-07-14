@@ -9,7 +9,10 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
@@ -19,24 +22,37 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.drawlesschess.core.*
 import com.drawlesschess.core.chess.PieceType
 import com.drawlesschess.core.presentation.BoardTheme
+import java.util.Locale
 
 @Composable
 internal fun DrawlessApp(viewModel: DrawlessAppViewModel, soundPlayer: GameSoundPlayer) {
     var showThemePicker by rememberSaveable { mutableStateOf(false) }
 
+    LaunchedEffect(soundPlayer, viewModel.gamePreferences.soundEnabled) {
+        soundPlayer.setEnabled(viewModel.gamePreferences.soundEnabled)
+    }
+
     when (viewModel.route) {
         AppRoute.HOME -> HomeScreen(
             resumeState = viewModel.resumeState,
+            playerStatsState = viewModel.playerStatsState,
             selectedTheme = viewModel.selectedTheme,
             onResume = viewModel::resumeGame,
             onQuickPlay = viewModel::startQuickPlay,
             onCustomGame = viewModel::showNewGameSetup,
+            onShowOptions = viewModel::showOptions,
+            onShowStats = viewModel::showStats,
             onShowThemes = { showThemePicker = true },
             onShowRules = viewModel::showRulesGuide,
             onDiscard = viewModel::discardSavedGame,
@@ -50,6 +66,22 @@ internal fun DrawlessApp(viewModel: DrawlessAppViewModel, soundPlayer: GameSound
                 onStart = viewModel::startNewGame,
             )
         }
+        AppRoute.OPTIONS -> {
+            BackHandler(onBack = viewModel::leaveOptions)
+            OptionsScreen(
+                preferences = viewModel.gamePreferences,
+                onPreferencesChanged = viewModel::updateGamePreferences,
+                onBack = viewModel::leaveOptions,
+            )
+        }
+        AppRoute.STATS -> {
+            BackHandler(onBack = viewModel::leaveStats)
+            PlayerStatsScreen(
+                state = viewModel.playerStatsState,
+                onBack = viewModel::leaveStats,
+                onRetry = viewModel::completedGameRecorded,
+            )
+        }
         AppRoute.GAME -> {
             val runtime = viewModel.runtime
             if (runtime == null) {
@@ -61,10 +93,14 @@ internal fun DrawlessApp(viewModel: DrawlessAppViewModel, soundPlayer: GameSound
                 GameRoute(
                     runtime = runtime,
                     soundPlayer = soundPlayer,
+                    preferences = viewModel.gamePreferences,
+                    playerStatistics = (viewModel.playerStatsState as? PlayerStatsState.Ready)
+                        ?.statistics,
                     selectedTheme = viewModel.selectedTheme,
                     onShowThemes = { showThemePicker = true },
                     onExit = viewModel::exitGame,
                     onRematch = viewModel::rematchGame,
+                    onGameCompleted = viewModel::completedGameRecorded,
                 )
             }
         }
@@ -72,6 +108,14 @@ internal fun DrawlessApp(viewModel: DrawlessAppViewModel, soundPlayer: GameSound
 
     if (viewModel.route == AppRoute.HOME && viewModel.showRulesGuide) {
         RulesGuideDialog(onDismiss = viewModel::dismissRulesGuide)
+    }
+
+    viewModel.forfeitConfirmation?.let { state ->
+        ForfeitCurrentGameDialog(
+            state = state,
+            onConfirm = viewModel::confirmForfeitAndStartNewGame,
+            onCancel = viewModel::cancelForfeitAndKeepGame,
+        )
     }
 
     if (showThemePicker) {
@@ -86,16 +130,20 @@ internal fun DrawlessApp(viewModel: DrawlessAppViewModel, soundPlayer: GameSound
 @Composable
 private fun HomeScreen(
     resumeState: ResumeState,
+    playerStatsState: PlayerStatsState,
     selectedTheme: BoardTheme,
     onResume: () -> Unit,
     onQuickPlay: () -> Unit,
     onCustomGame: () -> Unit,
+    onShowOptions: () -> Unit,
+    onShowStats: () -> Unit,
     onShowThemes: () -> Unit,
     onShowRules: () -> Unit,
     onDiscard: () -> Unit,
 ) {
     var showLicense by rememberSaveable { mutableStateOf(false) }
     var showPrivacy by rememberSaveable { mutableStateOf(false) }
+    val quickPlayOpponent = OpponentProfiles.quickPlay
     val visualTheme = LocalDrawlessVisualTheme.current
     val home = visualTheme.home
     val primaryButtonColors = ButtonDefaults.buttonColors(
@@ -182,6 +230,7 @@ private fun HomeScreen(
             if (resumeState != ResumeState.Loading) {
                 Button(
                     onClick = onQuickPlay,
+                    enabled = resumeState !is ResumeState.Failed,
                     modifier = Modifier.fillMaxWidth().height(56.dp),
                     shape = RoundedCornerShape(18.dp),
                     colors = primaryButtonColors,
@@ -189,12 +238,13 @@ private fun HomeScreen(
                     Text("Quick Play", fontSize = 17.sp)
                 }
                 Text(
-                    "Drawless rules · Casual opponent · No clock",
+                    "Drawless · ${quickPlayOpponent.name}, ${quickPlayOpponent.level.displayName} · Random side · Untimed",
                     color = home.muted,
                     fontSize = 13.sp,
                 )
                 OutlinedButton(
                     onClick = onCustomGame,
+                    enabled = resumeState !is ResumeState.Failed,
                     modifier = Modifier.fillMaxWidth().height(54.dp),
                     shape = RoundedCornerShape(18.dp),
                     colors = outlinedButtonColors,
@@ -210,6 +260,37 @@ private fun HomeScreen(
                     border = BorderStroke(1.dp, home.accent.copy(alpha = 0.72f)),
                 ) {
                     Text("Theme · ${selectedTheme.name}", fontSize = 15.sp)
+                }
+                OutlinedButton(
+                    onClick = onShowStats,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 58.dp)
+                        .testTag("home_stats"),
+                    shape = RoundedCornerShape(18.dp),
+                    colors = outlinedButtonColors,
+                    border = BorderStroke(1.dp, home.accent.copy(alpha = 0.72f)),
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("Player stats", fontSize = 15.sp)
+                        Text(
+                            homeStatsSummary(playerStatsState),
+                            fontSize = 12.sp,
+                            color = home.muted,
+                        )
+                    }
+                }
+                OutlinedButton(
+                    onClick = onShowOptions,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp)
+                        .testTag("home_options"),
+                    shape = RoundedCornerShape(18.dp),
+                    colors = outlinedButtonColors,
+                    border = BorderStroke(1.dp, home.accent.copy(alpha = 0.72f)),
+                ) {
+                    Text("Options", fontSize = 15.sp)
                 }
             }
             FlowRow(
@@ -243,6 +324,78 @@ private fun HomeScreen(
 }
 
 @Composable
+internal fun ForfeitCurrentGameDialog(
+    state: ForfeitConfirmationState,
+    onConfirm: () -> Unit,
+    onCancel: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = { if (!state.recordingLoss) onCancel() },
+        title = { Text("Forfeit current game?") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    "Are you sure you want to forfeit your current game? " +
+                        "It will count as a loss in your stats.",
+                )
+                if (state.recordingLoss) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            strokeWidth = 2.dp,
+                        )
+                        Text("Recording loss…")
+                    }
+                }
+                state.errorMessage?.let { message ->
+                    Text(message, color = MaterialTheme.colorScheme.error)
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = onConfirm,
+                enabled = !state.recordingLoss,
+                modifier = Modifier.testTag("confirm_forfeit_game"),
+            ) {
+                Text("Forfeit & start new game")
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = onCancel,
+                enabled = !state.recordingLoss,
+                modifier = Modifier.testTag("cancel_forfeit_game"),
+            ) {
+                Text("Keep current game")
+            }
+        },
+    )
+}
+
+private fun homeStatsSummary(state: PlayerStatsState): String = when (state) {
+    PlayerStatsState.Loading -> "Loading…"
+    is PlayerStatsState.Failed -> "Unavailable"
+    is PlayerStatsState.Ready -> {
+        val stats = state.statistics
+        if (stats.completedGames == 0) {
+            "No completed games yet"
+        } else {
+            val winPercentage = stats.winPercentage
+                ?.let { String.format(Locale.US, "%.1f", it) }
+                ?: "—"
+            val averageScore = stats.averageScore
+                ?.let { String.format(Locale.US, "%.1f", it) }
+                ?: "—"
+            "${stats.wins}–${stats.losses} · $winPercentage% wins · Avg $averageScore"
+        }
+    }
+}
+
+@Composable
 private fun RulesGuideDialog(onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -271,6 +424,9 @@ private fun LicenseDialog(onDismiss: () -> Unit) {
         text = {
             Text(
                 "Drawless Chess is licensed under GNU GPL version 3 or later. " +
+                    "Sampled audio includes CC0 chess recordings by JJTaynos and mh2o, " +
+                    "CC0 fireworks by Rudmer_Rotteveel, and MIT-licensed ion.sound " +
+                    "recordings by Denis Ineshin. " +
                     "Exact corresponding source and third-party notices accompany " +
                     "the official v0.1.0 release.",
             )
@@ -299,8 +455,9 @@ private fun PrivacyDialog(onDismiss: () -> Unit) {
         text = {
             Text(
                 "Drawless Chess works entirely offline. BB_Games does not collect, " +
-                    "transmit, share, or sell personal data. Saved games and settings " +
-                    "are stored on your device and may be included in Android backups if " +
+                "transmit, share, or sell personal data. Saved games, completed-game " +
+                    "history, local statistics, and settings are stored on your device and " +
+                    "may be included in Android backups if " +
                     "you enable them; BB_Games cannot access those backups. " +
                     "Privacy questions: realitymaster@protonmail.ch",
             )
@@ -366,28 +523,43 @@ private fun SetupScreen(
 
             SetupSection("Play as") {
                 ChoiceRow {
-                    ChoiceChip("White", selection.humanSide == Side.WHITE) {
-                        onSelectionChanged(selection.copy(humanSide = Side.WHITE))
+                    ChoiceChip(
+                        "Random",
+                        selection.startingColor == StartingColor.RANDOM,
+                        Modifier.testTag("play_as_random"),
+                    ) {
+                        onSelectionChanged(selection.copy(startingColor = StartingColor.RANDOM))
                     }
-                    ChoiceChip("Black", selection.humanSide == Side.BLACK) {
-                        onSelectionChanged(selection.copy(humanSide = Side.BLACK))
+                    ChoiceChip(
+                        "White",
+                        selection.startingColor == StartingColor.WHITE,
+                        Modifier.testTag("play_as_white"),
+                    ) {
+                        onSelectionChanged(selection.copy(startingColor = StartingColor.WHITE))
                     }
-                }
-            }
-
-            SetupSection("Opponent") {
-                ChoiceRow {
-                    BotLevels.forEach { level ->
-                        ChoiceChip(
-                            level.displayName,
-                            selection.botLevel == level,
-                        ) { onSelectionChanged(selection.copy(botLevel = level)) }
+                    ChoiceChip(
+                        "Black",
+                        selection.startingColor == StartingColor.BLACK,
+                        Modifier.testTag("play_as_black"),
+                    ) {
+                        onSelectionChanged(selection.copy(startingColor = StartingColor.BLACK))
                     }
                 }
                 Text(
-                    selection.botLevel.description,
+                    if (selection.startingColor == StartingColor.RANDOM) {
+                        "White or Black will be chosen when the game starts."
+                    } else {
+                        "You'll play ${selection.startingColor.name.lowercase().replaceFirstChar(Char::uppercase)}."
+                    },
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+
+            SetupSection("Opponent") {
+                OpponentPicker(
+                    selectedLevel = selection.botLevel,
+                    onSelected = { level -> onSelectionChanged(selection.copy(botLevel = level)) },
                 )
             }
 
@@ -445,6 +617,135 @@ private fun SetupScreen(
     }
 }
 
+@Composable
+private fun OpponentPicker(
+    selectedLevel: com.drawlesschess.core.engine.NamedBotLevel,
+    onSelected: (com.drawlesschess.core.engine.NamedBotLevel) -> Unit,
+) {
+    val selectedProfile = OpponentProfiles.forLevel(selectedLevel)
+    LazyRow(
+        modifier = Modifier.fillMaxWidth().testTag("opponent_picker"),
+        contentPadding = PaddingValues(horizontal = 2.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        items(OpponentProfiles.all, key = { it.level.id }) { profile ->
+            OpponentChoiceCard(
+                profile = profile,
+                selected = profile.level.id == selectedLevel.id,
+                onClick = { onSelected(profile.level) },
+            )
+        }
+    }
+    OpponentDetailCard(selectedProfile)
+}
+
+@Composable
+private fun OpponentChoiceCard(
+    profile: OpponentProfile,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    val container = if (selected) {
+        MaterialTheme.colorScheme.primaryContainer
+    } else {
+        MaterialTheme.colorScheme.surfaceVariant
+    }
+    val content = if (selected) {
+        MaterialTheme.colorScheme.onPrimaryContainer
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    val borderColor = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
+
+    Surface(
+        modifier = Modifier
+            .width(116.dp)
+            .testTag("opponent_option_${profile.level.id}")
+            .selectable(selected = selected, role = Role.RadioButton, onClick = onClick)
+            .semantics(mergeDescendants = true) {
+                stateDescription = if (selected) "Selected" else "Not selected"
+            },
+        shape = RoundedCornerShape(18.dp),
+        color = container,
+        contentColor = content,
+        border = BorderStroke(if (selected) 2.dp else 1.dp, borderColor),
+        tonalElevation = if (selected) 5.dp else 0.dp,
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 10.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(5.dp),
+        ) {
+            OpponentPortrait(
+                profile = profile,
+                size = 74.dp,
+                emphasized = selected,
+                modifier = Modifier.testTag("opponent_avatar_${profile.level.id}"),
+            )
+            Text(
+                profile.name,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                profile.level.displayName,
+                style = MaterialTheme.typography.labelSmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+@Composable
+private fun OpponentDetailCard(profile: OpponentProfile) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("selected_opponent_${profile.level.id}"),
+        shape = RoundedCornerShape(18.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)),
+    ) {
+        Row(
+            modifier = Modifier.padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            OpponentPortrait(profile = profile, size = 92.dp, emphasized = true)
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(3.dp),
+            ) {
+                Text(
+                    profile.name,
+                    modifier = Modifier.testTag("selected_opponent_name"),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                )
+                Text(
+                    "${profile.level.displayName} opponent",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+                Text(
+                    profile.epithet,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(profile.personality, style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    profile.level.description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
 private data class ClockChoice(val label: String, val control: TimeControl)
 
 private val ClockChoices = listOf(
@@ -479,10 +780,16 @@ private fun ChoiceRow(content: @Composable FlowRowScope.() -> Unit) {
 }
 
 @Composable
-private fun ChoiceChip(label: String, selected: Boolean, onClick: () -> Unit) {
+private fun ChoiceChip(
+    label: String,
+    selected: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
     FilterChip(
         selected = selected,
         onClick = onClick,
         label = { Text(label) },
+        modifier = modifier,
     )
 }

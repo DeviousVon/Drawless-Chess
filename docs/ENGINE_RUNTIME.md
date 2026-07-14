@@ -111,13 +111,25 @@ It must not silently retry a timed-out move after the game position has changed.
 
 Version 1 exposes all three agreed difficulty paths:
 
-- Seven named levels from Learner through Grandmaster.
+- Seven named levels using the beginner-focused target ladder: Learner 500, Casual 650,
+  Challenger 850, Club 1100, Expert 1500, Master 2000, and Grandmaster 2500.
 - A custom approximate Elo from 500 through 2850.
 - Adaptive difficulty targeting the relevant offline player rating.
 
 The engine adapter maps approximate Elo to `UCI_LimitStrength` plus `UCI_Elo`, and maps
 raw skill to Fairy-Stockfish's `Skill Level`. Values are checked against the options
 reported by the actual binary rather than assumed.
+
+New checkpoints persist the named level ID separately from its target Elo. Checkpoints
+from the previous 600/900/1200/1500/1850/2200/2600 ladder infer identity only from an
+exact historical value, preserving both the original opponent persona and the saved
+engine strength. In particular, legacy Club 1500 remains Club while new Expert 1500 is
+unambiguous. A present null ID remains a custom opponent and is never legacy-inferred.
+
+These numbers are target/estimated Elo values, not hardware-independent measurements;
+the production adapter sends the exact target through `UCI_LimitStrength` and `UCI_Elo`
+with a 350 ms move budget. The patched engine uses floor-based stochastic rounding for
+negative fractional skill levels, removing the prior systematic low-Elo strength bias.
 
 Hints are casual-only, full-strength MultiPV requests. `GameCoordinator` owns hint and bot
 requests in one serialized slot because the native bridge permits one Fairy session per
@@ -144,7 +156,7 @@ should calibrate the labels before public release.
 
 ## Verification boundary
 
-At this checkpoint, `npm run test:kotlin` passes 196 JVM/core-and-endpoint tests. Of those,
+At this checkpoint, `npm run test:kotlin` passes 223 JVM/core-and-endpoint tests. Of those,
 25 native bridge tests cover split UTF-8/CRLF framing, malformed and oversized input, bounded FIFO
 writes, synchronous and asynchronous completions, backpressure, stdout/stderr separation,
 consumer isolation, open/write/close failures, duplicate completion, explicit and
@@ -163,7 +175,7 @@ Android shared library. The SDK-less Compose structure gate also
 passes with the production factory selected and release fallback prohibition checked.
 
 `AndroidFairyEngineInstrumentedTest` now passes independently on an API-36 x86-64 emulator
-and an API-37 ARM64 physical phone. Each run uses the production factory and packaged asset,
+and an API-33 ARM64 physical tablet. Each run uses the production factory and packaged asset,
 asserts the forced-repetition `h8g8` mate-in-one result and patch identity, closes the
 session, then creates and searches through a second session. This proves ART JNI loading,
 the packaged rules asset, native search, shutdown, and sequential reuse on both supported
@@ -171,21 +183,32 @@ runtime ABIs.
 
 The checked-in machine gate locks the SDK/JDK/Gradle/NDK/CMake inputs, audits debug and
 release AAR/APK native bytes, runs exactly one bounded native test on the explicitly selected
-device, and retains failure-safe evidence. At the `f4b9c05` checkpoint, the final x86-64 and
-ARM64 manifests both report
-`result: passed`, both packaged ABIs, and the same app artifacts: debug APK 16,612,314 bytes
-with SHA-256 `21e363135bcccb69c142d94e124c8d75a5ee2204fb14a9bb975f0fe5a1a5a151`,
-and unsigned release APK 11,717,623 bytes with SHA-256
-`a5d80768f93ce0bb583ed6ed03777fb20c1ffaf560d461416db5ffce803f2c6e`.
+device, and retains failure-safe evidence. Fresh 2026-07-14 x86-64 and ARM64 manifests both
+report `result: passed`, both packaged ABIs, patched tree
+`80208e5f35549b88505df983e4bc0f7621083fd4`, and the same app artifacts: debug APK
+17,709,024 bytes with SHA-256
+`25a252a21b65a768c19b74e1dfecdb4ee7af2093ee0761c9fa06e3c85d0b87ff`, and unsigned
+release APK 12,736,428 bytes with SHA-256
+`e4b2215919e220d9e6e21159c6987b16ea0f7f3049b5659bdb0dffcf77e71bda`. The companion
+app-test APK used for acceptance is 1,355,590 bytes with SHA-256
+`79d308e03b858b7ae500574ace19287336aef98fdf801037b9e8c7ccb9c75d0b`.
+The later opt-in store-screenshot harness changes only the non-shipping app-test APK; that
+current test APK is 1,470,750 bytes with SHA-256
+`41e14c71596c5946aa9e2bb073e31823efcf86f4478cda758059e1ba652aae0c`, and its deterministic
+capture flow passes on the emulator and tablet. The complete 51-test suite also passes once
+against this current test-only pair on both devices, without replacing the exact three-device
+acceptance pair above.
 
-The app instrumentation suite now contains nine tests and passes on the API-36 x86-64
-emulator and API-33 ARM64 tablet; the preceding eight-test checkpoint also passed on the
-API-37 ARM64 phone. In particular, its
+The app instrumentation suite now contains 51 tests and passes twice from fresh processes against
+that exact clean APK pair on the API-33 ARM64 tablet, API-36 x86-64 emulator, and Pixel 9 Pro XL.
+The targeted forfeit flow also passes independently on all three. It covers confirmed-forfeit
+durability and stable named-opponent identity across the old
+Club/new Expert 1500 collision as well as current-ladder checkpoint round trips. In particular, its
 native-hint acceptance case publishes a full-strength MultiPV hint and then completes a bot
 move through the same process-global session; rapid game replacement also completes a real
-bot move without reproducing the former second-game session failure. The ninth test locks the
-two-second-plus finish timelines, exactly-once cue ordering, reduced-motion collapse behavior,
-and deterministic bounded procedural waveforms.
+bot move without reproducing the former second-game session failure. The completion and audio
+tests lock the two-second-plus finish timelines, exactly-once cue ordering, reduced-motion
+collapse behavior, and the 104-resource sampled-audio catalog/platform-loading contract.
 
 This evidence does not cover sustained performance, low-memory/native-crash resilience,
 every form factor, a signed release, or an App Bundle. The licensing decision is complete:

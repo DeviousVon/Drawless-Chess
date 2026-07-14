@@ -24,6 +24,7 @@ google-services.json
 *.hprof
 *.trace
 captures/
+TEMP/
 
 # Recreated from the pinned upstream revision and ordered Drawless patches.
 # Exact prepared source is included in each corresponding-source release archive.

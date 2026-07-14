@@ -48,6 +48,21 @@ internal inline fun <reified T : Throwable> assertThrows(block: () -> Unit) {
     error("Expected ${T::class.simpleName}")
 }
 
+private fun registerJniFairyEnginePortTestsIfPresent(suite: TestSuite) {
+    try {
+        val testFile = Class.forName("com.drawlesschess.core.JniFairyEnginePortTestsKt")
+        val register = testFile.getDeclaredMethod(
+            "registerJniFairyEnginePortTests",
+            TestSuite::class.java,
+        )
+        register.isAccessible = true
+        register.invoke(null, suite)
+    } catch (_: ClassNotFoundException) {
+        // The core Gradle module cannot depend on the engine module. The repository's
+        // combined Kotlin harness includes the engine test source and runs this suite.
+    }
+}
+
 private val drawless = RulesContractV1.drawless()
 private val adjudicator = DrawlessAdjudicator()
 
@@ -178,11 +193,19 @@ private data class CoordinatorFixture(
 private fun coordinatorFixture(
     config: GameConfig = coordinatorConfig(),
     time: FakeCoordinatorTime = FakeCoordinatorTime(),
+    botMovePresentationDelayMillis: Long = 0,
+    initialAssistance: AssistanceCounts = AssistanceCounts(),
 ): CoordinatorFixture {
     val engine = FakeChessEngine()
     val sink = FakeCheckpointSink()
     val coordinator = GameCoordinator.newGame(
-        config, engine, sink, time, FakeCoordinatorIds(),
+        config,
+        engine,
+        sink,
+        time,
+        FakeCoordinatorIds(),
+        botMovePresentationDelayMillis = botMovePresentationDelayMillis,
+        initialAssistance = initialAssistance,
     )
     coordinator.start()
     return CoordinatorFixture(coordinator, engine, sink, time)
@@ -326,6 +349,42 @@ fun main() {
             assistance = AssistanceCounts(undos = 1),
         )
         assertThat(saved.schemaVersion == 1)
+    }
+    suite.test("game scoring v1 applies an explicit assistance breakdown only to wins") {
+        val assisted = AssistanceCounts(hints = 1, undos = 1, pauses = 1, threatIndication = true)
+        assertThat(assisted.wasUsed)
+        val timedWin = GameScoring.forResult(true, assisted, TimeControl.Clock(60_000))
+        assertThat(timedWin == GameScore(
+            points = 70,
+            maximumPoints = 100,
+            threatIndicationPenalty = 5,
+            hintPenalty = 10,
+            undoPenalty = 10,
+            timedPausePenalty = 5,
+            scoringVersion = 1,
+        ))
+        assertThat(timedWin.totalPenalty == 30)
+        assertThat(GameScoring.forResult(true, assisted, TimeControl.Untimed).points == 75)
+        assertThat(GameScoring.forResult(false, assisted) == GameScore(0, 100, 0))
+        assertThat(GameScoring.forResult(true, AssistanceCounts()) == GameScore(100, 100, 0))
+    }
+    suite.test("game scoring clamps very large assistance counts without overflow") {
+        val score = GameScoring.forResult(
+            playerWon = true,
+            assistance = AssistanceCounts(
+                hints = Int.MAX_VALUE,
+                undos = Int.MAX_VALUE,
+                pauses = Int.MAX_VALUE,
+                threatIndication = true,
+            ),
+            timeControl = TimeControl.Clock(60_000),
+        )
+        assertThat(score.points == 0)
+        assertThat(score.hintPenalty == 100)
+        assertThat(score.undoPenalty == 100)
+        assertThat(score.timedPausePenalty == 100)
+        assertThat(score.threatIndicationPenalty == 5)
+        assertThat(score.totalPenalty == 100)
     }
     suite.test("untimed save rejects clock snapshots") {
         assertThrows<IllegalArgumentException> {
@@ -517,6 +576,25 @@ fun main() {
         assertThat(fixture.sink.saved.size == 1)
         assertThat(fixture.sink.saved.last().moves.isEmpty())
     }
+    suite.test("coordinator persists threat indication availability from game start") {
+        val fixture = coordinatorFixture(
+            initialAssistance = AssistanceCounts(threatIndication = true),
+        )
+        assertThat(fixture.coordinator.snapshot().assistance.threatIndication)
+        assertThat(fixture.sink.saved.last().assistance.threatIndication)
+    }
+    suite.test("rated game cannot start with threat indication assistance") {
+        assertThrows<IllegalArgumentException> {
+            GameCoordinator.newGame(
+                coordinatorConfig(mode = GameMode.RATED),
+                FakeChessEngine(),
+                FakeCheckpointSink(),
+                FakeCoordinatorTime(),
+                FakeCoordinatorIds(),
+                initialAssistance = AssistanceCounts(threatIndication = true),
+            )
+        }
+    }
     suite.test("human move launches a position-tagged bot request") {
         val fixture = coordinatorFixture()
         fixture.coordinator.playHuman(UciMove("e2e4"))
@@ -532,6 +610,24 @@ fun main() {
         val snapshot = fixture.coordinator.snapshot()
         assertThat(snapshot.session.moves.map { it.move.value } == listOf("e2e4", "e7e5"))
         assertThat(snapshot.phase == CoordinatorPhase.HUMAN_TURN)
+    }
+    suite.test("opponent presentation delay does not charge the human clock") {
+        val fixture = coordinatorFixture(
+            config = coordinatorConfig(timeControl = TimeControl.Clock(10_000)),
+            botMovePresentationDelayMillis = 500,
+        )
+        fixture.time.advance(1_000)
+        fixture.coordinator.playHuman(UciMove("e2e4"))
+        fixture.time.advance(300)
+        fixture.engine.respond(move = "e7e5")
+
+        val afterBotMove = fixture.coordinator.snapshot()
+        assertThat(afterBotMove.clock.whiteRemainingMillis == 9_000L)
+        assertThat(afterBotMove.clock.blackRemainingMillis == 9_700L)
+        fixture.time.advance(499)
+        assertThat(fixture.coordinator.snapshot().clock.whiteRemainingMillis == 9_000L)
+        fixture.time.advance(2)
+        assertThat(fixture.coordinator.snapshot().clock.whiteRemainingMillis == 8_999L)
     }
     suite.test("synchronous engine callback is committed without leaking work") {
         var cancellationCalled = false
@@ -570,6 +666,19 @@ fun main() {
         assertThat(stale.cancelled)
         stale.callback(Result.success(engineResponse(stale.request, "e7e5")))
         assertThat(fixture.coordinator.snapshot().session.moves.isEmpty())
+    }
+    suite.test("closing the coordinator cancels and rejects a late bot callback") {
+        val fixture = coordinatorFixture()
+        fixture.coordinator.playHuman(UciMove("e2e4"))
+        val pending = fixture.engine.requests.single()
+        val savedBeforeClose = fixture.sink.saved.size
+
+        fixture.coordinator.close()
+        assertThat(pending.cancelled)
+        pending.callback(Result.success(engineResponse(pending.request, "e7e5")))
+
+        assertThat(fixture.coordinator.snapshot().session.moves.map { it.move.value } == listOf("e2e4"))
+        assertThat(fixture.sink.saved.size == savedBeforeClose)
     }
     suite.test("engine failure enters retryable bot error state") {
         val fixture = coordinatorFixture()
@@ -674,6 +783,31 @@ fun main() {
         assertThat(snapshot.session.outcome?.winner == Side.BLACK)
         assertThat(fixture.sink.saved.last().outcome == snapshot.session.outcome)
     }
+    suite.test("deliberately replacing a live game creates a stopped forfeit loss") {
+        val fixture = coordinatorFixture(
+            coordinatorConfig(timeControl = TimeControl.Clock(10_000L), humanSide = Side.WHITE),
+        )
+        val live = fixture.coordinator.checkpoint()
+        fixture.time.advance(2_000L)
+
+        val forfeited = live.forfeitByHuman(fixture.time.now())
+
+        assertThat(live.outcome == null, "conversion must not mutate the live checkpoint")
+        assertThat(forfeited.revision == live.revision + 1L)
+        assertThat(forfeited.outcome?.winner == Side.BLACK)
+        assertThat(forfeited.outcome?.reason == EndReason.RESIGNATION)
+        assertThat(forfeited.outcome?.explanation == "WHITE forfeits the game")
+        assertThat(forfeited.clock.whiteRemainingMillis == 8_000L)
+        assertThat(forfeited.clock.runningSide == null)
+        assertThat(!forfeited.clock.paused)
+    }
+    suite.test("a completed checkpoint cannot be forfeited again") {
+        val fixture = coordinatorFixture()
+        fixture.coordinator.resignHuman()
+        assertThrows<IllegalArgumentException> {
+            fixture.coordinator.checkpoint().forfeitByHuman(fixture.time.now())
+        }
+    }
     suite.test("hint use is persisted as casual assistance") {
         val fixture = coordinatorFixture()
         fixture.coordinator.markHintUsed()
@@ -689,10 +823,12 @@ fun main() {
         assertThat(pending.request.strength == EngineStrength.SkillLevel(20))
         assertThat(pending.request.limits.multiPv == 3)
         assertThat(fixture.coordinator.snapshot().phase == CoordinatorPhase.HINT_THINKING)
-        assertThat(fixture.coordinator.snapshot().assistance.hints == 1)
+        assertThat(fixture.coordinator.snapshot().assistance.hints == 0)
         fixture.engine.respond(pending, "e2e4")
         assertThat(result?.getOrNull()?.bestMove == UciMove("e2e4"))
         assertThat(fixture.coordinator.snapshot().phase == CoordinatorPhase.HUMAN_TURN)
+        assertThat(fixture.coordinator.snapshot().assistance.hints == 1)
+        assertThat(fixture.sink.saved.last().assistance.hints == 1)
     }
     suite.test("synchronous hint callback completes without leaking engine work") {
         var cancellationCalled = false
@@ -713,6 +849,7 @@ fun main() {
         coordinator.requestHint(coordinator.snapshot().session.positionId) { response = it.getOrThrow() }
         assertThat(response?.bestMove == UciMove("e2e4"))
         assertThat(coordinator.snapshot().phase == CoordinatorPhase.HUMAN_TURN)
+        assertThat(coordinator.snapshot().assistance.hints == 1)
         assertThat(cancellationCalled)
     }
     suite.test("stale hint response is ignored after cancellation") {
@@ -726,6 +863,7 @@ fun main() {
         stale.callback(Result.success(engineResponse(stale.request, "e2e4")))
         assertThat(!delivered)
         assertThat(fixture.coordinator.snapshot().phase == CoordinatorPhase.PAUSED)
+        assertThat(fixture.coordinator.snapshot().assistance.hints == 0)
     }
     suite.test("hint failure returns to the human turn without a bot error") {
         val fixture = coordinatorFixture()
@@ -738,6 +876,7 @@ fun main() {
         assertThat(failure?.message == "hint failed")
         assertThat(snapshot.phase == CoordinatorPhase.HUMAN_TURN)
         assertThat(snapshot.engineError == null)
+        assertThat(snapshot.assistance.hints == 0)
     }
     suite.test("hint request rejects a stale position marker") {
         val fixture = coordinatorFixture()
@@ -765,6 +904,26 @@ fun main() {
         fixture.coordinator.undoLastHumanTurn()
         assertThat(fixture.coordinator.snapshot().session.moves.map { it.move.value } == listOf("e2e4"))
         assertThat(fixture.coordinator.snapshot().phase == CoordinatorPhase.HUMAN_TURN)
+    }
+    suite.test("completed game cannot be undone or reopened") {
+        val config = coordinatorConfig(humanSide = Side.BLACK)
+        val fixture = coordinatorFixture(config)
+        fixture.engine.respond(move = "f2f3")
+        fixture.coordinator.playHuman(UciMove("e7e5"))
+        fixture.engine.respond(move = "g2g4")
+        fixture.coordinator.playHuman(UciMove("d8h4"))
+        val completed = fixture.coordinator.snapshot()
+        val savedCount = fixture.sink.saved.size
+
+        assertThat(completed.phase == CoordinatorPhase.COMPLETED)
+        assertThrows<IllegalArgumentException> { fixture.coordinator.undoLastHumanTurn() }
+
+        val afterRejectedUndo = fixture.coordinator.snapshot()
+        assertThat(afterRejectedUndo.session.moves == completed.session.moves)
+        assertThat(afterRejectedUndo.session.outcome == completed.session.outcome)
+        assertThat(afterRejectedUndo.assistance.undos == 0)
+        assertThat(fixture.sink.saved.size == savedCount)
+        assertThat(!GameScreenController(fixture.coordinator, config).model().controls.canUndo)
     }
     suite.test("checkpoint restore replays moves and preserves position") {
         val fixture = coordinatorFixture()
@@ -958,6 +1117,29 @@ fun main() {
         assertThat(cell.target == TargetKind.CAPTURE)
         assertThat(cell.accessibilityLabel.contains("legal capture"))
     }
+    suite.test("threat indication highlights only attacked player pieces and labels them") {
+        val fen = "4k3/8/8/3q4/8/3N4/8/4K3 w - - 0 1"
+        val config = coordinatorConfig().copy(initialFen = fen)
+        val fixture = coordinatorFixture(config)
+        val position = ChessPosition.fromFen(fen)
+        val threatened = ThreatIndicators.threatenedPieces(position, Side.WHITE)
+        assertThat(threatened == setOf(Square.parse("d3")))
+
+        val interaction = BoardInteractionState.initial(position, Side.WHITE)
+        val withoutAid = BoardPresenter.present(fixture.coordinator.snapshot(), config, interaction)
+        assertThat(withoutAid.cells.none { it.threatened })
+
+        val withAid = BoardPresenter.present(
+            fixture.coordinator.snapshot(),
+            config,
+            interaction,
+            threatIndicationEnabled = true,
+        )
+        val knight = withAid.cells.single { it.square == Square.parse("d3") }
+        assertThat(knight.threatened)
+        assertThat(knight.accessibilityLabel == "White knight on d3, under threat")
+        assertThat(withAid.cells.single { it.square == Square.parse("e1") }.threatened.not())
+    }
     suite.test("presenter highlights both squares of the last move") {
         val config = coordinatorConfig()
         val fixture = coordinatorFixture(config)
@@ -969,6 +1151,47 @@ fun main() {
         )
         assertThat(screen.cells.filter { it.lastMove }.map { it.square }.toSet() ==
             setOf(Square.parse("e7"), Square.parse("e5")))
+        assertThat(screen.plyCount == 2)
+        assertThat(screen.moveMotion == BoardMoveMotion(
+            ply = 2,
+            mover = Side.BLACK,
+            pieces = listOf(
+                PieceMotion(
+                    from = Square.parse("e7"),
+                    to = Square.parse("e5"),
+                    piece = PieceView(Side.BLACK, PieceType.PAWN, "modern_flat_black_pawn"),
+                ),
+            ),
+        ))
+    }
+    suite.test("presenter includes both king and rook in castling motion") {
+        val fen = "r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1"
+        val config = coordinatorConfig().copy(initialFen = fen)
+        val fixture = coordinatorFixture(config)
+        fixture.coordinator.playHuman(UciMove("e1g1"))
+        val position = ChessPosition.fromFen(fixture.coordinator.snapshot().currentFen)
+        val motion = BoardPresenter.present(
+            fixture.coordinator.snapshot(), config, BoardInteractionState.initial(position, Side.WHITE),
+        ).moveMotion!!
+
+        assertThat(motion.pieces.map { it.from to it.to } == listOf(
+            Square.parse("e1") to Square.parse("g1"),
+            Square.parse("h1") to Square.parse("f1"),
+        ))
+        assertThat(motion.pieces.map { it.piece.type } == listOf(PieceType.KING, PieceType.ROOK))
+    }
+    suite.test("presenter animates a pawn before revealing its promoted piece") {
+        val fen = "4k3/P7/8/8/8/8/8/4K3 w - - 0 1"
+        val config = coordinatorConfig().copy(initialFen = fen)
+        val fixture = coordinatorFixture(config)
+        fixture.coordinator.playHuman(UciMove("a7a8q"))
+        val position = ChessPosition.fromFen(fixture.coordinator.snapshot().currentFen)
+        val screen = BoardPresenter.present(
+            fixture.coordinator.snapshot(), config, BoardInteractionState.initial(position, Side.WHITE),
+        )
+
+        assertThat(screen.moveMotion!!.pieces.single().piece.type == PieceType.PAWN)
+        assertThat(screen.cells.single { it.square == Square.parse("a8") }.piece?.type == PieceType.QUEEN)
     }
     suite.test("piece set creates deterministic semantic asset keys") {
         val key = PieceSets.MODERN_FLAT.assetKey(Piece(Side.BLACK, PieceType.QUEEN))
@@ -989,6 +1212,11 @@ fun main() {
         assertThat(layout.widthClass == WindowWidthClass.COMPACT)
         assertThat(layout.controlPlacement == ControlPlacement.BELOW_BOARD)
         assertThat(layout.boardSizeDp == 380)
+
+        val shortPhone = ResponsiveBoardLayout.calculate(360, 640)
+        assertThat(shortPhone.controlPlacement == ControlPlacement.BELOW_BOARD)
+        assertThat(shortPhone.boardSizeDp == 328)
+        assertThat(shortPhone.panelMoveHistoryHeightDp == 160)
     }
     suite.test("tablet layout stays large at the medium boundary and fits landscape clocks") {
         val beforeBoundary = ResponsiveBoardLayout.calculate(599, 1_000)
@@ -1000,20 +1228,64 @@ fun main() {
 
         val portrait = ResponsiveBoardLayout.calculate(706, 1_152)
         assertThat(portrait.controlPlacement == ControlPlacement.BELOW_BOARD)
-        assertThat(portrait.boardSizeDp == 674)
+        assertThat(portrait.boardSizeDp == 640)
 
         val landscape = ResponsiveBoardLayout.calculate(1_176, 706)
         assertThat(landscape.widthClass == WindowWidthClass.EXPANDED)
         assertThat(landscape.controlPlacement == ControlPlacement.BESIDE_BOARD)
-        assertThat(landscape.boardSizeDp == 582)
-        assertThat(landscape.boardSizeDp + 76 <= 706 - landscape.outerPaddingDp * 2)
+        assertThat(landscape.boardSizeDp == 658)
+        assertThat(landscape.panelWidthDp == 320)
+        assertThat(landscape.panelMoveHistoryHeightDp == 240)
+        assertThat(landscape.boardSizeDp <= 706 - landscape.outerPaddingDp * 2)
+    }
+    suite.test("short landscape keeps a useful board and a narrow scrollable side panel") {
+        val expanded = ResponsiveBoardLayout.calculate(891, 347)
+        assertThat(expanded.widthClass == WindowWidthClass.EXPANDED)
+        assertThat(expanded.controlPlacement == ControlPlacement.BESIDE_BOARD)
+        assertThat(expanded.outerPaddingDp == 12)
+        assertThat(expanded.panelWidthDp == 280)
+        assertThat(expanded.boardSizeDp == 323)
+        assertThat(expanded.panelMoveHistoryHeightDp == 132)
+
+        val medium = ResponsiveBoardLayout.calculate(640, 296)
+        assertThat(medium.widthClass == WindowWidthClass.MEDIUM)
+        assertThat(medium.controlPlacement == ControlPlacement.BESIDE_BOARD)
+        assertThat(medium.panelWidthDp == 240)
+        assertThat(medium.boardSizeDp == 272)
+        assertThat(medium.panelMoveHistoryHeightDp == 132)
+
+        val compact = ResponsiveBoardLayout.calculate(568, 320)
+        assertThat(compact.widthClass == WindowWidthClass.COMPACT)
+        assertThat(compact.controlPlacement == ControlPlacement.BESIDE_BOARD)
+        assertThat(compact.panelWidthDp == 200)
+        assertThat(compact.boardSizeDp == 296)
+        assertThat(compact.boardSizeDp > 1)
     }
     suite.test("medium portrait keeps controls below a full-width board") {
         val layout = ResponsiveBoardLayout.calculate(800, 1_200)
         assertThat(layout.widthClass == WindowWidthClass.MEDIUM)
         assertThat(layout.controlPlacement == ControlPlacement.BELOW_BOARD)
         assertThat(layout.panelWidthDp == 768)
-        assertThat(layout.boardSizeDp == 768)
+        assertThat(layout.boardSizeDp == 640)
+
+        val beforeExpandedBoundary = ResponsiveBoardLayout.calculate(839, 1_200)
+        val atExpandedBoundary = ResponsiveBoardLayout.calculate(840, 1_200)
+        assertThat(beforeExpandedBoundary.controlPlacement == ControlPlacement.BELOW_BOARD)
+        assertThat(beforeExpandedBoundary.boardSizeDp == 640)
+        assertThat(atExpandedBoundary.widthClass == WindowWidthClass.EXPANDED)
+        assertThat(atExpandedBoundary.controlPlacement == ControlPlacement.BELOW_BOARD)
+        assertThat(atExpandedBoundary.boardSizeDp == 640)
+
+        val largePortrait = ResponsiveBoardLayout.calculate(1_024, 1_366)
+        assertThat(largePortrait.controlPlacement == ControlPlacement.BELOW_BOARD)
+        assertThat(largePortrait.boardSizeDp == 640)
+
+        val beforeSideTransition = ResponsiveBoardLayout.calculate(1_031, 1_400)
+        val atSideTransition = ResponsiveBoardLayout.calculate(1_032, 1_400)
+        assertThat(beforeSideTransition.controlPlacement == ControlPlacement.BELOW_BOARD)
+        assertThat(beforeSideTransition.boardSizeDp == 640)
+        assertThat(atSideTransition.controlPlacement == ControlPlacement.BESIDE_BOARD)
+        assertThat(atSideTransition.boardSizeDp == 640)
     }
     suite.test("SAN formats a quiet pawn move") {
         assertThat(SanNotation.format(ChessPosition.starting(), UciMove("e2e4")) == "e4")
@@ -1063,7 +1335,108 @@ fun main() {
         fixture.coordinator.playHuman(UciMove("e2e4"))
         fixture.engine.respond(move = "e7e5")
         val model = GameScreenController(fixture.coordinator, config).model()
-        assertThat(model.history == listOf(MoveHistoryRow(1, "e4", "e5")))
+        val row = model.history.single()
+        val white = requireNotNull(row.white)
+        val black = requireNotNull(row.black)
+        assertThat(row.moveNumber == 1)
+        assertThat(white.notation == "e4" && white.piece == PieceType.PAWN)
+        assertThat(black.notation == "e5" && black.piece == PieceType.PAWN)
+        assertThat(white.accessibilityLabel.contains("pawn from e2 to e4"))
+        assertThat(model.capturedMaterial.white.totalValue == 0)
+        assertThat(model.capturedMaterial.black.totalValue == 0)
+        assertThat(model.capturedMaterial.lead == CaptureScoreLead(null, 0))
+    }
+    suite.test("screen controller reuses timeline presentation across clock-only refreshes") {
+        val config = coordinatorConfig(timeControl = TimeControl.Clock(10_000))
+        val fixture = coordinatorFixture(config)
+        val controller = GameScreenController(fixture.coordinator, config)
+        val initial = controller.model()
+
+        fixture.time.advance(250)
+        val clockRefresh = controller.tick()
+        assertThat(initial.history === clockRefresh.history)
+        assertThat(initial.capturedMaterial === clockRefresh.capturedMaterial)
+
+        fixture.coordinator.playHuman(UciMove("e2e4"))
+        val afterMove = controller.model()
+        assertThat(afterMove.history !== clockRefresh.history)
+        assertThat(afterMove.capturedMaterial !== clockRefresh.capturedMaterial)
+
+        fixture.time.advance(250)
+        val botClockRefresh = controller.tick()
+        assertThat(afterMove.history === botClockRefresh.history)
+        assertThat(afterMove.capturedMaterial === botClockRefresh.capturedMaterial)
+    }
+    suite.test("move history identifies pieces for castling and promotion") {
+        val castling = GameHistoryPresenter.present(
+            "4k3/8/8/8/8/8/8/R3K2R w KQ - 0 1",
+            listOf(UciMove("e1g1")),
+        ).history.single().white!!
+        assertThat(castling.piece == PieceType.KING)
+        assertThat(castling.promotedTo == null)
+        assertThat(castling.notation == "O-O")
+        assertThat(castling.accessibilityLabel.contains("king castles kingside"))
+
+        val promotion = GameHistoryPresenter.present(
+            "4k3/P7/8/8/8/8/8/4K3 w - - 0 1",
+            listOf(UciMove("a7a8q")),
+        ).history.single().white!!
+        assertThat(promotion.piece == PieceType.PAWN)
+        assertThat(promotion.promotedTo == PieceType.QUEEN)
+        assertThat(promotion.notation == "a8=Q+")
+        assertThat(promotion.accessibilityLabel.contains("promotes to queen"))
+    }
+    suite.test("move history respects Black-to-move FEN numbering") {
+        val timeline = GameHistoryPresenter.present(
+            "4k3/8/8/8/8/8/8/4K3 b - - 0 23",
+            listOf(UciMove("e8e7"), UciMove("e1e2")),
+        )
+        assertThat(timeline.history.map { it.moveNumber } == listOf(23, 24))
+        assertThat(timeline.history[0].white == null)
+        assertThat(timeline.history[0].black?.piece == PieceType.KING)
+        assertThat(timeline.history[1].white?.piece == PieceType.KING)
+        assertThat(timeline.history[1].black == null)
+    }
+    suite.test("captured material uses conventional values for both sides") {
+        val moves = listOf("e2e4", "d7d5", "e4d5", "d8d5").map(::UciMove)
+        val material = GameHistoryPresenter.present(ChessPosition.START_FEN, moves).capturedMaterial
+        assertThat(material.white.pieces == listOf(PieceType.PAWN))
+        assertThat(material.black.pieces == listOf(PieceType.PAWN))
+        assertThat(material.white.totalValue == 1 && material.black.totalValue == 1)
+        assertThat(material.lead == CaptureScoreLead(null, 0))
+        assertThat(material.white.accessibilityLabel.contains("1 pawn"))
+        assertThat(material.leadAccessibilityLabel == "The captured piece score is even.")
+    }
+    suite.test("captured material handles en passant and capture-promotion") {
+        val enPassant = GameHistoryPresenter.present(
+            "4k3/8/8/3pP3/8/8/8/4K3 w - d6 0 1",
+            listOf(UciMove("e5d6")),
+        )
+        assertThat(enPassant.capturedMaterial.white.pieces == listOf(PieceType.PAWN))
+        assertThat(enPassant.capturedMaterial.white.totalValue == 1)
+        assertThat(
+            enPassant.history.single().white!!.accessibilityLabel.contains(
+                "captures black pawn on d5 en passant and moves to d6",
+            ),
+        )
+
+        val promotion = GameHistoryPresenter.present(
+            "1r2k3/P7/8/8/8/8/8/4K3 w - - 0 1",
+            listOf(UciMove("a7b8q")),
+        )
+        assertThat(promotion.capturedMaterial.white.pieces == listOf(PieceType.ROOK))
+        assertThat(promotion.capturedMaterial.white.totalValue == 5)
+        assertThat(promotion.capturedMaterial.lead == CaptureScoreLead(Side.WHITE, 5))
+        assertThat(promotion.history.single().white!!.promotedTo == PieceType.QUEEN)
+        assertThat(promotion.history.single().white!!.accessibilityLabel.contains("captures black rook"))
+    }
+    suite.test("captured material recomputes from truncated undo history") {
+        val moves = listOf("e2e4", "d7d5", "e4d5", "d8d5").map(::UciMove)
+        val beforeUndo = GameHistoryPresenter.present(ChessPosition.START_FEN, moves).capturedMaterial
+        val afterUndo = GameHistoryPresenter.present(ChessPosition.START_FEN, moves.take(2)).capturedMaterial
+        val afterResume = GameHistoryPresenter.present(ChessPosition.START_FEN, moves).capturedMaterial
+        assertThat(beforeUndo == afterResume)
+        assertThat(afterUndo.white.pieces.isEmpty() && afterUndo.black.pieces.isEmpty())
     }
     suite.test("screen controller maps completed outcomes to the local player") {
         val blackConfig = coordinatorConfig(humanSide = Side.BLACK)
@@ -1079,6 +1452,7 @@ fun main() {
             playerSide = Side.BLACK,
             reason = EndReason.CHECKMATE,
             explanation = "BLACK wins by checkmate",
+            score = GameScore(100, 100, 0),
         ))
 
         val whiteConfig = coordinatorConfig(humanSide = Side.WHITE)
@@ -1089,7 +1463,27 @@ fun main() {
             playerSide = Side.WHITE,
             reason = EndReason.RESIGNATION,
             explanation = "WHITE resigns",
+            score = GameScore(0, 100, 0),
         ))
+    }
+    suite.test("screen result reports the explicit threat assistance penalty") {
+        val blackConfig = coordinatorConfig(humanSide = Side.BLACK)
+        val checkmate = coordinatorFixture(
+            config = blackConfig,
+            initialAssistance = AssistanceCounts(threatIndication = true),
+        )
+        checkmate.engine.respond(move = "f2f3")
+        checkmate.coordinator.playHuman(UciMove("e7e5"))
+        checkmate.engine.respond(move = "g2g4")
+        checkmate.coordinator.playHuman(UciMove("d8h4"))
+
+        assertThat(
+            GameScreenController(
+                checkmate.coordinator,
+                blackConfig,
+                threatIndicationEnabled = true,
+            ).model().result?.score == GameScore(95, 100, 5),
+        )
     }
     suite.test("screen controller exposes casual controls") {
         val config = coordinatorConfig()
@@ -1150,7 +1544,7 @@ fun main() {
 
     registerEngineLayerTests(suite)
     registerNativeBridgeTests(suite)
-    registerJniFairyEnginePortTests(suite)
+    registerJniFairyEnginePortTestsIfPresent(suite)
 
     suite.finish()
 }

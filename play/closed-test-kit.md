@@ -1,6 +1,6 @@
 # Closed-test kit
 
-Status: **template only; no testers, opt-ins, test period, or feedback are claimed**
+Status: **template only; no enrollment, opt-ins, test period, or feedback are claimed**
 
 For a new personal developer account, follow the current requirement shown in Play Console.
 The working release plan is to keep at least 12 testers opted in to the closed test for 14
@@ -8,8 +8,11 @@ continuous days before applying for production access. Recruit 15–18 people as
 because merely inviting someone does not count as an opt-in and a tester may leave.
 
 Keep tester email addresses, Google Group membership, promo codes, and identifiable
-feedback outside the public repository. A private email list or Google Group should be
-managed directly in Play Console.
+feedback outside the public repository. The owner does not need to collect tester addresses
+in advance: create a self-enrollment Google Group, configure that one group address on the
+closed track, and share the Group page plus Play opt-in link only after the release is
+published. Testers join with the Google account used by Play Store. Use "Anyone on the web
+can join" or approval-based "Anyone can ask" according to the owner's preference.
 
 ## Tester invitation template
 
@@ -22,11 +25,13 @@ I'm preparing Drawless Chess for Google Play and would appreciate your help with
 
 Drawless Chess is an offline single-player chess game with decisive no-draw rules. To participate, please:
 
-1. Open this private opt-in link while signed in to the Google account you use in the Play Store:
+1. Join this tester Google Group while signed in to the Google account you use in the Play Store:
+   [GOOGLE GROUP JOIN LINK]
+2. Open this private opt-in link with that same account:
    [CLOSED-TEST OPT-IN LINK]
-2. Choose to become a tester, then install Drawless Chess from the Play Store link shown there.
-3. Stay opted in until [TEST END DATE]. You do not need to play every day, but please play several games during the test.
-4. Send feedback to realitymaster@protonmail.ch using the short template below.
+3. Choose to become a tester, then install Drawless Chess from the Play Store link shown there.
+4. Stay opted in until [TEST END DATE]. You do not need to play every day, but please play several games during the test.
+5. Send feedback to realitymaster@protonmail.ch using the short template below.
 
 [IF THE APP IS PAID: Redeem this one-time promo code privately before installing: PROMO-CODE. Please do not share it.]
 
@@ -96,8 +101,9 @@ logs.
 
 ## Privacy-safe tracking table
 
-Keep the real email-to-ID mapping privately outside the repository. A public or committed
-feedback summary should use IDs only.
+The self-enrollment flow does not require an email-to-ID mapping. Use anonymous tester IDs
+in the feedback log; if identifiable contact details are retained for follow-up, keep them
+privately outside the repository. A public or committed feedback summary should use IDs only.
 
 | Tester ID | Opt-in confirmed date | Still opted in | Device/Android | Areas covered | Feedback received | Blocking issue |
 | --- | --- | --- | --- | --- | --- | --- |

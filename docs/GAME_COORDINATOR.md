@@ -14,8 +14,8 @@ Implemented behaviors:
 - Engine requests tagged with request, game, and position identities.
 - Stale, duplicate, mismatched, illegal, failed, and synchronously throwing engine results.
 - Cancellation-safe pause and undo.
-- Rated prohibition of pause, hints, and undo.
-- Casual hint, pause, resume, and undo accounting.
+- Rated prohibition of pause, hints, undo, and threat indication.
+- Casual hint, pause, resume, undo, and threat-indication accounting.
 - Human resignation.
 - Timed and untimed games with increment.
 - Timeout adjudication for either human or bot.
@@ -75,6 +75,10 @@ The Room row carries query/guard columns plus a versioned JSON encoding of the c
 `CoordinatorCheckpoint`. Reads use the same executor, validate duplicated row metadata, decode
 strict enum discriminators, and then pass through `GameCoordinator.restore` for replay, FEN,
 clock, result, and assistance validation.
+
+Threat indication is recorded once as game-level assistance when the game is created. It is
+therefore preserved across process death and cannot become an unrecorded aid during a future
+rated/rating flow. Older checkpoint JSON that predates the optional field decodes it as off.
 
 ## Remaining Android integration
 

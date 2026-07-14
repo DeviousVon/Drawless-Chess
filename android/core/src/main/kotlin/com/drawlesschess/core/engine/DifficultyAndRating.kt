@@ -1,6 +1,7 @@
 package com.drawlesschess.core.engine
 
 import com.drawlesschess.core.*
+import kotlin.math.abs
 import kotlin.math.pow
 import kotlin.math.roundToInt
 
@@ -22,13 +23,28 @@ object BotDifficultyCatalog {
     const val MAXIMUM_ELO = 2850
 
     val namedLevels: List<NamedBotLevel> = listOf(
-        NamedBotLevel("learner", "Learner", 600, "Leaves clear openings and rewards basic tactics."),
-        NamedBotLevel("casual", "Casual", 900, "Plays a relaxed game with frequent practical chances."),
-        NamedBotLevel("challenger", "Challenger", 1_200, "Punishes simple mistakes without deep calculation."),
-        NamedBotLevel("club", "Club", 1_500, "A balanced opponent for experienced social players."),
-        NamedBotLevel("expert", "Expert", 1_850, "Finds combinations and defends consistently."),
-        NamedBotLevel("master", "Master", 2_200, "Calculates accurately and applies sustained pressure."),
-        NamedBotLevel("grandmaster", "Grandmaster", 2_600, "Near-maximum practical strength for mobile play."),
+        NamedBotLevel("learner", "Learner", 500, "Gives new players room to spot checks, captures, and simple tactics."),
+        NamedBotLevel("casual", "Casual", 650, "A forgiving beginner game with frequent chances to recover."),
+        NamedBotLevel("challenger", "Challenger", 850, "Notices basic threats but still leaves practical openings."),
+        NamedBotLevel("club", "Club", 1_100, "A steady social opponent who punishes obvious mistakes."),
+        NamedBotLevel("expert", "Expert", 1_500, "Finds combinations and defends consistently."),
+        NamedBotLevel("master", "Master", 2_000, "Calculates accurately and applies sustained pressure."),
+        NamedBotLevel("grandmaster", "Grandmaster", 2_500, "Near-maximum practical strength for mobile play."),
+    )
+
+    /**
+     * Checkpoints written before the beginner-focused ladder stored only Elo, not the stable
+     * opponent ID. Keep this immutable map so those games retain their original character,
+     * label, rematch selection, and statistics bucket after the catalog changes.
+     */
+    private val legacyNamedLevelIdsByElo: Map<Int, String> = mapOf(
+        600 to "learner",
+        900 to "casual",
+        1_200 to "challenger",
+        1_500 to "club",
+        1_850 to "expert",
+        2_200 to "master",
+        2_600 to "grandmaster",
     )
 
     init {
@@ -39,7 +55,45 @@ object BotDifficultyCatalog {
     fun named(id: String): NamedBotLevel = namedLevels.singleOrNull { it.id == id }
         ?: throw IllegalArgumentException("Unknown bot level '$id'")
 
-    fun nearest(elo: Int): NamedBotLevel = namedLevels.minBy { kotlin.math.abs(it.approximateElo - elo) }
+    fun namedOrNull(id: String?): NamedBotLevel? =
+        id?.let { candidate -> namedLevels.singleOrNull { it.id == candidate } }
+
+    fun nearest(elo: Int): NamedBotLevel = namedLevels.minBy { abs(it.approximateElo - elo) }
+
+    /** Used only while decoding checkpoints that predate the stable opponent-ID field. */
+    fun legacyLevelIdForElo(elo: Int): String? = legacyNamedLevelIdsByElo[elo]
+
+    /** Selects the best visual profile without pretending a raw engine skill is Casual. */
+    fun displayLevel(explicitLevelId: String?, strength: EngineStrength): NamedBotLevel {
+        namedOrNull(explicitLevelId)?.let { return it }
+        val approximateElo = when (strength) {
+            is EngineStrength.ApproximateElo -> strength.elo
+            is EngineStrength.SkillLevel -> approximateEloForSkillLevel(strength.level)
+        }
+        return nearest(approximateElo)
+    }
+
+    /**
+     * Inverts Fairy-Stockfish's published UCI_Elo-to-skill calibration closely enough to choose
+     * a truthful named profile for legacy/raw SkillLevel checkpoints.
+     */
+    fun approximateEloForSkillLevel(level: Int): Int {
+        require(level in -20..20)
+        return (MINIMUM_ELO..MAXIMUM_ELO).minBy { elo ->
+            abs(fractionalSkillLevel(elo) - level)
+        }
+    }
+
+    private fun fractionalSkillLevel(elo: Int): Double {
+        val shiftedElo = elo - 1_346.6
+        val raw = if (shiftedElo > 0.0) {
+            (shiftedElo / 143.4).pow(1.0 / 0.806)
+        } else {
+            val scaled = shiftedElo / 500.0
+            shiftedElo / 143.4 + scaled * scaled * scaled * scaled * scaled
+        }
+        return raw.coerceIn(-20.0, 20.0)
+    }
 
     fun clampElo(elo: Int): Int = elo.coerceIn(MINIMUM_ELO, MAXIMUM_ELO)
 }

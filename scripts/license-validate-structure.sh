@@ -18,8 +18,13 @@ require_text() {
 
 for required_file in \
     LICENSE APACHE-2.0.txt NOTICE THIRD_PARTY_NOTICES.md \
-    docs/RELEASE_LICENSING.md release/reports/release-runtime-dependencies.txt \
+    docs/RELEASE_LICENSING.md docs/AUDIO_PROVENANCE.md \
+    docs/audio/audio_manifest.json docs/audio/licenses/CC0-1.0.txt \
+    docs/audio/licenses/ion-sound-MIT.txt \
+    release/reports/release-runtime-dependencies.txt \
     release/reports/release-sbom.cdx.json scripts/generate-release-sbom.ps1 \
+    scripts/verify-sampled-audio.ps1 scripts/audio/rebuild_curated_foley.sh \
+    scripts/audio/rebuild_curated_previews.sh scripts/audio/update_curated_audio_manifest.ps1 \
     scripts/source-bundle.sh scripts/native-source-bundle.sh; do
     [[ -f "$REPOSITORY_ROOT/$required_file" ]] || die "missing $required_file"
 done
@@ -33,10 +38,20 @@ require_text "$REPOSITORY_ROOT/APACHE-2.0.txt" 'END OF TERMS AND CONDITIONS'
 require_text "$REPOSITORY_ROOT/package.json" '"license": "GPL-3.0-or-later"'
 require_text "$REPOSITORY_ROOT/package-lock.json" '"license": "GPL-3.0-or-later"'
 require_text "$REPOSITORY_ROOT/NOTICE" 'scripts/source-bundle.sh'
-require_text "$REPOSITORY_ROOT/NOTICE" 'no sampled or stock audio recording is embedded'
+require_text "$REPOSITORY_ROOT/NOTICE" 'ion.sound 3.0.7'
 require_text "$REPOSITORY_ROOT/NOTICE" 'No trademark registration is claimed'
 require_text "$REPOSITORY_ROOT/THIRD_PARTY_NOTICES.md" '115 external Maven modules'
 require_text "$REPOSITORY_ROOT/THIRD_PARTY_NOTICES.md" 'com.google.guava:guava-parent:26.0-android'
+require_text "$REPOSITORY_ROOT/THIRD_PARTY_NOTICES.md" 'Copyright © 2019 by Denis Ineshin'
+require_text "$REPOSITORY_ROOT/docs/AUDIO_PROVENANCE.md" '104 mono, 48 kHz Ogg/Vorbis resources'
+require_text "$REPOSITORY_ROOT/docs/audio/audio_manifest.json" '74d51c5bd14be428f06b3afb5e40125b8e407fbc'
+require_text "$REPOSITORY_ROOT/package.json" '"test:audio": "pwsh -NoProfile -NonInteractive -File scripts/verify-sampled-audio.ps1 -RequireDecode"'
+require_text "$REPOSITORY_ROOT/package.json" 'npm test && npm run test:audio && npm run test:kotlin'
+require_text "$REPOSITORY_ROOT/scripts/verify-sampled-audio.ps1" 'duplicate decoded audio content'
+require_text "$REPOSITORY_ROOT/scripts/verify-sampled-audio.ps1" 'b25ed214614f9a71c7995193ba48317d5991b19fc9ae0a297d728dda69ab6bd8'
+require_text "$REPOSITORY_ROOT/scripts/verify-sampled-audio.ps1" 'Get-GitBlobSha1'
+require_text "$REPOSITORY_ROOT/scripts/verify-sampled-audio.ps1" 'sweep-like energy distribution'
+require_text "$REPOSITORY_ROOT/scripts/verify-sampled-audio.ps1" 'approved real firework-pop recording'
 require_text "$REPOSITORY_ROOT/release/reports/release-sbom.cdx.json" '"bomFormat": "CycloneDX"'
 require_text "$REPOSITORY_ROOT/release/reports/release-sbom.cdx.json" '"specVersion": "1.5"'
 require_text "$REPOSITORY_ROOT/release/reports/release-sbom.cdx.json" 'Inherited from Maven parent POM com.google.guava:guava-parent:26.0-android'
@@ -70,6 +85,8 @@ require_text "$REPOSITORY_ROOT/scripts/android-machine-verify.ps1" 'distribution
 
 bash -n "$REPOSITORY_ROOT/scripts/source-bundle.sh"
 bash -n "$REPOSITORY_ROOT/scripts/native-source-bundle.sh"
+bash -n "$REPOSITORY_ROOT/scripts/audio/rebuild_curated_foley.sh"
+bash -n "$REPOSITORY_ROOT/scripts/audio/rebuild_curated_previews.sh"
 
 UPSTREAM_LICENSE="$REPOSITORY_ROOT/engine/native/upstream/Fairy-Stockfish/Copying.txt"
 if [[ -f "$UPSTREAM_LICENSE" ]]; then

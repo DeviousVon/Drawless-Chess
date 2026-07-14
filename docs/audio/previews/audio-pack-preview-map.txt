@@ -1,0 +1,84 @@
+Drawless Chess curated sampled-audio audition order
+
+preview-moves.ogg — every ordinary move is included; no subset is hidden:
+  01. chess_move_wood_01.ogg
+  02. chess_move_wood_02.ogg
+  03. chess_move_wood_03.ogg
+  04. chess_move_wood_04.ogg
+  05. chess_move_wood_05.ogg
+  06. chess_move_wood_06.ogg
+  07. chess_move_wood_07.ogg
+  08. chess_move_wood_08.ogg
+  09. chess_move_wood_09.ogg
+  10. chess_move_wood_10.ogg
+  11. chess_move_wood_11.ogg
+  12. chess_move_wood_12.ogg
+  13. chess_move_wood_13.ogg
+  14. chess_move_wood_14.ogg
+  15. chess_move_wood_15.ogg
+  16. chess_move_wood_16.ogg
+  17. chess_move_wood_17.ogg
+  18. chess_move_wood_18.ogg
+  19. chess_move_wood_19.ogg
+  20. chess_move_wood_20.ogg
+  21. chess_move_wood_21.ogg
+  22. chess_move_wood_22.ogg
+  23. chess_move_wood_23.ogg
+  24. chess_move_wood_24.ogg
+  25. chess_move_wood_25.ogg
+  26. chess_move_wood_26.ogg
+  27. chess_move_wood_27.ogg
+  28. chess_move_wood_28.ogg
+  29. chess_move_wood_29.ogg
+  30. chess_move_wood_30.ogg
+  31. chess_move_wood_31.ogg
+  32. chess_move_wood_32.ogg
+  33. chess_move_wood_33.ogg
+  34. chess_move_wood_34.ogg
+  35. chess_move_wood_35.ogg
+  36. chess_move_wood_36.ogg
+  37. chess_move_wood_37.ogg
+  38. chess_move_wood_38.ogg
+  39. chess_move_wood_39.ogg
+  40. chess_move_wood_40.ogg
+  41. chess_move_wood_41.ogg
+  42. chess_move_wood_42.ogg
+  43. chess_move_wood_43.ogg
+  44. chess_move_wood_44.ogg
+  45. chess_move_wood_45.ogg
+  46. chess_move_wood_46.ogg
+  47. chess_move_wood_47.ogg
+  48. chess_move_wood_48.ogg
+  49. chess_move_wood_49.ogg
+  50. chess_move_wood_50.ogg
+
+preview-captures-and-castling.ogg:
+  01. chess_capture_wood_01.ogg
+  02. chess_capture_wood_02.ogg
+  03. chess_capture_wood_03.ogg
+  04. chess_capture_wood_04.ogg
+  05. chess_capture_wood_05.ogg
+  06. chess_capture_wood_06.ogg
+  07. chess_capture_wood_07.ogg
+  08. chess_capture_wood_08.ogg
+  09. chess_capture_wood_09.ogg
+  10. chess_capture_wood_10.ogg
+  11. chess_capture_wood_11.ogg
+  12. chess_capture_wood_12.ogg
+  13. chess_castle_wood_01.ogg
+  14. chess_castle_wood_02.ogg
+  15. chess_castle_wood_03.ogg
+  16. chess_castle_wood_04.ogg
+  17. chess_castle_wood_05.ogg
+  18. chess_castle_wood_06.ogg
+
+preview-fireworks.ogg:
+  01. chess_firework_low_01.ogg
+  02. chess_firework_low_02.ogg
+  03. chess_firework_mid_01.ogg
+  04. chess_firework_mid_02.ogg
+  05. chess_firework_high_01.ogg
+  06. chess_firework_high_02.ogg
+
+preview-glass-loss.ogg — runtime-aligned variant 01 at 0 / 22 / 704 ms.
+audio-pack-preview.ogg — the four reels above, in that order.

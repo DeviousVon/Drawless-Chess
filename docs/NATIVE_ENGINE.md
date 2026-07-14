@@ -1,6 +1,6 @@
 # Native Fairy-Stockfish checkpoint
 
-Status: patch v1, platform-neutral transport, in-process JNI bridge, Android factory, app
+Status: Drawless interface v1, platform-neutral transport, in-process JNI bridge, Android factory, app
 wiring, packaging, and both supported Android runtime ABIs verified for private testing.
 
 ## What is pinned
@@ -10,9 +10,9 @@ proof of concept:
 
 - Fairy-Stockfish commit: `fb78cb561aa01708338e35b3dc3b65a42149a3c4`
 - Upstream tree: `dfe4b96037c10ab60e22613bf634452612fc2b04`
-- Patched tree: `090d26be47498b99a23fdb1b9ff7587740b95664`
+- Patched tree: `80208e5f35549b88505df983e4bc0f7621083fd4`
 - Ordered patch-series SHA-256:
-  `3f5eafc2ce5e4fec083477310b09abbe0a1bcdcb689f75e0b2edf47f31939a32`
+  `c44b63516728a3114378b7ee374e12bd8e092f3287b93fe6d2e80a24eac19fe7`
 - Drawless patch interface: version 1
 - Android targets: `arm64-v8a` and baseline `x86_64`, minimum API 26
 - Build pins: NDK `29.0.14206865`, Android SDK CMake package `3.22.1`, and exact CMake
@@ -35,6 +35,9 @@ suite proves:
   transposition-table scores;
 - hash sizes 1 and 64 and a stopped-search follow-up preserve the result; and
 - the engine advertises exactly `Drawless Patch Version` 1.
+
+The ordered second patch also corrects negative fractional-skill rounding so low
+`UCI_Elo` targets are not systematically rounded toward a stronger skill level.
 
 Patch v1 deliberately disables transposition-table bound reads and writes for
 Drawless variants while retaining a legal TT move for ordering. This is a broad,
@@ -104,7 +107,7 @@ npm run test:android-machine -- \
 The instrumentation test loads the packaged rules and native library, proves the
 forced-repetition `bestmove h8g8`/mate-in-one result, closes the session, and repeats the
 same search through a second in-process session. It passes separately on an API-36 x86-64
-emulator and API-37 ARM64 physical device. See `docs/ANDROID_MACHINE_VERIFICATION.md` for
+emulator and API-33 ARM64 physical tablet. See `docs/ANDROID_MACHINE_VERIFICATION.md` for
 prerequisites, physical-device safeguards, artifact checks, and evidence semantics.
 
 The repository also includes a host acceptance harness for the native bridge lifecycle,
@@ -137,7 +140,7 @@ but its licensing direction is no longer provisional: the combined work is GPL. 
 to a worker is not required as a licensing workaround and would not automatically remove
 GPL obligations.
 
-At this checkpoint, `npm run test:kotlin` passes 196 tests. Twenty-five exercise the
+At this checkpoint, `npm run test:kotlin` passes 223 tests. Twenty-five exercise the
 JVM-neutral native transport/composition and nine more exercise the real managed JNI-port
 code and exact static-native signature contract. The Compose structure gate also verifies that the
 app selects the factory and that release cannot select the development bot. Beyond those

@@ -295,10 +295,12 @@ have now passed for the private-test checkpoint.
 All generated binaries are private-test artifacts. The manifest records
 `distributionAuthorized: false`; successful compilation does not clear the GPL/release gate.
 
-The separate nine-test app suite now passes on the x86-64 emulator and ARM64 tablet; its
-preceding eight-test checkpoint also passed on the ARM64 phone,
-covering Room reopen/restore, rapid first-game-exit/second-game native behavior, same-session
-hint then bot analysis, advanced setup, rematch, and deterministic finish timing/audio cues.
+The accepted 51-test app suite passes twice from fresh processes against the exact clean APK pair
+on the API-33 ARM64 tablet, API-36 x86-64 emulator, and Pixel 9 Pro XL. The targeted forfeit
+flow also passes independently on all three. Coverage includes stable opponent identity across
+ladder changes, confirmed-forfeit durability, Room reopen/restore,
+rapid first-game-exit/second-game native behavior, same-session hint then bot analysis, responsive
+layouts/options/history, rematch, deterministic finish timing, and the 104 sampled resources.
 Separate physical acceptance has covered
 force-stop/relaunch/Resume. Folding the app suite into this immutable machine manifest,
 low-memory/native-crash behavior, sustained performance, and broader UI coverage remain

@@ -26,9 +26,11 @@ Official references:
 4. Drawless defaults with Escape and dead-position variants under Advanced Rules.
 5. No automatic 50-move ending; dead-position and third-repetition adjudication remain.
 6. Untimed, 3-minute, 5-minute, 10-minute, and 15+10 clocks.
-7. White or Black player side and seven descriptive opponent levels without numeric Elo claims.
+7. Random player side by default, with White or Black choices, and seven descriptive opponent levels.
 8. Responsive game screen, durable Room-backed Resume, post-game result, Home, and Rematch.
 9. Five full visual themes with home and in-game selection plus relaunch persistence.
+10. A dedicated Options screen with persisted sound, board-coordinate, result-effect, and
+    threat-indication preferences.
 
 The game screen renders:
 
@@ -42,9 +44,18 @@ The game screen renders:
 - Promotion and resignation confirmation dialogs.
 - Immediate theme switching for the board, pieces, and app chrome.
 - Per-square accessibility semantics.
+- Optional threat indication marks the player's attacked pieces with a border and warning
+  badge, and adds "under threat" to the square's accessibility label.
 - Explicit Victory/Defeat feedback with a finite code-native fireworks or cracked-glass
-  finish effect and synchronized procedural pop/crack cues. Victory runs for 2.6 seconds and
+  finish effect and synchronized sampled pop/crack cues. Victory runs for 2.6 seconds and
   defeat for 2.2 seconds; stable result text and Home/Rematch remain immediately available.
+- Versioned game scoring: a win starts at 100 points, successful hints and undos deduct
+  10 each, timed-game pauses deduct 5 each, and available threat indication deducts 5;
+  losses score 0. Untimed pauses do not affect score, and the result panel names each
+  applied assistance penalty.
+- Device-local player statistics derived from immutable, idempotent completed-game records:
+  completed games, wins/losses, win percentage, average game score, current/best win streak,
+  unassisted wins, and opponent-level breakdowns. Game score remains separate from Elo.
 
 Medium portrait tablets keep the board stacked above the controls so the 600 dp breakpoint
 does not collapse the board. Landscape/expanded layouts use a side panel only when at least a
@@ -64,7 +75,7 @@ does not collapse the board. Landscape/expanded layouts use a side panel only wh
   structure.
 - The structure gate requires `:app` to depend on `:engine`, verifies the factory API,
   and rejects a release configuration that can select the development bot.
-- `npm run test:kotlin` passes 196 tests at this checkpoint. This includes the core,
+- `npm run test:kotlin` passes 223 tests at this checkpoint. This includes the core,
   native transport, and fake-native JNI-port lifecycle suites; it is not an Android
   binary or device test.
 
@@ -101,9 +112,10 @@ Start -> Exit -> Start sequence from overlapping process-global Fairy sessions.
 ## Remaining product integrations
 
 Billing, ads, analytics, and premium entitlements are not connected. The current
-chess-piece drawings and launcher icon are original code/vector assets, and move/capture plus
-firework/glass finish sounds are synthesized by project code rather than loaded from a sampled recording. Their
-release provenance is recorded in root `NOTICE` and `THIRD_PARTY_NOTICES.md`.
+chess-piece drawings and launcher icon are original code/vector assets. Move/capture plus
+firework/glass finish sounds use the audited CC0/MIT sampled library under `docs/audio/`.
+Their release provenance and complete notices are recorded in root `NOTICE` and
+`THIRD_PARTY_NOTICES.md`.
 
 The exposed piece set, five visual themes, launcher mark, and move/capture sounds are now
 self-contained release assets rather than placeholders. Future piece-set and motion work
@@ -120,25 +132,31 @@ binary remains blocked by the exact-source, notices/SBOM, signing, and release-e
 
 The Windows-native gate has compiled and audited both packaged ABIs, built debug and release
 artifacts, and run the real JNI instrumentation independently on an API-36 x86-64 emulator
-and ARM64 physical devices. The nine-test app instrumentation suite passes on an API-36
-x86-64 emulator and API-33 ARM64 tablet; the preceding eight-test checkpoint also passed on
-the API-37 ARM64 phone. The suite verifies:
+and API-33 ARM64 tablet. The accepted 51-test app instrumentation suite passes twice from fresh
+processes against the exact clean APK pair on the emulator, tablet, and Pixel 9 Pro XL. The
+targeted forfeit flow also passes independently on all three.
+The suite verifies:
 
 - exact checkpoint codec round trips for the shipped defaults and alternate tagged variants;
 - revision rollback and stale previous-game write rejection;
 - file-backed Room close/reopen followed by `GameCoordinator.restore`;
+- additive Room v1-to-v2 migration, exactly-once completed-game history, terminal-write retry,
+  monotonic streak ordering, stable named-opponent identity across ladder changes, and derived
+  player/opponent statistics;
 - a fast first-game exit, second-game creation, and real native bot response;
 - full-strength hint publication followed by a bot move through the same native session;
 - persisted full-app theme selection, live in-game board switching, and descriptive custom
   setup with Escape kept under Advanced Rules;
 - a completed-game Rematch flow; and
-- deterministic two-second-plus finish timing, cue ordering, and bounded procedural PCM.
+- deterministic two-second-plus finish timing and cue ordering; and
+- all 104 sampled resources, Android decoding/SoundPool loading, non-repeating shuffle cycles,
+  and mute/stop/close safety.
 
 A separate host-driven physical-phone acceptance run has also covered force-stop,
-relaunch, and Resume. The latest complete dual-ABI debug/release manifests are retained from
-the preceding `f4b9c05` checkpoint. This theme checkpoint independently passed the complete
-app suite on the x86-64 emulator and ARM64 tablet, but does not claim replacement release
-evidence; distribution authorization remains false.
+relaunch, and Resume. Fresh Windows-native machine runs passed on API-36 x86-64 and API-37
+ARM64 with patched tree `80208e5f35549b88505df983e4bc0f7621083fd4`; both manifests
+identify the same rebuilt artifacts. These remain private engineering artifacts, not signed
+release evidence, and distribution authorization remains false.
 
 Async hint completion explicitly invalidates the Compose model on the UI coroutine scope.
 This prevents a completed result from being lost if coordinator polling observes the return
@@ -148,8 +166,8 @@ Lifecycle polling now stops below `STARTED`, runs only while a hint or the bot i
 a clock is active, and drops from 10 Hz to 1 Hz outside analysis/active-low-time windows.
 
 Remaining Android work includes adding the app instrumentation lane to the immutable machine
-evidence bundle, sustained/low-memory testing, broader accessibility and form-factor coverage,
-and migration tests when database schema version 2 is introduced.
+evidence bundle, sustained/low-memory testing, and broader accessibility and form-factor
+coverage.
 
 The in-process JNI source and its JVM tests are implementation evidence only. The whole app
 is now GPL-3.0-or-later, but no APK, AAB, or AAR containing Fairy-Stockfish may be publicly

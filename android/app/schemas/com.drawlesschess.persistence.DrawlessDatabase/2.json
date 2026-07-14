@@ -1,0 +1,459 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 2,
+    "identityHash": "e58e83896ff8c116c28c49a960ff2875",
+    "entities": [
+      {
+        "tableName": "active_game_checkpoint",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`slot` INTEGER NOT NULL, `game_id` TEXT NOT NULL, `revision` INTEGER NOT NULL, `checkpoint_format` INTEGER NOT NULL, `completed` INTEGER NOT NULL, `updated_at_epoch_millis` INTEGER NOT NULL, `payload_json` TEXT NOT NULL, PRIMARY KEY(`slot`))",
+        "fields": [
+          {
+            "fieldPath": "slot",
+            "columnName": "slot",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "gameId",
+            "columnName": "game_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "revision",
+            "columnName": "revision",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "checkpointFormat",
+            "columnName": "checkpoint_format",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "completed",
+            "columnName": "completed",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAtEpochMillis",
+            "columnName": "updated_at_epoch_millis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "payloadJson",
+            "columnName": "payload_json",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "slot"
+          ]
+        }
+      },
+      {
+        "tableName": "local_player_profile",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`singleton_id` INTEGER NOT NULL, `local_profile_id` TEXT NOT NULL, `server_profile_id` TEXT, `display_name` TEXT NOT NULL, `avatar_id` TEXT, `created_at_epoch_millis` INTEGER NOT NULL, `updated_at_epoch_millis` INTEGER NOT NULL, `profile_schema_version` INTEGER NOT NULL, `upload_consent_state` TEXT NOT NULL, PRIMARY KEY(`singleton_id`))",
+        "fields": [
+          {
+            "fieldPath": "singletonId",
+            "columnName": "singleton_id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "localProfileId",
+            "columnName": "local_profile_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "serverProfileId",
+            "columnName": "server_profile_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "displayName",
+            "columnName": "display_name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "avatarId",
+            "columnName": "avatar_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "createdAtEpochMillis",
+            "columnName": "created_at_epoch_millis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAtEpochMillis",
+            "columnName": "updated_at_epoch_millis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "profileSchemaVersion",
+            "columnName": "profile_schema_version",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "uploadConsentState",
+            "columnName": "upload_consent_state",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "singleton_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_local_player_profile_local_profile_id",
+            "unique": true,
+            "columnNames": [
+              "local_profile_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_local_player_profile_local_profile_id` ON `${TABLE_NAME}` (`local_profile_id`)"
+          }
+        ]
+      },
+      {
+        "tableName": "completed_game",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`game_id` TEXT NOT NULL, `local_profile_id` TEXT NOT NULL, `record_format_version` INTEGER NOT NULL, `completed_at_epoch_millis` INTEGER NOT NULL, `completion_sequence` INTEGER NOT NULL, `authority` TEXT NOT NULL, `integrity_state` TEXT NOT NULL, `integrity_algorithm` TEXT NOT NULL, `integrity_signature` TEXT, `previous_integrity_signature` TEXT, `opponent_stable_id` TEXT NOT NULL, `opponent_type` TEXT NOT NULL, `opponent_exact_elo` INTEGER, `opponent_strength_kind` TEXT NOT NULL, `opponent_strength_value` INTEGER NOT NULL, `engine_move_time_millis` INTEGER NOT NULL, `engine_multi_pv` INTEGER NOT NULL, `game_mode` TEXT NOT NULL, `initial_fen` TEXT NOT NULL, `moves_json` TEXT NOT NULL, `rules_schema_version` INTEGER NOT NULL, `rules_preset` TEXT NOT NULL, `rules_json` TEXT NOT NULL, `time_control_kind` TEXT NOT NULL, `time_initial_millis` INTEGER, `time_increment_millis` INTEGER, `player_side` TEXT NOT NULL, `winner_side` TEXT NOT NULL, `result` TEXT NOT NULL, `end_reason` TEXT NOT NULL, `outcome_explanation` TEXT NOT NULL, `move_count` INTEGER NOT NULL, `hint_count` INTEGER NOT NULL, `undo_count` INTEGER NOT NULL, `pause_count` INTEGER NOT NULL, `threat_indication_enabled` INTEGER NOT NULL, `score_system_version` INTEGER NOT NULL, `score_base_points` INTEGER NOT NULL, `score_hint_penalty` INTEGER NOT NULL, `score_undo_penalty` INTEGER NOT NULL, `score_pause_penalty` INTEGER NOT NULL, `score_threat_penalty` INTEGER NOT NULL, `score_final_points` INTEGER NOT NULL, `rating_namespace` TEXT, `rating_pool` TEXT, `player_rating_before` INTEGER, `player_rating_after` INTEGER, PRIMARY KEY(`game_id`))",
+        "fields": [
+          {
+            "fieldPath": "gameId",
+            "columnName": "game_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "localProfileId",
+            "columnName": "local_profile_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "recordFormatVersion",
+            "columnName": "record_format_version",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "completedAtEpochMillis",
+            "columnName": "completed_at_epoch_millis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "completionSequence",
+            "columnName": "completion_sequence",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "authority",
+            "columnName": "authority",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "integrityState",
+            "columnName": "integrity_state",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "integrityAlgorithm",
+            "columnName": "integrity_algorithm",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "integritySignature",
+            "columnName": "integrity_signature",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "previousIntegritySignature",
+            "columnName": "previous_integrity_signature",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "opponentStableId",
+            "columnName": "opponent_stable_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "opponentType",
+            "columnName": "opponent_type",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "opponentExactElo",
+            "columnName": "opponent_exact_elo",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "opponentStrengthKind",
+            "columnName": "opponent_strength_kind",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "opponentStrengthValue",
+            "columnName": "opponent_strength_value",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "engineMoveTimeMillis",
+            "columnName": "engine_move_time_millis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "engineMultiPv",
+            "columnName": "engine_multi_pv",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "gameMode",
+            "columnName": "game_mode",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "initialFen",
+            "columnName": "initial_fen",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "movesJson",
+            "columnName": "moves_json",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "rulesSchemaVersion",
+            "columnName": "rules_schema_version",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "rulesPreset",
+            "columnName": "rules_preset",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "rulesJson",
+            "columnName": "rules_json",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "timeControlKind",
+            "columnName": "time_control_kind",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "timeInitialMillis",
+            "columnName": "time_initial_millis",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "timeIncrementMillis",
+            "columnName": "time_increment_millis",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "playerSide",
+            "columnName": "player_side",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "winnerSide",
+            "columnName": "winner_side",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "result",
+            "columnName": "result",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "endReason",
+            "columnName": "end_reason",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "outcomeExplanation",
+            "columnName": "outcome_explanation",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "moveCount",
+            "columnName": "move_count",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "hintCount",
+            "columnName": "hint_count",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "undoCount",
+            "columnName": "undo_count",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pauseCount",
+            "columnName": "pause_count",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "threatIndicationEnabled",
+            "columnName": "threat_indication_enabled",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "scoreSystemVersion",
+            "columnName": "score_system_version",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "scoreBasePoints",
+            "columnName": "score_base_points",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "scoreHintPenalty",
+            "columnName": "score_hint_penalty",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "scoreUndoPenalty",
+            "columnName": "score_undo_penalty",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "scorePausePenalty",
+            "columnName": "score_pause_penalty",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "scoreThreatPenalty",
+            "columnName": "score_threat_penalty",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "scoreFinalPoints",
+            "columnName": "score_final_points",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ratingNamespace",
+            "columnName": "rating_namespace",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "ratingPool",
+            "columnName": "rating_pool",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "playerRatingBefore",
+            "columnName": "player_rating_before",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "playerRatingAfter",
+            "columnName": "player_rating_after",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "game_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_completed_game_local_profile_id_completed_at_epoch_millis",
+            "unique": false,
+            "columnNames": [
+              "local_profile_id",
+              "completed_at_epoch_millis"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_completed_game_local_profile_id_completed_at_epoch_millis` ON `${TABLE_NAME}` (`local_profile_id`, `completed_at_epoch_millis`)"
+          },
+          {
+            "name": "index_completed_game_local_profile_id_completion_sequence",
+            "unique": true,
+            "columnNames": [
+              "local_profile_id",
+              "completion_sequence"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_completed_game_local_profile_id_completion_sequence` ON `${TABLE_NAME}` (`local_profile_id`, `completion_sequence`)"
+          },
+          {
+            "name": "index_completed_game_opponent_stable_id_completed_at_epoch_millis",
+            "unique": false,
+            "columnNames": [
+              "opponent_stable_id",
+              "completed_at_epoch_millis"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_completed_game_opponent_stable_id_completed_at_epoch_millis` ON `${TABLE_NAME}` (`opponent_stable_id`, `completed_at_epoch_millis`)"
+          }
+        ]
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'e58e83896ff8c116c28c49a960ff2875')"
+    ]
+  }
+}
