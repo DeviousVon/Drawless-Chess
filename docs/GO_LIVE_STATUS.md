@@ -7,9 +7,9 @@ standard price is still awaiting final approval. The release package is intentio
 until the owner creates a securely stored upload key.
 
 GitHub CLI authentication and repository-admin permission are confirmed. The reviewed work is
-on `codex/go-live-readiness`. The current test-harness APK's final emulator/tablet suite and the
-independent repository review are complete; the branch is ready to commit, push, and open as a
-draft PR.
+committed and pushed on `codex/go-live-readiness`; draft
+[PR #2](https://github.com/DeviousVon/Drawless-Chess/pull/2) is open against `main`. The current
+test-harness APK's final emulator/tablet suite and the independent repository review are complete.
 
 ## Completed in the current readiness pass
 
