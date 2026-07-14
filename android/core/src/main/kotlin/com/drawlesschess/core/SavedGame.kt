@@ -22,12 +22,13 @@ data class AssistanceCounts(
     val hints: Int = 0,
     val undos: Int = 0,
     val pauses: Int = 0,
+    val threatIndication: Boolean = false,
 ) {
     init {
         require(hints >= 0 && undos >= 0 && pauses >= 0) { "Assistance counts cannot be negative" }
     }
 
-    val wasUsed: Boolean get() = hints != 0 || undos != 0 || pauses != 0
+    val wasUsed: Boolean get() = hints != 0 || undos != 0 || pauses != 0 || threatIndication
 }
 
 data class EngineIdentity(
@@ -80,7 +81,7 @@ data class SavedGameV1(
         require(gameId.isNotBlank()) { "Game ID cannot be blank" }
         require(initialFen.isNotBlank()) { "Initial FEN cannot be blank" }
         require(mode != GameMode.RATED || !assistance.wasUsed) {
-            "Rated games cannot contain hints, undos, or pauses"
+            "Rated games cannot contain hints, undos, pauses, or threat indication"
         }
         require(result == null || result.atPly <= moves.size) {
             "Result cannot occur beyond saved move history"

@@ -167,14 +167,14 @@ require_lf_bytes() {
 
 require_crlf_lines() {
     local file=$1
-    awk '
-        {
-            if (substr($0, length($0), 1) != "\r") exit 1
-            if (index(substr($0, 1, length($0) - 1), "\r") != 0) exit 1
-            count++
-        }
-        END { if (count == 0) exit 1 }
-    ' "$file" || die "$file must contain CRLF line endings"
+    local bytes
+    local without_crlf
+    bytes=$(LC_ALL=C od -An -v -t x1 "$file" | tr -d '[:space:]')
+    [[ -n "$bytes" && "$bytes" == *0d0a* ]] \
+        || die "$file must contain CRLF line endings"
+    without_crlf=${bytes//0d0a/}
+    [[ "$without_crlf" != *0a* && "$without_crlf" != *0d* ]] \
+        || die "$file must contain CRLF line endings"
 }
 
 for required_file in \

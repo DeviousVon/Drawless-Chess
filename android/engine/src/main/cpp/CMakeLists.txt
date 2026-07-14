@@ -41,46 +41,92 @@ if(NOT EXISTS "${FAIRY_SOURCE_DIR}/.drawless-source-state.properties")
         "Fairy source state is unverified. Recreate it with scripts/native-fetch-fairy.sh.")
 endif()
 
-find_package(Git REQUIRED)
-execute_process(
-    COMMAND "${GIT_EXECUTABLE}" -C "${FAIRY_SOURCE_DIR}" rev-parse HEAD
-    RESULT_VARIABLE GIT_REVISION_RESULT
-    OUTPUT_VARIABLE GIT_REVISION
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-)
-if(NOT GIT_REVISION_RESULT EQUAL 0 OR
-   NOT "${GIT_REVISION}" STREQUAL "${DRAWLESS_UPSTREAM_REVISION}")
-    message(FATAL_ERROR "Fairy checkout revision does not match the native lock")
-endif()
+if(EXISTS "${FAIRY_SOURCE_DIR}/.git")
+    find_package(Git REQUIRED)
+    execute_process(
+        COMMAND "${GIT_EXECUTABLE}" -C "${FAIRY_SOURCE_DIR}" rev-parse HEAD
+        RESULT_VARIABLE GIT_REVISION_RESULT
+        OUTPUT_VARIABLE GIT_REVISION
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+    if(NOT GIT_REVISION_RESULT EQUAL 0 OR
+       NOT "${GIT_REVISION}" STREQUAL "${DRAWLESS_UPSTREAM_REVISION}")
+        message(FATAL_ERROR "Fairy checkout revision does not match the native lock")
+    endif()
 
-execute_process(
-    COMMAND "${GIT_EXECUTABLE}" -C "${FAIRY_SOURCE_DIR}" rev-parse "HEAD^{tree}"
-    RESULT_VARIABLE GIT_TREE_RESULT
-    OUTPUT_VARIABLE GIT_TREE
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-)
-if(NOT GIT_TREE_RESULT EQUAL 0 OR
-   NOT "${GIT_TREE}" STREQUAL "${DRAWLESS_UPSTREAM_TREE}")
-    message(FATAL_ERROR "Fairy upstream tree does not match the native lock")
-endif()
+    execute_process(
+        COMMAND "${GIT_EXECUTABLE}" -C "${FAIRY_SOURCE_DIR}" rev-parse "HEAD^{tree}"
+        RESULT_VARIABLE GIT_TREE_RESULT
+        OUTPUT_VARIABLE GIT_TREE
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+    if(NOT GIT_TREE_RESULT EQUAL 0 OR
+       NOT "${GIT_TREE}" STREQUAL "${DRAWLESS_UPSTREAM_TREE}")
+        message(FATAL_ERROR "Fairy upstream tree does not match the native lock")
+    endif()
 
-execute_process(
-    COMMAND "${GIT_EXECUTABLE}" -C "${FAIRY_SOURCE_DIR}" write-tree
-    RESULT_VARIABLE GIT_PATCHED_TREE_RESULT
-    OUTPUT_VARIABLE GIT_PATCHED_TREE
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-)
-if(NOT GIT_PATCHED_TREE_RESULT EQUAL 0 OR
-   NOT "${GIT_PATCHED_TREE}" STREQUAL "${DRAWLESS_PATCHED_TREE}")
-    message(FATAL_ERROR "Fairy patched tree does not match the native lock")
-endif()
+    execute_process(
+        COMMAND "${GIT_EXECUTABLE}" -C "${FAIRY_SOURCE_DIR}" write-tree
+        RESULT_VARIABLE GIT_PATCHED_TREE_RESULT
+        OUTPUT_VARIABLE GIT_PATCHED_TREE
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+    if(NOT GIT_PATCHED_TREE_RESULT EQUAL 0 OR
+       NOT "${GIT_PATCHED_TREE}" STREQUAL "${DRAWLESS_PATCHED_TREE}")
+        message(FATAL_ERROR "Fairy patched tree does not match the native lock")
+    endif()
 
-execute_process(
-    COMMAND "${GIT_EXECUTABLE}" -C "${FAIRY_SOURCE_DIR}" diff --quiet
-    RESULT_VARIABLE GIT_UNSTAGED_RESULT
-)
-if(NOT GIT_UNSTAGED_RESULT EQUAL 0)
-    message(FATAL_ERROR "Fairy checkout contains unstaged source modifications")
+    execute_process(
+        COMMAND "${GIT_EXECUTABLE}" -C "${FAIRY_SOURCE_DIR}" diff --quiet
+        RESULT_VARIABLE GIT_UNSTAGED_RESULT
+    )
+    if(NOT GIT_UNSTAGED_RESULT EQUAL 0)
+        message(FATAL_ERROR "Fairy checkout contains unstaged source modifications")
+    endif()
+elseif(EXISTS "${DRAWLESS_NATIVE_ROOT}/archive-fairy-source.sha256")
+    set(ARCHIVE_SOURCE_MANIFEST "${DRAWLESS_NATIVE_ROOT}/archive-fairy-source.sha256")
+    file(STRINGS "${ARCHIVE_SOURCE_MANIFEST}" ARCHIVE_SOURCE_MANIFEST_LINES)
+    set(EXPECTED_ARCHIVE_SOURCE_FILES)
+    foreach(MANIFEST_LINE IN LISTS ARCHIVE_SOURCE_MANIFEST_LINES)
+        if(NOT MANIFEST_LINE MATCHES "^([0-9a-f][0-9a-f]*)[ \t]+\\*?\\./(.+)$")
+            message(FATAL_ERROR "Invalid native archive source manifest row")
+        endif()
+        set(EXPECTED_SOURCE_HASH "${CMAKE_MATCH_1}")
+        set(RELATIVE_ARCHIVE_SOURCE "${CMAKE_MATCH_2}")
+        string(LENGTH "${EXPECTED_SOURCE_HASH}" EXPECTED_HASH_LENGTH)
+        if(NOT EXPECTED_HASH_LENGTH EQUAL 64 OR
+           IS_ABSOLUTE "${RELATIVE_ARCHIVE_SOURCE}" OR
+           RELATIVE_ARCHIVE_SOURCE MATCHES "(^|/)\\.\\.(/|$)" OR
+           RELATIVE_ARCHIVE_SOURCE MATCHES "\\\\" OR
+           RELATIVE_ARCHIVE_SOURCE MATCHES "[:;]")
+            message(FATAL_ERROR "Unsafe native archive source manifest path")
+        endif()
+        list(FIND EXPECTED_ARCHIVE_SOURCE_FILES "${RELATIVE_ARCHIVE_SOURCE}" DUPLICATE_INDEX)
+        if(NOT DUPLICATE_INDEX EQUAL -1)
+            message(FATAL_ERROR "Duplicate native archive source manifest path")
+        endif()
+        set(ABSOLUTE_ARCHIVE_SOURCE "${FAIRY_SOURCE_DIR}/${RELATIVE_ARCHIVE_SOURCE}")
+        if(NOT EXISTS "${ABSOLUTE_ARCHIVE_SOURCE}" OR IS_DIRECTORY "${ABSOLUTE_ARCHIVE_SOURCE}")
+            message(FATAL_ERROR "Native archive source manifest file is absent")
+        endif()
+        file(SHA256 "${ABSOLUTE_ARCHIVE_SOURCE}" ACTUAL_SOURCE_HASH)
+        if(NOT "${ACTUAL_SOURCE_HASH}" STREQUAL "${EXPECTED_SOURCE_HASH}")
+            message(FATAL_ERROR "Native archive source hash mismatch")
+        endif()
+        list(APPEND EXPECTED_ARCHIVE_SOURCE_FILES "${RELATIVE_ARCHIVE_SOURCE}")
+    endforeach()
+    file(GLOB_RECURSE ACTUAL_ARCHIVE_SOURCE_FILES
+        RELATIVE "${FAIRY_SOURCE_DIR}"
+        LIST_DIRECTORIES false
+        "${FAIRY_SOURCE_DIR}/*")
+    list(SORT EXPECTED_ARCHIVE_SOURCE_FILES)
+    list(SORT ACTUAL_ARCHIVE_SOURCE_FILES)
+    if(NOT "${ACTUAL_ARCHIVE_SOURCE_FILES}" STREQUAL "${EXPECTED_ARCHIVE_SOURCE_FILES}")
+        message(FATAL_ERROR "Native archive source file set differs from its manifest")
+    endif()
+else()
+    message(FATAL_ERROR
+        "Fairy source has neither pinned Git metadata nor archive-fairy-source.sha256")
 endif()
 
 set(DRAWLESS_SOURCE_STATE "${FAIRY_SOURCE_DIR}/.drawless-source-state.properties")

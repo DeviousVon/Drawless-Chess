@@ -42,7 +42,8 @@ export function validateSavedGameV1(game) {
     || !nonNegativeInteger(game.engine.drawlessPatch)) return false;
   if (game.assistance && !validateAssistance(game.assistance)) return false;
   if (game.mode === "rated" && game.assistance
-    && (game.assistance.hints !== 0 || game.assistance.undos !== 0 || game.assistance.pauses !== 0)) return false;
+    && (game.assistance.hints !== 0 || game.assistance.undos !== 0 || game.assistance.pauses !== 0
+      || game.assistance.threatIndication === true)) return false;
   return !game.result || validateResult(game.result, game.moves.length);
 }
 
@@ -54,8 +55,9 @@ function validateMove(move) {
 }
 
 function validateAssistance(a) {
-  return exactKeys(a, ["hints", "undos", "pauses"])
-    && [a.hints, a.undos, a.pauses].every(nonNegativeInteger);
+  return exactKeys(a, ["hints", "undos", "pauses"], ["threatIndication"])
+    && [a.hints, a.undos, a.pauses].every(nonNegativeInteger)
+    && (!Object.hasOwn(a, "threatIndication") || typeof a.threatIndication === "boolean");
 }
 
 function validateResult(result, plyCount) {

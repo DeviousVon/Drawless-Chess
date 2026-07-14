@@ -33,6 +33,7 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -58,6 +59,7 @@ internal fun CompletionEffectOverlay(
     onCue: (CompletionEffectCue) -> Unit,
     onFinished: () -> Unit,
     modifier: Modifier = Modifier,
+    opponent: OpponentProfile? = null,
 ) {
     val progress = remember(result) { Animatable(0f) }
     val spec = remember(result.playerWon) { CompletionEffectTimeline.forResult(result.playerWon) }
@@ -93,7 +95,11 @@ internal fun CompletionEffectOverlay(
     }
     val accent = MaterialTheme.colorScheme.secondary
 
-    Box(modifier.clearAndSetSemantics { }) {
+    Box(
+        modifier
+            .testTag("completion_effect_overlay")
+            .clearAndSetSemantics { },
+    ) {
         Box(
             Modifier
                 .fillMaxSize()
@@ -103,11 +109,12 @@ internal fun CompletionEffectOverlay(
             if (result.playerWon) {
                 drawVictoryFireworks(fraction, veil, accent, spec.cues)
             } else {
-                drawDefeatCracks(fraction, spec.cues)
+                drawDefeatCracks(fraction, spec)
             }
         }
         FinishCallout(
             result = result,
+            opponent = opponent,
             progress = fraction,
             modifier = Modifier.align(Alignment.Center),
         )
@@ -117,6 +124,7 @@ internal fun CompletionEffectOverlay(
 @Composable
 private fun FinishCallout(
     result: GameResultView,
+    opponent: OpponentProfile?,
     progress: Float,
     modifier: Modifier = Modifier,
 ) {
@@ -160,11 +168,19 @@ private fun FinishCallout(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            ChessPiece(
-                side = result.playerSide,
-                type = PieceType.KING,
-                modifier = Modifier.size(74.dp),
-            )
+            if (result.playerWon || opponent == null) {
+                ChessPiece(
+                    side = result.playerSide,
+                    type = PieceType.KING,
+                    modifier = Modifier.size(74.dp),
+                )
+            } else {
+                OpponentPortrait(
+                    profile = opponent,
+                    size = 74.dp,
+                    emphasized = true,
+                )
+            }
             Text(
                 text = if (result.playerWon) "VICTORY" else "DEFEAT",
                 color = content,
@@ -173,7 +189,11 @@ private fun FinishCallout(
                 letterSpacing = 2.sp,
             )
             Text(
-                text = if (result.playerWon) "You won!" else "Your opponent won.",
+                text = if (result.playerWon) {
+                    opponent?.let { "You beat ${it.name}!" } ?: "You won!"
+                } else {
+                    "${opponent?.name ?: "Your opponent"} won."
+                },
                 color = content.copy(alpha = 0.86f),
                 fontWeight = FontWeight.SemiBold,
             )
@@ -253,9 +273,11 @@ private fun DrawScope.drawVictoryFireworks(
 
 private fun DrawScope.drawDefeatCracks(
     progress: Float,
-    cues: List<TimedCompletionCue>,
+    spec: CompletionEffectSpec,
 ) {
-    val impactReveal = ((progress - cues[0].progress) / 0.20f).coerceIn(0f, 1f)
+    val impactProgress = spec.progressOf(CompletionEffectCue.GLASS_IMPACT)
+    val shardProgress = spec.progressOf(CompletionEffectCue.GLASS_SHARDS)
+    val impactReveal = ((progress - impactProgress) / 0.20f).coerceIn(0f, 1f)
     val fade = (1f - ((progress - 0.62f) / 0.38f)).coerceIn(0f, 1f)
     val impact = Offset(size.width * 0.54f, size.height * 0.34f)
     val lineColor = Color.White.copy(alpha = fade * 0.88f)
@@ -270,8 +292,8 @@ private fun DrawScope.drawDefeatCracks(
     )
 
     angles.forEachIndexed { index, angle ->
-        val cueIndex = (index * cues.size / angles.size).coerceAtMost(cues.lastIndex)
-        val reveal = ((progress - cues[cueIndex].progress) / 0.24f).coerceIn(0f, 1f)
+        val crackStart = spec.defeatCrackStartProgress(index, angles.size)
+        val reveal = ((progress - crackStart) / 0.24f).coerceIn(0f, 1f)
         val direction = Offset(cos(angle), sin(angle))
         val length = size.minDimension * (0.24f + (index % 4) * 0.055f) * reveal
         val end = impact + Offset(direction.x * length, direction.y * length)
@@ -290,7 +312,7 @@ private fun DrawScope.drawDefeatCracks(
         drawLine(lineColor.copy(alpha = fade * 0.78f), branchStart, branchEnd, stroke * 0.72f)
     }
 
-    val shardReveal = ((progress - cues.last().progress) / 0.22f).coerceIn(0f, 1f)
+    val shardReveal = ((progress - shardProgress) / 0.22f).coerceIn(0f, 1f)
     val shard = Path().apply {
         moveTo(impact.x - size.minDimension * 0.035f * shardReveal, impact.y)
         lineTo(

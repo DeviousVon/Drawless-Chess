@@ -27,7 +27,7 @@ The production source patch is independently pinned to:
 
 - Upstream commit: `fb78cb561aa01708338e35b3dc3b65a42149a3c4`
 - Upstream tree: `dfe4b96037c10ab60e22613bf634452612fc2b04`
-- Patched result tree: `090d26be47498b99a23fdb1b9ff7587740b95664`
+- Patched result tree: `80208e5f35549b88505df983e4bc0f7621083fd4`
 
 Its manifest, checksum, ordered patch series, and native verifier are under
 `engine/patches/`.

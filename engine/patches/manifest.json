@@ -14,6 +14,12 @@
       "sha256": "5bf9ec8dbd1254ed48bc6d29c92741c56c776124e87ef39b36f4a5d14b416ca2",
       "patchCommit": "b83e5c04029fb1c47ec277da585778c46fd19e51",
       "resultTree": "090d26be47498b99a23fdb1b9ff7587740b95664"
+    },
+    {
+      "order": 2,
+      "file": "0002-fix-negative-elo-rounding.patch",
+      "sha256": "79c2db61e316366ab4d2c5f298bd6fb4419a15222161c13036f95676e71031f3",
+      "resultTree": "80208e5f35549b88505df983e4bc0f7621083fd4"
     }
   ],
   "activation": {

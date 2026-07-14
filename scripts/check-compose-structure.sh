@@ -29,10 +29,12 @@ mapfile -t engine_sources < <(find "$root/android/engine/src/main/kotlin" -name 
   "$root/scripts/stubs/android/os/SystemClock.kt" \
   "$root/scripts/stubs/android/util/Log.kt" \
   "$root/scripts/stubs/com/drawlesschess/BuildConfig.kt" \
+  "$root/android/app/src/main/kotlin/com/drawlesschess/ui/GamePacing.kt" \
+  "$root/android/app/src/main/kotlin/com/drawlesschess/ui/StartingColor.kt" \
   "$root/android/app/src/main/kotlin/com/drawlesschess/ui/GameRuntime.kt" \
   -d "$runtime_jar"
 
-mapfile -t compose_sources < <(printf '%s\n' "${sources[@]}" | rg -v '/GameRuntime.kt$')
+mapfile -t compose_sources < <(printf '%s\n' "${sources[@]}" | rg -v '/(GamePacing|GameRuntime|StartingColor)\.kt$')
 set +e
 "$compiler" -jvm-target 17 -classpath "$core_jar:$engine_jar:$runtime_jar" "${compose_sources[@]}" \
   -d "$root/build/compose-structure.jar" >"$log" 2>&1
@@ -52,8 +54,29 @@ rg -q 'drawVictoryFireworks' "$root/android/app/src/main/kotlin/com/drawlessches
 rg -q 'drawDefeatCracks' "$root/android/app/src/main/kotlin/com/drawlesschess/ui/CompletionEffectOverlay.kt"
 rg -q 'durationMillis = 2_600' "$root/android/app/src/main/kotlin/com/drawlesschess/ui/CompletionEffectTimeline.kt"
 rg -q 'durationMillis = 2_200' "$root/android/app/src/main/kotlin/com/drawlesschess/ui/CompletionEffectTimeline.kt"
+rg -q 'CompletionEffectCue.GLASS_FRACTURE, 0.05f' \
+  "$root/android/app/src/main/kotlin/com/drawlesschess/ui/CompletionEffectTimeline.kt"
 rg -q 'class GameSoundPlayer' "$root/android/app/src/main/kotlin/com/drawlesschess/ui/GameSoundPlayer.kt"
-rg -q 'renderCompletionCue' "$root/android/app/src/main/kotlin/com/drawlesschess/ui/GameSoundPlayer.kt"
+rg -Fq 'GameSoundPlayer(context: Context)' \
+  "$root/android/app/src/main/kotlin/com/drawlesschess/ui/GameSoundPlayer.kt"
+rg -Fq 'fun setEnabled(value: Boolean)' \
+  "$root/android/app/src/main/kotlin/com/drawlesschess/ui/GameSoundPlayer.kt"
+rg -q 'PENDING_SAMPLE_MAX_AGE_MS = 250L' \
+  "$root/android/app/src/main/kotlin/com/drawlesschess/ui/GameSoundPlayer.kt"
+rg -q 'object SampledSoundCatalog' \
+  "$root/android/app/src/main/kotlin/com/drawlesschess/ui/SampledSoundCatalog.kt"
+rg -Fq 'soundPlayer.playMove(latestSan)' \
+  "$root/android/app/src/main/kotlin/com/drawlesschess/ui/GameScreen.kt"
+sample_count=$(find "$root/android/app/src/main/res/raw" -maxdepth 1 -type f -name 'chess_*.ogg' | wc -l)
+[[ $sample_count -eq 104 ]] || {
+  echo "Expected 104 sampled audio resources, found $sample_count" >&2
+  exit 1
+}
+# The deterministic renderer is retained as reference/test material, not production playback.
+rg -q 'SOUND_SAMPLE_RATE = 44_100' \
+  "$root/android/app/src/main/kotlin/com/drawlesschess/ui/ProceduralGameAudio.kt"
+rg -q 'renderCompletionCue' \
+  "$root/android/app/src/main/kotlin/com/drawlesschess/ui/ProceduralGameAudio.kt"
 rg -Fq 'testTag("post_game_feedback")' "$root/android/app/src/main/kotlin/com/drawlesschess/ui/GameScreen.kt"
 rg -q 'class MainActivity' "$root/android/app/src/main/kotlin"
 rg -q 'android.intent.action.MAIN' "$root/android/app/src/main/AndroidManifest.xml"

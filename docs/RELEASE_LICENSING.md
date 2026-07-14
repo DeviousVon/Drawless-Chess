@@ -9,9 +9,9 @@ recipients still receive the freedoms to study, modify, and redistribute it.
 No technical process boundary is being used as a licensing workaround.
 
 `LICENSE` is the authoritative project license. `NOTICE` explains the source
-promise and high-level attributions. `THIRD_PARTY_NOTICES.md` records the known
-direct dependency families. Files carrying a different license or third-party
-notice keep that license.
+promise and high-level attributions. `THIRD_PARTY_NOTICES.md` and the CycloneDX
+SBOM record the exact resolved Android runtime inventory. Files carrying a
+different license or third-party notice keep that license.
 
 The GPL copyright license does not authorize a fork to misrepresent itself as an
 official or endorsed release. “Drawless Chess” and the project logo are source
@@ -51,10 +51,12 @@ publish. Before each public release:
    transitives. Resolve any license that is not GPLv3-compatible.
 3. Run the normal tests, native-source/patch checks, Android machine verification,
    and signed-release verification. Preserve their reports.
-4. Create the whole-project source archive from the same tree used for the binary:
+4. Create the whole-project source archive from the same clean Git commit used for
+   the binary. The bundler records that commit in `SOURCE-COMMIT` and refuses a
+   dirty tree:
 
    ```bash
-   scripts/source-bundle.sh build/releases/drawless-chess-0.1.0-source.tar.gz
+   scripts/source-bundle.sh release/drawless-chess-0.1.0-source.tar.gz
    ```
 
    `scripts/native-source-bundle.sh` is a compatibility alias and produces the
@@ -67,9 +69,11 @@ publish. Before each public release:
    store listing or release notes. Verify the link while logged out.
 7. Ship the GPL text, project NOTICE, third-party notices, and Fairy-Stockfish
    attribution in the application. Preserve upstream notices in redistributed
-   source and binaries. Confirm the provenance of every visual and sound asset;
-   current code-native pieces/icons and procedurally synthesized sounds do not rely
-   on external bitmap, font-glyph, or sampled-audio licenses.
+   source and binaries. Confirm the provenance of every visual and sound asset.
+   Current code-native pieces/icons are original; sampled audio combines CC0 chess
+   and firework recordings with MIT-licensed ion.sound recordings. Preserve the complete ion.sound
+   copyright and MIT notice in every APK/App Bundle and corresponding-source archive,
+   and run the sampled-audio verifier before release.
 8. Keep the source available for as long as the chosen GPL conveyance method
    requires. Prefer distributing source alongside every binary rather than relying
    on a written offer.

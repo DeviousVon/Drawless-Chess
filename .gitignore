@@ -14,6 +14,7 @@ Thumbs.db
 .env
 .env.*
 key.properties
+android/signing.properties
 google-services.json
 *.jks
 *.keystore
@@ -23,6 +24,7 @@ google-services.json
 *.hprof
 *.trace
 captures/
+TEMP/
 
 # Recreated from the pinned upstream revision and ordered Drawless patches.
 # Exact prepared source is included in each corresponding-source release archive.
@@ -39,3 +41,10 @@ android/.kotlin/
 android/local.properties
 android/**/build/
 android/**/.cxx/
+
+# Local verification evidence and generated release archives. The deterministic
+# dependency inventory and SBOM under release/reports remain versioned.
+release/machine/
+release/reports/*-instrumentation.txt
+release/*.tar.gz
+play/store-assets/source-captures/

@@ -193,6 +193,23 @@ data class PieceView(
     val assetKey: String,
 )
 
+data class PieceMotion(
+    val from: Square,
+    val to: Square,
+    val piece: PieceView,
+)
+
+data class BoardMoveMotion(
+    val ply: Int,
+    val mover: Side,
+    val pieces: List<PieceMotion>,
+) {
+    init {
+        require(ply > 0)
+        require(pieces.isNotEmpty())
+    }
+}
+
 data class SquareView(
     val square: Square,
     val displayRow: Int,
@@ -202,11 +219,14 @@ data class SquareView(
     val target: TargetKind?,
     val lastMove: Boolean,
     val inCheck: Boolean,
+    val threatened: Boolean,
     val accessibilityLabel: String,
 )
 
 data class BoardScreenState(
     val positionMarker: String,
+    val plyCount: Int,
+    val humanSide: Side,
     val sideToMove: Side,
     val cells: List<SquareView>,
     val interaction: BoardInteractionState,
@@ -216,6 +236,7 @@ data class BoardScreenState(
     val theme: BoardTheme,
     val pieceSet: PieceSet,
     val promotionPrompt: PromotionPrompt?,
+    val moveMotion: BoardMoveMotion?,
 )
 
 object BoardPresenter {
@@ -225,6 +246,7 @@ object BoardPresenter {
         interactionState: BoardInteractionState,
         theme: BoardTheme = BoardThemes.DEFAULT,
         pieceSet: PieceSet = PieceSets.MODERN_FLAT,
+        threatIndicationEnabled: Boolean = false,
     ): BoardScreenState {
         val position = ChessPosition.fromFen(snapshot.currentFen)
         val interactive = snapshot.phase == CoordinatorPhase.HUMAN_TURN &&
@@ -236,7 +258,14 @@ object BoardPresenter {
                 .filter { it.from == interaction.selected }
                 .groupBy { it.to }
         } else emptyMap()
-        val lastMove = snapshot.session.moves.lastOrNull()?.move?.let(ChessMove::fromUci)
+        val lastRecord = snapshot.session.moves.lastOrNull()
+        val lastMove = lastRecord?.move?.let(ChessMove::fromUci)
+        val moveMotion = lastRecord?.let { motionFor(it, position, pieceSet) }
+        val threatenedPieces = if (threatIndicationEnabled) {
+            ThreatIndicators.threatenedPieces(position, config.humanSide)
+        } else {
+            emptySet()
+        }
         val checkedKing = if (ChessRules.isInCheck(position)) {
             position.pieces().single { (_, piece) ->
                 piece.side == position.sideToMove && piece.type == PieceType.KING
@@ -262,12 +291,21 @@ object BoardPresenter {
                     target = target,
                     lastMove = lastMove?.let { square == it.from || square == it.to } == true,
                     inCheck = checkedKing == square,
-                    accessibilityLabel = AccessibilityLabels.square(square, piece, target, checkedKing == square),
+                    threatened = square in threatenedPieces,
+                    accessibilityLabel = AccessibilityLabels.square(
+                        square,
+                        piece,
+                        target,
+                        checkedKing == square,
+                        square in threatenedPieces,
+                    ),
                 ))
             }
         }
         return BoardScreenState(
             positionMarker = position.fen(),
+            plyCount = snapshot.session.moves.size,
+            humanSide = config.humanSide,
             sideToMove = position.sideToMove,
             cells = cells,
             interaction = interaction,
@@ -277,7 +315,48 @@ object BoardPresenter {
             theme = theme,
             pieceSet = pieceSet,
             promotionPrompt = interaction.promotionPrompt,
+            moveMotion = moveMotion,
         )
+    }
+
+    private fun motionFor(
+        record: MoveRecord,
+        position: ChessPosition,
+        pieceSet: PieceSet,
+    ): BoardMoveMotion {
+        val move = ChessMove.fromUci(record.move)
+        val primaryType = if (move.promotion != null) {
+            PieceType.PAWN
+        } else {
+            requireNotNull(position[move.to]) { "Moved piece is absent from ${move.to.algebraic}" }.type
+        }
+        val pieces = mutableListOf(
+            PieceMotion(
+                from = move.from,
+                to = move.to,
+                piece = PieceView(
+                    side = record.mover,
+                    type = primaryType,
+                    assetKey = pieceSet.assetKey(Piece(record.mover, primaryType)),
+                ),
+            ),
+        )
+        if (primaryType == PieceType.KING && kotlin.math.abs(move.to.file - move.from.file) == 2) {
+            val rank = move.from.rank
+            val kingSide = move.to.file == 6
+            val rookFrom = Square.at(if (kingSide) 7 else 0, rank)!!
+            val rookTo = Square.at(if (kingSide) 5 else 3, rank)!!
+            pieces += PieceMotion(
+                from = rookFrom,
+                to = rookTo,
+                piece = PieceView(
+                    side = record.mover,
+                    type = PieceType.ROOK,
+                    assetKey = pieceSet.assetKey(Piece(record.mover, PieceType.ROOK)),
+                ),
+            )
+        }
+        return BoardMoveMotion(record.ply, record.mover, pieces)
     }
 
     private fun isCapture(position: ChessPosition, move: ChessMove): Boolean {
@@ -296,13 +375,20 @@ object BoardPresenter {
 }
 
 object AccessibilityLabels {
-    fun square(square: Square, piece: Piece?, target: TargetKind?, inCheck: Boolean): String {
+    fun square(
+        square: Square,
+        piece: Piece?,
+        target: TargetKind?,
+        inCheck: Boolean,
+        threatened: Boolean = false,
+    ): String {
         val contents = if (piece == null) "Empty ${square.algebraic}" else
             "${piece.side.name.lowercase().replaceFirstChar(Char::uppercase)} ${piece.type.name.lowercase()} on ${square.algebraic}"
         val annotations = buildList {
             if (target == TargetKind.QUIET) add("legal move")
             if (target == TargetKind.CAPTURE) add("legal capture")
             if (inCheck) add("king in check")
+            if (threatened) add("under threat")
         }
         return if (annotations.isEmpty()) contents else "$contents, ${annotations.joinToString(", ")}"
     }

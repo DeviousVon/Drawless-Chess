@@ -1,0 +1,33 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Drawless Chess <engine@drawless.invalid>
+Date: Tue, 14 Jul 2026 04:15:00 -0500
+Subject: [PATCH] Fix stochastic rounding for negative Elo skill levels
+
+Fairy-Stockfish converts low UCI_Elo values to fractional negative skill
+levels. C++ integer conversion truncates those values toward zero, leaving a
+negative remainder that can never satisfy the probabilistic round-up test.
+Use floor as the lower endpoint so the two adjacent integer levels are chosen
+with the intended probabilities and their mean matches the requested Elo.
+---
+ src/search.cpp | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/search.cpp b/src/search.cpp
+index 5f6465e..dff3513 100644
+--- a/src/search.cpp
++++ b/src/search.cpp
+@@ -370,8 +370,9 @@ void Thread::search() {
+                                                 : shiftedElo / 143.4 + std::pow(shiftedElo / 500, 5),
+                                  -20.0, 20.0) :
+                         double(Options["Skill Level"]);
+-  int intLevel = int(floatLevel) +
+-                 ((floatLevel - int(floatLevel)) * 1024 > rng.rand<unsigned>() % 1024  ? 1 : 0);
++  int lowerLevel = int(std::floor(floatLevel));
++  int intLevel = lowerLevel +
++                 ((floatLevel - lowerLevel) * 1024 > rng.rand<unsigned>() % 1024  ? 1 : 0);
+   Skill skill(intLevel);
+ 
+   // When playing with strength handicap enable MultiPV search that we will
+-- 
+2.50.1
+

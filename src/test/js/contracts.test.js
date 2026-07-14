@@ -39,6 +39,35 @@ test("rejects hints in rated games", () => {
   const value = savedGame(); value.assistance.hints = 1;
   assert.equal(validateSavedGameV1(value), false);
 });
+test("accepts legacy assistance without threat indication", () => {
+  const value = savedGame();
+  assert.equal(Object.hasOwn(value.assistance, "threatIndication"), false);
+  assert.equal(validateSavedGameV1(value), true);
+});
+test("accepts boolean threat indication in casual games", () => {
+  for (const threatIndication of [true, false]) {
+    const value = savedGame();
+    value.mode = "casual";
+    value.assistance.threatIndication = threatIndication;
+    assert.equal(validateSavedGameV1(value), true);
+  }
+});
+test("rejects threat indication in rated games", () => {
+  const value = savedGame(); value.assistance.threatIndication = true;
+  assert.equal(validateSavedGameV1(value), false);
+});
+test("rejects malformed threat indication types", () => {
+  for (const threatIndication of ["true", 1, null]) {
+    const value = savedGame(); value.mode = "casual";
+    value.assistance.threatIndication = threatIndication;
+    assert.equal(validateSavedGameV1(value), false);
+  }
+});
+test("rejects unknown assistance fields", () => {
+  const value = savedGame(); value.mode = "casual";
+  value.assistance.futureAssistance = false;
+  assert.equal(validateSavedGameV1(value), false);
+});
 test("accepts assistance in casual games", () => {
   const value = savedGame(); value.mode = "casual"; value.assistance = { hints: 2, undos: 1, pauses: 3 };
   assert.equal(validateSavedGameV1(value), true);

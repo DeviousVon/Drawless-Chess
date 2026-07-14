@@ -64,6 +64,7 @@ private fun productionRequest(
     gameId: String = "engine-game",
     purpose: EnginePurpose = EnginePurpose.BOT_MOVE,
     multiPv: Int = 1,
+    strength: EngineStrength = EngineStrength.ApproximateElo(1_500),
 ) = EngineRequest(
     requestId = id,
     gameId = gameId,
@@ -71,12 +72,129 @@ private fun productionRequest(
     initialFen = ChessPosition.START_FEN,
     moves = emptyList(),
     rules = RulesContractV1.drawless(),
-    strength = EngineStrength.ApproximateElo(1_500),
+    strength = strength,
     limits = EngineLimits(100, multiPv),
     purpose = purpose,
 )
 
+private fun responseFor(request: EngineRequest) = EngineResponse(
+    requestId = request.requestId,
+    gameId = request.gameId,
+    positionId = request.positionId,
+    bestMove = UciMove("e2e4"),
+    ponderMove = null,
+    depth = 1,
+    nodes = 1,
+    variations = listOf(
+        PrincipalVariation(
+            scoreCentipawns = 0,
+            mateIn = null,
+            moves = listOf(UciMove("e2e4")),
+        ),
+    ),
+    engine = EngineIdentity("pacing-test", "1", 1),
+)
+
 internal fun registerEngineLayerTests(suite: TestSuite) {
+    suite.test("bot move pacing adds the requested delay after successful analysis") {
+        val timers = FakeTimeoutScheduler()
+        val delegate = object : ChessEngine {
+            override fun analyze(
+                request: EngineRequest,
+                onResult: (Result<EngineResponse>) -> Unit,
+            ): EngineCancellation {
+                onResult(Result.success(responseFor(request)))
+                return EngineCancellation {}
+            }
+        }
+        val engine = BotMovePacingEngine(delegate, timers, 500)
+        var delivered = false
+
+        engine.analyze(productionRequest()) { delivered = it.isSuccess }
+
+        assertThat(!delivered)
+        assertThat(timers.tasks.single().delay == 500L)
+        timers.fireLatest()
+        assertThat(delivered)
+    }
+    suite.test("bot move pacing cancellation stops upstream work and delayed delivery") {
+        val timers = FakeTimeoutScheduler()
+        var upstreamCancelled = false
+        val delegate = object : ChessEngine {
+            override fun analyze(
+                request: EngineRequest,
+                onResult: (Result<EngineResponse>) -> Unit,
+            ): EngineCancellation {
+                onResult(Result.success(responseFor(request)))
+                return EngineCancellation { upstreamCancelled = true }
+            }
+        }
+        val engine = BotMovePacingEngine(delegate, timers, 500)
+        var delivered = false
+
+        val cancellation = engine.analyze(productionRequest()) { delivered = true }
+        cancellation.cancel()
+
+        assertThat(upstreamCancelled)
+        assertThat(timers.tasks.single().cancelled)
+        assertThat(!delivered)
+    }
+    suite.test("bot move pacing leaves hints and engine failures immediate") {
+        val timers = FakeTimeoutScheduler()
+        val successful = object : ChessEngine {
+            override fun analyze(
+                request: EngineRequest,
+                onResult: (Result<EngineResponse>) -> Unit,
+            ): EngineCancellation {
+                onResult(Result.success(responseFor(request)))
+                return EngineCancellation {}
+            }
+        }
+        var hintDelivered = false
+        BotMovePacingEngine(successful, timers, 500).analyze(
+            productionRequest(purpose = EnginePurpose.HINT),
+        ) { hintDelivered = it.isSuccess }
+
+        val failure = IllegalStateException("engine unavailable")
+        val failing = object : ChessEngine {
+            override fun analyze(
+                request: EngineRequest,
+                onResult: (Result<EngineResponse>) -> Unit,
+            ): EngineCancellation {
+                onResult(Result.failure(failure))
+                return EngineCancellation {}
+            }
+        }
+        var deliveredFailure: Throwable? = null
+        BotMovePacingEngine(failing, timers, 500).analyze(productionRequest()) {
+            deliveredFailure = it.exceptionOrNull()
+        }
+
+        assertThat(hintDelivered)
+        assertThat(deliveredFailure === failure)
+        assertThat(timers.tasks.isEmpty())
+    }
+    suite.test("bot move pacing falls back to the valid move when scheduling is unavailable") {
+        val delegate = object : ChessEngine {
+            override fun analyze(
+                request: EngineRequest,
+                onResult: (Result<EngineResponse>) -> Unit,
+            ): EngineCancellation {
+                onResult(Result.success(responseFor(request)))
+                return EngineCancellation {}
+            }
+        }
+        val rejectedScheduler = UciTimeoutScheduler { _, _ ->
+            throw IllegalStateException("scheduler closed")
+        }
+        var delivered: EngineResponse? = null
+
+        BotMovePacingEngine(delegate, rejectedScheduler, 500).analyze(productionRequest()) {
+            delivered = it.getOrThrow()
+        }
+
+        assertThat(delivered?.bestMove == UciMove("e2e4"))
+    }
     suite.test("UCI parser reads identity lines") {
         assertThat(UciProtocol.parse("id name Fairy-Stockfish 14") == UciMessage.IdName("Fairy-Stockfish 14"))
         assertThat(UciProtocol.parse("id author Fabian Fichter") == UciMessage.IdAuthor("Fabian Fichter"))
@@ -252,10 +370,48 @@ internal fun registerEngineLayerTests(suite: TestSuite) {
         assertThat(error is UciEngineStateException)
         assertThat(fixture.engine.state == UciSessionState.IDLE)
     }
-    suite.test("named bot levels are ordered and resolvable") {
+    suite.test("named bot ladder matches the approved beginner progression") {
         val levels = BotDifficultyCatalog.namedLevels
+        assertThat(
+            levels.map { it.id to it.approximateElo } == listOf(
+                "learner" to 500,
+                "casual" to 650,
+                "challenger" to 850,
+                "club" to 1_100,
+                "expert" to 1_500,
+                "master" to 2_000,
+                "grandmaster" to 2_500,
+            ),
+        )
         assertThat(levels.zipWithNext().all { (a, b) -> a.approximateElo < b.approximateElo })
-        assertThat(BotDifficultyResolver.resolve(BotDifficultySelection.Named("club"), OfflineRating()).targetElo == 1_500)
+        assertThat(BotDifficultyResolver.resolve(BotDifficultySelection.Named("club"), OfflineRating()).targetElo == 1_100)
+    }
+    suite.test("legacy ladder identity is inferred only from exact historical Elo") {
+        assertThat(BotDifficultyCatalog.legacyLevelIdForElo(900) == "casual")
+        assertThat(BotDifficultyCatalog.legacyLevelIdForElo(1_500) == "club")
+        assertThat(BotDifficultyCatalog.legacyLevelIdForElo(650) == null)
+        assertThat(BotDifficultyCatalog.legacyLevelIdForElo(1_499) == null)
+    }
+    suite.test("raw skill display no longer pretends every engine is Casual") {
+        assertThat(BotDifficultyCatalog.displayLevel(null, EngineStrength.SkillLevel(-20)).id == "learner")
+        assertThat(BotDifficultyCatalog.approximateEloForSkillLevel(-3) in 956..958)
+        assertThat(BotDifficultyCatalog.displayLevel(null, EngineStrength.SkillLevel(-3)).id == "challenger")
+        assertThat(BotDifficultyCatalog.displayLevel(null, EngineStrength.SkillLevel(20)).id == "grandmaster")
+    }
+    suite.test("every named rung uses exact UCI Elo limiting rather than raw skill") {
+        BotDifficultyCatalog.namedLevels.forEach { level ->
+            val fixture = uciFixture()
+            fixture.engine.analyze(
+                productionRequest(
+                    id = "named-${level.id}",
+                    strength = EngineStrength.ApproximateElo(level.approximateElo),
+                ),
+            ) {}
+            completeHandshake(fixture)
+            assertThat("setoption name UCI_LimitStrength value true" in fixture.transport.commands)
+            assertThat("setoption name UCI_Elo value ${level.approximateElo}" in fixture.transport.commands)
+            assertThat(fixture.transport.commands.none { it.startsWith("setoption name Skill Level value") })
+        }
     }
     suite.test("custom bot Elo maps directly to engine strength") {
         val resolved = BotDifficultyResolver.resolve(BotDifficultySelection.CustomElo(1_735), OfflineRating())

@@ -19,8 +19,8 @@ AGP 9.2 requires Gradle 9.4.1 and at least JDK 17. Both machine gates accept onl
 stable build-JDK majors 17 and 21, including Android Studio's bundled JBR 21, while project
 compatibility remains 17. The committed wrapper has run with Android Studio JBR 21,
 SDK/Build Tools 36, NDK 29, and CMake 3.22.1. Debug/release Android packages were built and
-audited, then exercised on an API-36 x86-64 emulator and API-37 ARM64 physical phone. API
-37 is device runtime evidence, not a change to the stable compile/target API 36 baseline.
+audited, then exercised on an API-36 x86-64 emulator and API-33 ARM64 physical tablet. Device
+runtime API is independent from the stable compile/target API 36 baseline.
 The Android-free Kotlin core is still compiled and executed directly as a faster gate.
 
 Official AGP release information:
@@ -98,7 +98,7 @@ The Kotlin-only gate is:
 npm run test:kotlin
 ```
 
-At this checkpoint that command passes 196 JVM/core-and-endpoint tests. Twenty-five target the
+At this checkpoint that command passes 223 JVM/core-and-endpoint tests. Twenty-five target the
 native boundary specifically: line framing, bounded FIFO writes, backpressure, lifecycle
 and failure behavior, ABI/artifact metadata, `NativeFairyEngineSession` composition, and
 endpoint-crash propagation. Nine more exercise the managed JNI port lifecycle and exact

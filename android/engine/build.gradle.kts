@@ -1,10 +1,16 @@
 import java.io.File
 import java.util.Properties
 import java.security.MessageDigest
+import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
 import org.gradle.api.file.DirectoryProperty
+import org.gradle.api.file.RegularFileProperty
+import org.gradle.api.provider.Property
+import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.OutputDirectory
+import org.gradle.api.tasks.OutputFile
 import org.gradle.api.tasks.Sync
+import org.gradle.api.tasks.TaskAction
 
 plugins {
     id("com.android.library")
@@ -21,12 +27,29 @@ abstract class GenerateFairyLegalAssetsTask : Sync() {
     }
 }
 
+abstract class GenerateReleaseIdentityTask : DefaultTask() {
+    @get:Input
+    abstract val sourceCommit: Property<String>
+
+    @get:OutputFile
+    abstract val outputFile: RegularFileProperty
+
+    @TaskAction
+    fun generate() {
+        val destination = outputFile.get().asFile
+        destination.parentFile.mkdirs()
+        destination.writeText(sourceCommit.get() + "\n", Charsets.UTF_8)
+    }
+}
+
 val repositoryRoot = rootProject.projectDir.parentFile
 val nativeRoot = repositoryRoot.resolve("engine/native")
 val nativeLockFile = nativeRoot.resolve("upstream.properties")
 val projectLicense = repositoryRoot.resolve("LICENSE")
 val projectNotice = repositoryRoot.resolve("NOTICE")
 val thirdPartyNotices = repositoryRoot.resolve("THIRD_PARTY_NOTICES.md")
+val apacheLicense = repositoryRoot.resolve("APACHE-2.0.txt")
+val releaseSbom = repositoryRoot.resolve("release/reports/release-sbom.cdx.json")
 val nativeLock = Properties().apply {
     nativeLockFile.inputStream().use(::load)
 }
@@ -35,10 +58,47 @@ fun nativePin(name: String): String =
     nativeLock.getProperty(name)?.takeIf(String::isNotBlank)
         ?: throw GradleException("Missing '$name' in ${nativeLockFile.absolutePath}")
 
+fun resolveSourceCommit(): String {
+    val bundledCommit = repositoryRoot.resolve("SOURCE-COMMIT")
+    val commit = if (bundledCommit.isFile) {
+        bundledCommit.readText(Charsets.UTF_8).trim()
+    } else {
+        try {
+            val process = ProcessBuilder(
+                "git",
+                "-C",
+                repositoryRoot.absolutePath,
+                "rev-parse",
+                "--verify",
+                "HEAD",
+            ).redirectErrorStream(true).start()
+            val output = process.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }.trim()
+            if (process.waitFor() != 0) {
+                throw GradleException("Could not resolve release source commit: $output")
+            }
+            output
+        } catch (exception: GradleException) {
+            throw exception
+        } catch (exception: Exception) {
+            throw GradleException("Could not run Git to resolve the release source commit", exception)
+        }
+    }
+    if (!commit.matches(Regex("[0-9a-f]{40}"))) {
+        throw GradleException("Release source commit is not a full lowercase Git object ID")
+    }
+    return commit
+}
+
 val fairySource = nativeRoot.resolve(nativePin("sourceDirectory"))
 val patchSeries = nativeRoot.resolve(nativePin("patchSeries"))
 val drawlessVariants = repositoryRoot.resolve("engine/variants.ini")
+val archiveSourceManifest = nativeRoot.resolve("archive-fairy-source.sha256")
 val legalAssetsDirectory = layout.buildDirectory.dir("generated/fairy-legal-assets")
+val sourceCommitIdentity = resolveSourceCommit()
+val generateReleaseIdentity by tasks.registering(GenerateReleaseIdentityTask::class) {
+    sourceCommit.set(sourceCommitIdentity)
+    outputFile.set(layout.buildDirectory.file("generated/release-identity/SOURCE-COMMIT"))
+}
 
 android {
     namespace = "com.drawlesschess.engine"
@@ -145,6 +205,9 @@ val verifyPinnedFairySource by tasks.registering {
     inputs.file(patchSeries)
     inputs.file(drawlessVariants)
     inputs.dir(fairySource)
+    if (archiveSourceManifest.isFile) {
+        inputs.file(archiveSourceManifest)
+    }
 
     doLast {
         if (!fairySource.isDirectory) {
@@ -177,32 +240,85 @@ val verifyPinnedFairySource by tasks.registering {
             }
         }
 
-        fun gitOutput(vararg arguments: String): String {
-            val process = ProcessBuilder(
-                listOf("git", "-C", fairySource.absolutePath) + arguments,
-            ).redirectErrorStream(true).start()
-            val output = process.inputStream.bufferedReader().use { it.readText() }.trim()
-            if (process.waitFor() != 0) {
-                throw GradleException("Git source verification failed: $output")
+        if (fairySource.resolve(".git").isDirectory) {
+            fun gitOutput(vararg arguments: String): String {
+                val process = ProcessBuilder(
+                    listOf("git", "-C", fairySource.absolutePath) + arguments,
+                ).redirectErrorStream(true).start()
+                val output = process.inputStream.bufferedReader().use { it.readText() }.trim()
+                if (process.waitFor() != 0) {
+                    throw GradleException("Git source verification failed: $output")
+                }
+                return output
             }
-            return output
-        }
 
-        if (gitOutput("rev-parse", "HEAD") != nativePin("revision")) {
-            throw GradleException("Fairy checkout revision does not match the native lock")
-        }
-        if (gitOutput("rev-parse", "HEAD^{tree}") != nativePin("tree")) {
-            throw GradleException("Fairy upstream tree does not match the native lock")
-        }
-        if (gitOutput("write-tree") != nativePin("patchedTree")) {
-            throw GradleException("Fairy patched tree does not match the native lock")
-        }
+            if (gitOutput("rev-parse", "HEAD") != nativePin("revision")) {
+                throw GradleException("Fairy checkout revision does not match the native lock")
+            }
+            if (gitOutput("rev-parse", "HEAD^{tree}") != nativePin("tree")) {
+                throw GradleException("Fairy upstream tree does not match the native lock")
+            }
+            if (gitOutput("write-tree") != nativePin("patchedTree")) {
+                throw GradleException("Fairy patched tree does not match the native lock")
+            }
 
-        val unstagedCheck = ProcessBuilder(
-            "git", "-C", fairySource.absolutePath, "diff", "--quiet",
-        ).start()
-        if (unstagedCheck.waitFor() != 0) {
-            throw GradleException("Fairy checkout has unstaged source modifications")
+            val unstagedCheck = ProcessBuilder(
+                "git", "-C", fairySource.absolutePath, "diff", "--quiet",
+            ).start()
+            if (unstagedCheck.waitFor() != 0) {
+                throw GradleException("Fairy checkout has unstaged source modifications")
+            }
+        } else if (archiveSourceManifest.isFile) {
+            fun sha256(file: File): String {
+                val digest = MessageDigest.getInstance("SHA-256")
+                file.inputStream().buffered().use { input ->
+                    val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+                    while (true) {
+                        val count = input.read(buffer)
+                        if (count < 0) break
+                        digest.update(buffer, 0, count)
+                    }
+                }
+                return digest.digest().joinToString("") { byte ->
+                    "%02x".format(byte.toInt() and 0xff)
+                }
+            }
+
+            val sourceRoot = fairySource.canonicalFile.toPath()
+            val manifestPattern = Regex("""^([0-9a-f]{64})\s+\*?\./(.+)$""")
+            val manifestPaths = linkedSetOf<String>()
+            archiveSourceManifest.forEachLine { line ->
+                val match = manifestPattern.matchEntire(line.trimEnd('\r'))
+                    ?: throw GradleException("Invalid native archive source manifest row")
+                val expectedHash = match.groupValues[1]
+                val relativePath = match.groupValues[2]
+                val pathParts = relativePath.split('/')
+                if (relativePath.startsWith('/') || relativePath.contains('\\') ||
+                    relativePath.contains(':') || pathParts.any { it == "." || it == ".." } ||
+                    !manifestPaths.add(relativePath)
+                ) {
+                    throw GradleException("Unsafe or duplicate native archive source path")
+                }
+                val sourceFile = fairySource.resolve(relativePath).canonicalFile
+                if (!sourceFile.toPath().startsWith(sourceRoot) || !sourceFile.isFile ||
+                    sha256(sourceFile) != expectedHash
+                ) {
+                    throw GradleException(
+                        "Native archive source differs from its manifest: $relativePath",
+                    )
+                }
+            }
+            val actualPaths = fairySource.walkTopDown()
+                .filter(File::isFile)
+                .map { it.relativeTo(fairySource).invariantSeparatorsPath }
+                .toSet()
+            if (manifestPaths.isEmpty() || actualPaths != manifestPaths) {
+                throw GradleException("Native archive source file set differs from its manifest")
+            }
+        } else {
+            throw GradleException(
+                "Fairy source has neither pinned Git metadata nor an archive source manifest",
+            )
         }
 
         val required = buildList {
@@ -231,7 +347,23 @@ val generateFairyLegalAssets by tasks.registering(GenerateFairyLegalAssetsTask::
     group = "build"
     description = "Packages project and Fairy-Stockfish licenses, notices, identity, and patches."
     dependsOn(verifyPinnedFairySource)
+    dependsOn(generateReleaseIdentity)
     outputDirectory.set(legalAssetsDirectory)
+
+    doFirst {
+        val missing = listOf(
+            projectLicense,
+            projectNotice,
+            thirdPartyNotices,
+            apacheLicense,
+            releaseSbom,
+        ).filterNot(File::isFile)
+        if (missing.isNotEmpty()) {
+            throw GradleException(
+                "Required release legal assets are absent: ${missing.joinToString()}",
+            )
+        }
+    }
 
     from(projectLicense) {
         into("legal/drawless-chess")
@@ -241,6 +373,15 @@ val generateFairyLegalAssets by tasks.registering(GenerateFairyLegalAssetsTask::
     }
     from(thirdPartyNotices) {
         into("legal/drawless-chess")
+    }
+    from(apacheLicense) {
+        into("third_party/android-runtime")
+    }
+    from(releaseSbom) {
+        into("third_party/android-runtime")
+    }
+    from(generateReleaseIdentity.flatMap { it.outputFile }) {
+        into("release")
     }
 
     from(fairySource.resolve("Copying.txt")) {

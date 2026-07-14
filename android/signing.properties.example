@@ -1,0 +1,17 @@
+# Copy this file to android/signing.properties, which is ignored by Git, only if
+# environment variables are not practical. Keep the real keystore outside this
+# repository and restrict access to the local properties file.
+#
+# Environment-variable equivalents take precedence:
+#   DRAWLESS_UPLOAD_STORE_FILE
+#   DRAWLESS_UPLOAD_STORE_PASSWORD
+#   DRAWLESS_UPLOAD_KEY_ALIAS
+#   DRAWLESS_UPLOAD_KEY_PASSWORD
+#
+# Set DRAWLESS_SIGNING_PROPERTIES only to use a protected properties file outside
+# the repository. Gradle rejects custom signing-properties paths inside the repo.
+
+storeFile=C:/Users/your-name/secure/drawless-chess-upload.jks
+storePassword=replace-locally
+keyAlias=drawless-upload
+keyPassword=replace-locally

@@ -4,12 +4,6 @@ import com.drawlesschess.core.*
 import com.drawlesschess.core.chess.*
 import com.drawlesschess.core.coordinator.*
 
-data class MoveHistoryRow(
-    val moveNumber: Int,
-    val white: String?,
-    val black: String?,
-)
-
 data class ClockView(
     val text: String,
     val active: Boolean,
@@ -30,6 +24,7 @@ data class GameResultView(
     val playerSide: Side,
     val reason: EndReason,
     val explanation: String,
+    val score: GameScore,
 )
 
 data class GameScreenModel(
@@ -37,6 +32,7 @@ data class GameScreenModel(
     val whiteClock: ClockView,
     val blackClock: ClockView,
     val history: List<MoveHistoryRow>,
+    val capturedMaterial: CapturedMaterialView,
     val controls: GameControlsView,
     val rulesLabel: String,
     val modeLabel: String,
@@ -51,12 +47,18 @@ sealed interface GameUiEffect {
     ) : GameUiEffect
 }
 
+private data class TimelineCache(
+    val moves: List<UciMove>,
+    val timeline: GameTimelineView,
+)
+
 class GameScreenController(
     private val coordinator: GameCoordinator,
     private val config: GameConfig,
     private val onEffect: (GameUiEffect) -> Unit = {},
     initialTheme: BoardTheme = BoardThemes.DEFAULT,
     initialPieceSet: PieceSet = PieceSets.MODERN_FLAT,
+    private val threatIndicationEnabled: Boolean = false,
 ) {
     private var theme = initialTheme
     private var pieceSet = initialPieceSet
@@ -65,17 +67,27 @@ class GameScreenController(
         config.humanSide,
     )
     private var transientMessage: String? = null
+    private var timelineCache: TimelineCache? = null
 
     @Synchronized
     fun model(): GameScreenModel {
         val snapshot = coordinator.snapshot()
-        val board = BoardPresenter.present(snapshot, config, interaction, theme, pieceSet)
+        val board = BoardPresenter.present(
+            snapshot = snapshot,
+            config = config,
+            interactionState = interaction,
+            theme = theme,
+            pieceSet = pieceSet,
+            threatIndicationEnabled = threatIndicationEnabled,
+        )
+        val timeline = timeline(snapshot.session.moves)
         interaction = board.interaction
         return GameScreenModel(
             board = board,
             whiteClock = clockView(snapshot.clock.whiteRemainingMillis, snapshot.clock.runningSide == Side.WHITE),
             blackClock = clockView(snapshot.clock.blackRemainingMillis, snapshot.clock.runningSide == Side.BLACK),
-            history = moveHistory(config.initialFen, snapshot.session.moves.map { it.move }),
+            history = timeline.history,
+            capturedMaterial = timeline.capturedMaterial,
             controls = controls(snapshot),
             rulesLabel = if (config.rules.preset == RulesContractV1.Preset.DRAWLESS) "Drawless" else "Escape",
             modeLabel = if (config.mode == GameMode.RATED) "Rated" else "Casual",
@@ -85,6 +97,11 @@ class GameScreenController(
                     playerSide = config.humanSide,
                     reason = outcome.reason,
                     explanation = outcome.explanation,
+                    score = GameScoring.forResult(
+                        playerWon = outcome.winner == config.humanSide,
+                        assistance = snapshot.assistance,
+                        timeControl = config.timeControl,
+                    ),
                 )
             },
             transientMessage = transientMessage,
@@ -182,13 +199,21 @@ class GameScreenController(
         }
     }
 
+    private fun timeline(records: List<MoveRecord>): GameTimelineView {
+        val moves = records.map { it.move }
+        timelineCache?.takeIf { it.moves == moves }?.let { return it.timeline }
+        return GameHistoryPresenter.present(config.initialFen, moves).also { timeline ->
+            timelineCache = TimelineCache(moves.toList(), timeline)
+        }
+    }
+
     private fun controls(snapshot: CoordinatorSnapshot): GameControlsView {
         val complete = snapshot.phase == CoordinatorPhase.COMPLETED
         val casual = config.mode == GameMode.CASUAL
         return GameControlsView(
             canPause = casual && !complete,
             paused = snapshot.phase == CoordinatorPhase.PAUSED,
-            canUndo = casual && snapshot.session.moves.any { it.mover == config.humanSide },
+            canUndo = casual && !complete && snapshot.session.moves.any { it.mover == config.humanSide },
             canHint = casual && snapshot.phase == CoordinatorPhase.HUMAN_TURN,
             canResign = !complete,
         )
@@ -211,16 +236,10 @@ class GameScreenController(
             return ClockView(text, active, remainingMillis < 10_000)
         }
 
-        fun moveHistory(initialFen: String, moves: List<UciMove>): List<MoveHistoryRow> {
-            var position = ChessPosition.fromFen(initialFen)
-            val san = moves.map { move ->
-                val notation = SanNotation.format(position, move)
-                position = ChessRules.apply(position, move)
-                notation
-            }
-            return san.chunked(2).mapIndexed { index, pair ->
-                MoveHistoryRow(index + 1, pair.getOrNull(0), pair.getOrNull(1))
-            }
-        }
+        fun moveHistory(initialFen: String, moves: List<UciMove>): List<MoveHistoryRow> =
+            GameHistoryPresenter.present(initialFen, moves).history
+
+        fun capturedMaterial(initialFen: String, moves: List<UciMove>): CapturedMaterialView =
+            GameHistoryPresenter.present(initialFen, moves).capturedMaterial
     }
 }

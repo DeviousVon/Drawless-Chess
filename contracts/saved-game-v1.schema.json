@@ -52,7 +52,8 @@
       "properties": {
         "hints": { "type": "integer", "minimum": 0 },
         "undos": { "type": "integer", "minimum": 0 },
-        "pauses": { "type": "integer", "minimum": 0 }
+        "pauses": { "type": "integer", "minimum": 0 },
+        "threatIndication": { "type": "boolean", "default": false }
       }
     },
     "result": {

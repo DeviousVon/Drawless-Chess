@@ -11,8 +11,8 @@ Canonical native source identity:
   Upstream: https://github.com/fairy-stockfish/Fairy-Stockfish.git
   Commit: fb78cb561aa01708338e35b3dc3b65a42149a3c4
   Upstream tree: dfe4b96037c10ab60e22613bf634452612fc2b04
-  Patched tree: 090d26be47498b99a23fdb1b9ff7587740b95664
-  Patch-series SHA-256: 3f5eafc2ce5e4fec083477310b09abbe0a1bcdcb689f75e0b2edf47f31939a32
+  Patched tree: 80208e5f35549b88505df983e4bc0f7621083fd4
+  Patch-series SHA-256: c44b63516728a3114378b7ee374e12bd8e092f3287b93fe6d2e80a24eac19fe7
   Drawless variant-config SHA-256: 749b110d8871629174be75c34688379813b74679dedc8c3af271f0c4cb6a1e8d
   Drawless patch interface: version 1
 

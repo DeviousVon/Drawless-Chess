@@ -70,7 +70,33 @@ private fun DrawScope.drawPiece(
                 )
             }
         }
-        PieceType.BISHOP -> drawLine(detail, Offset(57f, 17f), Offset(45f, 42f), strokeWidth = 4f)
+        PieceType.BISHOP -> {
+            // The recessed mitre cut and separate, wide shoulder are readable silhouette
+            // features at 14dp; the pawn has neither an angled crown nor a collar.
+            val mitreCut = Path().apply {
+                moveTo(59f, 16f)
+                lineTo(47f, 43f)
+                quadraticTo(44f, 47f, 40f, 43f)
+                lineTo(55f, 15f)
+                close()
+            }
+            drawPath(mitreCut, outline)
+            drawLine(detail, Offset(57f, 19f), Offset(43f, 43f), strokeWidth = 2.8f)
+
+            val collar = Path().apply {
+                moveTo(27f, 51f)
+                lineTo(73f, 51f)
+                lineTo(78f, 60f)
+                quadraticTo(80f, 65f, 73f, 66f)
+                lineTo(27f, 66f)
+                quadraticTo(20f, 65f, 22f, 60f)
+                close()
+            }
+            drawPath(collar, outline, style = Stroke(width = 6f))
+            drawPath(collar, fill)
+            drawPath(collar, outline, style = Stroke(width = 2.4f))
+            drawLine(detail, Offset(26f, 59f), Offset(74f, 59f), strokeWidth = 2.8f)
+        }
         PieceType.KNIGHT -> {
             drawCircle(detail, radius = 2.6f, center = Offset(57f, 31f))
             drawLine(detail, Offset(48f, 48f), Offset(63f, 55f), strokeWidth = 3f)
@@ -80,19 +106,24 @@ private fun DrawScope.drawPiece(
     }
 
     // A shared weighted base gives every piece a coherent, readable silhouette.
+    // The bishop's oversized collar needs a slightly shorter plinth so the whole mark keeps a
+    // clean raster margin in the 14dp promotion-history slot.
+    val baseTop = if (type == PieceType.BISHOP) 69f else 70f
+    val baseBottom = if (type == PieceType.BISHOP) 91f else 93f
+    val baseDetail = if (type == PieceType.BISHOP) 80f else 83f
     val base = Path().apply {
-        moveTo(25f, 70f)
-        lineTo(75f, 70f)
+        moveTo(25f, baseTop)
+        lineTo(75f, baseTop)
         lineTo(82f, 88f)
-        quadraticTo(83f, 93f, 77f, 93f)
-        lineTo(23f, 93f)
-        quadraticTo(17f, 93f, 18f, 88f)
+        quadraticTo(83f, baseBottom, 77f, baseBottom)
+        lineTo(23f, baseBottom)
+        quadraticTo(17f, baseBottom, 18f, 88f)
         close()
     }
     drawPath(base, outline, style = Stroke(width = 7f))
     drawPath(base, fill)
     drawPath(base, outline, style = Stroke(width = 2.4f))
-    drawLine(detail, Offset(23f, 83f), Offset(77f, 83f), strokeWidth = 2.6f)
+    drawLine(detail, Offset(23f, baseDetail), Offset(77f, baseDetail), strokeWidth = 2.6f)
 }
 
 private fun pawnPath() = Path().apply {
@@ -139,14 +170,16 @@ private fun knightPath() = Path().apply {
 }
 
 private fun bishopPath() = Path().apply {
-    moveTo(50f, 11f)
-    cubicTo(38f, 20f, 33f, 30f, 38f, 41f)
-    cubicTo(40f, 46f, 45f, 49f, 42f, 54f)
-    cubicTo(36f, 61f, 33f, 67f, 32f, 74f)
-    lineTo(68f, 74f)
-    cubicTo(67f, 67f, 64f, 61f, 58f, 54f)
-    cubicTo(55f, 49f, 60f, 46f, 62f, 41f)
-    cubicTo(67f, 30f, 62f, 20f, 50f, 11f)
+    moveTo(52f, 10f)
+    cubicTo(44f, 17f, 37f, 28f, 39f, 38f)
+    cubicTo(40f, 45f, 45f, 49f, 47f, 52f)
+    lineTo(43f, 58f)
+    cubicTo(38f, 62f, 33f, 68f, 29f, 74f)
+    lineTo(71f, 74f)
+    cubicTo(67f, 68f, 62f, 62f, 57f, 57f)
+    lineTo(53f, 52f)
+    cubicTo(58f, 49f, 63f, 44f, 64f, 37f)
+    cubicTo(65f, 27f, 59f, 17f, 52f, 10f)
     close()
 }
 

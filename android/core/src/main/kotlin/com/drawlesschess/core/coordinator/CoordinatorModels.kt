@@ -11,9 +11,14 @@ data class GameConfig(
     val humanSide: Side,
     val engineStrength: EngineStrength,
     val engineLimits: EngineLimits,
+    /** Stable named-opponent identity; null only for legacy or custom engine configurations. */
+    val opponentLevelId: String? = null,
 ) {
     init {
         require(gameId.isNotBlank() && initialFen.isNotBlank())
+        require(opponentLevelId == null || opponentLevelId.matches(Regex("^[a-z][a-z0-9-]*$"))) {
+            "Opponent level ID must be a stable lowercase identifier"
+        }
     }
 }
 
@@ -99,14 +104,25 @@ data class CoordinatorClock(
 
     fun resume(side: Side, now: TimeReading): CoordinatorClock = copy(paused = false).start(side, now)
 
-    fun completeMove(mover: Side, nextSide: Side, incrementMillis: Long, now: TimeReading): CoordinatorClock {
+    fun completeMove(
+        mover: Side,
+        nextSide: Side,
+        incrementMillis: Long,
+        now: TimeReading,
+        nextSideStartDelayMillis: Long = 0,
+    ): CoordinatorClock {
+        require(nextSideStartDelayMillis >= 0) { "Next-side clock delay must not be negative" }
         if (!timed) return this
         var settled = projected(now)
         settled = when (mover) {
             Side.WHITE -> settled.copy(whiteRemainingMillis = settled.whiteRemainingMillis!! + incrementMillis)
             Side.BLACK -> settled.copy(blackRemainingMillis = settled.blackRemainingMillis!! + incrementMillis)
         }
-        return settled.start(nextSide, now)
+        val nextSideStartsAt = TimeReading(
+            monotonicMillis = now.monotonicMillis + nextSideStartDelayMillis,
+            epochMillis = now.epochMillis + nextSideStartDelayMillis,
+        )
+        return settled.start(nextSide, nextSideStartsAt)
     }
 
     fun snapshot(now: TimeReading): ClockSnapshot {
@@ -172,6 +188,25 @@ data class CoordinatorCheckpoint(
     val moveClocks: List<MoveClockSnapshot>,
     val assistance: AssistanceCounts,
 )
+
+/**
+ * Converts a live checkpoint into the terminal loss used when its player deliberately starts
+ * another game. The caller must durably commit this checkpoint before activating a replacement
+ * game; keeping that ordering outside the coordinator also prevents a closed runtime from
+ * resurrecting the abandoned save with a late write.
+ */
+fun CoordinatorCheckpoint.forfeitByHuman(now: TimeReading): CoordinatorCheckpoint {
+    require(outcome == null) { "Only an unfinished game can be forfeited" }
+    return copy(
+        revision = Math.addExact(revision, 1L),
+        outcome = GameOutcome(
+            winner = config.humanSide.opposite(),
+            reason = EndReason.RESIGNATION,
+            explanation = "${config.humanSide} forfeits the game",
+        ),
+        clock = clock.stop(now).copy(paused = false),
+    )
+}
 
 fun interface CheckpointSink {
     fun persist(checkpoint: CoordinatorCheckpoint)
