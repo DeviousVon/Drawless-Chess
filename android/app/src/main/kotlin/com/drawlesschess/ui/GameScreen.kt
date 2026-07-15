@@ -35,6 +35,8 @@ import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -54,14 +56,17 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.drawlesschess.core.Side
+import com.drawlesschess.core.EndReason
+import com.drawlesschess.core.GameMode
+import com.drawlesschess.core.RulesContractV1
 import com.drawlesschess.core.coordinator.CoordinatorPhase
 import com.drawlesschess.core.chess.PieceType
 import com.drawlesschess.core.chess.Square
 import com.drawlesschess.core.presentation.*
 import com.drawlesschess.persistence.PlayerStatistics
+import com.drawlesschess.R
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import java.util.Locale
 import kotlin.math.roundToInt
 
 private data class PendingCompletion(
@@ -85,6 +90,7 @@ internal fun GameRoute(
     val opponentProfile = remember(runtime, runtime.opponentLevel.id) {
         OpponentProfiles.forLevel(runtime.opponentLevel)
     }
+    val opponentDisplayName = opponentName(opponentProfile)
     var model by remember(controller) { mutableStateOf(controller.model()) }
     val uiScope = rememberCoroutineScope()
     var soundedPlyCount by remember(controller) { mutableIntStateOf(model.history.plyCount()) }
@@ -212,21 +218,38 @@ internal fun GameRoute(
             TopAppBar(
                 title = {
                     Column {
-                        Text("Drawless Chess")
+                        Text(stringResource(R.string.app_name))
                         Text(
-                            "${model.rulesLabel} · ${model.modeLabel}",
+                            stringResource(
+                                R.string.game_title_summary,
+                                stringResource(
+                                    if (model.rulesPreset == RulesContractV1.Preset.DRAWLESS) {
+                                        R.string.rules_label_drawless
+                                    } else {
+                                        R.string.rules_label_escape
+                                    },
+                                ),
+                                stringResource(
+                                    if (model.mode == GameMode.CASUAL) R.string.mode_casual
+                                    else R.string.mode_rated,
+                                ),
+                            ),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 },
-                navigationIcon = { TextButton(onClick = exitGame) { Text("Save & exit") } },
+                navigationIcon = {
+                    TextButton(onClick = exitGame, modifier = Modifier.testTag("game_save_exit")) {
+                        Text(stringResource(R.string.game_save_exit))
+                    }
+                },
                 actions = {
                     TextButton(
                         onClick = onShowThemes,
                         modifier = Modifier.testTag("game_theme_selector"),
                     ) {
-                        Text("Theme")
+                        Text(stringResource(R.string.action_theme))
                     }
                 },
             )
@@ -235,7 +258,7 @@ internal fun GameRoute(
             postGameResult?.let { result ->
                 PostGameBar(
                     result = result,
-                    opponentName = opponentProfile.name,
+                    opponentName = opponentDisplayName,
                     careerAverageGameScore = playerStatistics
                         ?.takeIf { it.latestGameId == runtime.gameId }
                         ?.averageScore,
@@ -289,16 +312,21 @@ internal fun GameRoute(
     if (confirmResign) {
         AlertDialog(
             onDismissRequest = { confirmResign = false },
-            title = { Text("Resign this game?") },
-            text = { Text("${opponentProfile.name} will be awarded the win.") },
+            title = { Text(stringResource(R.string.game_resign_title)) },
+            text = { Text(stringResource(R.string.game_resign_body, opponentDisplayName)) },
             confirmButton = {
                 Button(onClick = {
                     confirmResign = false
                     model = controller.resign()
-                }) { Text("Resign game") }
+                }, modifier = Modifier.testTag("confirm_resign_game")) {
+                    Text(stringResource(R.string.game_resign_confirm))
+                }
             },
             dismissButton = {
-                TextButton(onClick = { confirmResign = false }) { Text("Keep playing") }
+                TextButton(
+                    onClick = { confirmResign = false },
+                    modifier = Modifier.testTag("cancel_resign_game"),
+                ) { Text(stringResource(R.string.action_keep_playing)) }
             },
         )
     }
@@ -307,12 +335,19 @@ internal fun GameRoute(
 @Composable
 internal fun PostGameBar(
     result: GameResultView,
-    opponentName: String = "Your opponent",
+    opponentName: String? = null,
     careerAverageGameScore: Double? = null,
     onHome: () -> Unit,
     onRematch: () -> Unit,
 ) {
-    val headline = if (result.playerWon) "Victory" else "Defeat"
+    val headline = stringResource(if (result.playerWon) R.string.game_victory else R.string.game_defeat)
+    val resolvedOpponentName = opponentName ?: stringResource(R.string.opponent_default)
+    val resultStateDescription = stringResource(
+        R.string.game_result_accessibility,
+        headline,
+        result.score.points,
+        result.score.maximumPoints,
+    )
     val container = if (result.playerWon) {
         MaterialTheme.colorScheme.primaryContainer
     } else {
@@ -338,7 +373,7 @@ internal fun PostGameBar(
                     .testTag("post_game_feedback")
                     .semantics {
                         stateDescription =
-                            "$headline, score ${result.score.points} of ${result.score.maximumPoints}"
+                            resultStateDescription
                         liveRegion = LiveRegionMode.Polite
                     }
                     .verticalScroll(rememberScrollState())
@@ -354,20 +389,20 @@ internal fun PostGameBar(
                 )
                 Text(
                     if (result.playerWon) {
-                        if (opponentName == "Your opponent") {
-                            "You won this game."
+                        if (opponentName == null) {
+                            stringResource(R.string.game_you_won)
                         } else {
-                            "You defeated $opponentName."
+                            stringResource(R.string.game_you_defeated, resolvedOpponentName)
                         }
                     } else {
-                        "$opponentName won this game."
+                        stringResource(R.string.game_opponent_won, resolvedOpponentName)
                     },
                     fontWeight = FontWeight.SemiBold,
                     color = onContainer,
                 )
-                Text(result.explanation, color = onContainer.copy(alpha = 0.82f))
+                Text(resultReasonText(result.reason), color = onContainer.copy(alpha = 0.82f))
                 Text(
-                    text = "Score: ${result.score.points} / ${result.score.maximumPoints}",
+                    text = stringResource(R.string.game_score, result.score.points, result.score.maximumPoints),
                     modifier = Modifier.testTag("post_game_score"),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
@@ -375,7 +410,7 @@ internal fun PostGameBar(
                 )
                 careerAverageGameScore?.let { average ->
                     Text(
-                        "Career average game score: ${String.format(Locale.US, "%.1f", average)}",
+                        stringResource(R.string.game_career_average, oneDecimal(average)),
                         modifier = Modifier.testTag("career_average_score"),
                         style = MaterialTheme.typography.bodyMedium,
                         color = onContainer.copy(alpha = 0.88f),
@@ -383,7 +418,7 @@ internal fun PostGameBar(
                 }
                 if (result.score.hintPenalty > 0) {
                     ScorePenaltyLine(
-                        label = "Hints",
+                        label = stringResource(R.string.game_hints),
                         points = result.score.hintPenalty,
                         tag = "hint_score_penalty",
                         color = onContainer.copy(alpha = 0.82f),
@@ -391,7 +426,7 @@ internal fun PostGameBar(
                 }
                 if (result.score.undoPenalty > 0) {
                     ScorePenaltyLine(
-                        label = "Undos",
+                        label = stringResource(R.string.game_undos),
                         points = result.score.undoPenalty,
                         tag = "undo_score_penalty",
                         color = onContainer.copy(alpha = 0.82f),
@@ -399,7 +434,7 @@ internal fun PostGameBar(
                 }
                 if (result.score.timedPausePenalty > 0) {
                     ScorePenaltyLine(
-                        label = "Timed pauses",
+                        label = stringResource(R.string.game_timed_pauses),
                         points = result.score.timedPausePenalty,
                         tag = "pause_score_penalty",
                         color = onContainer.copy(alpha = 0.82f),
@@ -407,7 +442,7 @@ internal fun PostGameBar(
                 }
                 if (result.score.threatIndicationPenalty > 0) {
                     ScorePenaltyLine(
-                        label = "Threat indication",
+                        label = stringResource(R.string.game_threat_indication),
                         points = result.score.threatIndicationPenalty,
                         tag = "threat_score_penalty",
                         color = onContainer.copy(alpha = 0.82f),
@@ -417,8 +452,14 @@ internal fun PostGameBar(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    OutlinedButton(onClick = onHome, modifier = Modifier.weight(1f)) { Text("Home") }
-                    Button(onClick = onRematch, modifier = Modifier.weight(1f)) { Text("Rematch") }
+                    OutlinedButton(
+                        onClick = onHome,
+                        modifier = Modifier.weight(1f).testTag("post_game_home"),
+                    ) { Text(stringResource(R.string.action_home)) }
+                    Button(
+                        onClick = onRematch,
+                        modifier = Modifier.weight(1f).testTag("post_game_rematch"),
+                    ) { Text(stringResource(R.string.action_rematch)) }
                 }
             }
         }
@@ -433,12 +474,26 @@ private fun ScorePenaltyLine(
     color: Color,
 ) {
     Text(
-        "$label: −$points points",
+        stringResource(R.string.game_penalty, label, points),
         modifier = Modifier.testTag(tag),
         style = MaterialTheme.typography.bodySmall,
         color = color,
     )
 }
+
+@Composable
+private fun resultReasonText(reason: EndReason): String = stringResource(
+    when (reason) {
+        EndReason.CHECKMATE -> R.string.result_checkmate
+        EndReason.STALEMATE -> R.string.result_stalemate
+        EndReason.REPETITION -> R.string.result_threefold_repetition
+        EndReason.DEAD_POSITION_MATERIAL -> R.string.result_dead_position_material
+        EndReason.DEAD_POSITION_FINAL_CAPTURE -> R.string.result_dead_position_final_capture
+        EndReason.FIFTY_MOVE_LIMIT -> R.string.result_fifty_move
+        EndReason.RESIGNATION -> R.string.result_resignation
+        EndReason.TIMEOUT -> R.string.result_timeout
+    },
+)
 
 @Composable
 internal fun GameBody(
@@ -700,6 +755,7 @@ internal fun SquareCell(
     onClick: () -> Unit,
     modifier: Modifier,
 ) {
+    val squareDescription = squareAccessibilityText(cell.accessibility)
     val base = if (cell.square.isLight) board.theme.lightSquare.color() else board.theme.darkSquare.color()
     val overlay = when {
         cell.inCheck -> board.theme.check.color()
@@ -713,7 +769,7 @@ internal fun SquareCell(
             .background(overlay)
             .testTag("board_square_${cell.square.algebraic}")
             .semantics(mergeDescendants = true) {
-                contentDescription = cell.accessibilityLabel
+                contentDescription = squareDescription
                 role = Role.Button
             }
             .clickable(enabled = inputEnabled, onClick = onClick),
@@ -800,6 +856,33 @@ internal fun SquareCell(
     }
 }
 
+@Composable
+private fun squareAccessibilityText(facts: SquareAccessibilityFacts): String {
+    val base = facts.piece?.let { piece ->
+        stringResource(
+            R.string.board_piece_square,
+            stringResource(
+                R.string.side_piece,
+                sideName(piece.side),
+                pieceName(piece.type),
+            ),
+            facts.square.algebraic,
+        )
+    } ?: stringResource(R.string.board_empty_square, facts.square.algebraic)
+    val details = buildList {
+        when (facts.target) {
+            TargetKind.QUIET -> add(stringResource(R.string.board_legal_move))
+            TargetKind.CAPTURE -> add(stringResource(R.string.board_legal_capture))
+            null -> Unit
+        }
+        if (facts.inCheck) add(stringResource(R.string.board_in_check))
+        if (facts.threatened) add(stringResource(R.string.board_under_threat))
+    }
+    return details.fold(base) { text, detail ->
+        stringResource(R.string.board_accessibility_join, text, detail)
+    }
+}
+
 private fun squareAtOffset(model: BoardScreenState, offset: Offset, boardPixels: Int): Square? {
     if (offset.x < 0 || offset.y < 0 || offset.x >= boardPixels || offset.y >= boardPixels) return null
     val cell = boardPixels / 8f
@@ -814,6 +897,15 @@ private fun ClockRow(
     modifier: Modifier = Modifier,
     forceStackCards: Boolean = false,
 ) {
+    val whiteLabel = stringResource(R.string.label_white)
+    val blackLabel = stringResource(R.string.label_black)
+    val captureLeadText = model.capturedMaterial.lead.side?.let { side ->
+        stringResource(
+            R.string.game_captured_lead,
+            sideName(side),
+            model.capturedMaterial.lead.points,
+        )
+    } ?: stringResource(R.string.game_captured_even)
     BoxWithConstraints(modifier.fillMaxWidth()) {
         val stackCards = forceStackCards || maxWidth < 280.dp || LocalDensity.current.fontScale >= 1.5f
         Column(
@@ -825,23 +917,21 @@ private fun ClockRow(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
-                    ClockCard("White", model.whiteClock, model.capturedMaterial.white, Modifier.fillMaxWidth())
-                    ClockCard("Black", model.blackClock, model.capturedMaterial.black, Modifier.fillMaxWidth())
+                    ClockCard(whiteLabel, model.whiteClock, model.capturedMaterial.white, Modifier.fillMaxWidth())
+                    ClockCard(blackLabel, model.blackClock, model.capturedMaterial.black, Modifier.fillMaxWidth())
                 }
             } else {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    ClockCard("White", model.whiteClock, model.capturedMaterial.white, Modifier.weight(1f))
-                    ClockCard("Black", model.blackClock, model.capturedMaterial.black, Modifier.weight(1f))
+                    ClockCard(whiteLabel, model.whiteClock, model.capturedMaterial.white, Modifier.weight(1f))
+                    ClockCard(blackLabel, model.blackClock, model.capturedMaterial.black, Modifier.weight(1f))
                 }
             }
             Text(
-                text = model.capturedMaterial.lead.side?.let { side ->
-                    "${side.displayName()} leads the captured piece score by ${model.capturedMaterial.lead.points}"
-                } ?: "Captured piece score is even",
+                text = captureLeadText,
                 modifier = Modifier
                     .align(Alignment.CenterHorizontally)
                     .clearAndSetSemantics {
-                        contentDescription = model.capturedMaterial.leadAccessibilityLabel
+                        contentDescription = captureLeadText
                     },
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -889,14 +979,19 @@ private fun OpponentStatusCard(
     onDismissMessage: () -> Unit,
 ) {
     val thinking = model.board.phase == CoordinatorPhase.BOT_THINKING
-    val statusText = when (model.board.phase) {
-        CoordinatorPhase.BOT_THINKING -> "${opponent.name} is thinking"
-        CoordinatorPhase.BOT_ERROR -> if (model.board.statusText == "Opponent unavailable") {
-            "${opponent.name} is unavailable"
-        } else {
-            model.board.statusText
-        }
-        else -> model.board.statusText
+    val opponentDisplayName = opponentName(opponent)
+    val statusText = when (model.board.status) {
+        BoardStatus.HUMAN_TURN -> stringResource(R.string.status_your_turn)
+        BoardStatus.HINT_THINKING -> stringResource(R.string.status_hint_thinking)
+        BoardStatus.BOT_THINKING -> stringResource(R.string.game_opponent_thinking, opponentDisplayName)
+        BoardStatus.BOT_ERROR -> stringResource(R.string.game_opponent_unavailable, opponentDisplayName)
+        BoardStatus.PAUSED -> stringResource(R.string.status_paused)
+        BoardStatus.COMPLETED -> stringResource(R.string.status_completed)
+    }
+    val transientMessage = when (val notice = model.transientNotice) {
+        GameNotice.ActionUnavailable -> stringResource(R.string.notice_action_unavailable)
+        is GameNotice.External -> notice.message
+        null -> null
     }
 
     ElevatedCard(
@@ -920,30 +1015,40 @@ private fun OpponentStatusCard(
                 verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
                 Text(
-                    opponent.name,
+                    opponentDisplayName,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                 )
                 Text(
-                    "${opponent.level.displayName} · ${opponent.epithet}",
+                    stringResource(
+                        R.string.game_title_summary,
+                        botLevelName(opponent.level),
+                        stringResource(opponent.epithetRes),
+                    ),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                Text(statusText, fontWeight = FontWeight.Medium)
-                model.transientMessage?.let { message ->
+                Text(
+                    statusText,
+                    modifier = Modifier.testTag("game_status"),
+                    fontWeight = FontWeight.Medium,
+                )
+                transientMessage?.let { message ->
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             message,
                             modifier = Modifier.weight(1f),
                             color = MaterialTheme.colorScheme.secondary,
                         )
-                        TextButton(onClick = onDismissMessage) { Text("Dismiss") }
+                        TextButton(onClick = onDismissMessage) { Text(stringResource(R.string.action_dismiss)) }
                     }
                 }
                 if (model.board.phase == CoordinatorPhase.BOT_ERROR) {
-                    FilledTonalButton(onClick = onRetryBot) { Text("Retry ${opponent.name}") }
+                    FilledTonalButton(onClick = onRetryBot) {
+                        Text(stringResource(R.string.game_retry_opponent, opponentDisplayName))
+                    }
                 }
             }
         }
@@ -965,16 +1070,16 @@ internal fun GameControls(
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         FilledTonalButton(onClick = onPause, enabled = controls.canPause) {
-            Text(if (controls.paused) "Resume" else "Pause")
+            Text(stringResource(if (controls.paused) R.string.game_resume else R.string.game_pause))
         }
-        FilledTonalButton(onClick = onUndo, enabled = controls.canUndo) { Text("Undo") }
-        FilledTonalButton(onClick = onHint, enabled = controls.canHint) { Text("Hint") }
-        FilledTonalButton(onClick = onFlip, enabled = controls.canFlip) { Text("Flip") }
+        FilledTonalButton(onClick = onUndo, enabled = controls.canUndo) { Text(stringResource(R.string.game_undo)) }
+        FilledTonalButton(onClick = onHint, enabled = controls.canHint) { Text(stringResource(R.string.game_hint)) }
+        FilledTonalButton(onClick = onFlip, enabled = controls.canFlip) { Text(stringResource(R.string.game_flip)) }
         TextButton(
             onClick = onResign,
             enabled = controls.canResign,
             modifier = Modifier.testTag("resign_button"),
-        ) { Text("Resign") }
+        ) { Text(stringResource(R.string.game_resign)) }
     }
 }
 
@@ -1008,21 +1113,21 @@ internal fun MoveHistory(history: List<MoveHistoryRow>, modifier: Modifier) {
 
     ElevatedCard(modifier.testTag("move_history"), shape = RoundedCornerShape(16.dp)) {
         Column(Modifier.fillMaxSize().padding(12.dp)) {
-            Text("Moves", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+            Text(stringResource(R.string.game_moves), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
             HorizontalDivider(Modifier.padding(vertical = 8.dp))
             if (history.isEmpty()) {
-                Text("No moves yet", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.game_no_moves), color = MaterialTheme.colorScheme.onSurfaceVariant)
             } else {
                 Row(Modifier.fillMaxWidth()) {
                     Spacer(Modifier.width(34.dp))
                     Text(
-                        "White",
+                        stringResource(R.string.label_white),
                         modifier = Modifier.weight(1f),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Text(
-                        "Black",
+                        stringResource(R.string.label_black),
                         modifier = Modifier.weight(1f),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -1035,7 +1140,11 @@ internal fun MoveHistory(history: List<MoveHistoryRow>, modifier: Modifier) {
                 ) {
                     items(history, key = { it.moveNumber }) { row ->
                         Row(Modifier.fillMaxWidth()) {
-                            Text("${row.moveNumber}.", Modifier.width(34.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(
+                                stringResource(R.string.move_number_format, row.moveNumber),
+                                Modifier.width(34.dp),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
                             MoveHistoryCell(row.white, row.moveNumber, "white", Modifier.weight(1f))
                             MoveHistoryCell(row.black, row.moveNumber, "black", Modifier.weight(1f))
                         }
@@ -1048,10 +1157,11 @@ internal fun MoveHistory(history: List<MoveHistoryRow>, modifier: Modifier) {
 
 @Composable
 internal fun CapturedMaterialSide(material: CapturedMaterialSideView, modifier: Modifier) {
+    val materialDescription = capturedMaterialAccessibilityText(material)
     Column(
         modifier = modifier
             .testTag("captured_by_${material.capturedBy.name.lowercase()}")
-            .clearAndSetSemantics { contentDescription = material.accessibilityLabel },
+            .clearAndSetSemantics { contentDescription = materialDescription },
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         FlowRow(
@@ -1060,12 +1170,12 @@ internal fun CapturedMaterialSide(material: CapturedMaterialSideView, modifier: 
             verticalArrangement = Arrangement.spacedBy(1.dp),
         ) {
             Text(
-                "Captured",
+                stringResource(R.string.game_captured),
                 style = MaterialTheme.typography.labelSmall,
                 maxLines = 1,
             )
             Text(
-                "Score ${material.totalValue}",
+                stringResource(R.string.game_material_score, material.totalValue),
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,
@@ -1073,7 +1183,7 @@ internal fun CapturedMaterialSide(material: CapturedMaterialSideView, modifier: 
         }
         if (material.pieces.isEmpty()) {
             Text(
-                "None",
+                stringResource(R.string.game_none),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -1122,6 +1232,85 @@ internal fun CapturedMaterialSide(material: CapturedMaterialSideView, modifier: 
 }
 
 @Composable
+private fun capturedMaterialAccessibilityText(material: CapturedMaterialSideView): String {
+    val side = sideName(material.capturedBy)
+    if (material.pieces.isEmpty()) {
+        return stringResource(R.string.captured_none_accessibility, side, material.totalValue)
+    }
+    val groups = CAPTURE_DISPLAY_ORDER.mapNotNull { type ->
+        val count = material.pieces.count { it == type }
+        if (count == 0) return@mapNotNull null
+        val resource = when (type) {
+            PieceType.QUEEN -> R.plurals.captured_queens
+            PieceType.ROOK -> R.plurals.captured_rooks
+            PieceType.BISHOP -> R.plurals.captured_bishops
+            PieceType.KNIGHT -> R.plurals.captured_knights
+            PieceType.PAWN -> R.plurals.captured_pawns
+            PieceType.KING -> return@mapNotNull null
+        }
+        pluralStringResource(resource, count, count)
+    }
+    return stringResource(
+        R.string.captured_accessibility,
+        side,
+        groups.joinToString(", "),
+        material.totalValue,
+    )
+}
+
+@Composable
+private fun moveAccessibilityText(facts: MoveAccessibilityFacts): String {
+    val side = sideName(facts.mover)
+    var text = when (facts.castleSide) {
+        CastleSide.KING_SIDE -> stringResource(
+            R.string.move_accessibility_castle_king,
+            side,
+            facts.moveNumber,
+            facts.notation,
+        )
+        CastleSide.QUEEN_SIDE -> stringResource(
+            R.string.move_accessibility_castle_queen,
+            side,
+            facts.moveNumber,
+            facts.notation,
+        )
+        null -> if (facts.capturedPiece != null && facts.capturedSide != null) {
+            val capturedPiece = requireNotNull(facts.capturedPiece)
+            val capturedSide = requireNotNull(facts.capturedSide)
+            stringResource(
+                R.string.move_accessibility_capture,
+                side,
+                facts.moveNumber,
+                pieceName(facts.movingPiece),
+                facts.from.algebraic,
+                stringResource(
+                    R.string.side_piece,
+                    sideName(capturedSide),
+                    pieceName(capturedPiece),
+                ),
+                (facts.capturedSquare ?: facts.to).algebraic,
+                facts.notation,
+            )
+        } else {
+            stringResource(
+                R.string.move_accessibility,
+                side,
+                facts.moveNumber,
+                pieceName(facts.movingPiece),
+                facts.from.algebraic,
+                facts.to.algebraic,
+                facts.notation,
+            )
+        }
+    }
+    if (facts.enPassant) text = stringResource(R.string.move_accessibility_en_passant, text)
+    facts.promotedTo?.let { promoted ->
+        text = stringResource(R.string.move_accessibility_promotion, text, pieceName(promoted))
+    }
+    return text
+}
+
+@Composable
 private fun MoveHistoryCell(
     entry: MoveHistoryEntry?,
     moveNumber: Int,
@@ -1132,10 +1321,11 @@ private fun MoveHistoryCell(
         Spacer(modifier)
         return
     }
+    val moveDescription = moveAccessibilityText(entry.accessibility)
     Row(
         modifier = modifier
             .testTag("move_${moveNumber}_$column")
-            .clearAndSetSemantics { contentDescription = entry.accessibilityLabel }
+            .clearAndSetSemantics { contentDescription = moveDescription }
             .padding(end = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -1158,13 +1348,14 @@ private fun PromotionDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Promote pawn") },
+        title = { Text(stringResource(R.string.game_promote_pawn)) },
         text = {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                 choices.forEach { piece ->
+                    val pieceDescription = pieceName(piece)
                     FilledTonalButton(
                         onClick = { onChoose(piece) },
-                        modifier = Modifier.semantics { contentDescription = piece.name.lowercase() },
+                        modifier = Modifier.semantics { contentDescription = pieceDescription },
                     ) {
                         ChessPiece(side, piece, Modifier.size(38.dp))
                     }
@@ -1172,7 +1363,7 @@ private fun PromotionDialog(
             }
         },
         confirmButton = {},
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) } },
     )
 }
 
@@ -1183,7 +1374,22 @@ private fun List<MoveHistoryRow>.plyCount(): Int = sumOf { row ->
 private fun List<MoveHistoryRow>.lastPlayedSan(): String? =
     lastOrNull()?.let { row -> row.black ?: row.white }?.notation
 
-private fun Side.displayName(): String = name.lowercase().replaceFirstChar(Char::uppercase)
+@Composable
+private fun sideName(side: Side): String = stringResource(
+    if (side == Side.WHITE) R.string.label_white else R.string.label_black,
+)
+
+@Composable
+private fun pieceName(piece: PieceType): String = stringResource(
+    when (piece) {
+        PieceType.PAWN -> R.string.piece_pawn
+        PieceType.KNIGHT -> R.string.piece_knight
+        PieceType.BISHOP -> R.string.piece_bishop
+        PieceType.ROOK -> R.string.piece_rook
+        PieceType.QUEEN -> R.string.piece_queen
+        PieceType.KING -> R.string.piece_king
+    },
+)
 
 private val CAPTURE_DISPLAY_ORDER = listOf(
     PieceType.QUEEN,

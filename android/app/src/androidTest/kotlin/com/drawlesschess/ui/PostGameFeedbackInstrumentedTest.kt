@@ -1,5 +1,6 @@
 package com.drawlesschess.ui
 
+import android.content.Context
 import android.media.AudioTrack
 import android.os.SystemClock
 import android.util.Log
@@ -10,7 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.assertIsNotDisplayed
+import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -18,6 +19,8 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
+import androidx.test.platform.app.InstrumentationRegistry
+import com.drawlesschess.R
 import com.drawlesschess.core.EndReason
 import com.drawlesschess.core.GameScore
 import com.drawlesschess.core.Side
@@ -26,6 +29,8 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
+import java.math.RoundingMode
+import java.text.NumberFormat
 
 class PostGameFeedbackInstrumentedTest {
     @get:Rule
@@ -33,6 +38,7 @@ class PostGameFeedbackInstrumentedTest {
 
     @Test
     fun victoryFeedbackIsExplicitAndActionsRemainAvailable() {
+        val context = targetContext()
         var homeClicks = 0
         var rematchClicks = 0
 
@@ -42,8 +48,8 @@ class PostGameFeedbackInstrumentedTest {
                     result = GameResultView(
                         playerWon = true,
                         playerSide = Side.BLACK,
+                        winner = Side.BLACK,
                         reason = EndReason.CHECKMATE,
-                        explanation = "BLACK wins by checkmate",
                         score = GameScore(100, 100, 0),
                     ),
                     onHome = { homeClicks += 1 },
@@ -53,13 +59,14 @@ class PostGameFeedbackInstrumentedTest {
         }
 
         compose.onNodeWithTag("post_game_feedback").fetchSemanticsNode()
-        compose.onNodeWithText("Victory").fetchSemanticsNode()
-        compose.onNodeWithText("You won this game.").fetchSemanticsNode()
-        compose.onNodeWithText("BLACK wins by checkmate").fetchSemanticsNode()
-        compose.onNodeWithText("Score: 100 / 100").fetchSemanticsNode()
+        compose.onNodeWithText(context.getString(R.string.game_victory)).fetchSemanticsNode()
+        compose.onNodeWithText(context.getString(R.string.game_you_won)).fetchSemanticsNode()
+        compose.onNodeWithText(context.getString(R.string.result_checkmate)).fetchSemanticsNode()
+        compose.onNodeWithTag("post_game_score")
+            .assertTextEquals(context.getString(R.string.game_score, 100, 100))
 
-        compose.onNodeWithText("Home").performClick()
-        compose.onNodeWithText("Rematch").performClick()
+        compose.onNodeWithTag("post_game_home").performClick()
+        compose.onNodeWithTag("post_game_rematch").performClick()
         // performClick waits for Compose to become idle, so the callbacks are complete here.
         // Avoid another ActivityScenario hop after the final click: on some physical devices the
         // shared test host can already be tearing down when this test follows non-Compose tests.
@@ -69,14 +76,15 @@ class PostGameFeedbackInstrumentedTest {
 
     @Test
     fun assistedVictoryExplainsEveryAppliedPenaltyAndCareerAverage() {
+        val context = targetContext()
         compose.setContent {
             DrawlessTheme {
                 PostGameBar(
                     result = GameResultView(
                         playerWon = true,
                         playerSide = Side.WHITE,
+                        winner = Side.WHITE,
                         reason = EndReason.CHECKMATE,
-                        explanation = "WHITE wins by checkmate",
                         score = GameScore(
                             points = 70,
                             maximumPoints = 100,
@@ -93,12 +101,23 @@ class PostGameFeedbackInstrumentedTest {
             }
         }
 
-        compose.onNodeWithText("Score: 70 / 100").fetchSemanticsNode()
-        compose.onNodeWithText("Career average game score: 64.3").fetchSemanticsNode()
-        compose.onNodeWithText("Hints: −10 points").fetchSemanticsNode()
-        compose.onNodeWithText("Undos: −10 points").fetchSemanticsNode()
-        compose.onNodeWithText("Timed pauses: −5 points").fetchSemanticsNode()
-        compose.onNodeWithText("Threat indication: −5 points").fetchSemanticsNode()
+        compose.onNodeWithTag("post_game_score")
+            .assertTextEquals(context.getString(R.string.game_score, 70, 100))
+        compose.onNodeWithTag("career_average_score").assertTextEquals(
+            context.getString(R.string.game_career_average, oneDecimal(context, 64.25)),
+        )
+        compose.onNodeWithTag("hint_score_penalty").assertTextEquals(
+            context.getString(R.string.game_penalty, context.getString(R.string.game_hints), 10),
+        )
+        compose.onNodeWithTag("undo_score_penalty").assertTextEquals(
+            context.getString(R.string.game_penalty, context.getString(R.string.game_undos), 10),
+        )
+        compose.onNodeWithTag("pause_score_penalty").assertTextEquals(
+            context.getString(R.string.game_penalty, context.getString(R.string.game_timed_pauses), 5),
+        )
+        compose.onNodeWithTag("threat_score_penalty").assertTextEquals(
+            context.getString(R.string.game_penalty, context.getString(R.string.game_threat_indication), 5),
+        )
     }
 
     @Test
@@ -111,8 +130,8 @@ class PostGameFeedbackInstrumentedTest {
                             result = GameResultView(
                                 playerWon = true,
                                 playerSide = Side.WHITE,
+                                winner = Side.WHITE,
                                 reason = EndReason.CHECKMATE,
-                                explanation = "WHITE wins by checkmate after a long and difficult battle",
                                 score = GameScore(95, 100, 5),
                             ),
                             opponentName = "Lucian",
@@ -125,13 +144,12 @@ class PostGameFeedbackInstrumentedTest {
         }
 
         compose.onNodeWithTag("compact_result_host").assertIsDisplayed()
-        compose.onNodeWithText("Home").assertIsNotDisplayed()
-        compose.onNodeWithText("Score: 95 / 100").performScrollTo().assertIsDisplayed()
-        compose.onNodeWithText("Threat indication: −5 points")
+        compose.onNodeWithTag("post_game_score").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithTag("threat_score_penalty")
             .performScrollTo()
             .assertIsDisplayed()
-        compose.onNodeWithText("Home").performScrollTo().assertIsDisplayed()
-        compose.onNodeWithText("Rematch").assertIsDisplayed()
+        compose.onNodeWithTag("post_game_home").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithTag("post_game_rematch").assertIsDisplayed()
     }
 
     @Test
@@ -291,5 +309,16 @@ class PostGameFeedbackInstrumentedTest {
             secondEnergy += right * right
         }
         return dot / kotlin.math.sqrt(firstEnergy * secondEnergy).coerceAtLeast(1.0)
+    }
+
+    private fun targetContext(): Context = InstrumentationRegistry.getInstrumentation().targetContext
+
+    private fun oneDecimal(context: Context, value: Double): String {
+        val locale = context.resources.configuration.locales[0]
+        return NumberFormat.getNumberInstance(locale).apply {
+            minimumFractionDigits = 1
+            maximumFractionDigits = 1
+            roundingMode = RoundingMode.HALF_UP
+        }.format(value)
     }
 }

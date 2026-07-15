@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.ContextWrapper
 import android.graphics.Bitmap
 import android.os.SystemClock
+import android.text.TextUtils
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -22,14 +23,19 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.test.junit4.ComposeContentTestRule
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.performClick
 import androidx.room.Room
 import androidx.test.platform.app.InstrumentationRegistry
+import com.drawlesschess.R
 import com.drawlesschess.core.AssistanceCounts
 import com.drawlesschess.core.EndReason
 import com.drawlesschess.core.EngineLimits
@@ -63,6 +69,7 @@ import com.drawlesschess.persistence.DrawlessDatabase
 import com.drawlesschess.persistence.RoomCheckpointStore
 import java.io.File
 import java.io.FileOutputStream
+import java.util.Locale
 import java.util.concurrent.Executors
 
 /**
@@ -74,14 +81,22 @@ import java.util.concurrent.Executors
  */
 internal object StoreScreenshotHarness {
     private const val ARGUMENT = "storeScreenshotSet"
+    private const val LOCALE_ARGUMENT = "storeScreenshotLocale"
     private const val VICTORY_CAPTURE_MILLIS = 1_210L
     private const val DEFEAT_CAPTURE_MILLIS = 890L
+    private var outputLocaleSuffix = ""
 
     fun runIfRequested(compose: ComposeContentTestRule): Boolean {
         val requested = InstrumentationRegistry.getArguments().getString(ARGUMENT) ?: return false
         require(requested in setOf("phone", "tablet-portrait", "tablet-landscape")) {
             "Unsupported $ARGUMENT '$requested'"
         }
+        val requestedLocale = InstrumentationRegistry.getArguments().getString(LOCALE_ARGUMENT)
+        val locale = requestedLocale?.let(Locale::forLanguageTag) ?: Locale.forLanguageTag("en-US")
+        require(locale.language.isNotBlank()) { "Unsupported $LOCALE_ARGUMENT '$requestedLocale'" }
+        outputLocaleSuffix = requestedLocale
+            ?.let { "-${it.lowercase(Locale.ROOT).replace(Regex("[^a-z0-9-]"), "-")}" }
+            .orEmpty()
 
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val testContext = instrumentation.context
@@ -98,24 +113,26 @@ internal object StoreScreenshotHarness {
 
         try {
             compose.setContent {
-                ForcedLightMode {
-                    DrawlessTheme(theme = themeFor(scene.value)) {
-                        when (scene.value) {
-                            MarketingScene.HOME -> DrawlessApp(viewModel, soundPlayer)
-                            MarketingScene.GAMEPLAY -> MarketingGame(
-                                model = gameplayModel(),
-                                opponent = OpponentProfiles.quickPlay,
-                            )
-                            MarketingScene.VICTORY -> MarketingGame(
-                                model = victoryModel(),
-                                opponent = OpponentProfiles.quickPlay,
-                                completion = victoryResult(),
-                            )
-                            MarketingScene.DEFEAT -> MarketingGame(
-                                model = defeatModel(),
-                                opponent = OpponentProfiles.quickPlay,
-                                completion = defeatResult(),
-                            )
+                ForcedLocale(locale) {
+                    ForcedLightMode {
+                        DrawlessTheme(theme = themeFor(scene.value)) {
+                            when (scene.value) {
+                                MarketingScene.HOME -> DrawlessApp(viewModel, soundPlayer)
+                                MarketingScene.GAMEPLAY -> MarketingGame(
+                                    model = gameplayModel(),
+                                    opponent = OpponentProfiles.quickPlay,
+                                )
+                                MarketingScene.VICTORY -> MarketingGame(
+                                    model = victoryModel(),
+                                    opponent = OpponentProfiles.quickPlay,
+                                    completion = victoryResult(),
+                                )
+                                MarketingScene.DEFEAT -> MarketingGame(
+                                    model = defeatModel(),
+                                    opponent = OpponentProfiles.quickPlay,
+                                    completion = defeatResult(),
+                                )
+                            }
                         }
                     }
                 }
@@ -140,7 +157,7 @@ internal object StoreScreenshotHarness {
     ) {
         awaitHome(compose)
         save(compose, "phone-home-current.png")
-        compose.onNodeWithText("Theme · Obsidian Glass").performClick()
+        compose.onNodeWithTag("home_theme").performClick()
         compose.onNodeWithTag("theme_picker").fetchSemanticsNode()
         save(compose, "phone-themes-current.png")
         setScene(compose, scene, MarketingScene.GAMEPLAY)
@@ -157,7 +174,7 @@ internal object StoreScreenshotHarness {
     ) {
         awaitHome(compose)
         save(compose, "tablet-home-current.png")
-        compose.onNodeWithText("Theme · Obsidian Glass").performClick()
+        compose.onNodeWithTag("home_theme").performClick()
         compose.onNodeWithTag("theme_picker").fetchSemanticsNode()
         save(compose, "tablet-themes-current.png")
         setScene(compose, scene, MarketingScene.GAMEPLAY)
@@ -176,7 +193,7 @@ internal object StoreScreenshotHarness {
 
     private fun awaitHome(compose: ComposeContentTestRule) {
         compose.waitUntil(timeoutMillis = 10_000) {
-            compose.onAllNodesWithText("Quick Play").fetchSemanticsNodes().isNotEmpty()
+            compose.onAllNodesWithTag("home_options").fetchSemanticsNodes().isNotEmpty()
         }
         compose.waitForIdle()
     }
@@ -221,11 +238,37 @@ internal object StoreScreenshotHarness {
         val directory = requireNotNull(
             InstrumentationRegistry.getInstrumentation().targetContext.externalCacheDir,
         )
-        val output = File(directory, fileName)
+        val output = File(directory, fileName.replace("-current.png", "$outputLocaleSuffix-current.png"))
         FileOutputStream(output).use { stream ->
             check(image.compress(Bitmap.CompressFormat.PNG, 100, stream))
         }
         check(output.length() > 10_000L) { "Screenshot output is unexpectedly small: $output" }
+    }
+
+    @Composable
+    private fun ForcedLocale(locale: Locale, content: @Composable () -> Unit) {
+        val currentContext = LocalContext.current
+        val currentConfiguration = LocalConfiguration.current
+        val localizedConfiguration = remember(currentConfiguration, locale) {
+            Configuration(currentConfiguration).apply {
+                setLocale(locale)
+                setLayoutDirection(locale)
+            }
+        }
+        val localizedContext = remember(currentContext, localizedConfiguration) {
+            currentContext.createConfigurationContext(localizedConfiguration)
+        }
+        val layoutDirection = if (TextUtils.getLayoutDirectionFromLocale(locale) == 1) {
+            LayoutDirection.Rtl
+        } else {
+            LayoutDirection.Ltr
+        }
+        CompositionLocalProvider(
+            LocalContext provides localizedContext,
+            LocalConfiguration provides localizedConfiguration,
+            LocalLayoutDirection provides layoutDirection,
+            content = content,
+        )
     }
 
     @Composable
@@ -251,15 +294,32 @@ internal object StoreScreenshotHarness {
                 TopAppBar(
                     title = {
                         Column {
-                            Text("Drawless Chess")
+                            Text(stringResource(R.string.app_name))
                             Text(
-                                "${model.rulesLabel} · ${model.modeLabel}",
+                                stringResource(
+                                    R.string.game_title_summary,
+                                    stringResource(
+                                        if (model.rulesPreset == RulesContractV1.Preset.DRAWLESS) {
+                                            R.string.rules_label_drawless
+                                        } else {
+                                            R.string.rules_label_escape
+                                        },
+                                    ),
+                                    stringResource(
+                                        if (model.mode == GameMode.CASUAL) R.string.mode_casual
+                                        else R.string.mode_rated,
+                                    ),
+                                ),
                                 style = MaterialTheme.typography.labelSmall,
                             )
                         }
                     },
-                    navigationIcon = { TextButton(onClick = {}) { Text("Save & exit") } },
-                    actions = { TextButton(onClick = {}) { Text("Theme") } },
+                    navigationIcon = {
+                        TextButton(onClick = {}) { Text(stringResource(R.string.game_save_exit)) }
+                    },
+                    actions = {
+                        TextButton(onClick = {}) { Text(stringResource(R.string.action_theme)) }
+                    },
                 )
             },
         ) { padding ->
@@ -375,26 +435,26 @@ internal object StoreScreenshotHarness {
                 canHint = result == null,
                 canResign = result == null,
             ),
-            rulesLabel = "Drawless",
-            modeLabel = "Casual",
+            rulesPreset = rules.preset,
+            mode = GameMode.CASUAL,
             result = result,
-            transientMessage = null,
+            transientNotice = null,
         )
     }
 
     private fun victoryResult() = GameResultView(
         playerWon = true,
         playerSide = Side.WHITE,
+        winner = Side.WHITE,
         reason = EndReason.CHECKMATE,
-        explanation = "WHITE wins by checkmate",
         score = GameScore(points = 100, maximumPoints = 100, threatIndicationPenalty = 0),
     )
 
     private fun defeatResult() = GameResultView(
         playerWon = false,
         playerSide = Side.WHITE,
+        winner = Side.BLACK,
         reason = EndReason.CHECKMATE,
-        explanation = "BLACK wins by checkmate",
         score = GameScore(points = 0, maximumPoints = 100, threatIndicationPenalty = 0),
     )
 

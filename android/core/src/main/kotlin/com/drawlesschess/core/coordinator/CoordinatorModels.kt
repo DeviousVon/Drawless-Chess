@@ -202,7 +202,6 @@ fun CoordinatorCheckpoint.forfeitByHuman(now: TimeReading): CoordinatorCheckpoin
         outcome = GameOutcome(
             winner = config.humanSide.opposite(),
             reason = EndReason.RESIGNATION,
-            explanation = "${config.humanSide} forfeits the game",
         ),
         clock = clock.stop(now).copy(paused = false),
     )

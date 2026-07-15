@@ -17,6 +17,8 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.test.platform.app.InstrumentationRegistry
+import com.drawlesschess.core.GameMode
+import com.drawlesschess.core.RulesContractV1
 import com.drawlesschess.core.Side
 import com.drawlesschess.core.chess.ChessPosition
 import com.drawlesschess.core.chess.PieceType
@@ -64,7 +66,10 @@ class CaptureHistoryUiInstrumentedTest {
 
         val capturedNode = compose.onNodeWithTag("captured_by_white")
             .assertWidthIsEqualTo(COMPACT_CLOCK_CONTENT_WIDTH_DP.dp)
-            .assertContentDescriptionEquals(material.accessibilityLabel)
+            .assertContentDescriptionEquals(
+                "White captured: 1 queen, 2 rooks, 2 bishops, 2 knights, 8 pawns. " +
+                    "Captured piece score 39.",
+            )
             .fetchSemanticsNode()
         assertTrue(capturedNode.boundsInRoot.height > 0f)
     }
@@ -80,7 +85,14 @@ class CaptureHistoryUiInstrumentedTest {
                     mover = Side.WHITE,
                     piece = PieceType.QUEEN,
                     promotedTo = null,
-                    accessibilityLabel = description,
+                    accessibility = moveAccessibility(
+                        moveNumber = 1,
+                        mover = Side.WHITE,
+                        piece = PieceType.QUEEN,
+                        from = "d1",
+                        to = "b7",
+                        notation = "Qb7",
+                    ),
                 ),
                 black = null,
             ),
@@ -247,14 +259,10 @@ class CaptureHistoryUiInstrumentedTest {
             PieceType.KNIGHT,
             PieceType.KNIGHT,
         ) + List(8) { PieceType.PAWN }
-        val description =
-            "${side.name.lowercase().replaceFirstChar(Char::uppercase)} captured: " +
-                "1 queen, 2 rooks, 2 bishops, 2 knights, 8 pawns. Captured piece score 39."
         return CapturedMaterialSideView(
             capturedBy = side,
             pieces = pieces,
             totalValue = 39,
-            accessibilityLabel = description,
         )
     }
 
@@ -266,14 +274,28 @@ class CaptureHistoryUiInstrumentedTest {
                 mover = Side.WHITE,
                 piece = PieceType.QUEEN,
                 promotedTo = null,
-                accessibilityLabel = "White move $moveNumber: queen to b7, Qb7.",
+                accessibility = moveAccessibility(
+                    moveNumber = moveNumber,
+                    mover = Side.WHITE,
+                    piece = PieceType.QUEEN,
+                    from = "d1",
+                    to = "b7",
+                    notation = "Qb7",
+                ),
             ),
             black = MoveHistoryEntry(
                 notation = "Nf6",
                 mover = Side.BLACK,
                 piece = PieceType.KNIGHT,
                 promotedTo = null,
-                accessibilityLabel = "Black move $moveNumber: knight to f6, Nf6.",
+                accessibility = moveAccessibility(
+                    moveNumber = moveNumber,
+                    mover = Side.BLACK,
+                    piece = PieceType.KNIGHT,
+                    from = "g8",
+                    to = "f6",
+                    notation = "Nf6",
+                ),
             ),
         )
     }
@@ -299,7 +321,13 @@ class CaptureHistoryUiInstrumentedTest {
                         lastMove = false,
                         inCheck = false,
                         threatened = false,
-                        accessibilityLabel = square.algebraic,
+                        accessibility = SquareAccessibilityFacts(
+                            square = square,
+                            piece = piece,
+                            target = null,
+                            inCheck = false,
+                            threatened = false,
+                        ),
                     ),
                 )
             }
@@ -313,7 +341,7 @@ class CaptureHistoryUiInstrumentedTest {
             interaction = interaction,
             interactive = true,
             phase = CoordinatorPhase.HUMAN_TURN,
-            statusText = "Your turn",
+            status = BoardStatus.HUMAN_TURN,
             theme = BoardThemes.DEFAULT,
             pieceSet = pieceSet,
             promotionPrompt = null,
@@ -333,7 +361,6 @@ class CaptureHistoryUiInstrumentedTest {
                 white = whiteCaptured,
                 black = blackCaptured,
                 lead = CaptureScoreLead(side = null, points = 0),
-                leadAccessibilityLabel = "Captured piece score is even.",
             ),
             controls = GameControlsView(
                 canPause = true,
@@ -342,12 +369,34 @@ class CaptureHistoryUiInstrumentedTest {
                 canHint = true,
                 canResign = true,
             ),
-            rulesLabel = "Drawless",
-            modeLabel = "Casual",
+            rulesPreset = RulesContractV1.Preset.DRAWLESS,
+            mode = GameMode.CASUAL,
             result = null,
-            transientMessage = null,
+            transientNotice = null,
         )
     }
+
+    private fun moveAccessibility(
+        moveNumber: Int,
+        mover: Side,
+        piece: PieceType,
+        from: String,
+        to: String,
+        notation: String,
+    ) = MoveAccessibilityFacts(
+        moveNumber = moveNumber,
+        mover = mover,
+        movingPiece = piece,
+        from = Square.parse(from),
+        to = Square.parse(to),
+        capturedSide = null,
+        capturedPiece = null,
+        capturedSquare = null,
+        enPassant = false,
+        castleSide = null,
+        promotedTo = null,
+        notation = notation,
+    )
 
     private companion object {
         const val COMPACT_CLOCK_CONTENT_WIDTH_DP = 115

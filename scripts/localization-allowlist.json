@@ -1,0 +1,4 @@
+{
+  "policy": "Every exception must match one exact repository-relative file and literal value, include a reviewable reason, and is rejected once unused. Regex and directory-wide exemptions are not supported.",
+  "entries": []
+}

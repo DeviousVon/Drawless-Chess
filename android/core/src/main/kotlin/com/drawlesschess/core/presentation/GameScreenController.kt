@@ -22,10 +22,16 @@ data class GameControlsView(
 data class GameResultView(
     val playerWon: Boolean,
     val playerSide: Side,
+    val winner: Side,
     val reason: EndReason,
-    val explanation: String,
     val score: GameScore,
 )
+
+sealed interface GameNotice {
+    data object ActionUnavailable : GameNotice
+    /** Already-localized presentation supplied by the Android UI. */
+    data class External(val message: String) : GameNotice
+}
 
 data class GameScreenModel(
     val board: BoardScreenState,
@@ -34,10 +40,10 @@ data class GameScreenModel(
     val history: List<MoveHistoryRow>,
     val capturedMaterial: CapturedMaterialView,
     val controls: GameControlsView,
-    val rulesLabel: String,
-    val modeLabel: String,
+    val rulesPreset: RulesContractV1.Preset,
+    val mode: GameMode,
     val result: GameResultView?,
-    val transientMessage: String?,
+    val transientNotice: GameNotice?,
 )
 
 sealed interface GameUiEffect {
@@ -66,7 +72,7 @@ class GameScreenController(
         ChessPosition.fromFen(coordinator.snapshot().currentFen),
         config.humanSide,
     )
-    private var transientMessage: String? = null
+    private var transientNotice: GameNotice? = null
     private var timelineCache: TimelineCache? = null
 
     @Synchronized
@@ -89,14 +95,14 @@ class GameScreenController(
             history = timeline.history,
             capturedMaterial = timeline.capturedMaterial,
             controls = controls(snapshot),
-            rulesLabel = if (config.rules.preset == RulesContractV1.Preset.DRAWLESS) "Drawless" else "Escape",
-            modeLabel = if (config.mode == GameMode.RATED) "Rated" else "Casual",
+            rulesPreset = config.rules.preset,
+            mode = config.mode,
             result = snapshot.session.outcome?.let { outcome ->
                 GameResultView(
                     playerWon = outcome.winner == config.humanSide,
                     playerSide = config.humanSide,
+                    winner = outcome.winner,
                     reason = outcome.reason,
-                    explanation = outcome.explanation,
                     score = GameScoring.forResult(
                         playerWon = outcome.winner == config.humanSide,
                         assistance = snapshot.assistance,
@@ -104,7 +110,7 @@ class GameScreenController(
                     ),
                 )
             },
-            transientMessage = transientMessage,
+            transientNotice = transientNotice,
         )
     }
 
@@ -178,24 +184,24 @@ class GameScreenController(
 
     @Synchronized
     fun dismissMessage(): GameScreenModel {
-        transientMessage = null
+        transientNotice = null
         return model()
     }
 
     @Synchronized
     fun showMessage(message: String): GameScreenModel {
-        transientMessage = message
+        transientNotice = GameNotice.External(message)
         return model()
     }
 
     private fun runUiAction(action: () -> Unit) {
         try {
-            transientMessage = null
+            transientNotice = null
             action()
         } catch (error: IllegalArgumentException) {
-            transientMessage = error.message ?: "Action unavailable"
+            transientNotice = GameNotice.ActionUnavailable
         } catch (error: IllegalStateException) {
-            transientMessage = error.message ?: "Action unavailable"
+            transientNotice = GameNotice.ActionUnavailable
         }
     }
 

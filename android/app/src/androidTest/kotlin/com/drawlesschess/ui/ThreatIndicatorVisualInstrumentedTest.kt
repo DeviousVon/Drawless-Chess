@@ -31,16 +31,19 @@ import androidx.compose.ui.unit.dp
 import androidx.test.platform.app.InstrumentationRegistry
 import com.drawlesschess.core.Side
 import com.drawlesschess.core.chess.ChessPosition
+import com.drawlesschess.core.chess.Piece
 import com.drawlesschess.core.chess.PieceType
 import com.drawlesschess.core.chess.Square
 import com.drawlesschess.core.coordinator.CoordinatorPhase
 import com.drawlesschess.core.presentation.BoardInteractionState
 import com.drawlesschess.core.presentation.BoardScreenState
+import com.drawlesschess.core.presentation.BoardStatus
 import com.drawlesschess.core.presentation.BoardTheme
 import com.drawlesschess.core.presentation.BoardThemes
 import com.drawlesschess.core.presentation.PieceSets
 import com.drawlesschess.core.presentation.PieceView
 import com.drawlesschess.core.presentation.SquareView
+import com.drawlesschess.core.presentation.SquareAccessibilityFacts
 import java.io.FileOutputStream
 import kotlin.math.abs
 import org.junit.Assert.assertEquals
@@ -311,7 +314,13 @@ private fun ThreatSquareFixture(theme: BoardTheme, side: Side, type: PieceType) 
         lastMove = false,
         inCheck = false,
         threatened = true,
-        accessibilityLabel = "${side.name.lowercase()} ${type.name.lowercase()} on a1, under threat",
+        accessibility = SquareAccessibilityFacts(
+            square = square,
+            piece = Piece(side, type),
+            target = null,
+            inCheck = false,
+            threatened = true,
+        ),
     )
     val board = BoardScreenState(
         positionMarker = position.fen(),
@@ -322,7 +331,7 @@ private fun ThreatSquareFixture(theme: BoardTheme, side: Side, type: PieceType) 
         interaction = BoardInteractionState.initial(position, side),
         interactive = false,
         phase = CoordinatorPhase.HUMAN_TURN,
-        statusText = "Visual test",
+        status = BoardStatus.HUMAN_TURN,
         theme = theme,
         pieceSet = PieceSets.MODERN_FLAT,
         promotionPrompt = null,

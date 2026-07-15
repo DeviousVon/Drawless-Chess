@@ -220,8 +220,26 @@ data class SquareView(
     val lastMove: Boolean,
     val inCheck: Boolean,
     val threatened: Boolean,
-    val accessibilityLabel: String,
+    val accessibility: SquareAccessibilityFacts,
 )
+
+/** Locale-neutral facts from which the Android UI builds an accessibility description. */
+data class SquareAccessibilityFacts(
+    val square: Square,
+    val piece: Piece?,
+    val target: TargetKind?,
+    val inCheck: Boolean,
+    val threatened: Boolean,
+)
+
+enum class BoardStatus {
+    HUMAN_TURN,
+    HINT_THINKING,
+    BOT_THINKING,
+    BOT_ERROR,
+    PAUSED,
+    COMPLETED,
+}
 
 data class BoardScreenState(
     val positionMarker: String,
@@ -232,7 +250,7 @@ data class BoardScreenState(
     val interaction: BoardInteractionState,
     val interactive: Boolean,
     val phase: CoordinatorPhase,
-    val statusText: String,
+    val status: BoardStatus,
     val theme: BoardTheme,
     val pieceSet: PieceSet,
     val promotionPrompt: PromotionPrompt?,
@@ -292,12 +310,12 @@ object BoardPresenter {
                     lastMove = lastMove?.let { square == it.from || square == it.to } == true,
                     inCheck = checkedKing == square,
                     threatened = square in threatenedPieces,
-                    accessibilityLabel = AccessibilityLabels.square(
-                        square,
-                        piece,
-                        target,
-                        checkedKing == square,
-                        square in threatenedPieces,
+                    accessibility = SquareAccessibilityFacts(
+                        square = square,
+                        piece = piece,
+                        target = target,
+                        inCheck = checkedKing == square,
+                        threatened = square in threatenedPieces,
                     ),
                 ))
             }
@@ -311,7 +329,7 @@ object BoardPresenter {
             interaction = interaction,
             interactive = interactive,
             phase = snapshot.phase,
-            statusText = status(snapshot),
+            status = status(snapshot),
             theme = theme,
             pieceSet = pieceSet,
             promotionPrompt = interaction.promotionPrompt,
@@ -364,32 +382,12 @@ object BoardPresenter {
         return position[move.from]?.type == PieceType.PAWN && move.from.file != move.to.file
     }
 
-    private fun status(snapshot: CoordinatorSnapshot): String = when (snapshot.phase) {
-        CoordinatorPhase.HUMAN_TURN -> "Your move"
-        CoordinatorPhase.HINT_THINKING -> "Finding a strong move"
-        CoordinatorPhase.BOT_THINKING -> "Opponent is thinking"
-        CoordinatorPhase.BOT_ERROR -> snapshot.engineError ?: "Opponent unavailable"
-        CoordinatorPhase.PAUSED -> "Game paused"
-        CoordinatorPhase.COMPLETED -> snapshot.session.outcome?.explanation ?: "Game complete"
-    }
-}
-
-object AccessibilityLabels {
-    fun square(
-        square: Square,
-        piece: Piece?,
-        target: TargetKind?,
-        inCheck: Boolean,
-        threatened: Boolean = false,
-    ): String {
-        val contents = if (piece == null) "Empty ${square.algebraic}" else
-            "${piece.side.name.lowercase().replaceFirstChar(Char::uppercase)} ${piece.type.name.lowercase()} on ${square.algebraic}"
-        val annotations = buildList {
-            if (target == TargetKind.QUIET) add("legal move")
-            if (target == TargetKind.CAPTURE) add("legal capture")
-            if (inCheck) add("king in check")
-            if (threatened) add("under threat")
-        }
-        return if (annotations.isEmpty()) contents else "$contents, ${annotations.joinToString(", ")}"
+    private fun status(snapshot: CoordinatorSnapshot): BoardStatus = when (snapshot.phase) {
+        CoordinatorPhase.HUMAN_TURN -> BoardStatus.HUMAN_TURN
+        CoordinatorPhase.HINT_THINKING -> BoardStatus.HINT_THINKING
+        CoordinatorPhase.BOT_THINKING -> BoardStatus.BOT_THINKING
+        CoordinatorPhase.BOT_ERROR -> BoardStatus.BOT_ERROR
+        CoordinatorPhase.PAUSED -> BoardStatus.PAUSED
+        CoordinatorPhase.COMPLETED -> BoardStatus.COMPLETED
     }
 }

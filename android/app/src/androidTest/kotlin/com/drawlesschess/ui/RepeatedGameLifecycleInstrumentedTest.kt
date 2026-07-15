@@ -1,12 +1,12 @@
 package com.drawlesschess.ui
 
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
-import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -16,6 +16,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.test.core.app.ApplicationProvider
 import com.drawlesschess.DrawlessApplication
 import com.drawlesschess.MainActivity
+import com.drawlesschess.R
 import com.drawlesschess.core.presentation.BoardThemes
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -50,15 +51,16 @@ class RepeatedGameLifecycleInstrumentedTest {
             }.isSuccess
         }
 
-        compose.onNodeWithContentDescription("White pawn on e2").performClick()
-        compose.onNodeWithContentDescription("Empty e4, legal move").performClick()
+        compose.onNodeWithTag("board_square_e2").performClick()
+        compose.onNodeWithTag("board_square_e4").performClick()
         compose.waitUntil(timeoutMillis = 10_000L) {
-            compose.onAllNodesWithContentDescription("Empty e2", substring = true)
-                .fetchSemanticsNodes().isNotEmpty()
+            runCatching {
+                compose.onNodeWithTag("board_square_e2").assertContentDescriptionEquals(
+                    compose.activity.getString(R.string.board_empty_square, "e2"),
+                )
+            }.isSuccess
         }
-        compose.waitUntil(timeoutMillis = 20_000L) {
-            compose.onAllNodesWithText("Your move").fetchSemanticsNodes().isNotEmpty()
-        }
+        waitForStatus(R.string.status_your_turn, timeoutMillis = 20_000L)
 
         assertTrue(
             compose.onAllNodesWithText("Engine session has failed", substring = true)
@@ -90,11 +92,9 @@ class RepeatedGameLifecycleInstrumentedTest {
                 .fetchSemanticsNodes().isEmpty(),
         )
 
-        compose.onNodeWithContentDescription("White pawn on e2").performClick()
-        compose.onNodeWithContentDescription("Empty e4, legal move").performClick()
-        compose.waitUntil(timeoutMillis = 20_000L) {
-            compose.onAllNodesWithText("Your move").fetchSemanticsNodes().isNotEmpty()
-        }
+        compose.onNodeWithTag("board_square_e2").performClick()
+        compose.onNodeWithTag("board_square_e4").performClick()
+        waitForStatus(R.string.status_your_turn, timeoutMillis = 20_000L)
         assertTrue(
             compose.onAllNodesWithText("Engine session has failed", substring = true)
                 .fetchSemanticsNodes().isEmpty(),
@@ -105,7 +105,7 @@ class RepeatedGameLifecycleInstrumentedTest {
     fun customGameUsesDescriptiveLevelsAndKeepsEscapeAdvanced() {
         dismissRulesGuideIfShown()
         waitForText("Theme ·", substring = true)
-        compose.onNodeWithText("Theme ·", substring = true).performClick()
+        compose.onNodeWithTag("home_theme").performClick()
         BoardThemes.all.forEach { theme ->
             compose.onNodeWithTag("theme_option_${theme.id}").performScrollTo().fetchSemanticsNode()
         }
@@ -153,15 +153,15 @@ class RepeatedGameLifecycleInstrumentedTest {
         confirmForfeitIfShown()
         waitForText("Save & exit")
 
-        compose.onNodeWithText("Resign").performClick()
+        compose.onNodeWithTag("resign_button").performClick()
         waitForText("Resign this game?")
         compose.onNodeWithText("Resign game").performClick()
         waitForText("Defeat")
         waitForText("Theo won this game.")
         waitForText("Rematch")
 
-        compose.onNodeWithText("Rematch").performClick()
-        waitForText("Your move")
+        compose.onNodeWithTag("post_game_rematch").performClick()
+        waitForStatus(R.string.status_your_turn)
         assertTrue(compose.onAllNodesWithText("Defeat").fetchSemanticsNodes().isEmpty())
     }
 
@@ -182,7 +182,7 @@ class RepeatedGameLifecycleInstrumentedTest {
         )
         startWhiteCustomGame()
 
-        compose.onNodeWithText("Resign").performClick()
+        compose.onNodeWithTag("resign_button").performClick()
         waitForText("Resign this game?")
         compose.onNodeWithText("Resign game").performClick()
         waitForText("Defeat")
@@ -252,7 +252,7 @@ class RepeatedGameLifecycleInstrumentedTest {
         assertEquals(lossesBefore + 1, loadPlayerLosses())
 
         // Finish the replacement so this test leaves no resumable checkpoint behind.
-        compose.onNodeWithText("Resign").performClick()
+        compose.onNodeWithTag("resign_button").performClick()
         waitForText("Resign this game?")
         compose.onNodeWithText("Resign game").performClick()
         waitForText("Defeat")
@@ -292,6 +292,15 @@ class RepeatedGameLifecycleInstrumentedTest {
     private fun waitForText(value: String, substring: Boolean = false) {
         compose.waitUntil(timeoutMillis = 10_000L) {
             compose.onAllNodesWithText(value, substring = substring).fetchSemanticsNodes().isNotEmpty()
+        }
+    }
+
+    private fun waitForStatus(resourceId: Int, timeoutMillis: Long = 10_000L) {
+        val expected = compose.activity.getString(resourceId)
+        compose.waitUntil(timeoutMillis = timeoutMillis) {
+            runCatching {
+                compose.onNodeWithTag("game_status").assertTextEquals(expected)
+            }.isSuccess
         }
     }
 

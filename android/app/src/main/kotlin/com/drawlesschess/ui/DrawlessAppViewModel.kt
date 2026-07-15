@@ -1,6 +1,7 @@
 package com.drawlesschess.ui
 
 import android.content.Context
+import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -16,6 +17,7 @@ import com.drawlesschess.core.presentation.BoardTheme
 import com.drawlesschess.core.presentation.BoardThemes
 import com.drawlesschess.persistence.PlayerStatistics
 import com.drawlesschess.persistence.RoomCheckpointStore
+import com.drawlesschess.R
 
 internal enum class AppRoute {
     HOME,
@@ -29,13 +31,13 @@ internal sealed interface ResumeState {
     data object Loading : ResumeState
     data object Empty : ResumeState
     data class Ready(val checkpoint: CoordinatorCheckpoint) : ResumeState
-    data class Failed(val message: String) : ResumeState
+    data class Failed(val message: UiText) : ResumeState
 }
 
 internal sealed interface PlayerStatsState {
     data object Loading : PlayerStatsState
     data class Ready(val statistics: PlayerStatistics) : PlayerStatsState
-    data class Failed(val message: String) : PlayerStatsState
+    data class Failed(val message: UiText) : PlayerStatsState
 }
 
 internal data class ResolvedGameSetup(
@@ -47,7 +49,7 @@ internal data class ForfeitConfirmationState(
     val selection: SetupSelection,
     val expectedGameId: String,
     val recordingLoss: Boolean = false,
-    val errorMessage: String? = null,
+    val errorMessage: UiText? = null,
 )
 
 internal fun SetupSelection.resolveForNewGame(randomBoolean: () -> Boolean): ResolvedGameSetup {
@@ -199,7 +201,7 @@ internal class DrawlessAppViewModel(
                         // Fail closed even if a future storage implementation accidentally
                         // returns an unrecorded success result.
                         forfeitConfirmation = pending.copy(
-                            errorMessage = "The loss couldn't be recorded. Keep the current game and try again.",
+                            errorMessage = uiText(R.string.error_loss_not_recorded),
                         )
                     } else {
                         // The storage callback runs only after the terminal checkpoint and history
@@ -212,11 +214,9 @@ internal class DrawlessAppViewModel(
                     }
                 },
                 onFailure = { error ->
-                    val detail = error.message?.takeIf(String::isNotBlank)
-                        ?: error::class.simpleName
-                        ?: "unknown error"
+                    Log.e(LOG_TAG, "Could not record forfeited game", error)
                     forfeitConfirmation = pending.copy(
-                        errorMessage = "The loss couldn't be recorded: $detail",
+                        errorMessage = uiText(R.string.error_loss_not_recorded),
                     )
                 },
             )
@@ -313,10 +313,8 @@ internal class DrawlessAppViewModel(
             playerStatsState = result.fold(
                 onSuccess = PlayerStatsState::Ready,
                 onFailure = { error ->
-                    val detail = error.message?.takeIf(String::isNotBlank)
-                        ?: error::class.simpleName
-                        ?: "unknown error"
-                    PlayerStatsState.Failed("Player statistics can't be loaded: $detail")
+                    Log.e(LOG_TAG, "Could not load player statistics", error)
+                    PlayerStatsState.Failed(uiText(R.string.error_stats_not_loaded))
                 },
             )
         }
@@ -336,13 +334,12 @@ internal class DrawlessAppViewModel(
     }
 
     private fun showResumeFailure(error: Throwable) {
-        val detail = error.message?.takeIf(String::isNotBlank)
-            ?: error::class.simpleName
-            ?: "unknown error"
-        resumeState = ResumeState.Failed("Saved game can't be resumed: $detail")
+        Log.e(LOG_TAG, "Could not resume saved game", error)
+        resumeState = ResumeState.Failed(uiText(R.string.error_saved_game_not_resumed))
     }
 
     companion object {
+        private const val LOG_TAG = "DrawlessChessApp"
         private const val PREFERENCES_NAME = "drawless-onboarding"
         private const val RULES_GUIDE_SEEN = "rules-guide-seen-v1"
 

@@ -115,16 +115,29 @@ class RoomCheckpointStoreInstrumentedTest {
             outcome = GameOutcome(
                 winner = Side.BLACK,
                 reason = EndReason.RESIGNATION,
-                explanation = "WHITE resigns",
             ),
             clock = checkpoint.clock.stop(TimeReading(41_000L, 81_000L)),
         )
-        assertEquals(
-            completed,
-            CoordinatorCheckpointCodec.decode(
-                CoordinatorCheckpointCodec.encode(completed, updatedAtEpochMillis = 100_000L),
-            ),
-        )
+        val encodedCompleted = CoordinatorCheckpointCodec.encode(completed, updatedAtEpochMillis = 100_000L)
+        assertTrue(!JSONObject(encodedCompleted.payloadJson).getJSONObject("outcome").has("explanation"))
+        assertEquals(completed, CoordinatorCheckpointCodec.decode(encodedCompleted))
+
+        EndReason.entries.forEach { reason ->
+            val semanticOutcome = completed.copy(outcome = GameOutcome(Side.BLACK, reason = reason))
+            val encoded = CoordinatorCheckpointCodec.encode(semanticOutcome, updatedAtEpochMillis = 100_000L)
+            val outcomeJson = JSONObject(encoded.payloadJson).getJSONObject("outcome")
+            assertEquals(reason.name, outcomeJson.getString("reason"))
+            assertTrue(!outcomeJson.has("explanation"))
+            assertEquals(semanticOutcome, CoordinatorCheckpointCodec.decode(encoded))
+
+            val legacyPayload = JSONObject(encoded.payloadJson).apply {
+                getJSONObject("outcome").put("explanation", "Legacy English presentation")
+            }
+            assertEquals(
+                semanticOutcome,
+                CoordinatorCheckpointCodec.decode(encoded.copy(payloadJson = legacyPayload.toString())),
+            )
+        }
         assertTrue(
             runCatching {
                 CoordinatorCheckpointCodec.decode(entity.copy(checkpointFormat = 2))
@@ -187,7 +200,6 @@ class RoomCheckpointStoreInstrumentedTest {
                 outcome = GameOutcome(
                     winner = Side.BLACK,
                     reason = EndReason.RESIGNATION,
-                    explanation = "WHITE resigns",
                 ),
                 clock = second.clock.stop(TimeReading(50_000L, 90_000L)),
             )
@@ -488,7 +500,7 @@ class RoomCheckpointStoreInstrumentedTest {
                     assertTrue("Callback ran before the loss entered history", durableHistory != null)
                     assertEquals("LOSS", durableHistory!!.result)
                     assertEquals("RESIGNATION", durableHistory.endReason)
-                    assertEquals("WHITE forfeits the game", durableHistory.outcomeExplanation)
+                    assertEquals(EndReason.RESIGNATION.name, durableHistory.outcomeExplanation)
                 } catch (error: Throwable) {
                     callbackFailure.set(error)
                 } finally {
@@ -609,7 +621,6 @@ class RoomCheckpointStoreInstrumentedTest {
                     outcome = GameOutcome(
                         winner = original.config.humanSide.opposite(),
                         reason = EndReason.RESIGNATION,
-                        explanation = "WHITE resigns",
                     ),
                 ),
             )
@@ -850,7 +861,6 @@ class RoomCheckpointStoreInstrumentedTest {
             outcome = GameOutcome(
                 winner = if (playerWon) playerSide else playerSide.opposite(),
                 reason = EndReason.RESIGNATION,
-                explanation = if (playerWon) "BLACK resigns" else "WHITE resigns",
             ),
             assistance = assistance,
         )

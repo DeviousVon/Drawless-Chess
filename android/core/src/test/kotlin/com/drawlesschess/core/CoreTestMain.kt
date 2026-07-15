@@ -796,7 +796,7 @@ fun main() {
         assertThat(forfeited.revision == live.revision + 1L)
         assertThat(forfeited.outcome?.winner == Side.BLACK)
         assertThat(forfeited.outcome?.reason == EndReason.RESIGNATION)
-        assertThat(forfeited.outcome?.explanation == "WHITE forfeits the game")
+        assertThat(forfeited.outcome?.loser == Side.WHITE)
         assertThat(forfeited.clock.whiteRemainingMillis == 8_000L)
         assertThat(forfeited.clock.runningSide == null)
         assertThat(!forfeited.clock.paused)
@@ -1094,7 +1094,7 @@ fun main() {
         val screen = BoardPresenter.present(fixture.coordinator.snapshot(), config, interaction)
         assertThat(screen.cells.size == 64)
         assertThat(screen.cells.first().square == Square.parse("a8"))
-        assertThat(screen.interactive && screen.statusText == "Your move")
+        assertThat(screen.interactive && screen.status == BoardStatus.HUMAN_TURN)
     }
     suite.test("presenter marks quiet legal targets from selection") {
         val config = coordinatorConfig()
@@ -1115,7 +1115,7 @@ fun main() {
         val cell = BoardPresenter.present(fixture.coordinator.snapshot(), config, interaction)
             .cells.single { it.square == Square.parse("d6") }
         assertThat(cell.target == TargetKind.CAPTURE)
-        assertThat(cell.accessibilityLabel.contains("legal capture"))
+        assertThat(cell.accessibility.target == TargetKind.CAPTURE)
     }
     suite.test("threat indication highlights only attacked player pieces and labels them") {
         val fen = "4k3/8/8/3q4/8/3N4/8/4K3 w - - 0 1"
@@ -1137,7 +1137,9 @@ fun main() {
         )
         val knight = withAid.cells.single { it.square == Square.parse("d3") }
         assertThat(knight.threatened)
-        assertThat(knight.accessibilityLabel == "White knight on d3, under threat")
+        assertThat(knight.accessibility.piece?.type == PieceType.KNIGHT)
+        assertThat(knight.accessibility.piece?.side == Side.WHITE)
+        assertThat(knight.accessibility.threatened)
         assertThat(withAid.cells.single { it.square == Square.parse("e1") }.threatened.not())
     }
     suite.test("presenter highlights both squares of the last move") {
@@ -1200,7 +1202,7 @@ fun main() {
     suite.test("built-in theme and piece identifiers are unique") {
         assertThat(BoardThemes.all.size == 5)
         assertThat(BoardThemes.all.map { it.id }.distinct().size == BoardThemes.all.size)
-        assertThat(BoardThemes.all.map { it.name }.distinct().size == BoardThemes.all.size)
+        assertThat(BoardThemes.all.map { it.id }.distinct().size == BoardThemes.all.size)
         assertThat(BoardThemes.all.all { it.lightSquare != it.darkSquare })
         assertThat(BoardThemes.fromId("royal_amethyst") == BoardThemes.ROYAL_AMETHYST)
         assertThat(BoardThemes.fromId("removed-or-corrupt") == BoardThemes.DEFAULT)
@@ -1341,7 +1343,9 @@ fun main() {
         assertThat(row.moveNumber == 1)
         assertThat(white.notation == "e4" && white.piece == PieceType.PAWN)
         assertThat(black.notation == "e5" && black.piece == PieceType.PAWN)
-        assertThat(white.accessibilityLabel.contains("pawn from e2 to e4"))
+        assertThat(white.accessibility.movingPiece == PieceType.PAWN)
+        assertThat(white.accessibility.from.algebraic == "e2")
+        assertThat(white.accessibility.to.algebraic == "e4")
         assertThat(model.capturedMaterial.white.totalValue == 0)
         assertThat(model.capturedMaterial.black.totalValue == 0)
         assertThat(model.capturedMaterial.lead == CaptureScoreLead(null, 0))
@@ -1375,7 +1379,7 @@ fun main() {
         assertThat(castling.piece == PieceType.KING)
         assertThat(castling.promotedTo == null)
         assertThat(castling.notation == "O-O")
-        assertThat(castling.accessibilityLabel.contains("king castles kingside"))
+        assertThat(castling.accessibility.castleSide == CastleSide.KING_SIDE)
 
         val promotion = GameHistoryPresenter.present(
             "4k3/P7/8/8/8/8/8/4K3 w - - 0 1",
@@ -1384,7 +1388,7 @@ fun main() {
         assertThat(promotion.piece == PieceType.PAWN)
         assertThat(promotion.promotedTo == PieceType.QUEEN)
         assertThat(promotion.notation == "a8=Q+")
-        assertThat(promotion.accessibilityLabel.contains("promotes to queen"))
+        assertThat(promotion.accessibility.promotedTo == PieceType.QUEEN)
     }
     suite.test("move history respects Black-to-move FEN numbering") {
         val timeline = GameHistoryPresenter.present(
@@ -1404,8 +1408,8 @@ fun main() {
         assertThat(material.black.pieces == listOf(PieceType.PAWN))
         assertThat(material.white.totalValue == 1 && material.black.totalValue == 1)
         assertThat(material.lead == CaptureScoreLead(null, 0))
-        assertThat(material.white.accessibilityLabel.contains("1 pawn"))
-        assertThat(material.leadAccessibilityLabel == "The captured piece score is even.")
+        assertThat(material.white.pieces.count { it == PieceType.PAWN } == 1)
+        assertThat(material.lead == CaptureScoreLead(null, 0))
     }
     suite.test("captured material handles en passant and capture-promotion") {
         val enPassant = GameHistoryPresenter.present(
@@ -1415,9 +1419,13 @@ fun main() {
         assertThat(enPassant.capturedMaterial.white.pieces == listOf(PieceType.PAWN))
         assertThat(enPassant.capturedMaterial.white.totalValue == 1)
         assertThat(
-            enPassant.history.single().white!!.accessibilityLabel.contains(
-                "captures black pawn on d5 en passant and moves to d6",
-            ),
+            enPassant.history.single().white!!.accessibility.let { facts ->
+                facts.capturedSide == Side.BLACK &&
+                    facts.capturedPiece == PieceType.PAWN &&
+                    facts.capturedSquare?.algebraic == "d5" &&
+                    facts.enPassant &&
+                    facts.to.algebraic == "d6"
+            },
         )
 
         val promotion = GameHistoryPresenter.present(
@@ -1428,7 +1436,7 @@ fun main() {
         assertThat(promotion.capturedMaterial.white.totalValue == 5)
         assertThat(promotion.capturedMaterial.lead == CaptureScoreLead(Side.WHITE, 5))
         assertThat(promotion.history.single().white!!.promotedTo == PieceType.QUEEN)
-        assertThat(promotion.history.single().white!!.accessibilityLabel.contains("captures black rook"))
+        assertThat(promotion.history.single().white!!.accessibility.capturedPiece == PieceType.ROOK)
     }
     suite.test("captured material recomputes from truncated undo history") {
         val moves = listOf("e2e4", "d7d5", "e4d5", "d8d5").map(::UciMove)
@@ -1450,8 +1458,8 @@ fun main() {
         assertThat(winningResult == GameResultView(
             playerWon = true,
             playerSide = Side.BLACK,
+            winner = Side.BLACK,
             reason = EndReason.CHECKMATE,
-            explanation = "BLACK wins by checkmate",
             score = GameScore(100, 100, 0),
         ))
 
@@ -1461,8 +1469,8 @@ fun main() {
         assertThat(losingResult == GameResultView(
             playerWon = false,
             playerSide = Side.WHITE,
+            winner = Side.BLACK,
             reason = EndReason.RESIGNATION,
-            explanation = "WHITE resigns",
             score = GameScore(0, 100, 0),
         ))
     }
@@ -1515,7 +1523,7 @@ fun main() {
         controller = GameScreenController(fixture.coordinator, config, onEffect = {
             controller.showMessage("Candidate move: e4")
         })
-        assertThat(controller.hint().transientMessage == "Candidate move: e4")
+        assertThat(controller.hint().transientNotice == GameNotice.External("Candidate move: e4"))
     }
     suite.test("clock view formats untimed and low-time states") {
         assertThat(GameScreenController.clockView(null, true).text == "∞")
