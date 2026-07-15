@@ -60,7 +60,7 @@
     <string name="rules_fifty_move">• No hay un final automático por la regla de los 50 movimientos.</string>
     <string name="action_got_it">Entendido</string>
     <string name="license_title">Software de código abierto</string>
-    <string name="license_body">Drawless Chess se distribuye bajo la licencia GNU GPL versión 3 o posterior. El audio muestreado incluye grabaciones de ajedrez CC0 de JJTaynos y mh2o, fuegos artificiales CC0 de Rudmer_Rotteveel y grabaciones de ion.sound con licencia MIT de Denis Ineshin. El código fuente correspondiente exacto y los avisos de terceros acompañan la versión oficial v0.1.0.</string>
+    <string name="license_body">Drawless Chess se distribuye bajo la licencia GNU GPL versión 3 o posterior. El audio muestreado incluye grabaciones de ajedrez CC0 de JJTaynos y mh2o, fuegos artificiales CC0 de Rudmer_Rotteveel y grabaciones de ion.sound con licencia MIT de Denis Ineshin. El código fuente correspondiente exacto y los avisos de terceros acompañan la versión oficial v0.2.0.</string>
     <string name="license_view_source">Ver código fuente</string>
     <string name="privacy_title">Privacidad</string>
     <string name="privacy_body">Drawless Chess funciona completamente sin conexión. BB_Games no recopila, transmite, comparte ni vende datos personales. Las partidas guardadas, el historial de partidas terminadas, las estadísticas locales y los ajustes se almacenan en tu dispositivo y pueden incluirse en las copias de seguridad de Android si las activas; BB_Games no puede acceder a esas copias. Consultas sobre privacidad: realitymaster@protonmail.ch</string>

@@ -1,6 +1,6 @@
 {
   "name": "drawless-chess",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Offline decisive chess for Android with a pinned Drawless Fairy-Stockfish engine.",
   "license": "GPL-3.0-or-later",
   "private": true,

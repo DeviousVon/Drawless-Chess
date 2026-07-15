@@ -54,14 +54,14 @@ Aucun compte. Aucune publicité. Aucune analyse d’utilisation ni aucun suivi. 
 
 LOGICIEL OPEN SOURCE
 Drawless Chess est proposé sous licence GNU GPL version 3 ou ultérieure. Le code source du projet et les mentions sont disponibles à l’adresse suivante :
-https://github.com/DeviousVon/Drawless-Chess/releases/tag/v0.1.0
+https://github.com/DeviousVon/Drawless-Chess/releases/tag/v0.2.0
 ```
 
 Nombre de caractères : 2 647 sur 4 000, retours à la ligne compris.
 
 ## Notes de version
 
-Brouillon pour la version `0.1.0` :
+Brouillon pour la version `0.2.0` :
 
 ```text
 Bienvenue dans Drawless Chess. Jouez hors ligne contre sept adversaires illustrés, en Partie rapide avec un camp aléatoire ou avec vos règles et cadences. Suivez les captures, le matériel, l’historique, les séries et les scores ; profitez des menaces facultatives, des indices, des annulations, de cinq thèmes, des sons d’échiquier, des revanches et des effets de victoire ou de défaite. Sans compte, publicité, analyse d’utilisation ni achat intégré.

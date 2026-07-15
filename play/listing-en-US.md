@@ -50,12 +50,12 @@ No account. No ads. No analytics or tracking. No in-app purchases. Games and pre
 
 OPEN-SOURCE SOFTWARE
 Drawless Chess is licensed under GNU GPL version 3 or later. Project source and notices are available at:
-https://github.com/DeviousVon/Drawless-Chess/releases/tag/v0.1.0
+https://github.com/DeviousVon/Drawless-Chess/releases/tag/v0.2.0
 ```
 
 ## Release notes
 
-Draft for version `0.1.0`:
+Draft for version `0.2.0`:
 
 ```text
 Welcome to Drawless Chess. Play decisive offline games against seven illustrated opponents, with random-side Quick Play or custom rules and clocks. Track captures, material, move history, streaks, and game scores; use optional threats, hints, undo, five themes, realistic board sounds, rematches, and clear victory or defeat effects. No account, ads, analytics, or in-app purchases.

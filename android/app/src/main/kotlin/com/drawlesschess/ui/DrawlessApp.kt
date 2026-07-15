@@ -439,7 +439,7 @@ private fun LicenseDialog(onDismiss: () -> Unit) {
             TextButton(
                 onClick = {
                     uriHandler.openUri(
-                        "https://github.com/DeviousVon/Drawless-Chess/releases/tag/v0.1.0",
+                        "https://github.com/DeviousVon/Drawless-Chess/releases/tag/v0.2.0",
                     )
                 },
             ) {

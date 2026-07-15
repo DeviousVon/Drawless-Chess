@@ -83,6 +83,55 @@ keystores, and common private-key formats are ignored by Git, and Gradle rejects
 path inside the repository. If `DRAWLESS_SIGNING_PROPERTIES` is used, its custom file must
 also live outside the repository.
 
+For an update, use the same upload keystore that signed the previous Play upload. Google
+does not retain its private key or its passwords. Verify the candidate keystore interactively;
+never put a password on a command line or in chat:
+
+```powershell
+& 'C:\Program Files\Android\Android Studio\jbr\bin\keytool.exe' `
+  -list -v -keystore 'C:\PRIVATE\PATH\drawless-chess-upload.jks'
+```
+
+Enter the keystore password at the prompt. Record the alias that `keytool` displays. The
+certificate SHA-256 must be
+`85:BF:58:0C:42:2F:8F:F4:02:03:E8:4B:C0:F9:FF:66:0F:AA:C8:15:E6:C4:E1:0C:87:B2:8D:58:26:96:AB:A8`.
+If it differs, stop; do not build or upload with that key.
+
+For a one-session build, set only the non-secret path and alias directly, prompt for both
+passwords without echo, run Gradle, and remove the variables afterward:
+
+```powershell
+$env:DRAWLESS_UPLOAD_STORE_FILE = `
+  (Resolve-Path 'C:\PRIVATE\PATH\drawless-chess-upload.jks').Path
+$env:DRAWLESS_UPLOAD_KEY_ALIAS = 'ACTUAL-ALIAS-FROM-KEYTOOL'
+$storeSecret = Read-Host 'Upload keystore password' -AsSecureString
+$keySecret = Read-Host 'Upload key password' -AsSecureString
+$storePointer = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($storeSecret)
+$keyPointer = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($keySecret)
+$locationPushed = $false
+try {
+  $env:DRAWLESS_UPLOAD_STORE_PASSWORD = `
+    [Runtime.InteropServices.Marshal]::PtrToStringBSTR($storePointer)
+  $env:DRAWLESS_UPLOAD_KEY_PASSWORD = `
+    [Runtime.InteropServices.Marshal]::PtrToStringBSTR($keyPointer)
+  Push-Location C:\src\android
+  $locationPushed = $true
+  .\gradlew.bat --no-daemon :app:bundleRelease
+  if ($LASTEXITCODE) { throw "bundleRelease failed ($LASTEXITCODE)" }
+} finally {
+  if ($locationPushed) { Pop-Location }
+  [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($storePointer)
+  [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($keyPointer)
+  Remove-Item Env:DRAWLESS_UPLOAD_STORE_FILE,Env:DRAWLESS_UPLOAD_STORE_PASSWORD,`
+    Env:DRAWLESS_UPLOAD_KEY_ALIAS,Env:DRAWLESS_UPLOAD_KEY_PASSWORD `
+    -ErrorAction SilentlyContinue
+}
+```
+
+The store and key passwords are often identical, but the build must not assume that. If the
+existing keystore or its password is lost, use Play Console's upload-key reset process; do not
+create an unrelated key and attempt to upload it.
+
 Before building, regenerate the exact dependency evidence, review and commit every release
 source change, and require a clean worktree. Then create the corresponding-source archive;
 the bundler refuses dirty trees and records the full source commit:
@@ -90,7 +139,7 @@ the bundler refuses dirty trees and records the full source commit:
 ```powershell
 pwsh -NoProfile -File .\scripts\generate-release-sbom.ps1
 & 'C:\Program Files\Git\bin\bash.exe' -lc `
-  'cd /c/src && scripts/source-bundle.sh release/drawless-chess-0.1.0-source.tar.gz'
+  'cd /c/src && scripts/source-bundle.sh release/drawless-chess-0.2.0-source.tar.gz'
 ```
 
 The final AAB verifier independently regenerates the dependency reports and the complete
@@ -113,7 +162,7 @@ Verify the signed result from `C:\src` and preserve its public evidence report:
 ```powershell
 pwsh -NoProfile -File .\scripts\verify-play-aab.ps1 `
   -Bundle .\android\app\build\outputs\bundle\release\app-release.aab `
-  -SourceArchive .\release\drawless-chess-0.1.0-source.tar.gz `
+  -SourceArchive .\release\drawless-chess-0.2.0-source.tar.gz `
   -ExpectedUploadCertificateSha256 '<64-HEX-UPLOAD-CERTIFICATE-FINGERPRINT>' `
   -OutputManifest .\build\release-evidence\play-aab.json
 ```

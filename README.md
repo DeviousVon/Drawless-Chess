@@ -142,7 +142,7 @@ source for the exact binary.
 Create the whole-project source archive only from the exact release tree:
 
 ```bash
-npm run bundle:source -- release/drawless-chess-0.1.0-source.tar.gz
+npm run bundle:source -- release/drawless-chess-0.2.0-source.tar.gz
 ```
 
 The archive includes the complete prepared Fairy-Stockfish checkout and all Drawless

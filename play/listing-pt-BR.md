@@ -54,14 +54,14 @@ Sem conta. Sem anúncios. Sem análise de uso ou rastreamento. Sem compras no ap
 
 SOFTWARE DE CÓDIGO ABERTO
 Drawless Chess é licenciado sob a GNU GPL versão 3 ou posterior. O código-fonte e os avisos do projeto estão disponíveis em:
-https://github.com/DeviousVon/Drawless-Chess/releases/tag/v0.1.0
+https://github.com/DeviousVon/Drawless-Chess/releases/tag/v0.2.0
 ```
 
 Contagem de caracteres: 2.386 de 4.000.
 
 ## Notas da versão
 
-Rascunho para a versão `0.1.0`:
+Rascunho para a versão `0.2.0`:
 
 ```text
 Boas-vindas ao Drawless Chess. Jogue partidas decisivas offline contra sete adversários ilustrados, com Partida rápida de lado aleatório ou regras e relógios personalizados. Acompanhe capturas, material, histórico de lances, sequências e pontuações; use indicação opcional de ameaças, dicas, desfazer, cinco temas, sons realistas do tabuleiro, revanches e efeitos claros de vitória ou derrota. Sem conta, anúncios, análise de uso ou compras no app.
