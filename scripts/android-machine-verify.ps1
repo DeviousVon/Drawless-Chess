@@ -1754,16 +1754,33 @@ function Set-GradleJvmIdentity {
     } else { '' })
     $daemonJavaHome = ''
     if ($daemonJvm) {
-        $daemonHomeText = [regex]::Replace(
-            $daemonJvm, '(?i)\s+\((?:from|no JDK\b).*?\)\s*$', ''
+        $daemonCriteria = [regex]::Match(
+            $daemonJvm,
+            '(?i)^Compatible with Java\s+(\d+)\b'
         )
-        try { $daemonJavaHome = Get-NormalizedPath $daemonHomeText } catch {
-            Fail-Gate "could not normalize the Gradle Daemon JVM home: $daemonJvm"
-        }
-        if (-not $daemonJavaHome.Equals(
-            $script:State.JavaHome, [StringComparison]::OrdinalIgnoreCase
-        )) {
-            Fail-Gate "Gradle Daemon JVM does not use the selected build JDK home: $daemonJvm"
+        if ($daemonCriteria.Success) {
+            $criteriaMajor = [int]$daemonCriteria.Groups[1].Value
+            if ($criteriaMajor -ne $script:State.JavaMajor) {
+                Fail-Gate "Gradle Daemon JVM criteria requires Java $criteriaMajor, selected build JDK major is $($script:State.JavaMajor)"
+            }
+            $daemonProperties = Join-Path $AndroidRoot 'gradle\gradle-daemon-jvm.properties'
+            Require-RegexValue `
+                $daemonProperties `
+                '^toolchainVersion=(\d+)$' `
+                "$criteriaMajor" `
+                'Gradle daemon toolchain version'
+        } else {
+            $daemonHomeText = [regex]::Replace(
+                $daemonJvm, '(?i)\s+\((?:from|no JDK\b).*?\)\s*$', ''
+            )
+            try { $daemonJavaHome = Get-NormalizedPath $daemonHomeText } catch {
+                Fail-Gate "could not normalize the Gradle Daemon JVM home: $daemonJvm"
+            }
+            if (-not $daemonJavaHome.Equals(
+                $script:State.JavaHome, [StringComparison]::OrdinalIgnoreCase
+            )) {
+                Fail-Gate "Gradle Daemon JVM does not use the selected build JDK home: $daemonJvm"
+            }
         }
     }
     $script:State.GradleLauncherJvm = $launcherJvm

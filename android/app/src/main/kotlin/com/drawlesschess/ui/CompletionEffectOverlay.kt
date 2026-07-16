@@ -38,6 +38,8 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
+import com.drawlesschess.R
 import com.drawlesschess.core.chess.PieceType
 import com.drawlesschess.core.presentation.GameResultView
 import kotlinx.coroutines.cancelAndJoin
@@ -182,7 +184,7 @@ private fun FinishCallout(
                 )
             }
             Text(
-                text = if (result.playerWon) "VICTORY" else "DEFEAT",
+                text = stringResource(if (result.playerWon) R.string.completion_victory else R.string.completion_defeat),
                 color = content,
                 fontSize = 28.sp,
                 fontWeight = FontWeight.Black,
@@ -190,9 +192,13 @@ private fun FinishCallout(
             )
             Text(
                 text = if (result.playerWon) {
-                    opponent?.let { "You beat ${it.name}!" } ?: "You won!"
+                    opponent?.let { stringResource(R.string.completion_beat_opponent, opponentName(it)) }
+                        ?: stringResource(R.string.completion_you_won)
                 } else {
-                    "${opponent?.name ?: "Your opponent"} won."
+                    stringResource(
+                        R.string.completion_opponent_won,
+                        opponent?.let { opponentName(it) } ?: stringResource(R.string.opponent_default),
+                    )
                 },
                 color = content.copy(alpha = 0.86f),
                 fontWeight = FontWeight.SemiBold,

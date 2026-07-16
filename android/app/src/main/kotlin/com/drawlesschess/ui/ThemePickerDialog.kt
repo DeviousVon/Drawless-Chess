@@ -21,9 +21,11 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import com.drawlesschess.core.presentation.BoardTheme
+import com.drawlesschess.R
 
 @Composable
 internal fun ThemePickerDialog(
@@ -34,14 +36,14 @@ internal fun ThemePickerDialog(
     AlertDialog(
         modifier = Modifier.testTag("theme_picker"),
         onDismissRequest = onDismiss,
-        title = { Text("Choose a theme") },
+        title = { Text(stringResource(R.string.theme_choose)) },
         text = {
             Column(
                 modifier = Modifier.heightIn(max = 460.dp).verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 Text(
-                    "Board, pieces, and menus update immediately. Your choice is saved.",
+                    stringResource(R.string.theme_picker_description),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -54,7 +56,11 @@ internal fun ThemePickerDialog(
                 }
             }
         },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Done") } },
+        confirmButton = {
+            TextButton(onClick = onDismiss, modifier = Modifier.testTag("theme_picker_done")) {
+                Text(stringResource(R.string.action_done))
+            }
+        },
     )
 }
 
@@ -84,9 +90,9 @@ private fun ThemeOption(
         ) {
             ThemePreview(visualTheme.boardTheme)
             Column(Modifier.weight(1f)) {
-                Text(visualTheme.boardTheme.name, style = MaterialTheme.typography.titleSmall)
+                Text(themeName(visualTheme.boardTheme.id), style = MaterialTheme.typography.titleSmall)
                 Text(
-                    visualTheme.description,
+                    stringResource(visualTheme.descriptionRes),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -95,6 +101,18 @@ private fun ThemeOption(
         }
     }
 }
+
+@Composable
+internal fun themeName(themeId: String): String = stringResource(
+    when (themeId) {
+        "obsidian_glass" -> R.string.theme_obsidian_glass
+        "arctic_slate" -> R.string.theme_arctic_slate
+        "modern_walnut" -> R.string.theme_modern_walnut
+        "emerald_court" -> R.string.theme_emerald_court
+        "royal_amethyst" -> R.string.theme_royal_amethyst
+        else -> R.string.theme_obsidian_glass
+    },
+)
 
 @Composable
 private fun ThemePreview(theme: BoardTheme) {

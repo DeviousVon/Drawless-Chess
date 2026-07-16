@@ -273,7 +273,7 @@ private fun EvidenceThemeSection(visualTheme: DrawlessVisualTheme) {
     val darkSquare = Color(visualTheme.boardTheme.darkSquare.value)
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(
-            visualTheme.boardTheme.name,
+            themeName(visualTheme.boardTheme.id),
             color = Color(0xFFDCE4EA),
             style = MaterialTheme.typography.labelMedium,
         )

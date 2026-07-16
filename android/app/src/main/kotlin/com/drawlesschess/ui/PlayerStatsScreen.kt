@@ -27,6 +27,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
@@ -35,7 +37,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.drawlesschess.persistence.OpponentStatistics
 import com.drawlesschess.persistence.PlayerStatistics
-import java.util.Locale
+import com.drawlesschess.R
 
 @Composable
 internal fun PlayerStatsScreen(
@@ -46,22 +48,26 @@ internal fun PlayerStatsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Player stats") },
-                navigationIcon = { TextButton(onClick = onBack) { Text("Back") } },
+                title = { Text(stringResource(R.string.stats_title)) },
+                navigationIcon = {
+                    TextButton(onClick = onBack, modifier = Modifier.testTag("stats_back")) {
+                        Text(stringResource(R.string.action_back))
+                    }
+                },
             )
         },
     ) { padding ->
         when (state) {
             PlayerStatsState.Loading -> StatsMessage(
-                title = "Loading your stats…",
-                body = "Getting your latest record ready.",
+                title = stringResource(R.string.stats_loading_title),
+                body = stringResource(R.string.stats_loading_body),
                 modifier = Modifier.padding(padding),
             )
             is PlayerStatsState.Failed -> StatsMessage(
-                title = "Stats unavailable",
-                body = state.message,
+                title = stringResource(R.string.stats_unavailable_title),
+                body = state.message.resolve(),
                 modifier = Modifier.padding(padding),
-                action = { Button(onClick = onRetry) { Text("Try again") } },
+                action = { Button(onClick = onRetry) { Text(stringResource(R.string.action_try_again)) } },
             )
             is PlayerStatsState.Ready -> PlayerStatsContent(
                 statistics = state.statistics,
@@ -124,29 +130,40 @@ private fun PlayerStatsContent(
                     modifier = Modifier.semantics { heading() },
                 )
                 Text(
-                    if (statistics.completedGames == 0) "Your first result starts here"
-                    else "${statistics.completedGames} completed games",
+                    if (statistics.completedGames == 0) stringResource(R.string.stats_first_result)
+                    else pluralStringResource(
+                        R.plurals.stats_completed_games,
+                        statistics.completedGames,
+                        statistics.completedGames,
+                    ),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.testTag("stats_completed_games"),
                 )
                 MetricGrid(
                     MetricSpec(
-                        label = "Record",
-                        value = "${statistics.wins}–${statistics.losses}",
-                        accessibilityValue = "${statistics.wins} wins, ${statistics.losses} losses",
+                        label = stringResource(R.string.stats_record),
+                        value = stringResource(R.string.stats_record_value, statistics.wins, statistics.losses),
+                        accessibilityValue = stringResource(
+                            R.string.stats_record_accessibility,
+                            statistics.wins,
+                            statistics.losses,
+                        ),
                     ),
                     MetricSpec(
-                        label = "Win rate",
-                        value = statistics.winPercentage?.let { "${it.oneDecimal()}%" } ?: "—",
+                        label = stringResource(R.string.stats_win_rate),
+                        value = statistics.winPercentage?.let {
+                            stringResource(R.string.stats_percent, oneDecimal(it))
+                        } ?: "—",
                         accessibilityValue = statistics.winPercentage
-                            ?.let { "${it.oneDecimal()} percent" }
-                            ?: "Not available",
+                            ?.let { stringResource(R.string.stats_percent_accessibility, oneDecimal(it)) }
+                            ?: stringResource(R.string.label_not_available),
                     ),
                     MetricSpec(
-                        label = "Average game score",
-                        value = statistics.averageScore?.oneDecimal() ?: "—",
-                        accessibilityValue = statistics.averageScore?.oneDecimal() ?: "Not available",
+                        label = stringResource(R.string.stats_average_game_score),
+                        value = statistics.averageScore?.let { oneDecimal(it) } ?: "—",
+                        accessibilityValue = statistics.averageScore?.let { oneDecimal(it) }
+                            ?: stringResource(R.string.label_not_available),
                         testTag = "stats_average_score",
                     ),
                 )
@@ -159,26 +176,38 @@ private fun PlayerStatsContent(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Text(
-                    "Momentum",
+                    stringResource(R.string.stats_momentum),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.semantics { heading() },
                 )
                 MetricGrid(
                     MetricSpec(
-                        "Current streak",
+                        stringResource(R.string.stats_current_streak),
                         statistics.currentWinStreak.toString(),
-                        "${statistics.currentWinStreak} consecutive wins",
+                        pluralStringResource(
+                            R.plurals.stats_consecutive_wins,
+                            statistics.currentWinStreak,
+                            statistics.currentWinStreak,
+                        ),
                     ),
                     MetricSpec(
-                        "Best streak",
+                        stringResource(R.string.stats_best_streak),
                         statistics.bestWinStreak.toString(),
-                        "${statistics.bestWinStreak} consecutive wins",
+                        pluralStringResource(
+                            R.plurals.stats_consecutive_wins,
+                            statistics.bestWinStreak,
+                            statistics.bestWinStreak,
+                        ),
                     ),
                     MetricSpec(
-                        "Unassisted wins",
+                        stringResource(R.string.stats_unassisted_wins),
                         statistics.unassistedWins.toString(),
-                        "${statistics.unassistedWins} unassisted wins",
+                        pluralStringResource(
+                            R.plurals.stats_unassisted_wins_accessibility,
+                            statistics.unassistedWins,
+                            statistics.unassistedWins,
+                        ),
                     ),
                 )
             }
@@ -190,20 +219,17 @@ private fun PlayerStatsContent(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Text(
-                    "About game score",
+                    stringResource(R.string.stats_about_score),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.semantics { heading() },
                 )
                 Text(
-                    "A clean win scores 100. Successful hints and undos deduct 10 each; " +
-                        "timed pauses and threat indication deduct 5. Losses score 0.",
+                    stringResource(R.string.stats_score_explanation),
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 Text(
-                    "Game score is a motivational measure of clean wins—not a chess rating. " +
-                        "Your average includes every completed game, including zero-point " +
-                        "losses. Future online Elo will remain separate.",
+                    stringResource(R.string.stats_score_context),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -217,7 +243,7 @@ private fun PlayerStatsContent(
             ) {
                 Column(modifier = Modifier.fillMaxWidth().padding(18.dp)) {
                     Text(
-                        "By opponent",
+                        stringResource(R.string.stats_by_opponent),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.semantics { heading() },
@@ -232,7 +258,7 @@ private fun PlayerStatsContent(
         }
 
         Text(
-            "Stats are derived from completed games.",
+            stringResource(R.string.stats_source_notice),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -272,10 +298,15 @@ private fun MetricGrid(vararg metrics: MetricSpec) {
 
 @Composable
 private fun StatMetric(metric: MetricSpec, compact: Boolean, modifier: Modifier = Modifier) {
+    val metricDescription = stringResource(
+        R.string.stats_metric_accessibility,
+        metric.label,
+        metric.accessibilityValue,
+    )
     var metricModifier = modifier
     metric.testTag?.let { metricModifier = metricModifier.testTag(it) }
     metricModifier = metricModifier.clearAndSetSemantics {
-        contentDescription = "${metric.label}: ${metric.accessibilityValue}"
+        contentDescription = metricDescription
     }
     if (compact) {
         Row(
@@ -309,29 +340,37 @@ private fun OpponentStatsRow(opponent: OpponentStatistics) {
         .removePrefix("bot:")
         .takeIf { !it.startsWith("elo:") && !it.startsWith("skill:") }
         ?.let { id -> OpponentProfiles.all.singleOrNull { it.level.id == id } }
-    val title = profile?.let { "${it.name} · ${it.level.displayName}" }
+    val title = profile?.let {
+        stringResource(R.string.game_title_summary, opponentName(it), botLevelName(it.level))
+    }
         ?: opponent.opponentStableId.removePrefix("bot:").replace(':', ' ')
+    val record = pluralStringResource(
+        R.plurals.stats_opponent_games_record,
+        opponent.completedGames,
+        opponent.completedGames,
+        opponent.wins,
+        opponent.losses,
+    )
+    val elo = opponent.opponentExactElo?.let {
+        stringResource(
+            if (profile == null) R.string.stats_estimated_elo else R.string.stats_latest_strength,
+            it,
+        )
+    }
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
         Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
         Text(
-            buildString {
-                append("${opponent.completedGames} games · ${opponent.wins}–${opponent.losses}")
-                opponent.opponentExactElo?.let {
-                    if (profile == null) {
-                        append(" · $it estimated Elo")
-                    } else {
-                        append(" · latest strength: $it estimated Elo")
-                    }
-                }
-            },
+            listOfNotNull(record, elo).joinToString(" · "),
             style = MaterialTheme.typography.bodySmall,
         )
         Text(
-            "${opponent.winPercentage.oneDecimal()}% wins · Avg score ${opponent.averageScore.oneDecimal()}",
+            stringResource(
+                R.string.stats_opponent_summary,
+                oneDecimal(opponent.winPercentage),
+                oneDecimal(opponent.averageScore),
+            ),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }
-
-private fun Double.oneDecimal(): String = String.format(Locale.US, "%.1f", this)

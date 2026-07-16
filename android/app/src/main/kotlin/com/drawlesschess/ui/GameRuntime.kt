@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.SystemClock
 import android.util.Log
 import com.drawlesschess.BuildConfig
+import com.drawlesschess.R
 import com.drawlesschess.core.*
 import com.drawlesschess.core.chess.*
 import com.drawlesschess.core.coordinator.*
@@ -43,9 +44,10 @@ class GameRuntime private constructor(
 ) : AutoCloseable {
     internal val gameId: String get() = config.gameId
 
+    private val uiContext = applicationContext.applicationContext
     private val closed = AtomicBoolean(false)
     private val modelInvalidationListeners = CopyOnWriteArraySet<() -> Unit>()
-    private val engineProvision = provisionEngine(applicationContext.applicationContext)
+    private val engineProvision = provisionEngine(uiContext)
     private val movePacingScheduler = AndroidUciTimeoutScheduler()
     private val engine = BotMovePacingEngine(
         delegate = engineProvision.engine,
@@ -136,12 +138,12 @@ class GameRuntime private constructor(
                         Log.d(HINT_LOG_TAG, "Hint analysis completed success=${result.isSuccess}")
                         val message = runCatching {
                             result.fold(
-                                onSuccess = { response -> hintMessage(effect.currentFen, response) },
-                                onFailure = { error -> "Hint unavailable: ${error.hintDetail()}" },
+                                onSuccess = { response -> hintMessage(uiContext, effect.currentFen, response) },
+                                onFailure = { uiContext.getString(R.string.hint_unavailable) },
                             )
                         }.getOrElse { error ->
                             Log.e(HINT_LOG_TAG, "Hint result could not be presented", error)
-                            "Hint unavailable: ${error.hintDetail()}"
+                            uiContext.getString(R.string.hint_unavailable)
                         }
                         createdController.showMessage(message)
                         publishModelInvalidation()
@@ -186,7 +188,7 @@ class GameRuntime private constructor(
             Log.w(ENGINE_LOG_TAG, "Explicit development chess engine is enabled")
             return EngineProvision(
                 DevelopmentChessEngine(),
-                "Development engine enabled for this debug build",
+                context.getString(R.string.engine_development_enabled),
             )
         }
 
@@ -205,12 +207,9 @@ class GameRuntime private constructor(
 
     private fun failedEngineProvision(error: Throwable): EngineProvision {
         Log.e(ENGINE_LOG_TAG, "Native chess engine startup failed", error)
-        val detail = error.message?.takeIf(String::isNotBlank)
-            ?: error::class.simpleName
-            ?: "unknown failure"
         return EngineProvision(
             FailedChessEngine(error),
-            "Chess engine failed to start: $detail",
+            uiContext.getString(R.string.engine_start_failed),
         )
     }
 
@@ -220,7 +219,7 @@ class GameRuntime private constructor(
     }
 }
 
-private fun hintMessage(fen: String, response: EngineResponse): String {
+private fun hintMessage(context: Context, fen: String, response: EngineResponse): String {
     val position = ChessPosition.fromFen(fen)
     val best = SanNotation.format(position, response.bestMove)
     val alternatives = response.variations
@@ -231,14 +230,11 @@ private fun hintMessage(fen: String, response: EngineResponse): String {
         .mapNotNull { move -> runCatching { SanNotation.format(position, move) }.getOrNull() }
         .take(2)
     return if (alternatives.isEmpty()) {
-        "Engine suggests $best"
+        context.getString(R.string.hint_suggestion, best)
     } else {
-        "Engine suggests $best · Also consider ${alternatives.joinToString(", ")}"
+        context.getString(R.string.hint_suggestion_alternatives, best, alternatives.joinToString(", "))
     }
 }
-
-private fun Throwable.hintDetail(): String =
-    message?.takeIf(String::isNotBlank) ?: this::class.simpleName ?: "analysis failed"
 
 private data class EngineProvision(
     val engine: ManagedChessEngineDelegate,

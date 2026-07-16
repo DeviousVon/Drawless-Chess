@@ -10,6 +10,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import androidx.annotation.StringRes
+import com.drawlesschess.R
 import com.drawlesschess.core.presentation.BoardTheme
 import com.drawlesschess.core.presentation.BoardThemes
 
@@ -36,7 +38,7 @@ internal data class DrawlessHomePalette(
 
 internal data class DrawlessVisualTheme(
     val boardTheme: BoardTheme,
-    val description: String,
+    @param:StringRes val descriptionRes: Int,
     val lightColors: ColorScheme,
     val darkColors: ColorScheme,
     val home: DrawlessHomePalette,
@@ -46,7 +48,7 @@ internal data class DrawlessVisualTheme(
 internal object DrawlessVisualThemes {
     val OBSIDIAN_GLASS = DrawlessVisualTheme(
         boardTheme = BoardThemes.OBSIDIAN_GLASS,
-        description = "Cool charcoal and mint",
+        descriptionRes = R.string.theme_description_obsidian_glass,
         lightColors = lightColorScheme(
             primary = Color(0xFF236B58), onPrimary = Color.White,
             primaryContainer = Color(0xFFBFEBDD), onPrimaryContainer = Color(0xFF052019),
@@ -83,7 +85,7 @@ internal object DrawlessVisualThemes {
 
     val ARCTIC_SLATE = DrawlessVisualTheme(
         boardTheme = BoardThemes.ARCTIC_SLATE,
-        description = "Crisp silver and blue",
+        descriptionRes = R.string.theme_description_arctic_slate,
         lightColors = lightColorScheme(
             primary = Color(0xFF00639A), onPrimary = Color.White,
             primaryContainer = Color(0xFFCDE5FF), onPrimaryContainer = Color(0xFF001D32),
@@ -120,7 +122,7 @@ internal object DrawlessVisualThemes {
 
     val MODERN_WALNUT = DrawlessVisualTheme(
         boardTheme = BoardThemes.MODERN_WALNUT,
-        description = "Warm wood and teal",
+        descriptionRes = R.string.theme_description_modern_walnut,
         lightColors = lightColorScheme(
             primary = Color(0xFF93452F), onPrimary = Color.White,
             primaryContainer = Color(0xFFFFDBD1), onPrimaryContainer = Color(0xFF3B0A02),
@@ -157,7 +159,7 @@ internal object DrawlessVisualThemes {
 
     val EMERALD_COURT = DrawlessVisualTheme(
         boardTheme = BoardThemes.EMERALD_COURT,
-        description = "Deep green and gold",
+        descriptionRes = R.string.theme_description_emerald_court,
         lightColors = lightColorScheme(
             primary = Color(0xFF386A20), onPrimary = Color.White,
             primaryContainer = Color(0xFFB7F397), onPrimaryContainer = Color(0xFF0A2100),
@@ -194,7 +196,7 @@ internal object DrawlessVisualThemes {
 
     val ROYAL_AMETHYST = DrawlessVisualTheme(
         boardTheme = BoardThemes.ROYAL_AMETHYST,
-        description = "Purple dusk and coral",
+        descriptionRes = R.string.theme_description_royal_amethyst,
         lightColors = lightColorScheme(
             primary = Color(0xFF6750A4), onPrimary = Color.White,
             primaryContainer = Color(0xFFEADDFF), onPrimaryContainer = Color(0xFF21005D),

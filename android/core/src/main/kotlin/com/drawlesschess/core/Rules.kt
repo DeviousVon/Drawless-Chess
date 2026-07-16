@@ -105,8 +105,11 @@ data class GameOutcome(
     val winner: Side,
     val loser: Side = winner.opposite(),
     val reason: EndReason,
-    val explanation: String,
-)
+) {
+    init {
+        require(loser == winner.opposite()) { "Outcome winner and loser must be opposite sides" }
+    }
+}
 
 class DrawlessAdjudicator {
     fun adjudicate(rules: RulesContractV1, facts: PositionFacts): GameOutcome? {
@@ -114,16 +117,14 @@ class DrawlessAdjudicator {
 
         if (facts.legalMovesAfter == 0) {
             if (facts.sideToMoveInCheck) {
-                return GameOutcome(facts.mover, reason = EndReason.CHECKMATE,
-                    explanation = "${facts.mover} wins by checkmate")
+                return GameOutcome(facts.mover, reason = EndReason.CHECKMATE)
             }
             val winner = if (rules.stalemate == StalematePolicy.TRAPPED_PLAYER_LOSES) {
                 facts.mover
             } else {
                 sideToMove
             }
-            return GameOutcome(winner, reason = EndReason.STALEMATE,
-                explanation = "$winner wins under the ${rules.preset.name.lowercase()} stalemate rule")
+            return GameOutcome(winner, reason = EndReason.STALEMATE)
         }
 
         if (facts.positionOccurrenceCount >= rules.repetitionThreshold) {
@@ -132,8 +133,7 @@ class DrawlessAdjudicator {
             } else {
                 facts.mover
             }
-            return GameOutcome(loser.opposite(), reason = EndReason.REPETITION,
-                explanation = "$loser loses by causing a third repetition")
+            return GameOutcome(loser.opposite(), reason = EndReason.REPETITION)
         }
 
         if (facts.deadPositionAfter) {
@@ -141,24 +141,21 @@ class DrawlessAdjudicator {
                 check(facts.moveWasCapture) {
                     "Final-capture adjudication requires the transition move to be a capture"
                 }
-                return GameOutcome(facts.mover, reason = EndReason.DEAD_POSITION_FINAL_CAPTURE,
-                    explanation = "${facts.mover} wins by making the final meaningful capture")
+                return GameOutcome(facts.mover, reason = EndReason.DEAD_POSITION_FINAL_CAPTURE)
             }
             val winner = when {
                 facts.materialAfter.white > facts.materialAfter.black -> Side.WHITE
                 facts.materialAfter.black > facts.materialAfter.white -> Side.BLACK
                 else -> facts.mover
             }
-            return GameOutcome(winner, reason = EndReason.DEAD_POSITION_MATERIAL,
-                explanation = "$winner wins the dead position by material adjudication")
+            return GameOutcome(winner, reason = EndReason.DEAD_POSITION_MATERIAL)
         }
 
         if (facts.halfmoveClockAfter >= 100 && rules.fiftyMove != FiftyMovePolicy.DISABLED) {
             val forced = rules.fiftyMove == FiftyMovePolicy.FORCED_MOVE_EXCEPTION &&
                 facts.fiftyMoveAvoidingAlternativesBeforeMove == 0
             val loser = if (forced) sideToMove else facts.mover
-            return GameOutcome(loser.opposite(), reason = EndReason.FIFTY_MOVE_LIMIT,
-                explanation = "$loser loses by reaching the configured 50-move limit")
+            return GameOutcome(loser.opposite(), reason = EndReason.FIFTY_MOVE_LIMIT)
         }
 
         return null

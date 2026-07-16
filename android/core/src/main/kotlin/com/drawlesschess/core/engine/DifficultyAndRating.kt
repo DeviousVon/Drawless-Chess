@@ -7,13 +7,10 @@ import kotlin.math.roundToInt
 
 data class NamedBotLevel(
     val id: String,
-    val displayName: String,
     val approximateElo: Int,
-    val description: String,
 ) {
     init {
         require(id.matches(Regex("^[a-z][a-z0-9-]*$")))
-        require(displayName.isNotBlank() && description.isNotBlank())
         require(approximateElo in BotDifficultyCatalog.MINIMUM_ELO..BotDifficultyCatalog.MAXIMUM_ELO)
     }
 }
@@ -23,13 +20,13 @@ object BotDifficultyCatalog {
     const val MAXIMUM_ELO = 2850
 
     val namedLevels: List<NamedBotLevel> = listOf(
-        NamedBotLevel("learner", "Learner", 500, "Gives new players room to spot checks, captures, and simple tactics."),
-        NamedBotLevel("casual", "Casual", 650, "A forgiving beginner game with frequent chances to recover."),
-        NamedBotLevel("challenger", "Challenger", 850, "Notices basic threats but still leaves practical openings."),
-        NamedBotLevel("club", "Club", 1_100, "A steady social opponent who punishes obvious mistakes."),
-        NamedBotLevel("expert", "Expert", 1_500, "Finds combinations and defends consistently."),
-        NamedBotLevel("master", "Master", 2_000, "Calculates accurately and applies sustained pressure."),
-        NamedBotLevel("grandmaster", "Grandmaster", 2_500, "Near-maximum practical strength for mobile play."),
+        NamedBotLevel("learner", 500),
+        NamedBotLevel("casual", 650),
+        NamedBotLevel("challenger", 850),
+        NamedBotLevel("club", 1_100),
+        NamedBotLevel("expert", 1_500),
+        NamedBotLevel("master", 2_000),
+        NamedBotLevel("grandmaster", 2_500),
     )
 
     /**
@@ -111,30 +108,35 @@ sealed interface BotDifficultySelection {
 }
 
 data class ResolvedBotDifficulty(
-    val label: String,
+    val kind: Kind,
+    /** Named level to present for NAMED/ADAPTIVE; null only for a custom Elo. */
+    val levelId: String?,
     val targetElo: Int,
     val strength: EngineStrength.ApproximateElo = EngineStrength.ApproximateElo(targetElo),
-    val adaptive: Boolean,
-)
+) {
+    enum class Kind { NAMED, CUSTOM_ELO, ADAPTIVE }
+
+    val adaptive: Boolean get() = kind == Kind.ADAPTIVE
+}
 
 object BotDifficultyResolver {
     fun resolve(selection: BotDifficultySelection, playerRating: OfflineRating): ResolvedBotDifficulty =
         when (selection) {
             is BotDifficultySelection.Named -> {
                 val level = BotDifficultyCatalog.named(selection.levelId)
-                ResolvedBotDifficulty(level.displayName, level.approximateElo, adaptive = false)
+                ResolvedBotDifficulty(ResolvedBotDifficulty.Kind.NAMED, level.id, level.approximateElo)
             }
             is BotDifficultySelection.CustomElo -> ResolvedBotDifficulty(
-                label = "Custom ${selection.elo}",
+                kind = ResolvedBotDifficulty.Kind.CUSTOM_ELO,
+                levelId = null,
                 targetElo = selection.elo,
-                adaptive = false,
             )
             BotDifficultySelection.Adaptive -> {
                 val target = BotDifficultyCatalog.clampElo(playerRating.rating)
                 ResolvedBotDifficulty(
-                    label = "Adaptive · ${BotDifficultyCatalog.nearest(target).displayName}",
+                    kind = ResolvedBotDifficulty.Kind.ADAPTIVE,
+                    levelId = BotDifficultyCatalog.nearest(target).id,
                     targetElo = target,
-                    adaptive = true,
                 )
             }
         }

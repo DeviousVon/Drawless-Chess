@@ -629,13 +629,11 @@ internal object CoordinatorCheckpointCodec {
         .put("winner", value.winner.name)
         .put("loser", value.loser.name)
         .put("reason", value.reason.name)
-        .put("explanation", value.explanation)
 
     private fun decodeOutcome(value: JSONObject): GameOutcome = GameOutcome(
         winner = enumValueOf(value.getString("winner")),
         loser = enumValueOf(value.getString("loser")),
         reason = enumValueOf(value.getString("reason")),
-        explanation = value.getString("explanation"),
     )
 
     private fun encodeClock(value: CoordinatorClock): JSONObject = JSONObject()

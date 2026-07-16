@@ -1,6 +1,6 @@
 # Third-party notices
 
-This file records the third-party material in the Drawless Chess 0.1.0 release
+This file records the third-party material in the Drawless Chess 0.2.0 release
 checkpoint. The exact resolved Android runtime inventory is generated from
 Gradle and recorded in `release/reports/release-sbom.cdx.json`.
 

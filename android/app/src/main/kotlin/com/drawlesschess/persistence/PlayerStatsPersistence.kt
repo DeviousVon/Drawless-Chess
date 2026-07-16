@@ -117,6 +117,7 @@ internal data class CompletedGameEntity(
     @ColumnInfo(name = "end_reason")
     val endReason: String,
     @ColumnInfo(name = "outcome_explanation")
+    @Deprecated("Legacy schema column; use endReason with winnerSide and playerSide")
     val outcomeExplanation: String,
     @ColumnInfo(name = "move_count")
     val moveCount: Int,
@@ -234,7 +235,9 @@ internal object CompletedGameRecordFactory {
             winnerSide = outcome.winner.name,
             result = if (playerWon) RESULT_WIN else RESULT_LOSS,
             endReason = outcome.reason.name,
-            outcomeExplanation = outcome.explanation,
+            // The v2 schema keeps this NOT NULL legacy column for migration compatibility.
+            // Persist a stable code, never locale-dependent presentation text.
+            outcomeExplanation = outcome.reason.name,
             moveCount = checkpoint.moves.size,
             hintCount = checkpoint.assistance.hints,
             undoCount = checkpoint.assistance.undos,

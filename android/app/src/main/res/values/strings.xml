@@ -1,0 +1,301 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Brand -->
+    <string name="app_name" translatable="false">Drawless Chess</string>
+    <string name="brand_tagline">Every game has a winner.</string>
+    <string name="brand_features">Offline • Decisive rules • Modern play</string>
+
+    <!-- Common actions and labels -->
+    <string name="action_back">Back</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_close">Close</string>
+    <string name="action_done">Done</string>
+    <string name="action_dismiss">Dismiss</string>
+    <string name="action_try_again">Try again</string>
+    <string name="action_home">Home</string>
+    <string name="action_rematch">Rematch</string>
+    <string name="action_keep_playing">Keep playing</string>
+    <string name="action_theme">Theme</string>
+    <string name="label_white">White</string>
+    <string name="label_black">Black</string>
+    <string name="label_random">Random</string>
+    <string name="label_selected">Selected</string>
+    <string name="label_not_selected">Not selected</string>
+    <string name="label_not_available">Not available</string>
+
+    <!-- Home -->
+    <string name="home_resume_game">Resume game</string>
+    <string name="home_checking_saved_game">Checking saved game…</string>
+    <string name="home_discard_saved_game">Discard saved game</string>
+    <string name="home_quick_play">Quick Play</string>
+    <string name="home_quick_play_summary">Drawless · %1$s, %2$s · Random side · Untimed</string>
+    <string name="home_custom_game">Custom game</string>
+    <string name="home_theme">Theme · %1$s</string>
+    <string name="home_player_stats">Player stats</string>
+    <string name="home_options">Options</string>
+    <string name="home_how_drawless_works">How Drawless works</string>
+    <string name="home_open_source_license">Open-source license</string>
+    <string name="home_privacy">Privacy</string>
+    <string name="home_stats_loading">Loading…</string>
+    <string name="home_stats_unavailable">Unavailable</string>
+    <string name="home_stats_empty">No completed games yet</string>
+    <string name="home_stats_summary">%1$d–%2$d · %3$s%% wins · Avg %4$s</string>
+
+    <!-- Saved-game replacement -->
+    <string name="forfeit_title">Forfeit current game?</string>
+    <string name="forfeit_body">Are you sure you want to forfeit your current game? It will count as a loss in your stats.</string>
+    <string name="forfeit_recording">Recording loss…</string>
+    <string name="forfeit_confirm">Forfeit &amp; start new game</string>
+    <string name="forfeit_cancel">Keep current game</string>
+    <string name="error_loss_not_recorded">The loss couldn’t be recorded. Keep the current game and try again.</string>
+    <string name="error_stats_not_loaded">Player statistics can’t be loaded. Try again.</string>
+    <string name="error_saved_game_not_resumed">Saved game can’t be resumed.</string>
+    <string name="error_unknown">unknown error</string>
+
+    <!-- Rules, legal and privacy dialogs -->
+    <string name="rules_guide_title">Drawless in one minute</string>
+    <string name="rules_checkmate">• Checkmate still wins.</string>
+    <string name="rules_stalemate">• In default Drawless, a player with no legal move loses. The optional Escape variant makes stalemate a win instead.</string>
+    <string name="rules_repetition">• Causing the same position a third time loses, unless every legal move repeats.</string>
+    <string name="rules_dead_position">• If checkmate becomes impossible, the selected dead-position rule awards the game.</string>
+    <string name="rules_fifty_move">• There is no automatic 50-move ending.</string>
+    <string name="action_got_it">Got it</string>
+    <string name="license_title">Open-source software</string>
+    <string name="license_body">Drawless Chess is licensed under GNU GPL version 3 or later. Sampled audio includes CC0 chess recordings by JJTaynos and mh2o, CC0 fireworks by Rudmer_Rotteveel, and MIT-licensed ion.sound recordings by Denis Ineshin. Exact corresponding source and third-party notices accompany the official v0.2.0 release.</string>
+    <string name="license_view_source">View source</string>
+    <string name="privacy_title">Privacy</string>
+    <string name="privacy_body">Drawless Chess works entirely offline. BB_Games does not collect, transmit, share, or sell personal data. Saved games, completed-game history, local statistics, and settings are stored on your device and may be included in Android backups if you enable them; BB_Games cannot access those backups. Privacy questions: realitymaster@protonmail.ch</string>
+    <string name="privacy_view_policy">View policy</string>
+
+    <!-- Game setup -->
+    <string name="setup_title">Custom game</string>
+    <string name="setup_start_game">Start game</string>
+    <string name="setup_clock">Clock</string>
+    <string name="setup_play_as">Play as</string>
+    <string name="setup_random_side_explanation">White or Black will be chosen when the game starts.</string>
+    <string name="setup_side_explanation">You’ll play %1$s.</string>
+    <string name="setup_opponent">Opponent</string>
+    <string name="setup_advanced_rules">Advanced rules</string>
+    <string name="setup_advanced_description">Quick Play uses the recommended Drawless rules. Change these only if you want a variant.</string>
+    <string name="setup_hide_options">Hide options</string>
+    <string name="setup_show_options">Show options</string>
+    <string name="setup_stalemate">Stalemate</string>
+    <string name="setup_drawless">Drawless</string>
+    <string name="setup_escape">Escape</string>
+    <string name="setup_drawless_description">Default: a player with no legal move loses.</string>
+    <string name="setup_escape_description">Escape variant: a stalemated player wins instead.</string>
+    <string name="setup_impossible_checkmate">Impossible checkmate</string>
+    <string name="setup_material_wins">Material wins</string>
+    <string name="setup_final_capture">Final capture</string>
+    <string name="setup_material_wins_description">When checkmate is impossible, the side with more material wins; equal material favors the last mover.</string>
+    <string name="setup_final_capture_description">When a capture makes checkmate impossible, the capturing side wins.</string>
+    <string name="setup_opponent_level">%1$s opponent</string>
+    <string name="clock_untimed">Untimed</string>
+    <string name="clock_minutes">%1$d min</string>
+    <string name="clock_fifteen_ten" translatable="false">15+10</string>
+
+    <!-- Opponents and difficulty -->
+    <string name="opponent_default">Your opponent</string>
+    <string name="opponent_mira_name">Mira</string>
+    <string name="opponent_mira_epithet">Curious newcomer</string>
+    <string name="opponent_mira_personality">Bright and fearless, Mira is happy to try any idea once.</string>
+    <string name="opponent_theo_epithet">Easygoing regular</string>
+    <string name="opponent_theo_name">Theo</string>
+    <string name="opponent_theo_personality">Warm and observant, Theo enjoys a clever move and never takes a loss personally.</string>
+    <string name="opponent_rhea_epithet">Playful competitor</string>
+    <string name="opponent_rhea_name">Rhea</string>
+    <string name="opponent_rhea_personality">Rhea meets every position like a dare—and loves when you push back.</string>
+    <string name="opponent_mateo_epithet">Club storyteller</string>
+    <string name="opponent_mateo_name">Mateo</string>
+    <string name="opponent_mateo_personality">Patient and good-humored, Mateo always has a story ready after the game.</string>
+    <string name="opponent_yuna_epithet">Quiet analyst</string>
+    <string name="opponent_yuna_name">Yuna</string>
+    <string name="opponent_yuna_personality">Precise and dryly funny, Yuna lets the board do most of the talking.</string>
+    <string name="opponent_amara_epithet">Unshakable strategist</string>
+    <string name="opponent_amara_name">Amara</string>
+    <string name="opponent_amara_personality">Disciplined, gracious, and completely at home under pressure.</string>
+    <string name="opponent_lucian_epithet">Courteous grandmaster</string>
+    <string name="opponent_lucian_name">Lucian</string>
+    <string name="opponent_lucian_personality">Sparse with words, generous in victory, and focused from the first move.</string>
+    <string name="difficulty_learner">Learner</string>
+    <string name="difficulty_casual">Casual</string>
+    <string name="difficulty_challenger">Challenger</string>
+    <string name="difficulty_club">Club</string>
+    <string name="difficulty_expert">Expert</string>
+    <string name="difficulty_master">Master</string>
+    <string name="difficulty_grandmaster">Grandmaster</string>
+    <string name="difficulty_description_learner">A gentle introduction to Drawless Chess.</string>
+    <string name="difficulty_description_casual">Relaxed play with room to experiment.</string>
+    <string name="difficulty_description_challenger">A spirited opponent who notices tactics.</string>
+    <string name="difficulty_description_club">Steady club-level opposition.</string>
+    <string name="difficulty_description_expert">Sharp, accurate play for experienced players.</string>
+    <string name="difficulty_description_master">A demanding strategic challenge.</string>
+    <string name="difficulty_description_grandmaster">The strongest available opponent.</string>
+
+    <!-- Themes -->
+    <string name="theme_choose">Choose a theme</string>
+    <string name="theme_picker_description">Board, pieces, and menus update immediately. Your choice is saved.</string>
+    <string name="theme_obsidian_glass">Obsidian Glass</string>
+    <string name="theme_arctic_slate">Arctic Slate</string>
+    <string name="theme_modern_walnut">Modern Walnut</string>
+    <string name="theme_emerald_court">Emerald Court</string>
+    <string name="theme_royal_amethyst">Royal Amethyst</string>
+    <string name="theme_description_obsidian_glass">Cool charcoal and mint</string>
+    <string name="theme_description_arctic_slate">Crisp silver and blue</string>
+    <string name="theme_description_modern_walnut">Warm wood and teal</string>
+    <string name="theme_description_emerald_court">Deep green and gold</string>
+    <string name="theme_description_royal_amethyst">Purple dusk and coral</string>
+
+    <!-- Options -->
+    <string name="options_title">Options</string>
+    <string name="options_audio">Audio</string>
+    <string name="options_audio_description">Control the physical board and game-result sounds.</string>
+    <string name="options_sound_effects">Sound effects</string>
+    <string name="options_sound_effects_description">Play move, capture, victory, and defeat sounds.</string>
+    <string name="options_board">Board</string>
+    <string name="options_board_description">Choose the guidance shown around and on the board.</string>
+    <string name="options_board_coordinates">Board coordinates</string>
+    <string name="options_board_coordinates_description">Show rank and file labels along the board edges.</string>
+    <string name="options_threat_indication">Threat indication</string>
+    <string name="options_threat_indication_description">Highlight your pieces that are attacked by the opponent. This is assistance: a win scores 95 instead of 100 points and does not qualify for rated play. It applies to new games; a resumed game keeps the setting it started with.</string>
+    <string name="options_game_feedback">Game feedback</string>
+    <string name="options_game_feedback_description">Adjust result presentation without changing chess rules.</string>
+    <string name="options_celebration_effects">Win/loss celebration effects</string>
+    <string name="options_celebration_effects_description">Show the full-screen victory or defeat animation and play its matching fireworks or glass cue. The Sound effects setting remains the master audio control. The result and score are always shown.</string>
+    <string name="options_local_storage_notice">Saved locally by Drawless Chess and not sent to BB_Games. Android backup may include these settings according to your device settings.</string>
+
+    <!-- Player statistics -->
+    <string name="stats_title">Player stats</string>
+    <string name="stats_loading_title">Loading your stats…</string>
+    <string name="stats_loading_body">Getting your latest record ready.</string>
+    <string name="stats_unavailable_title">Stats unavailable</string>
+    <string name="stats_first_result">Your first result starts here</string>
+    <plurals name="stats_completed_games"><item quantity="one">%1$d completed game</item><item quantity="other">%1$d completed games</item></plurals>
+    <string name="stats_record">Record</string>
+    <string name="stats_record_value">%1$d–%2$d</string>
+    <string name="stats_record_accessibility">%1$d wins, %2$d losses</string>
+    <string name="stats_win_rate">Win rate</string>
+    <string name="stats_percent">%1$s%%</string>
+    <string name="stats_percent_accessibility">%1$s percent</string>
+    <string name="stats_average_game_score">Average game score</string>
+    <string name="stats_momentum">Momentum</string>
+    <string name="stats_current_streak">Current streak</string>
+    <string name="stats_best_streak">Best streak</string>
+    <string name="stats_unassisted_wins">Unassisted wins</string>
+    <plurals name="stats_consecutive_wins"><item quantity="one">%1$d consecutive win</item><item quantity="other">%1$d consecutive wins</item></plurals>
+    <plurals name="stats_unassisted_wins_accessibility"><item quantity="one">%1$d unassisted win</item><item quantity="other">%1$d unassisted wins</item></plurals>
+    <string name="stats_about_score">About game score</string>
+    <string name="stats_score_explanation">A clean win scores 100. Successful hints and undos deduct 10 each; timed pauses and threat indication deduct 5. Losses score 0.</string>
+    <string name="stats_score_context">Game score is a motivational measure of clean wins—not a chess rating. Your average includes every completed game, including zero-point losses. Future online Elo will remain separate.</string>
+    <string name="stats_by_opponent">By opponent</string>
+    <string name="stats_source_notice">Stats are derived from completed games.</string>
+    <string name="stats_metric_accessibility">%1$s: %2$s</string>
+    <plurals name="stats_opponent_games_record"><item quantity="one">%1$d game · %2$d–%3$d</item><item quantity="other">%1$d games · %2$d–%3$d</item></plurals>
+    <string name="stats_estimated_elo">%1$d estimated Elo</string>
+    <string name="stats_latest_strength">latest strength: %1$d estimated Elo</string>
+    <string name="stats_opponent_summary">%1$s%% wins · Avg score %2$s</string>
+
+    <!-- In-game shell and results -->
+    <string name="game_save_exit">Save &amp; exit</string>
+    <string name="game_title_summary">%1$s · %2$s</string>
+    <string name="rules_label_drawless">Drawless</string>
+    <string name="rules_label_escape">Escape</string>
+    <string name="mode_casual">Casual</string>
+    <string name="mode_rated">Rated</string>
+    <string name="game_resign_title">Resign this game?</string>
+    <string name="game_resign_body">%1$s will be awarded the win.</string>
+    <string name="game_resign_confirm">Resign game</string>
+    <string name="game_victory">Victory</string>
+    <string name="game_defeat">Defeat</string>
+    <string name="game_result_accessibility">%1$s, score %2$d of %3$d</string>
+    <string name="game_you_won">You won this game.</string>
+    <string name="game_you_defeated">You defeated %1$s.</string>
+    <string name="game_opponent_won">%1$s won this game.</string>
+    <string name="game_score">Score: %1$d / %2$d</string>
+    <string name="game_career_average">Career average game score: %1$s</string>
+    <string name="game_penalty">%1$s: −%2$d points</string>
+    <string name="game_hints">Hints</string>
+    <string name="game_undos">Undos</string>
+    <string name="game_timed_pauses">Timed pauses</string>
+    <string name="game_threat_indication">Threat indication</string>
+    <string name="game_captured_lead">%1$s leads the captured piece score by %2$d</string>
+    <string name="game_captured_even">Captured piece score is even</string>
+    <string name="game_opponent_thinking">%1$s is thinking</string>
+    <string name="game_opponent_unavailable">%1$s is unavailable</string>
+    <string name="game_retry_opponent">Retry %1$s</string>
+    <string name="game_resume">Resume</string>
+    <string name="game_pause">Pause</string>
+    <string name="game_undo">Undo</string>
+    <string name="game_hint">Hint</string>
+    <string name="game_flip">Flip</string>
+    <string name="game_resign">Resign</string>
+    <string name="game_moves">Moves</string>
+    <string name="move_number_format" translatable="false">%1$d.</string>
+    <string name="game_no_moves">No moves yet</string>
+    <string name="game_captured">Captured</string>
+    <string name="game_material_score">Score %1$d</string>
+    <string name="game_none">None</string>
+    <string name="game_promote_pawn">Promote pawn</string>
+    <string name="piece_queen">queen</string>
+    <string name="piece_rook">rook</string>
+    <string name="piece_bishop">bishop</string>
+    <string name="piece_knight">knight</string>
+    <string name="piece_pawn">pawn</string>
+    <string name="piece_king">king</string>
+    <string name="side_piece">%1$s %2$s</string>
+    <string name="board_empty_square">Empty square %1$s</string>
+    <string name="board_piece_square">%1$s on %2$s</string>
+    <string name="board_legal_move">legal move</string>
+    <string name="board_legal_capture">legal capture</string>
+    <string name="board_in_check">in check</string>
+    <string name="board_under_threat">under threat</string>
+    <string name="board_accessibility_join">%1$s, %2$s</string>
+    <string name="status_your_turn">Your turn</string>
+    <string name="status_hint_thinking">Analyzing the position…</string>
+    <string name="status_paused">Game paused</string>
+    <string name="status_completed">Game complete</string>
+    <string name="notice_action_unavailable">That action is unavailable.</string>
+    <string name="captured_accessibility">%1$s captured: %2$s. Captured piece score %3$d.</string>
+    <string name="captured_none_accessibility">%1$s captured no pieces. Captured piece score %2$d.</string>
+    <plurals name="captured_queens"><item quantity="one">%1$d queen</item><item quantity="other">%1$d queens</item></plurals>
+    <plurals name="captured_rooks"><item quantity="one">%1$d rook</item><item quantity="other">%1$d rooks</item></plurals>
+    <plurals name="captured_bishops"><item quantity="one">%1$d bishop</item><item quantity="other">%1$d bishops</item></plurals>
+    <plurals name="captured_knights"><item quantity="one">%1$d knight</item><item quantity="other">%1$d knights</item></plurals>
+    <plurals name="captured_pawns"><item quantity="one">%1$d pawn</item><item quantity="other">%1$d pawns</item></plurals>
+    <string name="move_accessibility">%1$s move %2$d: %3$s from %4$s to %5$s, %6$s.</string>
+    <string name="move_accessibility_capture">%1$s move %2$d: %3$s from %4$s captures %5$s on %6$s, %7$s.</string>
+    <string name="move_accessibility_castle_king">%1$s move %2$d: castles kingside, %3$s.</string>
+    <string name="move_accessibility_castle_queen">%1$s move %2$d: castles queenside, %3$s.</string>
+    <string name="move_accessibility_promotion">%1$s Promotes to %2$s.</string>
+    <string name="move_accessibility_en_passant">%1$s En passant.</string>
+
+    <!-- Core presentation adapters -->
+    <string name="status_opponent_unavailable">Opponent unavailable</string>
+    <string name="hint_suggestion">Engine suggests %1$s</string>
+    <string name="hint_suggestion_alternatives">Engine suggests %1$s · Also consider %2$s</string>
+    <string name="hint_unavailable">Hint unavailable. Try again.</string>
+    <string name="hint_analysis_failed">analysis failed</string>
+    <string name="engine_development_enabled">Development engine enabled for this debug build</string>
+    <string name="engine_start_failed">Chess engine failed to start. Retry the move or restart the game.</string>
+    <string name="engine_unknown_failure">unknown failure</string>
+
+    <!-- Completion effect -->
+    <string name="completion_victory">VICTORY</string>
+    <string name="completion_defeat">DEFEAT</string>
+    <string name="completion_beat_opponent">You beat %1$s!</string>
+    <string name="completion_you_won">You won!</string>
+    <string name="completion_opponent_won">%1$s won.</string>
+
+    <!-- Structured result reasons -->
+    <string name="result_checkmate">Checkmate.</string>
+    <string name="result_stalemate">The player with no legal move lost.</string>
+    <string name="result_escape_stalemate">The stalemated player escaped with the win.</string>
+    <string name="result_threefold_repetition">The same position occurred three times.</string>
+    <string name="result_forced_repetition">Every legal move repeated the position.</string>
+    <string name="result_dead_position_material">Checkmate became impossible; material decided the game.</string>
+    <string name="result_dead_position_final_capture">The final capture made checkmate impossible.</string>
+    <string name="result_timeout">Time expired.</string>
+    <string name="result_resignation">The game ended by resignation.</string>
+    <string name="result_forfeit">The game ended by forfeit.</string>
+    <string name="result_fifty_move">The fifty-move limit decided the game.</string>
+</resources>

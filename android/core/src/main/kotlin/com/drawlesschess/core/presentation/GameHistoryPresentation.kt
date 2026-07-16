@@ -8,14 +8,33 @@ import com.drawlesschess.core.chess.ChessRules
 import com.drawlesschess.core.chess.Piece
 import com.drawlesschess.core.chess.PieceType
 import com.drawlesschess.core.chess.SanNotation
+import com.drawlesschess.core.chess.Square
 import kotlin.math.abs
+
+enum class CastleSide { KING_SIDE, QUEEN_SIDE }
+
+/** Locale-neutral move facts from which the Android UI builds an accessibility description. */
+data class MoveAccessibilityFacts(
+    val moveNumber: Int,
+    val mover: Side,
+    val movingPiece: PieceType,
+    val from: Square,
+    val to: Square,
+    val capturedSide: Side?,
+    val capturedPiece: PieceType?,
+    val capturedSquare: Square?,
+    val enPassant: Boolean,
+    val castleSide: CastleSide?,
+    val promotedTo: PieceType?,
+    val notation: String,
+)
 
 data class MoveHistoryEntry(
     val notation: String,
     val mover: Side,
     val piece: PieceType,
     val promotedTo: PieceType?,
-    val accessibilityLabel: String,
+    val accessibility: MoveAccessibilityFacts,
 )
 
 data class MoveHistoryRow(
@@ -29,7 +48,6 @@ data class CapturedMaterialSideView(
     val capturedBy: Side,
     val pieces: List<PieceType>,
     val totalValue: Int,
-    val accessibilityLabel: String,
 ) {
     init {
         require(PieceType.KING !in pieces) { "Kings cannot appear in captured material" }
@@ -51,7 +69,6 @@ data class CapturedMaterialView(
     val white: CapturedMaterialSideView,
     val black: CapturedMaterialSideView,
     val lead: CaptureScoreLead,
-    val leadAccessibilityLabel: String,
 )
 
 data class GameTimelineView(
@@ -83,7 +100,7 @@ object GameHistoryPresenter {
                 mover = mover,
                 piece = movingPiece.type,
                 promotedTo = move.promotion,
-                accessibilityLabel = moveAccessibilityLabel(
+                accessibility = moveAccessibilityFacts(
                     moveNumber = moveNumber,
                     mover = mover,
                     movingPiece = movingPiece,
@@ -112,13 +129,9 @@ object GameHistoryPresenter {
             difference < 0 -> CaptureScoreLead(Side.BLACK, -difference)
             else -> CaptureScoreLead(null, 0)
         }
-        val leadLabel = lead.side?.let { side ->
-            "${side.displayName()} leads the captured piece score by ${lead.points}."
-        } ?: "The captured piece score is even."
-
         return GameTimelineView(
             history = rows.values.map { row -> MoveHistoryRow(row.moveNumber, row.white, row.black) },
-            capturedMaterial = CapturedMaterialView(white, black, lead, leadLabel),
+            capturedMaterial = CapturedMaterialView(white, black, lead),
         )
     }
 
@@ -138,51 +151,38 @@ object GameHistoryPresenter {
     private fun capturedSide(side: Side, pieces: List<PieceType>): CapturedMaterialSideView {
         val sorted = pieces.sortedBy(CAPTURE_ORDER::indexOf)
         val total = sorted.sumOf(::pieceValue)
-        val inventory = if (sorted.isEmpty()) {
-            "none"
-        } else {
-            CAPTURE_ORDER.mapNotNull { type ->
-                val count = sorted.count { it == type }
-                if (count == 0) null else "$count ${type.displayName()}${if (count == 1) "" else "s"}"
-            }.joinToString(", ")
-        }
         return CapturedMaterialSideView(
             capturedBy = side,
             pieces = sorted,
             totalValue = total,
-            accessibilityLabel = "${side.displayName()} captured: $inventory. Captured piece score $total.",
         )
     }
 
-    private fun moveAccessibilityLabel(
+    private fun moveAccessibilityFacts(
         moveNumber: Int,
         mover: Side,
         movingPiece: Piece,
         move: ChessMove,
         capturedPiece: CapturedPiece?,
         notation: String,
-    ): String {
-        val action = if (movingPiece.type == PieceType.KING && abs(move.to.file - move.from.file) == 2) {
-            "king castles ${if (move.to.file > move.from.file) "kingside" else "queenside"}"
+    ): MoveAccessibilityFacts = MoveAccessibilityFacts(
+        moveNumber = moveNumber,
+        mover = mover,
+        movingPiece = movingPiece.type,
+        from = move.from,
+        to = move.to,
+        capturedSide = capturedPiece?.piece?.side,
+        capturedPiece = capturedPiece?.piece?.type,
+        capturedSquare = capturedPiece?.square,
+        enPassant = capturedPiece != null && capturedPiece.square != move.to,
+        castleSide = if (movingPiece.type == PieceType.KING && abs(move.to.file - move.from.file) == 2) {
+            if (move.to.file > move.from.file) CastleSide.KING_SIDE else CastleSide.QUEEN_SIDE
         } else {
-            buildString {
-                append(movingPiece.type.displayName())
-                append(" from ${move.from.algebraic}")
-                if (capturedPiece == null) {
-                    append(" to ${move.to.algebraic}")
-                } else {
-                    append(" captures ${capturedPiece.piece.side.displayName().lowercase()} ")
-                    append(capturedPiece.piece.type.displayName())
-                    append(" on ${capturedPiece.square.algebraic}")
-                    if (capturedPiece.square != move.to) {
-                        append(" en passant and moves to ${move.to.algebraic}")
-                    }
-                }
-                move.promotion?.let { append(" and promotes to ${it.displayName()}") }
-            }
-        }
-        return "${mover.displayName()} move $moveNumber: $action, $notation."
-    }
+            null
+        },
+        promotedTo = move.promotion,
+        notation = notation,
+    )
 
     private fun pieceValue(type: PieceType): Int = when (type) {
         PieceType.PAWN -> 1
@@ -191,9 +191,6 @@ object GameHistoryPresenter {
         PieceType.QUEEN -> 9
         PieceType.KING -> 0
     }
-
-    private fun Side.displayName(): String = name.lowercase().replaceFirstChar(Char::uppercase)
-    private fun PieceType.displayName(): String = name.lowercase()
 
     private data class MutableHistoryRow(
         val moveNumber: Int,

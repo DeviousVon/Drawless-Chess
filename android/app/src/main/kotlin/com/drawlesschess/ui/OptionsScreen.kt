@@ -28,6 +28,8 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import com.drawlesschess.R
 
 @Composable
 internal fun OptionsScreen(
@@ -38,8 +40,12 @@ internal fun OptionsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Options") },
-                navigationIcon = { TextButton(onClick = onBack) { Text("Back") } },
+                title = { Text(stringResource(R.string.options_title)) },
+                navigationIcon = {
+                    TextButton(onClick = onBack, modifier = Modifier.testTag("options_back")) {
+                        Text(stringResource(R.string.action_back))
+                    }
+                },
             )
         },
     ) { padding ->
@@ -52,12 +58,12 @@ internal fun OptionsScreen(
             verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
             OptionSection(
-                title = "Audio",
-                description = "Control the physical board and game-result sounds.",
+                title = stringResource(R.string.options_audio),
+                description = stringResource(R.string.options_audio_description),
             ) {
                 PreferenceSwitchRow(
-                    title = "Sound effects",
-                    description = "Play move, capture, victory, and defeat sounds.",
+                    title = stringResource(R.string.options_sound_effects),
+                    description = stringResource(R.string.options_sound_effects_description),
                     checked = preferences.soundEnabled,
                     testTag = "option_sound_effects",
                     onCheckedChange = {
@@ -67,12 +73,12 @@ internal fun OptionsScreen(
             }
 
             OptionSection(
-                title = "Board",
-                description = "Choose the guidance shown around and on the board.",
+                title = stringResource(R.string.options_board),
+                description = stringResource(R.string.options_board_description),
             ) {
                 PreferenceSwitchRow(
-                    title = "Board coordinates",
-                    description = "Show rank and file labels along the board edges.",
+                    title = stringResource(R.string.options_board_coordinates),
+                    description = stringResource(R.string.options_board_coordinates_description),
                     checked = preferences.boardCoordinatesEnabled,
                     testTag = "option_board_coordinates",
                     onCheckedChange = {
@@ -80,11 +86,8 @@ internal fun OptionsScreen(
                     },
                 )
                 PreferenceSwitchRow(
-                    title = "Threat indication",
-                    description = "Highlight your pieces that are attacked by the opponent. " +
-                        "This is assistance: a win scores 95 instead of 100 points and " +
-                        "does not qualify for rated play. It applies to new games; a " +
-                        "resumed game keeps the setting it started with.",
+                    title = stringResource(R.string.options_threat_indication),
+                    description = stringResource(R.string.options_threat_indication_description),
                     checked = preferences.threatIndicationEnabled,
                     testTag = "option_threat_indication",
                     onCheckedChange = {
@@ -94,14 +97,12 @@ internal fun OptionsScreen(
             }
 
             OptionSection(
-                title = "Game feedback",
-                description = "Adjust result presentation without changing chess rules.",
+                title = stringResource(R.string.options_game_feedback),
+                description = stringResource(R.string.options_game_feedback_description),
             ) {
                 PreferenceSwitchRow(
-                    title = "Win/loss celebration effects",
-                    description = "Show the full-screen victory or defeat animation and play " +
-                        "its matching fireworks or glass cue. The Sound effects setting remains " +
-                        "the master audio control. The result and score are always shown.",
+                    title = stringResource(R.string.options_celebration_effects),
+                    description = stringResource(R.string.options_celebration_effects_description),
                     checked = preferences.celebrationEffectsEnabled,
                     testTag = "option_celebration_effects",
                     onCheckedChange = {
@@ -111,8 +112,7 @@ internal fun OptionsScreen(
             }
 
             Text(
-                "Saved locally by Drawless Chess and not sent to BB_Games. Android backup may " +
-                    "include these settings according to your device settings.",
+                stringResource(R.string.options_local_storage_notice),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

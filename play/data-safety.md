@@ -2,8 +2,8 @@
 
 Status: **copy-ready for the inspected build, but re-audit the exact release AAB**
 Inspected package: `com.drawlesschess`
-Inspected version: `0.1.0` (`versionCode` 1)
-Source-candidate re-audit date: July 14, 2026 (repeat against the exact signed release AAB)
+Inspected version: `0.2.0` (`versionCode` 2)
+Source-candidate re-audit date: July 15, 2026 (repeat against the exact signed release AAB)
 
 ## Recommended Play Console answers
 

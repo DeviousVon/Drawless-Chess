@@ -233,7 +233,6 @@ class GameCoordinator private constructor(
             val outcome = GameOutcome(
                 winner = config.humanSide.opposite(),
                 reason = EndReason.RESIGNATION,
-                explanation = "${config.humanSide} resigns",
             )
             session = session.copy(outcome = outcome)
             clock = clock.stop(timeSource.now())
@@ -413,7 +412,6 @@ class GameCoordinator private constructor(
         session = session.copy(outcome = GameOutcome(
             winner = loser.opposite(),
             reason = EndReason.TIMEOUT,
-            explanation = "$loser loses on time",
         ))
         clock = clock.stop(now)
         engineError = null

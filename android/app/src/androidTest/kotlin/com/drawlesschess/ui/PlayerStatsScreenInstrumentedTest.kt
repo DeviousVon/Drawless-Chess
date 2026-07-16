@@ -1,5 +1,6 @@
 package com.drawlesschess.ui
 
+import android.content.Context
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.CompositionLocalProvider
@@ -15,8 +16,12 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
+import androidx.test.platform.app.InstrumentationRegistry
+import com.drawlesschess.R
 import com.drawlesschess.persistence.OpponentStatistics
 import com.drawlesschess.persistence.PlayerStatistics
+import java.math.RoundingMode
+import java.text.NumberFormat
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -27,6 +32,7 @@ class PlayerStatsScreenInstrumentedTest {
 
     @Test
     fun completedCareerShowsRecordAverageStreaksAndOpponentBreakdown() {
+        val context = targetContext()
         var backClicks = 0
         compose.setContent {
             DrawlessTheme {
@@ -41,20 +47,39 @@ class PlayerStatsScreenInstrumentedTest {
         }
 
         compose.onNodeWithTag("player_stats_content").assertIsDisplayed()
-        compose.onNodeWithText("5 completed games").assertIsDisplayed()
-        compose.onNodeWithContentDescription("Record: 3 wins, 2 losses").assertIsDisplayed()
-        compose.onNodeWithContentDescription("Average game score: 54.0").assertIsDisplayed()
-        compose.onNodeWithText("Theo · Casual").performScrollTo().assertIsDisplayed()
-        compose.onNodeWithText("5 games · 3–2 · latest strength: 650 estimated Elo").assertIsDisplayed()
-        compose.onNodeWithText("Stats are derived from completed games.").performScrollTo().assertIsDisplayed()
-        compose.onNodeWithText("private app storage", substring = true).assertDoesNotExist()
-        compose.onNodeWithText("discarded games", substring = true).assertDoesNotExist()
-        compose.onNodeWithText("Back").performClick()
+        compose.onNodeWithText(
+            context.resources.getQuantityString(R.plurals.stats_completed_games, 5, 5),
+        ).assertIsDisplayed()
+        compose.onNodeWithContentDescription(
+            metricDescription(
+                context,
+                R.string.stats_record,
+                context.getString(R.string.stats_record_accessibility, 3, 2),
+            ),
+        ).assertIsDisplayed()
+        compose.onNodeWithContentDescription(
+            metricDescription(context, R.string.stats_average_game_score, oneDecimal(context, 54.0)),
+        ).assertIsDisplayed()
+        compose.onNodeWithText(
+            context.getString(
+                R.string.game_title_summary,
+                context.getString(R.string.opponent_theo_name),
+                context.getString(R.string.difficulty_casual),
+            ),
+        ).performScrollTo().assertIsDisplayed()
+        val record = context.resources.getQuantityString(R.plurals.stats_opponent_games_record, 5, 5, 3, 2)
+        val strength = context.getString(R.string.stats_latest_strength, 650)
+        compose.onNodeWithText("$record · $strength").assertIsDisplayed()
+        compose.onNodeWithText(context.getString(R.string.stats_source_notice))
+            .performScrollTo()
+            .assertIsDisplayed()
+        compose.onNodeWithTag("stats_back").performClick()
         assertEquals(1, backClicks)
     }
 
     @Test
     fun emptyCareerUsesDashesInsteadOfPretendingTheAverageIsZero() {
+        val context = targetContext()
         compose.setContent {
             DrawlessTheme {
                 PlayerStatsScreen(
@@ -80,14 +105,21 @@ class PlayerStatsScreenInstrumentedTest {
             }
         }
 
-        compose.onNodeWithText("Your first result starts here").assertIsDisplayed()
-        compose.onNodeWithText("No completed games yet").assertDoesNotExist()
+        compose.onNodeWithText(context.getString(R.string.stats_first_result)).assertIsDisplayed()
+        compose.onNodeWithText(context.getString(R.string.home_stats_empty)).assertDoesNotExist()
         compose.onNodeWithTag("stats_average_score")
-            .assertContentDescriptionEquals("Average game score: Not available")
+            .assertContentDescriptionEquals(
+                metricDescription(
+                    context,
+                    R.string.stats_average_game_score,
+                    context.getString(R.string.label_not_available),
+                ),
+            )
     }
 
     @Test
     fun compactDoubleFontLayoutKeepsMetricsAndOpponentBreakdownReachable() {
+        val context = targetContext()
         compose.setContent {
             CompositionLocalProvider(LocalDensity provides Density(density = 1f, fontScale = 2f)) {
                 DrawlessTheme {
@@ -102,10 +134,22 @@ class PlayerStatsScreenInstrumentedTest {
             }
         }
 
-        compose.onNodeWithContentDescription("Unassisted wins: 1 unassisted wins")
+        compose.onNodeWithContentDescription(
+            metricDescription(
+                context,
+                R.string.stats_unassisted_wins,
+                context.resources.getQuantityString(R.plurals.stats_unassisted_wins_accessibility, 1, 1),
+            ),
+        )
             .performScrollTo()
             .assertIsDisplayed()
-        compose.onNodeWithText("Theo · Casual").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText(
+            context.getString(
+                R.string.game_title_summary,
+                context.getString(R.string.opponent_theo_name),
+                context.getString(R.string.difficulty_casual),
+            ),
+        ).performScrollTo().assertIsDisplayed()
     }
 
     private fun sampleStatistics(): PlayerStatistics = PlayerStatistics(
@@ -132,4 +176,18 @@ class PlayerStatsScreenInstrumentedTest {
             ),
         ),
     )
+
+    private fun targetContext(): Context = InstrumentationRegistry.getInstrumentation().targetContext
+
+    private fun metricDescription(context: Context, labelRes: Int, value: String): String =
+        context.getString(R.string.stats_metric_accessibility, context.getString(labelRes), value)
+
+    private fun oneDecimal(context: Context, value: Double): String {
+        val locale = context.resources.configuration.locales[0]
+        return NumberFormat.getNumberInstance(locale).apply {
+            minimumFractionDigits = 1
+            maximumFractionDigits = 1
+            roundingMode = RoundingMode.HALF_UP
+        }.format(value)
+    }
 }

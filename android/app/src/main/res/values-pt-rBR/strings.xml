@@ -1,0 +1,298 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Marca -->
+    <string name="brand_tagline">Toda partida tem um vencedor.</string>
+    <string name="brand_features">Offline • Regras decisivas • Jogo moderno</string>
+
+    <!-- Ações e rótulos comuns -->
+    <string name="action_back">Voltar</string>
+    <string name="action_cancel">Cancelar</string>
+    <string name="action_close">Fechar</string>
+    <string name="action_done">Concluído</string>
+    <string name="action_dismiss">Fechar</string>
+    <string name="action_try_again">Tentar novamente</string>
+    <string name="action_home">Início</string>
+    <string name="action_rematch">Revanche</string>
+    <string name="action_keep_playing">Continuar jogando</string>
+    <string name="action_theme">Tema</string>
+    <string name="label_white">Brancas</string>
+    <string name="label_black">Pretas</string>
+    <string name="label_random">Aleatório</string>
+    <string name="label_selected">Selecionado</string>
+    <string name="label_not_selected">Não selecionado</string>
+    <string name="label_not_available">Indisponível</string>
+
+    <!-- Início -->
+    <string name="home_resume_game">Retomar partida</string>
+    <string name="home_checking_saved_game">Verificando a partida salva…</string>
+    <string name="home_discard_saved_game">Descartar partida salva</string>
+    <string name="home_quick_play">Partida rápida</string>
+    <string name="home_quick_play_summary">Drawless · %1$s, %2$s · Lado aleatório · Sem relógio</string>
+    <string name="home_custom_game">Partida personalizada</string>
+    <string name="home_theme">Tema · %1$s</string>
+    <string name="home_player_stats">Estatísticas do jogador</string>
+    <string name="home_options">Opções</string>
+    <string name="home_how_drawless_works">Como funciona o Drawless</string>
+    <string name="home_open_source_license">Licença de código aberto</string>
+    <string name="home_privacy">Privacidade</string>
+    <string name="home_stats_loading">Carregando…</string>
+    <string name="home_stats_unavailable">Indisponível</string>
+    <string name="home_stats_empty">Nenhuma partida concluída ainda</string>
+    <string name="home_stats_summary">%1$d–%2$d · %3$s%% de vitórias · Média %4$s</string>
+
+    <!-- Substituição de partida salva -->
+    <string name="forfeit_title">Abandonar a partida atual?</string>
+    <string name="forfeit_body">Tem certeza de que deseja abandonar a partida atual? Ela contará como uma derrota nas suas estatísticas.</string>
+    <string name="forfeit_recording">Registrando derrota…</string>
+    <string name="forfeit_confirm">Abandonar e iniciar nova partida</string>
+    <string name="forfeit_cancel">Manter partida atual</string>
+    <string name="error_loss_not_recorded">Não foi possível registrar a derrota. Mantenha a partida atual e tente novamente.</string>
+    <string name="error_stats_not_loaded">Não foi possível carregar as estatísticas. Tente novamente.</string>
+    <string name="error_saved_game_not_resumed">Não foi possível retomar a partida salva.</string>
+    <string name="error_unknown">erro desconhecido</string>
+
+    <!-- Diálogos de regras, informações legais e privacidade -->
+    <string name="rules_guide_title">Drawless em um minuto</string>
+    <string name="rules_checkmate">• O xeque-mate continua vencendo.</string>
+    <string name="rules_stalemate">• No Drawless padrão, quem não tem lances legais perde. Na variante opcional Escape, o jogador afogado vence.</string>
+    <string name="rules_repetition">• Quem provoca a mesma posição pela terceira vez perde, a menos que todos os lances legais repitam a posição.</string>
+    <string name="rules_dead_position">• Se o xeque-mate se tornar impossível, a regra de posição morta selecionada decide a partida.</string>
+    <string name="rules_fifty_move">• Não há encerramento automático pela regra dos 50 lances.</string>
+    <string name="action_got_it">Entendi</string>
+    <string name="license_title">Software de código aberto</string>
+    <string name="license_body">Drawless Chess é licenciado sob a GNU GPL versão 3 ou posterior. O áudio amostrado inclui gravações de xadrez CC0 de JJTaynos e mh2o, fogos de artifício CC0 de Rudmer_Rotteveel e gravações ion.sound de Denis Ineshin sob licença MIT. O código-fonte correspondente exato e os avisos de terceiros acompanham a versão oficial v0.2.0.</string>
+    <string name="license_view_source">Ver código-fonte</string>
+    <string name="privacy_title">Privacidade</string>
+    <string name="privacy_body">Drawless Chess funciona totalmente offline. A BB_Games não coleta, transmite, compartilha nem vende dados pessoais. Partidas salvas, histórico de partidas concluídas, estatísticas locais e configurações ficam armazenados no seu dispositivo e podem ser incluídos nos backups do Android se você os ativar; a BB_Games não pode acessar esses backups. Dúvidas sobre privacidade: realitymaster@protonmail.ch</string>
+    <string name="privacy_view_policy">Ver política</string>
+
+    <!-- Configuração da partida -->
+    <string name="setup_title">Partida personalizada</string>
+    <string name="setup_start_game">Iniciar partida</string>
+    <string name="setup_clock">Relógio</string>
+    <string name="setup_play_as">Jogar com</string>
+    <string name="setup_random_side_explanation">Brancas ou Pretas serão escolhidas quando a partida começar.</string>
+    <string name="setup_side_explanation">Você jogará com as %1$s.</string>
+    <string name="setup_opponent">Adversário</string>
+    <string name="setup_advanced_rules">Regras avançadas</string>
+    <string name="setup_advanced_description">A Partida rápida usa as regras recomendadas do Drawless. Altere-as somente se quiser uma variante.</string>
+    <string name="setup_hide_options">Ocultar opções</string>
+    <string name="setup_show_options">Mostrar opções</string>
+    <string name="setup_stalemate">Afogamento</string>
+    <string name="setup_drawless">Drawless</string>
+    <string name="setup_escape">Escape</string>
+    <string name="setup_drawless_description">Padrão: quem não tem lances legais perde.</string>
+    <string name="setup_escape_description">Variante Escape: o jogador afogado vence.</string>
+    <string name="setup_impossible_checkmate">Xeque-mate impossível</string>
+    <string name="setup_material_wins">Vitória por material</string>
+    <string name="setup_final_capture">Captura final</string>
+    <string name="setup_material_wins_description">Quando o xeque-mate é impossível, vence o lado com mais material; em caso de igualdade, vence quem fez o último lance.</string>
+    <string name="setup_final_capture_description">Quando uma captura torna o xeque-mate impossível, vence o lado que realizou a captura.</string>
+    <string name="setup_opponent_level">Adversário: %1$s</string>
+    <string name="clock_untimed">Sem relógio</string>
+    <string name="clock_minutes">%1$d min</string>
+
+    <!-- Adversários e dificuldade -->
+    <string name="opponent_default">Seu adversário</string>
+    <string name="opponent_mira_name">Mira</string>
+    <string name="opponent_mira_epithet">Novata curiosa</string>
+    <string name="opponent_mira_personality">Brilhante e destemida, Mira gosta de experimentar qualquer ideia pelo menos uma vez.</string>
+    <string name="opponent_theo_epithet">Jogador tranquilo</string>
+    <string name="opponent_theo_name">Theo</string>
+    <string name="opponent_theo_personality">Caloroso e observador, Theo aprecia um lance inteligente e nunca leva uma derrota para o lado pessoal.</string>
+    <string name="opponent_rhea_epithet">Competidora brincalhona</string>
+    <string name="opponent_rhea_name">Rhea</string>
+    <string name="opponent_rhea_personality">Rhea encara cada posição como um desafio e adora quando você reage à altura.</string>
+    <string name="opponent_mateo_epithet">Narrador do clube</string>
+    <string name="opponent_mateo_name">Mateo</string>
+    <string name="opponent_mateo_personality">Paciente e bem-humorado, Mateo sempre tem uma história pronta para depois da partida.</string>
+    <string name="opponent_yuna_epithet">Analista discreta</string>
+    <string name="opponent_yuna_name">Yuna</string>
+    <string name="opponent_yuna_personality">Precisa e sutilmente engraçada, Yuna deixa o tabuleiro falar quase tudo.</string>
+    <string name="opponent_amara_epithet">Estrategista inabalável</string>
+    <string name="opponent_amara_name">Amara</string>
+    <string name="opponent_amara_personality">Disciplinada, gentil e totalmente à vontade sob pressão.</string>
+    <string name="opponent_lucian_epithet">Grande mestre cortês</string>
+    <string name="opponent_lucian_name">Lucian</string>
+    <string name="opponent_lucian_personality">Econômico nas palavras, generoso na vitória e concentrado desde o primeiro lance.</string>
+    <string name="difficulty_learner">Aprendiz</string>
+    <string name="difficulty_casual">Casual</string>
+    <string name="difficulty_challenger">Desafiante</string>
+    <string name="difficulty_club">Jogador de clube</string>
+    <string name="difficulty_expert">Especialista</string>
+    <string name="difficulty_master">Mestre</string>
+    <string name="difficulty_grandmaster">Grande mestre</string>
+    <string name="difficulty_description_learner">Uma introdução tranquila ao Drawless Chess.</string>
+    <string name="difficulty_description_casual">Jogo descontraído com espaço para experimentar.</string>
+    <string name="difficulty_description_challenger">Um adversário animado que percebe táticas.</string>
+    <string name="difficulty_description_club">Oposição consistente em nível de clube.</string>
+    <string name="difficulty_description_expert">Jogo preciso e incisivo para jogadores experientes.</string>
+    <string name="difficulty_description_master">Um desafio estratégico exigente.</string>
+    <string name="difficulty_description_grandmaster">O adversário mais forte disponível.</string>
+
+    <!-- Temas -->
+    <string name="theme_choose">Escolha um tema</string>
+    <string name="theme_picker_description">O tabuleiro, as peças e os menus são atualizados imediatamente. Sua escolha fica salva.</string>
+    <string name="theme_obsidian_glass">Vidro de obsidiana</string>
+    <string name="theme_arctic_slate">Ardósia ártica</string>
+    <string name="theme_modern_walnut">Nogueira moderna</string>
+    <string name="theme_emerald_court">Corte de esmeralda</string>
+    <string name="theme_royal_amethyst">Ametista real</string>
+    <string name="theme_description_obsidian_glass">Carvão frio e menta</string>
+    <string name="theme_description_arctic_slate">Prata nítida e azul</string>
+    <string name="theme_description_modern_walnut">Madeira quente e verde-azulado</string>
+    <string name="theme_description_emerald_court">Verde intenso e dourado</string>
+    <string name="theme_description_royal_amethyst">Crepúsculo roxo e coral</string>
+
+    <!-- Opções -->
+    <string name="options_title">Opções</string>
+    <string name="options_audio">Áudio</string>
+    <string name="options_audio_description">Controle os sons físicos do tabuleiro e dos resultados da partida.</string>
+    <string name="options_sound_effects">Efeitos sonoros</string>
+    <string name="options_sound_effects_description">Reproduza sons de lance, captura, vitória e derrota.</string>
+    <string name="options_board">Tabuleiro</string>
+    <string name="options_board_description">Escolha as orientações exibidas ao redor e sobre o tabuleiro.</string>
+    <string name="options_board_coordinates">Coordenadas do tabuleiro</string>
+    <string name="options_board_coordinates_description">Mostre as letras e os números das casas nas bordas do tabuleiro.</string>
+    <string name="options_threat_indication">Indicação de ameaças</string>
+    <string name="options_threat_indication_description">Destaque suas peças que estão sendo atacadas pelo adversário. Isso é uma ajuda: uma vitória vale 95 em vez de 100 pontos e não se qualifica para partidas ranqueadas. A opção vale para novas partidas; uma partida retomada mantém a configuração com que começou.</string>
+    <string name="options_game_feedback">Apresentação da partida</string>
+    <string name="options_game_feedback_description">Ajuste a apresentação do resultado sem alterar as regras do xadrez.</string>
+    <string name="options_celebration_effects">Efeitos de celebração de vitória ou derrota</string>
+    <string name="options_celebration_effects_description">Mostre a animação de vitória ou derrota em tela cheia e reproduza o efeito correspondente de fogos de artifício ou vidro. A opção Efeitos sonoros continua sendo o controle principal do áudio. O resultado e a pontuação são sempre exibidos.</string>
+    <string name="options_local_storage_notice">Salvo localmente pelo Drawless Chess e não enviado à BB_Games. O backup do Android pode incluir estas configurações de acordo com os ajustes do seu dispositivo.</string>
+
+    <!-- Estatísticas do jogador -->
+    <string name="stats_title">Estatísticas do jogador</string>
+    <string name="stats_loading_title">Carregando suas estatísticas…</string>
+    <string name="stats_loading_body">Preparando seu registro mais recente.</string>
+    <string name="stats_unavailable_title">Estatísticas indisponíveis</string>
+    <string name="stats_first_result">Seu primeiro resultado começa aqui</string>
+    <plurals name="stats_completed_games"><item quantity="one">%1$d partida concluída</item><item quantity="other">%1$d partidas concluídas</item></plurals>
+    <string name="stats_record">Histórico</string>
+    <string name="stats_record_value">%1$d–%2$d</string>
+    <string name="stats_record_accessibility">%1$d vitórias, %2$d derrotas</string>
+    <string name="stats_win_rate">Taxa de vitórias</string>
+    <string name="stats_percent">%1$s%%</string>
+    <string name="stats_percent_accessibility">%1$s por cento</string>
+    <string name="stats_average_game_score">Pontuação média por partida</string>
+    <string name="stats_momentum">Momento</string>
+    <string name="stats_current_streak">Sequência atual</string>
+    <string name="stats_best_streak">Melhor sequência</string>
+    <string name="stats_unassisted_wins">Vitórias sem ajuda</string>
+    <plurals name="stats_consecutive_wins"><item quantity="one">%1$d vitória consecutiva</item><item quantity="other">%1$d vitórias consecutivas</item></plurals>
+    <plurals name="stats_unassisted_wins_accessibility"><item quantity="one">%1$d vitória sem ajuda</item><item quantity="other">%1$d vitórias sem ajuda</item></plurals>
+    <string name="stats_about_score">Sobre a pontuação da partida</string>
+    <string name="stats_score_explanation">Uma vitória limpa vale 100 pontos. Cada dica e cada lance desfeito com sucesso descontam 10; pausas com relógio e a indicação de ameaças descontam 5. Derrotas valem 0.</string>
+    <string name="stats_score_context">A pontuação da partida é uma medida motivacional de vitórias limpas, não uma classificação de xadrez. Sua média inclui todas as partidas concluídas, inclusive derrotas com zero ponto. O Elo online futuro permanecerá separado.</string>
+    <string name="stats_by_opponent">Por adversário</string>
+    <string name="stats_source_notice">As estatísticas são calculadas com base nas partidas concluídas.</string>
+    <string name="stats_metric_accessibility">%1$s: %2$s</string>
+    <plurals name="stats_opponent_games_record"><item quantity="one">%1$d partida · %2$d–%3$d</item><item quantity="other">%1$d partidas · %2$d–%3$d</item></plurals>
+    <string name="stats_estimated_elo">Elo estimado: %1$d</string>
+    <string name="stats_latest_strength">força mais recente: Elo estimado de %1$d</string>
+    <string name="stats_opponent_summary">%1$s%% de vitórias · Pontuação média %2$s</string>
+
+    <!-- Partida e resultados -->
+    <string name="game_save_exit">Salvar e sair</string>
+    <string name="game_title_summary">%1$s · %2$s</string>
+    <string name="rules_label_drawless">Drawless</string>
+    <string name="rules_label_escape">Escape</string>
+    <string name="mode_casual">Casual</string>
+    <string name="mode_rated">Ranqueada</string>
+    <string name="game_resign_title">Desistir desta partida?</string>
+    <string name="game_resign_body">%1$s receberá a vitória.</string>
+    <string name="game_resign_confirm">Desistir da partida</string>
+    <string name="game_victory">Vitória</string>
+    <string name="game_defeat">Derrota</string>
+    <string name="game_result_accessibility">%1$s, pontuação %2$d de %3$d</string>
+    <string name="game_you_won">Você venceu esta partida.</string>
+    <string name="game_you_defeated">Você derrotou %1$s.</string>
+    <string name="game_opponent_won">%1$s venceu esta partida.</string>
+    <string name="game_score">Pontuação: %1$d/%2$d</string>
+    <string name="game_career_average">Pontuação média da carreira: %1$s</string>
+    <string name="game_penalty">%1$s: −%2$d pontos</string>
+    <string name="game_hints">Dicas</string>
+    <string name="game_undos">Lances desfeitos</string>
+    <string name="game_timed_pauses">Pausas com relógio</string>
+    <string name="game_threat_indication">Indicação de ameaças</string>
+    <string name="game_captured_lead">Vantagem de %1$s na pontuação de peças capturadas: %2$d</string>
+    <string name="game_captured_even">A pontuação de peças capturadas está empatada</string>
+    <string name="game_opponent_thinking">%1$s está pensando</string>
+    <string name="game_opponent_unavailable">%1$s está indisponível</string>
+    <string name="game_retry_opponent">Tentar %1$s novamente</string>
+    <string name="game_resume">Retomar</string>
+    <string name="game_pause">Pausar</string>
+    <string name="game_undo">Desfazer</string>
+    <string name="game_hint">Dica</string>
+    <string name="game_flip">Girar</string>
+    <string name="game_resign">Desistir</string>
+    <string name="game_moves">Lances</string>
+    <string name="game_no_moves">Nenhum lance ainda</string>
+    <string name="game_captured">Capturadas</string>
+    <string name="game_material_score">Pontuação %1$d</string>
+    <string name="game_none">Nenhuma</string>
+    <string name="game_promote_pawn">Promover peão</string>
+    <string name="piece_queen">dama</string>
+    <string name="piece_rook">torre</string>
+    <string name="piece_bishop">bispo</string>
+    <string name="piece_knight">cavalo</string>
+    <string name="piece_pawn">peão</string>
+    <string name="piece_king">rei</string>
+    <string name="side_piece">%1$s: %2$s</string>
+    <string name="board_empty_square">Casa %1$s vazia</string>
+    <string name="board_piece_square">%1$s em %2$s</string>
+    <string name="board_legal_move">lance legal</string>
+    <string name="board_legal_capture">captura legal</string>
+    <string name="board_in_check">em xeque</string>
+    <string name="board_under_threat">sob ameaça</string>
+    <string name="board_accessibility_join">%1$s, %2$s</string>
+    <string name="status_your_turn">Sua vez</string>
+    <string name="status_hint_thinking">Analisando a posição…</string>
+    <string name="status_paused">Partida pausada</string>
+    <string name="status_completed">Partida concluída</string>
+    <string name="notice_action_unavailable">Essa ação está indisponível.</string>
+    <string name="captured_accessibility">Peças capturadas por %1$s: %2$s. Pontuação de peças capturadas: %3$d.</string>
+    <string name="captured_none_accessibility">Peças capturadas por %1$s: nenhuma. Pontuação de peças capturadas: %2$d.</string>
+    <plurals name="captured_queens"><item quantity="one">%1$d dama</item><item quantity="other">%1$d damas</item></plurals>
+    <plurals name="captured_rooks"><item quantity="one">%1$d torre</item><item quantity="other">%1$d torres</item></plurals>
+    <plurals name="captured_bishops"><item quantity="one">%1$d bispo</item><item quantity="other">%1$d bispos</item></plurals>
+    <plurals name="captured_knights"><item quantity="one">%1$d cavalo</item><item quantity="other">%1$d cavalos</item></plurals>
+    <plurals name="captured_pawns"><item quantity="one">%1$d peão</item><item quantity="other">%1$d peões</item></plurals>
+    <string name="move_accessibility">Lance %2$d das %1$s: %3$s de %4$s para %5$s, %6$s.</string>
+    <string name="move_accessibility_capture">Lance %2$d das %1$s: %3$s de %4$s captura %5$s em %6$s, %7$s.</string>
+    <string name="move_accessibility_castle_king">Lance %2$d das %1$s: roque pequeno, %3$s.</string>
+    <string name="move_accessibility_castle_queen">Lance %2$d das %1$s: roque grande, %3$s.</string>
+    <string name="move_accessibility_promotion">%1$s Promoção para %2$s.</string>
+    <string name="move_accessibility_en_passant">%1$s En passant.</string>
+
+    <!-- Adaptadores de apresentação do núcleo -->
+    <string name="status_opponent_unavailable">Adversário indisponível</string>
+    <string name="hint_suggestion">O motor sugere %1$s</string>
+    <string name="hint_suggestion_alternatives">O motor sugere %1$s · Considere também %2$s</string>
+    <string name="hint_unavailable">Dica indisponível. Tente novamente.</string>
+    <string name="hint_analysis_failed">falha na análise</string>
+    <string name="engine_development_enabled">Motor de desenvolvimento ativado para esta versão de depuração</string>
+    <string name="engine_start_failed">Não foi possível iniciar o mecanismo de xadrez. Tente a jogada novamente ou reinicie a partida.</string>
+    <string name="engine_unknown_failure">falha desconhecida</string>
+
+    <!-- Efeito de conclusão -->
+    <string name="completion_victory">VITÓRIA</string>
+    <string name="completion_defeat">DERROTA</string>
+    <string name="completion_beat_opponent">Você derrotou %1$s!</string>
+    <string name="completion_you_won">Você venceu!</string>
+    <string name="completion_opponent_won">%1$s venceu.</string>
+
+    <!-- Motivos estruturados do resultado -->
+    <string name="result_checkmate">Xeque-mate.</string>
+    <string name="result_stalemate">O jogador sem lances legais perdeu.</string>
+    <string name="result_escape_stalemate">O jogador afogado escapou com a vitória.</string>
+    <string name="result_threefold_repetition">A mesma posição ocorreu três vezes.</string>
+    <string name="result_forced_repetition">Todos os lances legais repetiam a posição.</string>
+    <string name="result_dead_position_material">O xeque-mate se tornou impossível; o material decidiu a partida.</string>
+    <string name="result_dead_position_final_capture">A captura final tornou o xeque-mate impossível.</string>
+    <string name="result_timeout">O tempo acabou.</string>
+    <string name="result_resignation">A partida terminou por desistência.</string>
+    <string name="result_forfeit">A partida terminou por abandono.</string>
+    <string name="result_fifty_move">O limite de cinquenta lances decidiu a partida.</string>
+</resources>
