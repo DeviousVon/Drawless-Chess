@@ -22,7 +22,8 @@ Drawless Chess reworks familiar chess rules to replace routine draw endings with
 • A player with no legal move loses under the default stalemate rule.
 • Causing the same position a third time loses, unless every legal move repeats.
 • When checkmate becomes impossible, the selected dead-position rule awards the game.
-• There is no automatic 50-move ending.
+• A player left with only a king loses immediately.
+• After 50 moves without a pawn move or capture, material points decide the winner.
 
 PLAY COMPLETELY OFFLINE
 Challenge the built-in chess engine without an account, internet connection, or online matchmaking. Choose from seven descriptive opponent levels, from Learner through Grandmaster.
@@ -43,19 +44,19 @@ BUILT FOR REAL GAMES
 • Phone and tablet layouts
 
 FIVE DISTINCT THEMES
-Switch between Obsidian Glass, Arctic Slate, Modern Walnut, Emerald Court, and Royal Amethyst. Your choice is remembered on your device.
+Switch between Imperial Marble, Desert Sandstone, Glacier Slate, Verdigris Copper, and Amethyst Geode. Your choice is remembered on your device.
 
 PRIVATE BY DESIGN
 No account. No ads. No analytics or tracking. No in-app purchases. Games and preferences stay in local app storage, subject to your Android backup settings.
 
 OPEN-SOURCE SOFTWARE
 Drawless Chess is licensed under GNU GPL version 3 or later. Project source and notices are available at:
-https://github.com/DeviousVon/Drawless-Chess/releases/tag/v0.2.0
+https://github.com/DeviousVon/Drawless-Chess/releases/tag/v0.3.0
 ```
 
 ## Release notes
 
-Draft for version `0.2.0`:
+Draft for version `0.3.0`:
 
 ```text
 Welcome to Drawless Chess. Play decisive offline games against seven illustrated opponents, with random-side Quick Play or custom rules and clocks. Track captures, material, move history, streaks, and game scores; use optional threats, hints, undo, five themes, realistic board sounds, rematches, and clear victory or defeat effects. No account, ads, analytics, or in-app purchases.

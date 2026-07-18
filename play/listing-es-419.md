@@ -26,7 +26,8 @@ Drawless Chess adapta las reglas conocidas del ajedrez para reemplazar los final
 • Con la regla de ahogado predeterminada, quien no tiene movimientos legales pierde.
 • Quien provoca que la misma posición se repita por tercera vez pierde, salvo que todos los movimientos legales causen la repetición.
 • Cuando el jaque mate se vuelve imposible, la regla de posición muerta seleccionada decide quién gana.
-• No hay un final automático por la regla de los 50 movimientos.
+• Un jugador al que solo le queda el rey pierde inmediatamente.
+• Después de 50 movimientos sin mover un peón ni hacer una captura, los puntos de material deciden quién gana.
 
 JUEGA COMPLETAMENTE SIN CONEXIÓN
 Enfréntate al motor de ajedrez integrado sin cuenta, conexión a internet ni emparejamiento en línea. Elige entre siete niveles descriptivos de oponente, desde Aprendiz hasta Gran maestro.
@@ -47,21 +48,21 @@ CREADO PARA PARTIDAS REALES
 • Diseños para teléfonos y tablets
 
 CINCO TEMAS DIFERENTES
-Alterna entre Vidrio de obsidiana, Pizarra ártica, Nogal moderno, Corte de esmeralda y Amatista real. Tu elección queda guardada en el dispositivo.
+Alterna entre Mármol imperial, Arenisca del desierto, Pizarra glaciar, Cobre con verdín y Geoda de amatista. Tu elección queda guardada en el dispositivo.
 
 PRIVACIDAD DESDE EL DISEÑO
 Sin cuenta. Sin anuncios. Sin análisis de uso ni seguimiento. Sin compras dentro de la app. Las partidas y preferencias permanecen en el almacenamiento local de la app, sujeto a la configuración de copias de seguridad de Android.
 
 SOFTWARE DE CÓDIGO ABIERTO
 Drawless Chess se distribuye bajo la licencia GNU GPL versión 3 o posterior. El código fuente y los avisos del proyecto están disponibles en:
-https://github.com/DeviousVon/Drawless-Chess/releases/tag/v0.2.0
+https://github.com/DeviousVon/Drawless-Chess/releases/tag/v0.3.0
 ```
 
 Cantidad de caracteres: 2,586 de 4,000.
 
 ## Notas de la versión
 
-Borrador para la versión `0.2.0`:
+Borrador para la versión `0.3.0`:
 
 ```text
 Te damos la bienvenida a Drawless Chess. Juega partidas decisivas sin conexión contra siete oponentes ilustrados, con Partida rápida de bando al azar o reglas y relojes personalizados. Consulta capturas, material, historial de movimientos, rachas y puntuaciones; usa indicación opcional de amenazas, pistas, deshacer, cinco temas, sonidos realistas del tablero, revanchas y efectos claros de victoria o derrota. Sin cuenta, anuncios, análisis de uso ni compras dentro de la app.

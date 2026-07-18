@@ -26,7 +26,7 @@ class MainActivity : ComponentActivity() {
                 WindowCompat.getInsetsController(window, window.decorView)
                     .isAppearanceLightStatusBars = useDarkStatusIcons
             }
-            DrawlessTheme(theme = viewModel.selectedTheme) {
+            DrawlessTheme {
                 DrawlessApp(viewModel, drawlessApplication.gameSoundPlayer)
             }
         }

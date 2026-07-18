@@ -13,6 +13,7 @@ import com.drawlesschess.core.Side
 import com.drawlesschess.core.coordinator.CoordinatorCheckpoint
 import com.drawlesschess.core.coordinator.GameConfig
 import com.drawlesschess.core.engine.BotDifficultyCatalog
+import com.drawlesschess.core.engine.NamedBotLevel
 import com.drawlesschess.core.presentation.BoardTheme
 import com.drawlesschess.core.presentation.BoardThemes
 import com.drawlesschess.persistence.PlayerStatistics
@@ -72,6 +73,7 @@ internal class DrawlessAppViewModel(
     )
     private val themePreferences = ThemePreferenceStore(this.applicationContext)
     private val gamePreferenceStore = GamePreferenceStore(this.applicationContext)
+    private val quickPlayPreferences = QuickPlayPreferenceStore(this.applicationContext)
     private var activeSelection: SetupSelection? = null
 
     var route: AppRoute by mutableStateOf(AppRoute.HOME)
@@ -86,7 +88,12 @@ internal class DrawlessAppViewModel(
     var runtime: GameRuntime? by mutableStateOf(null)
         private set
 
-    var setupSelection: SetupSelection by mutableStateOf(SetupSelection())
+    var quickPlayOpponentLevel: NamedBotLevel by mutableStateOf(quickPlayPreferences.load())
+        private set
+
+    var setupSelection: SetupSelection by mutableStateOf(
+        SetupSelection(botLevel = quickPlayOpponentLevel),
+    )
         private set
 
     var forfeitConfirmation: ForfeitConfirmationState? by mutableStateOf(null)
@@ -110,13 +117,13 @@ internal class DrawlessAppViewModel(
 
     fun showNewGameSetup() {
         if (resumeState is ResumeState.Empty || resumeState is ResumeState.Ready) {
-            setupSelection = SetupSelection()
+            setupSelection = SetupSelection(botLevel = quickPlayOpponentLevel)
             route = AppRoute.SETUP
         }
     }
 
     fun startQuickPlay() {
-        startNewGame(SetupSelection())
+        startNewGame(SetupSelection(botLevel = quickPlayOpponentLevel))
     }
 
     fun showOptions() {
@@ -157,6 +164,12 @@ internal class DrawlessAppViewModel(
 
     fun updateSetupSelection(selection: SetupSelection) {
         setupSelection = selection
+        rememberQuickPlayOpponent(selection.botLevel)
+    }
+
+    fun selectQuickPlayOpponent(level: NamedBotLevel) {
+        rememberQuickPlayOpponent(level)
+        setupSelection = setupSelection.copy(botLevel = quickPlayOpponentLevel)
     }
 
     fun selectTheme(theme: BoardTheme) {
@@ -171,6 +184,7 @@ internal class DrawlessAppViewModel(
     }
 
     fun startNewGame(selection: SetupSelection) {
+        rememberQuickPlayOpponent(selection.botLevel)
         when (val state = resumeState) {
             is ResumeState.Ready -> {
                 forfeitConfirmation = ForfeitConfirmationState(
@@ -237,6 +251,13 @@ internal class DrawlessAppViewModel(
             )
                 .also { activeSelection = resolvedSetup.rematchSelection }
         }
+    }
+
+    private fun rememberQuickPlayOpponent(level: NamedBotLevel) {
+        val supported = BotDifficultyCatalog.namedOrNull(level.id) ?: return
+        if (quickPlayOpponentLevel == supported) return
+        quickPlayOpponentLevel = supported
+        quickPlayPreferences.save(supported)
     }
 
     fun rematchGame() {

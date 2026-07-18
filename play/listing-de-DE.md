@@ -27,7 +27,8 @@ Drawless Chess gestaltet vertraute Schachregeln neu und ersetzt übliche Remis-E
 • Nach der Standard-Pattregel verliert ein Spieler ohne legalen Zug.
 • Wer dieselbe Stellung zum dritten Mal herbeiführt, verliert – außer jeder legale Zug wiederholt die Stellung.
 • Wenn ein Schachmatt unmöglich wird, entscheidet die gewählte Regel für tote Stellungen über den Sieg.
-• Es gibt kein automatisches Ende nach der 50-Züge-Regel.
+• Ein Spieler, dem nur noch der König bleibt, verliert sofort.
+• Nach 50 Zügen ohne Bauernzug oder Schlagzug entscheiden die Materialpunkte.
 
 VOLLSTÄNDIG OFFLINE SPIELEN
 Fordere die integrierte Schach-Engine heraus – ohne Konto, Internetverbindung oder Online-Gegnersuche. Wähle aus sieben klar beschriebenen Gegnerstufen, vom Einsteiger bis zum Großmeister.
@@ -48,21 +49,21 @@ FÜR ECHTE PARTIEN GEMACHT
 • Layouts für Smartphones und Tablets
 
 FÜNF EIGENSTÄNDIGE DESIGNS
-Wechsle zwischen Obsidianglas, Arktischem Schiefer, Modernem Walnussholz, Smaragdhof und Königlichem Amethyst. Deine Auswahl wird auf deinem Gerät gespeichert.
+Wechsle zwischen Imperialem Marmor, Wüsten-Sandstein, Gletscherschiefer, Grünspan-Kupfer und Amethyst-Geode. Deine Auswahl wird auf deinem Gerät gespeichert.
 
 DATENSCHUTZ VON GRUND AUF
 Kein Konto. Keine Werbung. Keine Nutzungsanalyse und kein Tracking. Keine In-App-Käufe. Partien und Einstellungen bleiben im lokalen App-Speicher, vorbehaltlich deiner Android-Sicherungseinstellungen.
 
 OPEN-SOURCE-SOFTWARE
 Drawless Chess ist unter der GNU GPL Version 3 oder höher lizenziert. Projektquellcode und Hinweise sind verfügbar unter:
-https://github.com/DeviousVon/Drawless-Chess/releases/tag/v0.2.0
+https://github.com/DeviousVon/Drawless-Chess/releases/tag/v0.3.0
 ```
 
 Zeichenanzahl: 2.370 von 4.000. Vor Veröffentlichung erneut in der Play Console prüfen.
 
 ## Versionshinweise
 
-Entwurf für Version `0.2.0`:
+Entwurf für Version `0.3.0`:
 
 ```text
 Willkommen bei Drawless Chess. Spiele entscheidende Offline-Partien gegen sieben illustrierte Gegner – im Schnellspiel mit zufälliger Farbe oder mit eigenen Regeln und Bedenkzeiten. Verfolge geschlagene Figuren, Material, Zugverlauf, Serien und Punktzahlen. Nutze Bedrohungsanzeigen, Hinweise, Rücknahmen, fünf Designs, Brettklänge, Revanchen sowie Sieges- und Niederlageneffekte. Kein Konto, keine Werbung, keine Nutzungsanalyse, kein Tracking und keine In-App-Käufe.

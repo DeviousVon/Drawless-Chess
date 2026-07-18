@@ -22,7 +22,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 data class SetupSelection(
     val preset: RulesContractV1.Preset = RulesContractV1.Preset.DRAWLESS,
     val deadPosition: DeadPositionPolicy = DeadPositionPolicy.MATERIAL_VICTORY,
-    val fiftyMove: FiftyMovePolicy = FiftyMovePolicy.DISABLED,
+    val fiftyMove: FiftyMovePolicy = FiftyMovePolicy.MATERIAL_VICTORY,
     val mode: GameMode = GameMode.CASUAL,
     val timeControl: TimeControl = TimeControl.Untimed,
     val startingColor: StartingColor = StartingColor.RANDOM,

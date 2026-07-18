@@ -5,10 +5,10 @@ App: Drawless Chess
 Package: `com.drawlesschess`
 Developer display name: BB_Games
 Support/privacy email: realitymaster@protonmail.ch
-Prepared: July 15, 2026
+Prepared: July 17, 2026
 
 This directory contains copy-ready drafts for the Google Play listing and App content
-forms. The drafts describe the repository and version `0.2.0` as inspected on the date
+forms. The drafts describe the repository and version `0.3.0` as inspected on the date
 above. Re-audit the exact signed App Bundle before submission if code, dependencies,
 permissions, data handling, features, or the version changes.
 
@@ -48,10 +48,10 @@ permissions, data handling, features, or the version changes.
    applicable, a private paid-app promo code.
 6. Use Play Console's current wording when a question differs from these notes. Never
    claim that testing, feedback, production access, or approval occurred until it did.
-7. Publish the exact `drawless-chess-0.2.0-source.tar.gz` and its SHA-256 on the planned
-   GitHub `v0.2.0` release before submitting or distributing the build whose in-app source
+7. Publish the exact `drawless-chess-0.3.0-source.tar.gz` and its SHA-256 on the planned
+   GitHub `v0.3.0` release before submitting or distributing the build whose in-app source
    link points there.
 
-The icon, feature graphic, and all ten screenshots are current for the July 15 candidate. The
-phone set was captured on the API 36 emulator and the tablet set on the physical API 33 tablet;
+The icon, feature graphic, and all ten screenshots are current for the July 17 candidate. The
+phone and tablet-profile sets were captured on the API 36 emulator from one coherent build;
 their exact sources, transforms, dimensions, and hashes are recorded under `store-assets/`.

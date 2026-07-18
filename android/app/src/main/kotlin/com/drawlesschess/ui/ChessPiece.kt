@@ -1,17 +1,44 @@
 package com.drawlesschess.ui
 
+import android.util.LruCache
 import androidx.compose.foundation.Canvas
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Canvas as GraphicsCanvas
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.CanvasDrawScope
 import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.withTransform
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.LayoutDirection
 import com.drawlesschess.core.Side
 import com.drawlesschess.core.chess.PieceType
+
+private const val PIECE_RASTER_PX = 192
+private const val PIECE_RASTER_CACHE_KIB = 4 * 1024
+
+private data class PieceRasterKey(
+    val side: Side,
+    val type: PieceType,
+    val fill: Color,
+    val outline: Color,
+    val detail: Color,
+    val kingAccent: Color,
+)
+
+private val pieceRasterCache = object : LruCache<PieceRasterKey, ImageBitmap>(PIECE_RASTER_CACHE_KIB) {
+    override fun sizeOf(key: PieceRasterKey, value: ImageBitmap): Int =
+        (value.width * value.height * Int.SIZE_BYTES / 1024).coerceAtLeast(1)
+}
 
 /** Original, code-native chess pieces so rendering is consistent and redistributable. */
 @Composable
@@ -21,34 +48,78 @@ internal fun ChessPiece(
     modifier: Modifier = Modifier,
 ) {
     val palette = LocalDrawlessVisualTheme.current.pieces
+    val geometry = remember(type) { pieceGeometry(type) }
+    val fill = if (side == Side.WHITE) palette.whiteFill else palette.blackFill
+    val outline = if (side == Side.WHITE) palette.whiteOutline else palette.blackOutline
+    val detail = if (side == Side.WHITE) palette.whiteDetail else palette.blackDetail
+    val kingAccent = if (side == Side.WHITE) palette.whiteKingAccent else palette.blackKingAccent
+    val raster = remember(side, type, fill, outline, detail, kingAccent) {
+        pieceRaster(
+            key = PieceRasterKey(side, type, fill, outline, detail, kingAccent),
+            geometry = geometry,
+        )
+    }
     Canvas(modifier) {
-        val fill = if (side == Side.WHITE) palette.whiteFill else palette.blackFill
-        val outline = if (side == Side.WHITE) palette.whiteOutline else palette.blackOutline
-        val detail = if (side == Side.WHITE) palette.whiteDetail else palette.blackDetail
-        val kingAccent = if (side == Side.WHITE) palette.whiteKingAccent else palette.blackKingAccent
-        val scaleX = size.width / 100f
-        val scaleY = size.height / 100f
-        withTransform({ scale(scaleX, scaleY, pivot = Offset.Zero) }) {
-            drawPiece(type, fill, outline, detail, kingAccent)
+        drawImage(
+            image = raster,
+            dstSize = IntSize(size.width.toInt().coerceAtLeast(1), size.height.toInt().coerceAtLeast(1)),
+            filterQuality = FilterQuality.Medium,
+        )
+    }
+}
+
+internal fun chessPieceRaster(
+    side: Side,
+    type: PieceType,
+    palette: DrawlessPiecePalette,
+): ImageBitmap {
+    val fill = if (side == Side.WHITE) palette.whiteFill else palette.blackFill
+    val outline = if (side == Side.WHITE) palette.whiteOutline else palette.blackOutline
+    val detail = if (side == Side.WHITE) palette.whiteDetail else palette.blackDetail
+    val kingAccent = if (side == Side.WHITE) palette.whiteKingAccent else palette.blackKingAccent
+    return pieceRaster(
+        key = PieceRasterKey(side, type, fill, outline, detail, kingAccent),
+        geometry = pieceGeometry(type),
+    )
+}
+
+private fun pieceRaster(
+    key: PieceRasterKey,
+    geometry: PieceGeometry,
+): ImageBitmap {
+    pieceRasterCache.get(key)?.let { return it }
+    val image = ImageBitmap(PIECE_RASTER_PX, PIECE_RASTER_PX)
+    CanvasDrawScope().draw(
+        density = Density(1f),
+        layoutDirection = LayoutDirection.Ltr,
+        canvas = GraphicsCanvas(image),
+        size = Size(PIECE_RASTER_PX.toFloat(), PIECE_RASTER_PX.toFloat()),
+    ) {
+        val scale = PIECE_RASTER_PX / 100f
+        withTransform({ scale(scale, scale, pivot = Offset.Zero) }) {
+            drawPiece(
+                type = key.type,
+                geometry = geometry,
+                fill = key.fill,
+                outline = key.outline,
+                detail = key.detail,
+                kingAccent = key.kingAccent,
+            )
         }
     }
+    pieceRasterCache.put(key, image)
+    return image
 }
 
 private fun DrawScope.drawPiece(
     type: PieceType,
+    geometry: PieceGeometry,
     fill: Color,
     outline: Color,
     detail: Color,
     kingAccent: Color,
 ) {
-    val shape = when (type) {
-        PieceType.PAWN -> pawnPath()
-        PieceType.KNIGHT -> knightPath()
-        PieceType.BISHOP -> bishopPath()
-        PieceType.ROOK -> rookPath()
-        PieceType.QUEEN -> queenPath()
-        PieceType.KING -> kingPath()
-    }
+    val shape = geometry.shape
     drawPath(shape, outline, style = Stroke(width = 7f))
     drawPath(shape, fill, style = Fill)
     drawPath(shape, outline, style = Stroke(width = 2.4f))
@@ -62,36 +133,19 @@ private fun DrawScope.drawPiece(
             drawLine(kingAccent, Offset(40f, 14f), Offset(60f, 14f), strokeWidth = 4.5f)
         }
         PieceType.QUEEN -> {
-            listOf(27f, 42f, 58f, 73f).forEachIndexed { index, x ->
-                drawCircle(
-                    color = detail,
-                    radius = 3.4f,
-                    center = Offset(x, if (index == 1 || index == 2) 13f else 18f),
-                )
-            }
+            drawCircle(detail, 3.4f, Offset(27f, 18f))
+            drawCircle(detail, 3.4f, Offset(42f, 13f))
+            drawCircle(detail, 3.4f, Offset(58f, 13f))
+            drawCircle(detail, 3.4f, Offset(73f, 18f))
         }
         PieceType.BISHOP -> {
             // The recessed mitre cut and separate, wide shoulder are readable silhouette
             // features at 14dp; the pawn has neither an angled crown nor a collar.
-            val mitreCut = Path().apply {
-                moveTo(59f, 16f)
-                lineTo(47f, 43f)
-                quadraticTo(44f, 47f, 40f, 43f)
-                lineTo(55f, 15f)
-                close()
-            }
+            val mitreCut = requireNotNull(geometry.bishopMitreCut)
             drawPath(mitreCut, outline)
             drawLine(detail, Offset(57f, 19f), Offset(43f, 43f), strokeWidth = 2.8f)
 
-            val collar = Path().apply {
-                moveTo(27f, 51f)
-                lineTo(73f, 51f)
-                lineTo(78f, 60f)
-                quadraticTo(80f, 65f, 73f, 66f)
-                lineTo(27f, 66f)
-                quadraticTo(20f, 65f, 22f, 60f)
-                close()
-            }
+            val collar = requireNotNull(geometry.bishopCollar)
             drawPath(collar, outline, style = Stroke(width = 6f))
             drawPath(collar, fill)
             drawPath(collar, outline, style = Stroke(width = 2.4f))
@@ -108,22 +162,60 @@ private fun DrawScope.drawPiece(
     // A shared weighted base gives every piece a coherent, readable silhouette.
     // The bishop's oversized collar needs a slightly shorter plinth so the whole mark keeps a
     // clean raster margin in the 14dp promotion-history slot.
-    val baseTop = if (type == PieceType.BISHOP) 69f else 70f
-    val baseBottom = if (type == PieceType.BISHOP) 91f else 93f
     val baseDetail = if (type == PieceType.BISHOP) 80f else 83f
-    val base = Path().apply {
-        moveTo(25f, baseTop)
-        lineTo(75f, baseTop)
-        lineTo(82f, 88f)
-        quadraticTo(83f, baseBottom, 77f, baseBottom)
-        lineTo(23f, baseBottom)
-        quadraticTo(17f, baseBottom, 18f, 88f)
-        close()
-    }
+    val base = geometry.base
     drawPath(base, outline, style = Stroke(width = 7f))
     drawPath(base, fill)
     drawPath(base, outline, style = Stroke(width = 2.4f))
     drawLine(detail, Offset(23f, baseDetail), Offset(77f, baseDetail), strokeWidth = 2.6f)
+}
+
+private data class PieceGeometry(
+    val shape: Path,
+    val base: Path,
+    val bishopMitreCut: Path? = null,
+    val bishopCollar: Path? = null,
+)
+
+private fun pieceGeometry(type: PieceType): PieceGeometry {
+    val bishop = type == PieceType.BISHOP
+    val baseTop = if (bishop) 69f else 70f
+    val baseBottom = if (bishop) 91f else 93f
+    return PieceGeometry(
+        shape = when (type) {
+            PieceType.PAWN -> pawnPath()
+            PieceType.KNIGHT -> knightPath()
+            PieceType.BISHOP -> bishopPath()
+            PieceType.ROOK -> rookPath()
+            PieceType.QUEEN -> queenPath()
+            PieceType.KING -> kingPath()
+        },
+        base = Path().apply {
+            moveTo(25f, baseTop)
+            lineTo(75f, baseTop)
+            lineTo(82f, 88f)
+            quadraticTo(83f, baseBottom, 77f, baseBottom)
+            lineTo(23f, baseBottom)
+            quadraticTo(17f, baseBottom, 18f, 88f)
+            close()
+        },
+        bishopMitreCut = if (!bishop) null else Path().apply {
+            moveTo(59f, 16f)
+            lineTo(47f, 43f)
+            quadraticTo(44f, 47f, 40f, 43f)
+            lineTo(55f, 15f)
+            close()
+        },
+        bishopCollar = if (!bishop) null else Path().apply {
+            moveTo(27f, 51f)
+            lineTo(73f, 51f)
+            lineTo(78f, 60f)
+            quadraticTo(80f, 65f, 73f, 66f)
+            lineTo(27f, 66f)
+            quadraticTo(20f, 65f, 22f, 60f)
+            close()
+        },
+    )
 }
 
 private fun pawnPath() = Path().apply {

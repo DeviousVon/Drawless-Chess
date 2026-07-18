@@ -15,9 +15,18 @@ data class GameSession(
     val history: PositionHistory,
     val moves: List<MoveRecord> = emptyList(),
     val outcome: GameOutcome? = null,
+    val lastCaptureBy: Side? = null,
+    /**
+     * Facts for a rules-derived terminal move. They are intentionally derived by replay rather
+     * than persisted separately, keeping saved-game and completed-history formats stable.
+     */
+    val adjudicationFacts: PositionFacts? = null,
 ) {
     init {
         require(gameId.isNotBlank()) { "Game ID cannot be blank" }
+        require(outcome != null || adjudicationFacts == null) {
+            "Adjudication facts require a completed game"
+        }
     }
 
     val positionId: String get() = "$gameId:${moves.size}:${history.current.value}"
@@ -36,6 +45,7 @@ data class GameSession(
         val fiftyMoveAvoiding = transition.legalAlternativesBeforeMove.count { alternative ->
             alternative.resultingHalfmoveClock < 100
         }
+        val lastCaptureAfter = if (transition.moveWasCapture) transition.mover else lastCaptureBy
         val facts = PositionFacts(
             mover = transition.mover,
             legalMovesAfter = transition.legalMovesAfter,
@@ -47,6 +57,7 @@ data class GameSession(
             deadPositionAfter = transition.deadPositionAfter,
             moveWasCapture = transition.moveWasCapture,
             materialAfter = transition.materialAfter,
+            lastCaptureBy = lastCaptureAfter,
         )
         val nextOutcome = adjudicator.adjudicate(rules, facts)
         val nextRecord = MoveRecord(
@@ -61,6 +72,8 @@ data class GameSession(
             history = history.record(transition.resultingPositionKey),
             moves = moves + nextRecord,
             outcome = nextOutcome,
+            lastCaptureBy = lastCaptureAfter,
+            adjudicationFacts = facts.takeIf { nextOutcome != null },
         )
     }
 

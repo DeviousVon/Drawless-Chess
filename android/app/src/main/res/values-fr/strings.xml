@@ -57,10 +57,11 @@
     <string name="rules_stalemate">• Avec les règles Drawless par défaut, un joueur sans coup légal perd. Dans la variante Escape facultative, le pat donne au contraire la victoire.</string>
     <string name="rules_repetition">• Provoquer une troisième occurrence de la même position fait perdre, sauf si tous les coups légaux répètent la position.</string>
     <string name="rules_dead_position">• Si l’échec et mat devient impossible, la règle de position morte sélectionnée attribue la victoire.</string>
-    <string name="rules_fifty_move">• Il n’y a pas de fin automatique selon la règle des 50 coups.</string>
+    <string name="rules_bare_king">• Un joueur auquel il ne reste que le roi perd immédiatement.</string>
+    <string name="rules_fifty_move">• Après 50 coups sans mouvement de pion ni capture, les points de matériel déterminent le vainqueur.</string>
     <string name="action_got_it">Compris</string>
     <string name="license_title">Logiciel open source</string>
-    <string name="license_body">Drawless Chess est proposé sous licence GNU GPL version 3 ou ultérieure. Les extraits audio comprennent des enregistrements d’échecs CC0 de JJTaynos et mh2o, des feux d’artifice CC0 de Rudmer_Rotteveel et des enregistrements ion.sound de Denis Ineshin sous licence MIT. Le code source correspondant exact et les mentions relatives aux tiers accompagnent la version officielle v0.2.0.</string>
+    <string name="license_body">Drawless Chess est proposé sous licence GNU GPL version 3 ou ultérieure. Les extraits audio comprennent des enregistrements d’échecs CC0 de JJTaynos et mh2o, des feux d’artifice CC0 de Rudmer_Rotteveel et des enregistrements ion.sound de Denis Ineshin sous licence MIT. Le code source correspondant exact et les mentions relatives aux tiers accompagnent la version officielle v%1$s.</string>
     <string name="license_view_source">Voir le code source</string>
     <string name="privacy_title">Confidentialité</string>
     <string name="privacy_body">Drawless Chess fonctionne entièrement hors ligne. BB_Games ne collecte, ne transmet, ne partage et ne vend aucune donnée personnelle. Les parties enregistrées, l’historique des parties terminées, les statistiques locales et les paramètres sont stockés sur votre appareil et peuvent être inclus dans les sauvegardes Android si vous les activez ; BB_Games ne peut pas accéder à ces sauvegardes. Questions sur la confidentialité : realitymaster@protonmail.ch</string>
@@ -132,17 +133,17 @@
 
     <!-- Themes -->
     <string name="theme_choose">Choisissez un thème</string>
-    <string name="theme_picker_description">L’échiquier, les pièces et les menus sont immédiatement mis à jour. Votre choix est enregistré.</string>
-    <string name="theme_obsidian_glass">Verre d’obsidienne</string>
-    <string name="theme_arctic_slate">Ardoise arctique</string>
-    <string name="theme_modern_walnut">Noyer moderne</string>
-    <string name="theme_emerald_court">Cour d’émeraude</string>
-    <string name="theme_royal_amethyst">Améthyste royale</string>
-    <string name="theme_description_obsidian_glass">Anthracite froid et menthe</string>
-    <string name="theme_description_arctic_slate">Argent vif et bleu</string>
-    <string name="theme_description_modern_walnut">Bois chaleureux et bleu sarcelle</string>
-    <string name="theme_description_emerald_court">Vert profond et or</string>
-    <string name="theme_description_royal_amethyst">Crépuscule violet et corail</string>
+    <string name="theme_picker_description">L’échiquier et les pièces sont immédiatement mis à jour. Votre choix est enregistré.</string>
+    <string name="theme_imperial_marble">Marbre impérial</string>
+    <string name="theme_description_imperial_marble">Blanc de Carrare et vert veiné</string>
+    <string name="theme_desert_sandstone">Grès du désert</string>
+    <string name="theme_description_desert_sandstone">Strates dorées et grain chaleureux</string>
+    <string name="theme_glacier_slate">Ardoise glaciaire</string>
+    <string name="theme_verdigris_copper">Cuivre vert-de-gris</string>
+    <string name="theme_amethyst_geode">Géode d’améthyste</string>
+    <string name="theme_description_glacier_slate">Pierre clivée et éclats de mica</string>
+    <string name="theme_description_verdigris_copper">Cuivre patiné et calcaire ivoire</string>
+    <string name="theme_description_amethyst_geode">Cristal violet et reflets dorés</string>
 
     <!-- Options -->
     <string name="options_title">Options</string>
@@ -150,6 +151,8 @@
     <string name="options_audio_description">Contrôlez les sons des manipulations sur l’échiquier et des résultats de partie.</string>
     <string name="options_sound_effects">Effets sonores</string>
     <string name="options_sound_effects_description">Jouez les sons de déplacement, de capture, de victoire et de défaite.</string>
+    <string name="options_sound_volume">Volume des effets</string>
+    <string name="options_sound_volume_description">Réglez les sons du jeu indépendamment du volume de l’appareil.</string>
     <string name="options_board">Échiquier</string>
     <string name="options_board_description">Choisissez les indications affichées autour de l’échiquier et sur celui-ci.</string>
     <string name="options_board_coordinates">Coordonnées de l’échiquier</string>
@@ -158,9 +161,12 @@
     <string name="options_threat_indication_description">Mettez en évidence vos pièces attaquées par l’adversaire. Il s’agit d’une aide : une victoire rapporte 95 points au lieu de 100 et n’est pas admissible au jeu classé. Cette option s’applique aux nouvelles parties ; une partie reprise conserve le réglage avec lequel elle a commencé.</string>
     <string name="options_game_feedback">Retour de partie</string>
     <string name="options_game_feedback_description">Ajustez la présentation du résultat sans modifier les règles des échecs.</string>
+    <string name="options_haptic_feedback">Retour haptique</string>
+    <string name="options_haptic_feedback_description">De légères vibrations accompagnent les sélections, les coups, les captures, les échecs et les résultats. Le réglage système du retour tactile reste appliqué.</string>
     <string name="options_celebration_effects">Effets de célébration de victoire/défaite</string>
     <string name="options_celebration_effects_description">Affichez l’animation de victoire ou de défaite en plein écran et jouez le son de feu d’artifice ou de verre correspondant. Le réglage Effets sonores reste le contrôle audio principal. Le résultat et le score sont toujours affichés.</string>
     <string name="options_local_storage_notice">Enregistré localement par Drawless Chess et non envoyé à BB_Games. La sauvegarde Android peut inclure ces paramètres selon les réglages de votre appareil.</string>
+    <string name="options_version">Version %1$s (%2$d)</string>
 
     <!-- Player statistics -->
     <string name="stats_title">Statistiques du joueur</string>
@@ -246,6 +252,13 @@
     <string name="board_legal_capture">capture légale</string>
     <string name="board_in_check">en échec</string>
     <string name="board_under_threat">sous la menace</string>
+    <string name="board_self_check_king">votre roi serait exposé</string>
+    <string name="board_self_check_attacker">attaquant qui expose votre roi</string>
+    <string name="board_self_check_unsafe">case dangereuse pour votre roi</string>
+    <string name="warning_move_exposes_king">Ce coup laisserait votre roi en échec.</string>
+    <string name="warning_castle_while_in_check">Vous ne pouvez pas roquer lorsque votre roi est en échec.</string>
+    <string name="warning_castle_through_check">Vous ne pouvez pas roquer en traversant une case menacée.</string>
+    <string name="warning_castle_into_check">Vous ne pouvez pas roquer vers une case menacée.</string>
     <string name="board_accessibility_join">%1$s, %2$s</string>
     <string name="status_your_turn">À vous de jouer</string>
     <string name="status_hint_thinking">Analyse de la position…</string>
@@ -285,14 +298,24 @@
 
     <!-- Structured result reasons -->
     <string name="result_checkmate">Échec et mat.</string>
-    <string name="result_stalemate">Le joueur sans coup légal a perdu.</string>
-    <string name="result_escape_stalemate">Avec la variante Escape, le joueur en situation de pat a gagné.</string>
-    <string name="result_threefold_repetition">La même position s’est produite trois fois.</string>
-    <string name="result_forced_repetition">Tous les coups légaux répétaient la position.</string>
-    <string name="result_dead_position_material">L’échec et mat est devenu impossible ; le matériel a décidé de la partie.</string>
-    <string name="result_dead_position_final_capture">La dernière capture a rendu l’échec et mat impossible.</string>
+    <string name="result_stalemate">Le joueur au trait n’avait aucun coup légal et n’était pas en échec. Selon les règles Drawless, ce joueur perd.</string>
+    <string name="result_escape_stalemate">Le joueur au trait n’avait aucun coup légal et n’était pas en échec. Selon les règles Escape, ce joueur gagne.</string>
+    <string name="result_threefold_repetition">La même position s’est produite trois fois ; la règle de répétition a donc décidé de la partie.</string>
+    <string name="result_forced_repetition">Tous les coups légaux de %1$s produisaient la troisième occurrence de la position. Selon l’exception de répétition forcée, %2$s perd pour avoir imposé le cycle.</string>
+    <plurals name="result_avoidable_repetition"><item quantity="one">%1$s a produit la troisième occurrence alors que %2$d coup légal l’aurait évitée. Selon la règle de répétition, %1$s perd.</item><item quantity="other">%1$s a produit la troisième occurrence alors que %2$d coups légaux l’auraient évitée. Selon la règle de répétition, %1$s perd.</item></plurals>
+    <string name="result_dead_position_material">L’échec et mat est devenu impossible ; la règle du matériel a donc déterminé le vainqueur.</string>
+    <string name="result_dead_position_material_score">L’échec et mat est devenu impossible. Les Blancs avaient %1$d points de matériel et les Noirs %2$d ; %3$s a donc gagné selon la règle du matériel.</string>
+    <string name="result_dead_position_material_tie">L’échec et mat est devenu impossible, avec %1$d points de matériel de chaque côté. Selon la règle du matériel, le joueur ayant joué le dernier coup—%2$s—a gagné.</string>
+    <string name="result_dead_position_final_capture">La dernière capture a rendu l’échec et mat impossible. Selon la règle Final Capture, le joueur ayant effectué cette capture a gagné.</string>
+    <string name="result_bare_king">Il ne restait que le roi à %1$s, donc %2$s a gagné.</string>
     <string name="result_timeout">Le temps est écoulé.</string>
     <string name="result_resignation">La partie s’est terminée par un abandon.</string>
     <string name="result_forfeit">La partie s’est terminée par un forfait.</string>
-    <string name="result_fifty_move">La limite des cinquante coups a décidé de la partie.</string>
+    <string name="result_fifty_move">La limite des 50 coups a été atteinte ; cette règle a donc décidé de la partie.</string>
+    <string name="result_fifty_move_material_score">La limite des 50 coups a été atteinte. Les Blancs avaient %1$d points de matériel et les Noirs %2$d, donc %3$s a gagné.</string>
+    <string name="result_fifty_move_material_last_capture">La limite des 50 coups a été atteinte avec un matériel à égalité, %1$d points de chaque côté. %2$s a effectué la dernière capture et a gagné.</string>
+    <string name="result_fifty_move_material_no_capture">La limite des 50 coups a été atteinte avec un matériel à égalité, %1$d points de chaque côté, et aucune capture précédente. Le départage pour absence de progrès a attribué la partie à %2$s.</string>
+    <string name="result_fifty_move_completing_player">La limite des 50 coups a été atteinte sans mouvement de pion ni capture. Le joueur dont le coup a atteint la limite perd.</string>
+    <string name="result_forced_fifty_move">Tous les coups légaux de %1$s auraient atteint la limite des 50 coups. Selon l’exception de coup forcé, %2$s perd pour avoir imposé cette situation.</string>
+    <plurals name="result_avoidable_fifty_move"><item quantity="one">%1$s a atteint la limite des 50 coups alors que %2$d coup légal aurait remis le compteur à zéro. Selon la règle des 50 coups, %1$s perd.</item><item quantity="other">%1$s a atteint la limite des 50 coups alors que %2$d coups légaux auraient remis le compteur à zéro. Selon la règle des 50 coups, %1$s perd.</item></plurals>
 </resources>

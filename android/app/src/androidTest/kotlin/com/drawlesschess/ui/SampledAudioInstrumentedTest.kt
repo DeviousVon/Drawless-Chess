@@ -20,6 +20,28 @@ class SampledAudioInstrumentedTest {
     private val context: Context = ApplicationProvider.getApplicationContext()
 
     @Test
+    fun persistedVolumeRangeIsATrueLinearMaster() {
+        assertEquals(0f, soundVolumeMultiplier(-10), 0f)
+        assertEquals(0.5f, soundVolumeMultiplier(DEFAULT_SOUND_VOLUME_PERCENT), 0f)
+        assertEquals(1f, soundVolumeMultiplier(100), 0f)
+        assertEquals(1f, soundVolumeMultiplier(150), 0f)
+    }
+
+    @Test
+    fun volumePreviewUsesTheMeasuredMedianMoveSample() {
+        assertEquals(SampledSoundCatalog.moves[16], SampledSoundCatalog.volumePreview)
+    }
+
+    @Test
+    fun sanPlansLayerCheckTicksOverTheCorrectPrimaryCue() {
+        assertEquals(MoveSoundPlan(PrimaryMoveSound.MOVE, false), moveSoundPlan("e4"))
+        assertEquals(MoveSoundPlan(PrimaryMoveSound.MOVE, true), moveSoundPlan("Qh7+"))
+        assertEquals(MoveSoundPlan(PrimaryMoveSound.CAPTURE, false), moveSoundPlan("Qxh7"))
+        assertEquals(MoveSoundPlan(PrimaryMoveSound.CAPTURE, true), moveSoundPlan("Qxh7#"))
+        assertEquals(MoveSoundPlan(PrimaryMoveSound.CASTLE, true), moveSoundPlan("O-O+"))
+    }
+
+    @Test
     fun catalogIsCompleteUniqueAndAndroidDecodesEveryResource() {
         val groups = listOf(
             SampledSoundCatalog.moves to 50,
@@ -62,10 +84,10 @@ class SampledAudioInstrumentedTest {
                 val format = extractor.getTrackFormat(0)
                 assertEquals("audio/vorbis", format.getString(MediaFormat.KEY_MIME))
                 assertEquals(48_000, format.getInteger(MediaFormat.KEY_SAMPLE_RATE))
-                assertEquals(1, format.getInteger(MediaFormat.KEY_CHANNEL_COUNT))
+                assertEquals(2, format.getInteger(MediaFormat.KEY_CHANNEL_COUNT))
                 val durationMicros = format.getLong(MediaFormat.KEY_DURATION)
                 assertTrue("$name is implausibly short", durationMicros >= 30_000L)
-                assertTrue("$name is implausibly long", durationMicros <= 1_250_000L)
+                assertTrue("$name is implausibly long", durationMicros <= 2_500_000L)
             } finally {
                 extractor.release()
                 descriptor.close()
@@ -151,12 +173,17 @@ class SampledAudioInstrumentedTest {
     @Test
     fun playerMuteStopAndCloseOperationsAreIdempotent() {
         val player = GameSoundPlayer(context)
+        player.setVolumePercent(100)
+        player.playVolumePreview()
         player.setEnabled(false)
+        player.playVolumePreview()
         player.playMove("e4")
         player.playCompletionCue(CompletionEffectCue.FIREWORK_LOW)
         player.stopAll()
 
         player.setEnabled(true)
+        player.setVolumePercent(0)
+        player.playVolumePreview()
         player.playMove("O-O")
         player.playCompletionCue(CompletionEffectCue.GLASS_IMPACT)
         player.playCompletionCue(CompletionEffectCue.GLASS_FRACTURE)
@@ -166,6 +193,10 @@ class SampledAudioInstrumentedTest {
         // Re-enabling cannot resurrect the canceled linked variant. A new impact creates the
         // only session that may accept its fracture and shard continuations.
         player.setEnabled(true)
+        player.setVolumePercent(50)
+        player.playMove("Qxh7+")
+        player.playMove("Qh7#")
+        player.playCheck()
         player.playCompletionCue(CompletionEffectCue.GLASS_SHARDS)
         player.playCompletionCue(CompletionEffectCue.GLASS_IMPACT)
         player.playCompletionCue(CompletionEffectCue.GLASS_FRACTURE)

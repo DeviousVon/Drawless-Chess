@@ -52,10 +52,11 @@ repeated in root `THIRD_PARTY_NOTICES.md`, which is bundled inside release APKs 
 
 ## Processing and runtime
 
-`scripts/audio/rebuild_curated_foley.sh` documents the exact corrected move, capture, castling,
-and fireworks recipes. Those families use trimming, fades, gain staging, restrained filtering,
-micro-offset physical layering, and stereo-to-mono microphone mixes. They use no slide/sweep,
-pitch shift, procedural oscillator/noise renderer, or household firework substitute.
+`scripts/audio/rebuild_lossless_audio.ps1` documents the exact move, capture, castling, firework,
+glass, and UI-cue recipes. Runtime variations use trimming, fades, gain staging, restrained
+filtering, micro-offset physical layering, and preserved stereo where the retained source is
+stereo. They use no slide/sweep, pitch shift, procedural oscillator/noise renderer, or household
+firework substitute.
 
 `GameSoundPlayer` preloads the compact library with Android `SoundPool`, expires stale requests,
 honors the persisted mute setting, cancels result cues on lifecycle exit, and keeps all three

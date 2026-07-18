@@ -1,0 +1,9 @@
+schema_version	opening_id	name	initial_fen	moves
+1	o00-start	Starting position	rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1	-
+1	o01-open-e	Open e-file	rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1	e2e4 e7e5 g1f3 b8c6
+1	o02-sicilian	Sicilian	rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1	e2e4 c7c5 g1f3 d7d6
+1	o03-french	French	rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1	e2e4 e7e6 d2d4 d7d5
+1	o04-queens-gambit	Queen's Gambit	rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1	d2d4 d7d5 c2c4 e7e6
+1	o05-indian	Indian	rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1	d2d4 g8f6 c2c4 g7g6
+1	o06-english	English	rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1	c2c4 e7e5 b1c3 g8f6
+1	o07-reti	Reti	rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1	g1f3 d7d5 g2g3 g8f6

@@ -19,14 +19,17 @@ and checked during load.
 - `repetition.completingPlayerLoses`: true.
 - `repetition.forcedMoveException`: true.
 - `deadPosition`: material victory or final-capture victory.
-- `fiftyMove`: disabled, completing player loses, or forced-move exception.
+- `bareKing`: continue or bare king loses. This optional field defaults to `continue`
+  when absent from a legacy v1 save.
+- `fiftyMove`: disabled, completing player loses, forced-move exception, or material victory.
 - `materialValues`: pawn 1, knight 3, bishop 3, rook 5, queen 9.
 
-The shipped Drawless and Escape templates default `fiftyMove` to `disabled`. Games still
-have decisive exits: recognized dead positions are adjudicated immediately, and the
-third-occurrence rule eventually terminates any continuing cycle in the finite chess
-state space. The two 50-move loss policies remain versioned options for old saves and
-future experiments, but Quick Play does not impose an arbitrary 100-halfmove ending.
+The shipped Drawless and Escape templates use `bare_king_loses` and default `fiftyMove`
+to `material_victory`. New games therefore end when one player has only a king, or after
+100 halfmoves without a pawn move or capture. At that limit, higher material wins; tied
+material is resolved by the side that made the last capture. If no capture exists, the
+forced-move exception determines the winner. Older v1 saves without `bareKing` continue
+under their original behavior so replay cannot invent an earlier result.
 
 ## Outcome precedence
 
@@ -34,8 +37,9 @@ When one move appears to trigger multiple conditions:
 
 1. Checkmate or stalemate
 2. Repetition
-3. Dead-position adjudication
-4. Configured 50-move outcome
+3. Bare-king adjudication
+4. Dead-position adjudication
+5. Configured 50-move outcome
 
 This ordering is part of the versioned contract and cannot silently change for existing
 games.

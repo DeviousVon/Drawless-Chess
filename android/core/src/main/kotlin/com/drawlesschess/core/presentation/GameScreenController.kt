@@ -25,6 +25,8 @@ data class GameResultView(
     val winner: Side,
     val reason: EndReason,
     val score: GameScore,
+    val rules: RulesContractV1 = RulesContractV1.drawless(),
+    val adjudicationFacts: PositionFacts? = null,
 )
 
 sealed interface GameNotice {
@@ -108,6 +110,8 @@ class GameScreenController(
                         assistance = snapshot.assistance,
                         timeControl = config.timeControl,
                     ),
+                    rules = config.rules,
+                    adjudicationFacts = snapshot.session.adjudicationFacts,
                 )
             },
             transientNotice = transientNotice,
@@ -119,8 +123,11 @@ class GameScreenController(
         val snapshot = coordinator.snapshot()
         val position = ChessPosition.fromFen(snapshot.currentFen)
         val context = BoardInteractionContext(
-            position,
-            snapshot.phase == CoordinatorPhase.HUMAN_TURN && snapshot.session.sideToMove == config.humanSide,
+            position = position,
+            interactive = snapshot.phase == CoordinatorPhase.HUMAN_TURN &&
+                snapshot.session.sideToMove == config.humanSide,
+            selectionSide = config.humanSide,
+            preselectionEnabled = snapshot.phase == CoordinatorPhase.BOT_THINKING,
         )
         val reduction = BoardInteractionReducer.reduce(context, interaction, event)
         interaction = reduction.state

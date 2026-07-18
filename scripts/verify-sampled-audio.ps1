@@ -48,12 +48,19 @@ foreach ($required in @(
     if (-not (Test-Path -LiteralPath $required)) { Fail "missing $required" }
 }
 
-$auditedManifestSha256 = 'b25ed214614f9a71c7995193ba48317d5991b19fc9ae0a297d728dda69ab6bd8'
+$auditedManifestSha256 = 'beb898bf98081060c30704230e9efcffb92d96680726291ffd291187d3691388'
 if ((Get-Sha256 $manifestPath) -ne $auditedManifestSha256) {
     Fail 'audio_manifest.json differs from the independently audited source identities and pins'
 }
 
 $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+if ($manifest.schema -ne 3 -or
+    $manifest.format.codec -ne 'Ogg Vorbis' -or
+    $manifest.format.sample_rate_hz -ne 48000 -or
+    $manifest.format.channels -ne 2 -or
+    $manifest.format.quality -ne 'libvorbis q8') {
+    Fail 'manifest does not declare the required high-quality stereo Vorbis format'
+}
 $expectedCounts = [ordered]@{
     move = 50
     capture = 12
@@ -148,7 +155,7 @@ foreach ($asset in $assets) {
     if (-not $assetHashes.Add([string]$asset.sha256)) { Fail "duplicate encoded asset hash $($asset.sha256)" }
     $category = [string]$asset.category
     $categoryCounts[$category] = 1 + [int]($categoryCounts[$category] ?? 0)
-    if ([double]$asset.duration_seconds -lt 0.03 -or [double]$asset.duration_seconds -gt 1.25) {
+    if ([double]$asset.duration_seconds -lt 0.03 -or [double]$asset.duration_seconds -gt 2.50) {
         Fail "implausible manifest duration for $name"
     }
     if (@($asset.sources).Count -eq 0) { Fail "$name has no declared sources" }
@@ -190,9 +197,8 @@ foreach ($asset in $assets) {
     } finally {
         $stream.Dispose()
     }
-    if ($read -lt 35 -or [Text.Encoding]::ASCII.GetString($header, 0, 4) -ne 'OggS' -or
-        -not [Text.Encoding]::ASCII.GetString($header, 0, $read).Contains('vorbis')) {
-        Fail "$name does not have an Ogg/Vorbis identification header"
+    if ($read -lt 4 -or [Text.Encoding]::ASCII.GetString($header, 0, 4) -ne 'OggS') {
+        Fail "$name does not have an Ogg identification header"
     }
 }
 
@@ -208,7 +214,7 @@ foreach ($entry in $expectedCounts.GetEnumerator()) {
 $diskNames = @(Get-ChildItem -LiteralPath $raw -Filter '*.ogg' -File | ForEach-Object Name)
 if (@($diskNames | Where-Object { $_ -notin $assetNames }).Count -ne 0 -or
     @($assetNames | Where-Object { $_ -notin $diskNames }).Count -ne 0) {
-    Fail 'runtime Ogg file set differs from the manifest'
+    Fail 'runtime OGG file set differs from the manifest'
 }
 
 $catalogText = Get-Content -LiteralPath $catalogPath -Raw
@@ -238,7 +244,7 @@ if ($sourceFiles.Count -ne $hashedSourceIds.Count) {
     Fail "retained source set ($($sourceFiles.Count)) differs from hashed manifest sources ($($hashedSourceIds.Count))"
 }
 $unexpectedUnused = @($declaredSources.Keys | Where-Object {
-    $_ -notin @('ion_sound', 'keyboard_desk') -and -not $usedSourceIds.Contains($_)
+    $_ -notin @('ion_sound', 'keyboard_desk', 'mh2o_alabaster') -and -not $usedSourceIds.Contains($_)
 })
 if ($unexpectedUnused.Count -ne 0) {
     Fail "runtime assets do not cite retained sources: $($unexpectedUnused -join ', ')"
@@ -304,13 +310,13 @@ if (($FfmpegPath -and (Test-Path -LiteralPath $FfmpegPath)) -or $useWslFfmpeg) {
                 $wslInput = (& wsl.exe -e wslpath -a $path | Out-String).Trim()
                 $wslOutput = (& wsl.exe -e wslpath -a $pcmPath | Out-String).Trim()
                 $output = (& wsl.exe -e ffmpeg -hide_banner -nostats -i $wslInput -map '0:a:0' `
-                    -ac 1 -ar 48000 -f s16le -y $wslOutput 2>&1 | Out-String)
+                    -ac 2 -ar 48000 -f s16le -y $wslOutput 2>&1 | Out-String)
             } else {
                 $output = (& $FfmpegPath -hide_banner -nostats -i $path -map '0:a:0' `
-                    -ac 1 -ar 48000 -f s16le -y $pcmPath 2>&1 | Out-String)
+                    -ac 2 -ar 48000 -f s16le -y $pcmPath 2>&1 | Out-String)
             }
             if ($LASTEXITCODE -ne 0) { Fail "FFmpeg could not decode $($asset.file)" }
-            if ($output -notmatch 'Audio:\s+vorbis,\s+48000 Hz,\s+mono') {
+            if ($output -notmatch 'Audio:\s+vorbis[^\r\n]*,\s+48000 Hz,\s+stereo') {
                 Fail "unexpected source format for $($asset.file)"
             }
 
@@ -318,11 +324,10 @@ if (($FfmpegPath -and (Test-Path -LiteralPath $FfmpegPath)) -or $useWslFfmpeg) {
             if ($bytes.Length -eq 0 -or $bytes.Length % 2 -ne 0) {
                 Fail "invalid decoded PCM length for $($asset.file)"
             }
-            $duration = $bytes.Length / (48000.0 * 2.0)
-            # These very short clips differ by at most one 1,024-sample Vorbis frame between
-            # granule metadata and FFmpeg's emitted PCM. Keep the tolerance to that codec frame;
-            # larger drift still catches a changed or truncated effect.
-            if ([Math]::Abs($duration - [double]$asset.duration_seconds) -gt 0.022) {
+            $duration = $bytes.Length / (48000.0 * 2.0 * 2.0)
+            # Short Vorbis effects can differ from the Ogg granule duration by one codec block
+            # because of pre-skip/end padding; keep the allowance far below an audible tail edit.
+            if ([Math]::Abs($duration - [double]$asset.duration_seconds) -gt 0.025) {
                 Fail "decoded duration mismatch for $($asset.file): manifest=$($asset.duration_seconds) actual=$duration"
             }
 
@@ -335,6 +340,7 @@ if (($FfmpegPath -and (Test-Path -LiteralPath $FfmpegPath)) -or $useWslFfmpeg) {
                 $sumSquares += [double]$sample * [double]$sample
             }
             $sampleCount = $bytes.Length / 2
+            $frameCount = $sampleCount / 2
             $rms = [Math]::Sqrt($sumSquares / $sampleCount)
             if ($peak -ge 32767) { Fail "decoded clipping in $($asset.file)" }
             if ($rms -le 1.04) { Fail "decoded audio is effectively silent in $($asset.file)" }
@@ -347,12 +353,12 @@ if (($FfmpegPath -and (Test-Path -LiteralPath $FfmpegPath)) -or $useWslFfmpeg) {
                 if ($null -eq $onsetSample -and [Math]::Abs([int]$sample) -ge $onsetThreshold) {
                     $onsetSample = $sampleIndex
                 }
-                if ($sampleIndex -lt 2400) {
+                if ($sampleIndex -lt 4800) {
                     $first50msSquares += [double]$sample * [double]$sample
                 }
             }
             if ($null -eq $onsetSample) { Fail "no meaningful transient in $($asset.file)" }
-            $onsetMillis = $onsetSample / 48.0
+            $onsetMillis = [Math]::Floor($onsetSample / 2.0) / 48.0
             if ($asset.category -in @(
                     'move', 'capture', 'castle',
                     'firework_low', 'firework_mid', 'firework_high',

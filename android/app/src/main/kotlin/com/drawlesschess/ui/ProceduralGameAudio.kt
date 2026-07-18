@@ -11,7 +11,7 @@ import kotlin.math.sin
 /**
  * Retained deterministic physical-model reference renderer. Production playback uses the
  * audited sampled library in [SampledSoundCatalog]; these functions remain for regression
- * comparisons and host-side diagnostics.
+ * comparisons and host-side diagnostics only.
  *
  * The renderer deliberately uses broadband excitation, filtered friction, and clusters of
  * inharmonic resonances instead of note-like alert tones. Nothing here is sampled or derived
@@ -45,6 +45,86 @@ internal fun renderMoveSound(capture: Boolean): ShortArray {
     }
 
     return masterPcm(mixed, targetPeak = if (capture) 0.80f else 0.72f)
+}
+
+/** A compact wood-crush gesture, deliberately unlike the normal lift-and-place recordings. */
+internal fun renderCaptureCrushSound(): ShortArray {
+    val mixed = FloatArray(sampleCount(0.56))
+    addHeavyPieceImpact(mixed, startSeconds = 0.0, strength = 1.22, seed = 0x5A451)
+    addCrushBurst(mixed, startSeconds = 0.018, strength = 0.72, seed = 0x5A452)
+    addCrushBurst(mixed, startSeconds = 0.066, strength = 0.58, seed = 0x5A453)
+    addCrushBurst(mixed, startSeconds = 0.112, strength = 0.46, seed = 0x5A454)
+    addCrushBurst(mixed, startSeconds = 0.169, strength = 0.34, seed = 0x5A455)
+    addSurfaceScrape(
+        mixed,
+        startSeconds = 0.075,
+        durationSeconds = 0.30,
+        strength = 0.27,
+        seed = 0x5A456,
+    )
+    addWoodContact(mixed, startSeconds = 0.335, strength = 0.55, seed = 0x5A457)
+    return masterPcm(mixed, targetPeak = 0.82f, attackMillis = 0.35)
+}
+
+/** Two spaced mechanical ticks; the initial gap keeps the cue clear of the move impact. */
+internal fun renderCheckTickSound(): ShortArray {
+    val mixed = FloatArray(sampleCount(0.48))
+    addClockTick(mixed, startSeconds = 0.070, strength = 0.82, seed = 0x71C01)
+    addClockTick(mixed, startSeconds = 0.255, strength = 1.00, seed = 0x71C02)
+    return masterPcm(mixed, targetPeak = 0.76f, attackMillis = 0.20)
+}
+
+private fun addCrushBurst(
+    destination: FloatArray,
+    startSeconds: Double,
+    strength: Double,
+    seed: Int,
+) {
+    val start = sampleCount(startSeconds)
+    val length = sampleCount(0.085)
+    val noise = DeterministicNoise(seed)
+    val bodyFilter = OnePoleLowPass(920.0)
+    val crackReference = OnePoleLowPass(4_100.0)
+    val lowBody = DampedSine(83.0 + (seed and 7), 22.0, 0.31)
+    val midBody = DampedSine(167.0 + (seed and 15), 31.0, 1.07)
+    for (localIndex in 0 until length) {
+        val destinationIndex = start + localIndex
+        if (destinationIndex !in destination.indices) break
+        val time = localIndex.toDouble() / SOUND_SAMPLE_RATE
+        val raw = noise.next()
+        val body = bodyFilter.next(raw)
+        val crack = raw - crackReference.next(raw)
+        val grain = 0.58 + 0.42 * abs(sin(2.0 * PI * 73.0 * time))
+        val envelope = exp(-34.0 * time) * (time / 0.00035).coerceIn(0.0, 1.0)
+        val resonant = lowBody.next() * 0.34 + midBody.next() * 0.22
+        destination[destinationIndex] +=
+            (strength * envelope * grain * (0.48 * crack + 0.30 * body + resonant)).toFloat()
+    }
+}
+
+private fun addClockTick(
+    destination: FloatArray,
+    startSeconds: Double,
+    strength: Double,
+    seed: Int,
+) {
+    val start = sampleCount(startSeconds)
+    val length = sampleCount(0.072)
+    val noise = DeterministicNoise(seed)
+    val lowReference = OnePoleLowPass(2_250.0)
+    val body = DampedSine(1_180.0 + (seed and 31), 54.0, 0.24)
+    val edge = DampedSine(2_060.0 + (seed and 63), 79.0, 1.18)
+    for (localIndex in 0 until length) {
+        val destinationIndex = start + localIndex
+        if (destinationIndex !in destination.indices) break
+        val time = localIndex.toDouble() / SOUND_SAMPLE_RATE
+        val raw = noise.next()
+        val click = (raw - lowReference.next(raw)) * exp(-165.0 * time)
+        val mechanism = 0.44 * body.next() + 0.22 * edge.next()
+        val attack = (time / 0.00025).coerceIn(0.0, 1.0)
+        destination[destinationIndex] +=
+            (strength * attack * (0.62 * click + mechanism)).toFloat()
+    }
 }
 
 internal fun renderCompletionCue(cue: CompletionEffectCue): ShortArray = when (cue) {

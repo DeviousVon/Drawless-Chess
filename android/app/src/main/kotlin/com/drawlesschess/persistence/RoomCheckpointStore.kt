@@ -16,6 +16,7 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.Transaction
 import com.drawlesschess.core.AssistanceCounts
+import com.drawlesschess.core.BareKingPolicy
 import com.drawlesschess.core.DeadPositionPolicy
 import com.drawlesschess.core.EndReason
 import com.drawlesschess.core.EngineLimits
@@ -558,6 +559,7 @@ internal object CoordinatorCheckpointCodec {
         .put("preset", rules.preset.name)
         .put("stalemate", rules.stalemate.name)
         .put("deadPosition", rules.deadPosition.name)
+        .put("bareKing", rules.bareKing.name)
         .put("fiftyMove", rules.fiftyMove.name)
         .put("repetitionThreshold", rules.repetitionThreshold)
         .put("completingPlayerLosesRepetition", rules.completingPlayerLosesRepetition)
@@ -590,6 +592,13 @@ internal object CoordinatorCheckpointCodec {
                 rook = material.getInt("rook"),
                 queen = material.getInt("queen"),
             ),
+            bareKing = if (value.has("bareKing")) {
+                enumValueOf(value.getString("bareKing"))
+            } else {
+                // Older v1 games did not terminate when one player had only a king. Preserve
+                // that immutable rules snapshot so replay cannot invent an earlier result.
+                BareKingPolicy.CONTINUE
+            },
         )
     }
 

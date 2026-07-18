@@ -5,7 +5,9 @@ import android.media.AudioTrack
 import android.os.SystemClock
 import android.util.Log
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Text
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
@@ -22,7 +24,11 @@ import androidx.compose.ui.unit.dp
 import androidx.test.platform.app.InstrumentationRegistry
 import com.drawlesschess.R
 import com.drawlesschess.core.EndReason
+import com.drawlesschess.core.FiftyMovePolicy
 import com.drawlesschess.core.GameScore
+import com.drawlesschess.core.MaterialScore
+import com.drawlesschess.core.PositionFacts
+import com.drawlesschess.core.RulesContractV1
 import com.drawlesschess.core.Side
 import com.drawlesschess.core.presentation.GameResultView
 import org.junit.Assert.assertEquals
@@ -72,6 +78,100 @@ class PostGameFeedbackInstrumentedTest {
         // shared test host can already be tearing down when this test follows non-Compose tests.
         assertEquals(1, homeClicks)
         assertEquals(1, rematchClicks)
+    }
+
+    @Test
+    fun terminalExplanationsDistinguishRuleBranchesAndRetainExactFacts() {
+        val context = targetContext()
+        val results = listOf(
+            result(EndReason.STALEMATE, Side.WHITE, RulesContractV1.drawless()),
+            result(EndReason.STALEMATE, Side.BLACK, RulesContractV1.escape()),
+            result(
+                EndReason.REPETITION,
+                Side.BLACK,
+                facts(mover = Side.BLACK, repetitionAvoiding = 0),
+            ),
+            result(
+                EndReason.REPETITION,
+                Side.WHITE,
+                facts(mover = Side.BLACK, repetitionAvoiding = 2),
+            ),
+            result(
+                EndReason.DEAD_POSITION_MATERIAL,
+                Side.WHITE,
+                facts(mover = Side.WHITE, whiteMaterial = 3, blackMaterial = 1),
+            ),
+            result(
+                EndReason.DEAD_POSITION_MATERIAL,
+                Side.BLACK,
+                facts(mover = Side.BLACK, whiteMaterial = 3, blackMaterial = 3),
+            ),
+            result(
+                EndReason.BARE_KING,
+                Side.WHITE,
+                facts(mover = Side.WHITE, whiteMaterial = 5, blackMaterial = 0),
+            ),
+            result(
+                EndReason.FIFTY_MOVE_LIMIT,
+                Side.WHITE,
+                RulesContractV1.drawless(fiftyMove = FiftyMovePolicy.COMPLETING_PLAYER_LOSES),
+                facts(mover = Side.BLACK, fiftyAvoiding = 2),
+            ),
+            result(
+                EndReason.FIFTY_MOVE_LIMIT,
+                Side.WHITE,
+                RulesContractV1.drawless(fiftyMove = FiftyMovePolicy.FORCED_MOVE_EXCEPTION),
+                facts(mover = Side.WHITE, fiftyAvoiding = 0),
+            ),
+            result(
+                EndReason.FIFTY_MOVE_LIMIT,
+                Side.WHITE,
+                RulesContractV1.drawless(fiftyMove = FiftyMovePolicy.MATERIAL_VICTORY),
+                facts(mover = Side.BLACK, whiteMaterial = 8, blackMaterial = 5),
+            ),
+            result(
+                EndReason.FIFTY_MOVE_LIMIT,
+                Side.BLACK,
+                RulesContractV1.drawless(fiftyMove = FiftyMovePolicy.MATERIAL_VICTORY),
+                facts(mover = Side.WHITE, whiteMaterial = 5, blackMaterial = 5, lastCaptureBy = Side.BLACK),
+            ),
+            result(
+                EndReason.FIFTY_MOVE_LIMIT,
+                Side.BLACK,
+                RulesContractV1.drawless(fiftyMove = FiftyMovePolicy.MATERIAL_VICTORY),
+                facts(mover = Side.WHITE, whiteMaterial = 5, blackMaterial = 5),
+            ),
+        )
+
+        compose.setContent {
+            DrawlessTheme {
+                Column { results.forEach { result -> Text(resultReasonText(result)) } }
+            }
+        }
+
+        val white = context.getString(R.string.label_white)
+        val black = context.getString(R.string.label_black)
+        listOf(
+            context.getString(R.string.result_stalemate),
+            context.getString(R.string.result_escape_stalemate),
+            context.getString(R.string.result_forced_repetition, black, white),
+            context.resources.getQuantityString(
+                R.plurals.result_avoidable_repetition,
+                2,
+                black,
+                2,
+            ),
+            context.getString(R.string.result_dead_position_material_score, 3, 1, white),
+            context.getString(R.string.result_dead_position_material_tie, 3, black),
+            context.getString(R.string.result_bare_king, black, white),
+            context.getString(R.string.result_fifty_move_completing_player),
+            context.getString(R.string.result_forced_fifty_move, white, black),
+            context.getString(R.string.result_fifty_move_material_score, 8, 5, white),
+            context.getString(R.string.result_fifty_move_material_last_capture, 5, black),
+            context.getString(R.string.result_fifty_move_material_no_capture, 5, black),
+        ).forEach { explanation ->
+            compose.onNodeWithText(explanation).fetchSemanticsNode()
+        }
     }
 
     @Test
@@ -131,8 +231,13 @@ class PostGameFeedbackInstrumentedTest {
                                 playerWon = true,
                                 playerSide = Side.WHITE,
                                 winner = Side.WHITE,
-                                reason = EndReason.CHECKMATE,
+                                reason = EndReason.REPETITION,
                                 score = GameScore(95, 100, 5),
+                                rules = RulesContractV1.drawless(),
+                                adjudicationFacts = facts(
+                                    mover = Side.WHITE,
+                                    repetitionAvoiding = 0,
+                                ),
                             ),
                             opponentName = "Lucian",
                             onHome = {},
@@ -268,6 +373,28 @@ class PostGameFeedbackInstrumentedTest {
     }
 
     @Test
+    fun authoredCaptureCrushAndCheckTicksHaveDistinctTemporalSignatures() {
+        val move = renderMoveSound(capture = false)
+        val crush = renderCaptureCrushSound()
+        val repeatedCrush = renderCaptureCrushSound()
+        val tick = renderCheckTickSound()
+        val repeatedTick = renderCheckTickSound()
+
+        assertTrue(crush.contentEquals(repeatedCrush))
+        assertTrue(tick.contentEquals(repeatedTick))
+        assertTrue(rootMeanSquare(crush) > rootMeanSquare(move) * 1.8)
+        assertTrue(kotlin.math.abs(normalizedCorrelation(move, crush)) < 0.20)
+        assertTrue(kotlin.math.abs(normalizedCorrelation(move, tick)) < 0.12)
+
+        val firstTick = rootMeanSquare(tick, 0.070, 0.142)
+        val gap = rootMeanSquare(tick, 0.165, 0.235)
+        val secondTick = rootMeanSquare(tick, 0.255, 0.327)
+        assertTrue(firstTick > gap * 8.0)
+        assertTrue(secondTick > gap * 8.0)
+        assertTrue(secondTick > firstTick)
+    }
+
+    @Test
     fun staticAudioTrackAcceptsPcmBeforeBecomingInitializedAndStartsPlayback() {
         val pcm = renderCompletionSequence(CompletionEffectTimeline.Victory)
         val track = createStaticAudioTrack(pcm)
@@ -296,6 +423,17 @@ class PostGameFeedbackInstrumentedTest {
         } / pcm.size,
     )
 
+    private fun rootMeanSquare(pcm: ShortArray, fromSeconds: Double, toSeconds: Double): Double {
+        val from = (fromSeconds * SOUND_SAMPLE_RATE).toInt().coerceIn(0, pcm.size)
+        val until = (toSeconds * SOUND_SAMPLE_RATE).toInt().coerceIn(from + 1, pcm.size)
+        return kotlin.math.sqrt(
+            (from until until).sumOf { index ->
+                val value = pcm[index].toDouble() / Short.MAX_VALUE
+                value * value
+            } / (until - from),
+        )
+    }
+
     private fun normalizedCorrelation(first: ShortArray, second: ShortArray): Double {
         val size = minOf(first.size, second.size)
         var dot = 0.0
@@ -312,6 +450,48 @@ class PostGameFeedbackInstrumentedTest {
     }
 
     private fun targetContext(): Context = InstrumentationRegistry.getInstrumentation().targetContext
+
+    private fun result(
+        reason: EndReason,
+        winner: Side,
+        rules: RulesContractV1 = RulesContractV1.drawless(),
+        adjudicationFacts: PositionFacts? = null,
+    ) = GameResultView(
+        playerWon = winner == Side.WHITE,
+        playerSide = Side.WHITE,
+        winner = winner,
+        reason = reason,
+        score = GameScore(if (winner == Side.WHITE) 100 else 0, 100, 0),
+        rules = rules,
+        adjudicationFacts = adjudicationFacts,
+    )
+
+    private fun result(
+        reason: EndReason,
+        winner: Side,
+        adjudicationFacts: PositionFacts,
+    ) = result(reason, winner, RulesContractV1.drawless(), adjudicationFacts)
+
+    private fun facts(
+        mover: Side,
+        repetitionAvoiding: Int = 1,
+        fiftyAvoiding: Int = 1,
+        whiteMaterial: Int = 0,
+        blackMaterial: Int = 0,
+        lastCaptureBy: Side? = null,
+    ) = PositionFacts(
+        mover = mover,
+        legalMovesAfter = 1,
+        sideToMoveInCheck = false,
+        positionOccurrenceCount = 3,
+        repetitionAvoidingAlternativesBeforeMove = repetitionAvoiding,
+        halfmoveClockAfter = 100,
+        fiftyMoveAvoidingAlternativesBeforeMove = fiftyAvoiding,
+        deadPositionAfter = whiteMaterial + blackMaterial > 0,
+        moveWasCapture = false,
+        materialAfter = MaterialScore(whiteMaterial, blackMaterial),
+        lastCaptureBy = lastCaptureBy,
+    )
 
     private fun oneDecimal(context: Context, value: Double): String {
         val locale = context.resources.configuration.locales[0]

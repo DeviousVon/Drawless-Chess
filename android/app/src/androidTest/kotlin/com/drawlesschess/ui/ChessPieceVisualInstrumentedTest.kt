@@ -139,9 +139,9 @@ class ChessPieceVisualInstrumentedTest {
                         style = MaterialTheme.typography.titleSmall,
                     )
                     listOf(
-                        DrawlessVisualThemes.OBSIDIAN_GLASS,
-                        DrawlessVisualThemes.MODERN_WALNUT,
-                        DrawlessVisualThemes.ROYAL_AMETHYST,
+                        DrawlessVisualThemes.GLACIER_SLATE,
+                        DrawlessVisualThemes.VERDIGRIS_COPPER,
+                        DrawlessVisualThemes.AMETHYST_GEODE,
                     ).forEach { visualTheme ->
                         CompositionLocalProvider(LocalDrawlessVisualTheme provides visualTheme) {
                             EvidenceThemeSection(visualTheme)
@@ -152,7 +152,7 @@ class ChessPieceVisualInstrumentedTest {
         }
 
         compose.waitForIdle()
-        compose.onNodeWithTag("accessible_bishop_obsidian_glass")
+        compose.onNodeWithTag("accessible_bishop_glacier_slate")
             .assertContentDescriptionEquals("Black bishop")
         val evidence = compose.onNodeWithTag("piece_evidence_sheet")
         val evidenceBounds = evidence.fetchSemanticsNode().boundsInRoot

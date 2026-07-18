@@ -139,7 +139,7 @@ the bundler refuses dirty trees and records the full source commit:
 ```powershell
 pwsh -NoProfile -File .\scripts\generate-release-sbom.ps1
 & 'C:\Program Files\Git\bin\bash.exe' -lc `
-  'cd /c/src && scripts/source-bundle.sh release/drawless-chess-0.2.0-source.tar.gz'
+  'cd /c/src && scripts/source-bundle.sh release/drawless-chess-0.3.0-source.tar.gz'
 ```
 
 The final AAB verifier independently regenerates the dependency reports and the complete
@@ -162,7 +162,7 @@ Verify the signed result from `C:\src` and preserve its public evidence report:
 ```powershell
 pwsh -NoProfile -File .\scripts\verify-play-aab.ps1 `
   -Bundle .\android\app\build\outputs\bundle\release\app-release.aab `
-  -SourceArchive .\release\drawless-chess-0.2.0-source.tar.gz `
+  -SourceArchive .\release\drawless-chess-0.3.0-source.tar.gz `
   -ExpectedUploadCertificateSha256 '<64-HEX-UPLOAD-CERTIFICATE-FINGERPRINT>' `
   -OutputManifest .\build\release-evidence\play-aab.json
 ```
@@ -258,6 +258,10 @@ promo codes.
 
 Public release remains **BLOCKED** until all applicable items are complete:
 
+The release after `0.2.0` must also pass every item in
+[`NEXT_RELEASE_GATES.md`](NEXT_RELEASE_GATES.md). In particular, translated application resources
+do not satisfy the separate Play country-targeting gate.
+
 - [x] Personal developer account created and identity verification approved.
 - [x] Contact details and Play Console physical-device verification show as approved.
 - [x] Final package ID is `com.drawlesschess`.
@@ -266,8 +270,12 @@ Public release remains **BLOCKED** until all applicable items are complete:
 - [ ] Merchant payments and bank/tax verification complete if the app is paid.
 - [ ] Play App Signing configured; upload key secured and backed up.
 - [ ] Signed release AAB passes API, ABI, 16 KB, native, and install tests.
+- [ ] Release optimization/R8, visible installed-version, old-version upgrade, and localized-device
+  gates pass for the exact candidate.
 - [ ] GPL source bundle, license notices, and release manifest match the AAB exactly.
 - [ ] Store listing, privacy-policy URL/in-app access, Data safety, content rating, and target audience complete.
+- [ ] The exact testing or production track targets the owner-approved countries/regions; verify
+  the saved track summary rather than inferring availability from application languages.
 - [ ] At least 12 testers satisfy the continuous 14-day closed-test requirement.
 - [ ] Real feedback is recorded and release-blocking findings are fixed.
 - [ ] Google grants production access.

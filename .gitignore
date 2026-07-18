@@ -48,3 +48,6 @@ release/machine/
 release/reports/*-instrumentation.txt
 release/*.tar.gz
 play/store-assets/source-captures/
+
+# Separate local tooling checkout; it has its own repository and is not part of Drawless Chess.
+/Audacity-MCP/

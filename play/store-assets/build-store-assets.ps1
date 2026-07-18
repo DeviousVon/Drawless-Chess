@@ -371,13 +371,13 @@ $phoneScreenshots = @(
     @{
         Source = 'play\store-assets\source-captures\current\phone-home-current.png'
         Destination = (Join-Path $phoneDir 'phone-01-home.png')
-        Crop = @(0, 160, 1080, 1920)
+        Crop = @(0, 80, 1080, 1920)
         Output = @(1080, 1920)
     },
     @{
         Source = 'play\store-assets\source-captures\current\phone-themes-current.png'
         Destination = (Join-Path $phoneDir 'phone-02-themes.png')
-        Crop = @(0, 200, 1080, 1920)
+        Crop = @(0, 120, 1080, 1920)
         Output = @(1080, 1920)
     },
     @{
@@ -404,32 +404,32 @@ $tabletScreenshots = @(
     @{
         Source = 'play\store-assets\source-captures\current\tablet-home-current.png'
         Destination = (Join-Path $tabletDir 'tablet-01-home.png')
-        Crop = @(0, 41, 1200, 1918)
-        Output = @(1200, 1918)
+        Crop = @(0, 80, 1200, 1838)
+        Output = @(1200, 1838)
     },
     @{
         Source = 'play\store-assets\source-captures\current\tablet-themes-current.png'
         Destination = (Join-Path $tabletDir 'tablet-02-themes.png')
-        Crop = @(0, 41, 1200, 1918)
-        Output = @(1200, 1918)
+        Crop = @(0, 80, 1200, 1838)
+        Output = @(1200, 1838)
     },
     @{
         Source = 'play\store-assets\source-captures\current\tablet-gameplay-current.png'
         Destination = (Join-Path $tabletDir 'tablet-03-gameplay.png')
-        Crop = @(0, 41, 1200, 1918)
-        Output = @(1200, 1918)
+        Crop = @(0, 80, 1200, 1838)
+        Output = @(1200, 1838)
     },
     @{
         Source = 'play\store-assets\source-captures\current\tablet-victory-current.png'
         Destination = (Join-Path $tabletDir 'tablet-04-victory.png')
-        Crop = @(0, 41, 1200, 1918)
-        Output = @(1200, 1918)
+        Crop = @(0, 80, 1200, 1838)
+        Output = @(1200, 1838)
     },
     @{
         Source = 'play\store-assets\source-captures\current\tablet-defeat-landscape-current.png'
         Destination = (Join-Path $tabletDir 'tablet-05-defeat-landscape.png')
-        Crop = @(0, 41, 2000, 1118)
-        Output = @(2000, 1118)
+        Crop = @(0, 64, 2000, 1054)
+        Output = @(2000, 1054)
     }
 )
 

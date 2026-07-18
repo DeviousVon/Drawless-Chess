@@ -9,7 +9,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.*
@@ -181,18 +183,17 @@ class CaptureHistoryUiInstrumentedTest {
         }
 
         saveCompactCaptureEvidenceIfRequested()
-        compose.onNodeWithTag("game_stacked_content").assert(hasScrollAction())
-        compose.onNodeWithTag("captured_by_white").performScrollTo()
+        compose.onNodeWithTag("game_stacked_controls").assert(hasScrollAction())
         assertVerticallyWithin("captured_by_white", "game_stacked_content")
-        compose.onNodeWithTag("captured_by_black").performScrollTo()
         assertVerticallyWithin("captured_by_black", "game_stacked_content")
         compose.onNodeWithTag("resign_button").performScrollTo()
-        assertVerticallyWithin("resign_button", "game_stacked_content")
+        assertVerticallyWithin("resign_button", "game_stacked_controls")
         compose.onNodeWithTag("move_history").performScrollTo()
+        compose.onNodeWithTag("move_history_list").performScrollToIndex(history.lastIndex)
         compose.waitUntil(timeoutMillis = 5_000) {
             compose.onAllNodesWithTag("move_12_black").fetchSemanticsNodes().isNotEmpty()
         }
-        assertVerticallyWithin("move_12_black", "move_history")
+        compose.onNodeWithTag("move_history").assertHeightIsEqualTo(280.dp)
     }
 
     @Test
@@ -223,6 +224,161 @@ class CaptureHistoryUiInstrumentedTest {
 
         compose.onNodeWithTag("board_square_e2").performClick()
         compose.runOnIdle { assertEquals(e2, tapped) }
+    }
+
+    @Test
+    fun chessBoardForwardsTapForPreselectionWhileBotIsThinking() {
+        val e2 = Square.parse("e2")
+        var tapped: Square? = null
+        val waitingBoard = startingBoard().copy(
+            sideToMove = Side.BLACK,
+            interactive = false,
+            preselectionEnabled = true,
+            phase = CoordinatorPhase.BOT_THINKING,
+            status = BoardStatus.BOT_THINKING,
+        )
+        compose.setContent {
+            DrawlessTheme {
+                ChessBoard(
+                    model = waitingBoard,
+                    boardSizeDp = 288,
+                    onEvent = { event ->
+                        if (event is BoardEvent.TapSquare) tapped = event.square
+                    },
+                    showCoordinates = true,
+                    onMoveAnimationFinished = {},
+                )
+            }
+        }
+
+        compose.onNodeWithTag("board_square_e2").performClick()
+        compose.runOnIdle { assertEquals(e2, tapped) }
+    }
+
+    @Test
+    fun chessBoardAcceptsSelectionButHidesTargetsDuringOpponentMoveAnimation() {
+        val e2 = Square.parse("e2")
+        val f3 = Square.parse("f3")
+        val g8 = Square.parse("g8")
+        var tapped: BoardEvent? = null
+        val initial = startingBoard()
+        val animated = initial.copy(
+            positionMarker = "opponent-move-landed",
+            plyCount = 1,
+            cells = initial.cells.map { cell ->
+                if (cell.square == f3) {
+                    cell.copy(
+                        target = TargetKind.QUIET,
+                        accessibility = cell.accessibility.copy(target = TargetKind.QUIET),
+                    )
+                } else {
+                    cell
+                }
+            },
+            moveMotion = BoardMoveMotion(
+                ply = 1,
+                mover = Side.BLACK,
+                pieces = listOf(
+                    PieceMotion(
+                        from = g8,
+                        to = Square.parse("f6"),
+                        piece = requireNotNull(initial.cells.single { it.square == g8 }.piece),
+                    ),
+                ),
+            ),
+        )
+        val board = mutableStateOf(initial)
+        compose.mainClock.autoAdvance = false
+        compose.setContent {
+            DrawlessTheme {
+                ChessBoard(
+                    model = board.value,
+                    boardSizeDp = 288,
+                    onEvent = { tapped = it },
+                    showCoordinates = true,
+                    onMoveAnimationFinished = {},
+                )
+            }
+        }
+
+        compose.runOnIdle { board.value = animated }
+        compose.mainClock.advanceTimeByFrame()
+        compose.onNodeWithTag("board_square_f3")
+            .assertContentDescriptionEquals("Empty square f3")
+        compose.onNodeWithTag("board_square_e2").performClick()
+        compose.runOnIdle { assertEquals(BoardEvent.PreselectSquare(e2), tapped) }
+    }
+
+    @Test
+    fun draggingAcrossBoardDoesNotMoveTheStackedGameDocument() {
+        compose.setContent {
+            DrawlessTheme {
+                Box(Modifier.width(320.dp).height(520.dp)) {
+                    GameStackedContentContainer(
+                        outerPadding = 16.dp,
+                        modifier = Modifier.fillMaxSize(),
+                    ) {
+                        ChessBoard(
+                            model = startingBoard(),
+                            boardSizeDp = 288,
+                            onEvent = {},
+                            showCoordinates = true,
+                            onMoveAnimationFinished = {},
+                        )
+                        Spacer(Modifier.height(500.dp))
+                    }
+                }
+            }
+        }
+
+        val board = compose.onNodeWithTag("chess_board_imperial_marble")
+        val topBefore = board.fetchSemanticsNode().boundsInRoot.top
+        board.performTouchInput {
+            down(center)
+            moveBy(androidx.compose.ui.geometry.Offset(0f, -180f), delayMillis = 300L)
+            up()
+        }
+        compose.waitForIdle()
+        val topAfter = board.fetchSemanticsNode().boundsInRoot.top
+
+        assertEquals(topBefore, topAfter, 1f)
+    }
+
+    @Test
+    fun dragDropUsesTheLiftPositionWhenThereIsNoFinalMoveEvent() {
+        val events = mutableListOf<BoardEvent>()
+        compose.setContent {
+            DrawlessTheme {
+                ChessBoard(
+                    model = startingBoard(),
+                    boardSizeDp = 288,
+                    onEvent = events::add,
+                    showCoordinates = true,
+                    onMoveAnimationFinished = {},
+                )
+            }
+        }
+
+        compose.onNodeWithTag("chess_board_imperial_marble").performTouchInput {
+            fun squareCenter(row: Int, column: Int) = Offset(
+                x = (column + 0.5f) * width / 8f,
+                y = (row + 0.5f) * height / 8f,
+            )
+
+            down(squareCenter(row = 6, column = 4)) // e2
+            moveTo(squareCenter(row = 5, column = 4), delayMillis = 300L) // e3
+            updatePointerTo(0, squareCenter(row = 4, column = 4)) // e4 on ACTION_UP
+            up()
+        }
+        compose.waitForIdle()
+
+        assertEquals(
+            listOf(
+                BoardEvent.DragStarted(Square.parse("e2")),
+                BoardEvent.Dropped(Square.parse("e4")),
+            ),
+            events,
+        )
     }
 
     private fun assertVerticallyWithin(childTag: String, parentTag: String) {

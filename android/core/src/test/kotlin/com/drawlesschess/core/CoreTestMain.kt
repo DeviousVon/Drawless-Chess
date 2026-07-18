@@ -78,9 +78,10 @@ private fun facts(
     capture: Boolean = false,
     whiteMaterial: Int = 0,
     blackMaterial: Int = 0,
+    lastCaptureBy: Side? = null,
 ) = PositionFacts(
     mover, legalMoves, inCheck, occurrences, repetitionAvoiding, halfmove,
-    fiftyAvoiding, dead, capture, MaterialScore(whiteMaterial, blackMaterial),
+    fiftyAvoiding, dead, capture, MaterialScore(whiteMaterial, blackMaterial), lastCaptureBy,
 )
 
 private fun alternative(move: String, key: String, halfmove: Int = 0) = MoveAlternative(
@@ -172,10 +173,12 @@ private fun coordinatorConfig(
     mode: GameMode = GameMode.CASUAL,
     timeControl: TimeControl = TimeControl.Untimed,
     humanSide: Side = Side.WHITE,
+    initialFen: String = ChessPosition.START_FEN,
+    rules: RulesContractV1 = drawless,
 ) = GameConfig(
     gameId = "coordinator-game",
-    initialFen = ChessPosition.START_FEN,
-    rules = drawless,
+    initialFen = initialFen,
+    rules = rules,
     mode = mode,
     timeControl = timeControl,
     humanSide = humanSide,
@@ -217,10 +220,9 @@ fun main() {
     suite.test("ordinary position continues") {
         assertThat(adjudicator.adjudicate(drawless, facts()) == null)
     }
-    suite.test("rules presets disable the 50-move limit by default") {
-        assertThat(RulesContractV1.drawless().fiftyMove == FiftyMovePolicy.DISABLED)
-        assertThat(RulesContractV1.escape().fiftyMove == FiftyMovePolicy.DISABLED)
-        assertThat(adjudicator.adjudicate(RulesContractV1.drawless(), facts(halfmove = 100)) == null)
+    suite.test("rules presets use material adjudication at the 50-move limit by default") {
+        assertThat(RulesContractV1.drawless().fiftyMove == FiftyMovePolicy.MATERIAL_VICTORY)
+        assertThat(RulesContractV1.escape().fiftyMove == FiftyMovePolicy.MATERIAL_VICTORY)
     }
     suite.test("checkmate awards mover") {
         assertThat(adjudicator.adjudicate(drawless, facts(mover = Side.BLACK, legalMoves = 0, inCheck = true))?.winner == Side.BLACK)
@@ -238,14 +240,39 @@ fun main() {
         assertThat(adjudicator.adjudicate(drawless, facts(occurrences = 3, repetitionAvoiding = 0))?.winner == Side.WHITE)
     }
     suite.test("material victory chooses greater material") {
-        assertThat(adjudicator.adjudicate(drawless, facts(dead = true, capture = true, whiteMaterial = 3))?.winner == Side.WHITE)
+        assertThat(
+            adjudicator.adjudicate(
+                drawless,
+                facts(dead = true, capture = true, whiteMaterial = 3, blackMaterial = 1),
+            )?.winner == Side.WHITE,
+        )
     }
     suite.test("equal dead material rewards mover") {
         assertThat(adjudicator.adjudicate(drawless, facts(mover = Side.BLACK, dead = true, capture = true))?.winner == Side.BLACK)
     }
+    suite.test("bare king loses immediately to remaining material") {
+        val outcome = adjudicator.adjudicate(
+            drawless,
+            facts(mover = Side.BLACK, whiteMaterial = 0, blackMaterial = 5),
+        )
+        assertThat(outcome?.winner == Side.BLACK)
+        assertThat(outcome?.reason == EndReason.BARE_KING)
+    }
+    suite.test("legacy bare-king policy can continue an old saved game") {
+        val legacyRules = RulesContractV1.drawless().copy(bareKing = BareKingPolicy.CONTINUE)
+        assertThat(adjudicator.adjudicate(
+            legacyRules,
+            facts(whiteMaterial = 0, blackMaterial = 5),
+        ) == null)
+    }
     suite.test("final capture rewards capturer") {
         val rules = RulesContractV1.drawless(deadPosition = DeadPositionPolicy.FINAL_CAPTURE_VICTORY)
-        assertThat(adjudicator.adjudicate(rules, facts(dead = true, capture = true, blackMaterial = 9))?.winner == Side.WHITE)
+        assertThat(
+            adjudicator.adjudicate(
+                rules,
+                facts(dead = true, capture = true, whiteMaterial = 1, blackMaterial = 9),
+            )?.winner == Side.WHITE,
+        )
     }
     suite.test("final capture rejects non-capture transition") {
         val rules = RulesContractV1.drawless(deadPosition = DeadPositionPolicy.FINAL_CAPTURE_VICTORY)
@@ -262,6 +289,41 @@ fun main() {
     suite.test("forced 50-move exception defeats forcing opponent") {
         val rules = RulesContractV1.drawless(fiftyMove = FiftyMovePolicy.FORCED_MOVE_EXCEPTION)
         assertThat(adjudicator.adjudicate(rules, facts(halfmove = 100, fiftyAvoiding = 0))?.winner == Side.WHITE)
+    }
+    suite.test("50-move material adjudication chooses greater material") {
+        val outcome = adjudicator.adjudicate(
+            drawless,
+            facts(halfmove = 100, whiteMaterial = 8, blackMaterial = 5),
+        )
+        assertThat(outcome?.winner == Side.WHITE)
+        assertThat(outcome?.reason == EndReason.FIFTY_MOVE_LIMIT)
+    }
+    suite.test("50-move material tie rewards the last capturing side") {
+        val outcome = adjudicator.adjudicate(
+            drawless,
+            facts(
+                mover = Side.WHITE,
+                halfmove = 100,
+                whiteMaterial = 5,
+                blackMaterial = 5,
+                lastCaptureBy = Side.BLACK,
+            ),
+        )
+        assertThat(outcome?.winner == Side.BLACK)
+    }
+    suite.test("50-move material tie without a capture defeats an avoidable completing mover") {
+        val outcome = adjudicator.adjudicate(
+            drawless,
+            facts(mover = Side.WHITE, halfmove = 100, fiftyAvoiding = 1),
+        )
+        assertThat(outcome?.winner == Side.BLACK)
+    }
+    suite.test("50-move material tie without a capture rewards a forced completing mover") {
+        val outcome = adjudicator.adjudicate(
+            drawless,
+            facts(mover = Side.WHITE, halfmove = 100, fiftyAvoiding = 0),
+        )
+        assertThat(outcome?.winner == Side.WHITE)
     }
     suite.test("checkmate outranks repetition") {
         assertThat(adjudicator.adjudicate(drawless, facts(legalMoves = 0, inCheck = true, occurrences = 3))?.reason == EndReason.CHECKMATE)
@@ -298,6 +360,8 @@ fun main() {
         ))
         assertThat(game.outcome?.reason == EndReason.REPETITION)
         assertThat(game.outcome?.winner == Side.WHITE)
+        assertThat(game.adjudicationFacts?.repetitionAvoidingAlternativesBeforeMove == 1)
+        assertThat(game.adjudicationFacts?.mover == Side.BLACK)
     }
     suite.test("session derives forced repetition win for mover") {
         var game = GameSession.newGame("g2", drawless, PositionKey("A"))
@@ -309,6 +373,57 @@ fun main() {
             alternatives = listOf(alternative("f6g8", "A")),
         ))
         assertThat(game.outcome?.winner == Side.BLACK)
+        assertThat(game.adjudicationFacts?.repetitionAvoidingAlternativesBeforeMove == 0)
+    }
+    suite.test("session retains terminal material and 50-move explanation facts") {
+        val materialGame = GameSession.newGame("material-facts", drawless, PositionKey("A"))
+            .apply(transition(
+                move = "g1f3",
+                mover = Side.WHITE,
+                key = "B",
+                dead = true,
+                material = MaterialScore(3, 3),
+            ))
+        assertThat(materialGame.outcome?.reason == EndReason.DEAD_POSITION_MATERIAL)
+        assertThat(materialGame.adjudicationFacts?.materialAfter == MaterialScore(3, 3))
+
+        val fiftyRules = RulesContractV1.drawless(
+            fiftyMove = FiftyMovePolicy.FORCED_MOVE_EXCEPTION,
+        )
+        val fiftyGame = GameSession.newGame("fifty-facts", fiftyRules, PositionKey("A"))
+            .apply(transition(
+                move = "g1f3",
+                mover = Side.WHITE,
+                key = "B",
+                alternatives = listOf(
+                    alternative("g1f3", "B", halfmove = 100),
+                    alternative("g1h3", "C", halfmove = 0),
+                ),
+                halfmove = 100,
+            ))
+        assertThat(fiftyGame.outcome?.reason == EndReason.FIFTY_MOVE_LIMIT)
+        assertThat(fiftyGame.adjudicationFacts?.fiftyMoveAvoidingAlternativesBeforeMove == 1)
+    }
+    suite.test("session carries the last capturing side across quiet moves") {
+        val legacyRules = drawless.copy(
+            bareKing = BareKingPolicy.CONTINUE,
+            fiftyMove = FiftyMovePolicy.DISABLED,
+        )
+        var game = GameSession.newGame("last-capture", legacyRules, PositionKey("A"))
+        game = game.apply(transition(
+            move = "a1a2",
+            mover = Side.WHITE,
+            key = "B",
+            capture = true,
+            material = MaterialScore(5, 5),
+        ))
+        game = game.apply(transition(
+            move = "a8a7",
+            mover = Side.BLACK,
+            key = "C",
+            material = MaterialScore(5, 5),
+        ))
+        assertThat(game.lastCaptureBy == Side.WHITE)
     }
     suite.test("session rejects wrong mover") {
         val game = GameSession.newGame("g3", drawless, PositionKey("A"))
@@ -332,6 +447,7 @@ fun main() {
         val game = GameSession.newGame("g5", drawless, PositionKey("A"))
         val next = game.apply(transition("g1f3", Side.WHITE, "B"))
         assertThat(game.positionId != next.positionId)
+        assertThat(next.adjudicationFacts == null)
     }
     suite.test("saved rated game rejects assistance") {
         assertThrows<IllegalArgumentException> {
@@ -540,6 +656,18 @@ fun main() {
         assertThat(DeadPositionDetector.isKnownDead(
             ChessPosition.fromFen("4k3/8/8/8/4B3/8/2B5/4K3 w - - 0 1"),
         ))
+    }
+    suite.test("capturing a player's final piece produces an immediate bare-king loss") {
+        val position = ChessPosition.fromFen("r3k3/8/8/8/8/8/8/R3K3 w - - 0 1")
+        val session = GameSession.newGame(
+            "bare-king-capture",
+            RulesContractV1.drawless(),
+            RepetitionKey.of(position),
+            position.sideToMove,
+        ).apply(ChessAdapter.transition(position, UciMove("a1a8")))
+        assertThat(session.outcome?.winner == Side.WHITE)
+        assertThat(session.outcome?.reason == EndReason.BARE_KING)
+        assertThat(session.adjudicationFacts?.lastCaptureBy == Side.WHITE)
     }
     suite.test("replay detects Fool's Mate") {
         val result = ChessAdapter.replay(
@@ -937,6 +1065,32 @@ fun main() {
         assertThat(restored.snapshot().currentFen == fixture.coordinator.snapshot().currentFen)
         assertThat(restored.snapshot().session.moves == fixture.coordinator.snapshot().session.moves)
     }
+    suite.test("completed checkpoint restore regenerates exact forced-repetition facts") {
+        val config = coordinatorConfig(
+            initialFen = "6k1/7p/5Q2/8/8/8/8/6K1 w - - 0 1",
+        )
+        val fixture = coordinatorFixture(config)
+        fixture.coordinator.playHuman(UciMove("f6f7"))
+        fixture.engine.respond(move = "g8h8")
+        fixture.coordinator.playHuman(UciMove("f7f6"))
+        fixture.engine.respond(move = "h8g8")
+        fixture.coordinator.playHuman(UciMove("f6f7"))
+        fixture.engine.respond(move = "g8h8")
+        fixture.coordinator.playHuman(UciMove("f7f6"))
+        fixture.engine.respond(move = "h8g8")
+
+        val checkpoint = fixture.coordinator.checkpoint()
+        val originalFacts = fixture.coordinator.snapshot().session.adjudicationFacts
+        assertThat(checkpoint.outcome?.reason == EndReason.REPETITION)
+        assertThat(originalFacts?.repetitionAvoidingAlternativesBeforeMove == 0)
+
+        val restored = GameCoordinator.restore(
+            checkpoint, FakeChessEngine(), FakeCheckpointSink(), fixture.time, FakeCoordinatorIds(),
+        )
+        restored.start()
+        assertThat(restored.snapshot().session.adjudicationFacts == originalFacts)
+        assertThat(restored.snapshot().session.outcome == checkpoint.outcome)
+    }
     suite.test("restore falls back to wall time after monotonic reset") {
         val fixture = coordinatorFixture(coordinatorConfig(
             timeControl = TimeControl.Clock(10_000),
@@ -1023,6 +1177,67 @@ fun main() {
         state = BoardInteractionReducer.reduce(context, state, BoardEvent.TapSquare(Square.parse("e2"))).state
         val result = BoardInteractionReducer.reduce(context, state, BoardEvent.TapSquare(Square.parse("e5")))
         assertThat(result.action == null && result.state.selected == Square.parse("e2"))
+        assertThat(result.state.selfCheckWarning == null)
+    }
+    suite.test("moving a pinned piece identifies the king and line attacker") {
+        val position = ChessPosition.fromFen("k3r3/8/8/8/8/8/4R3/4K3 w - - 0 1")
+        val context = BoardInteractionContext(position, true)
+        var state = BoardInteractionState.initial(position, Side.WHITE)
+        state = BoardInteractionReducer.reduce(
+            context,
+            state,
+            BoardEvent.TapSquare(Square.parse("e2")),
+        ).state
+        val warning = BoardInteractionReducer.reduce(
+            context,
+            state,
+            BoardEvent.TapSquare(Square.parse("f2")),
+        ).state.selfCheckWarning
+        assertThat(warning?.reason == SelfCheckWarningReason.MOVE_EXPOSES_KING)
+        assertThat(warning?.kingSquare == Square.parse("e1"))
+        assertThat(warning?.unsafeKingSquare == Square.parse("e1"))
+        assertThat(warning?.attackerSquares == setOf(Square.parse("e8")))
+    }
+    suite.test("castling through check identifies the transit square and attacker") {
+        val position = ChessPosition.fromFen("k4r2/8/8/8/8/8/8/4K2R w K - 0 1")
+        val context = BoardInteractionContext(position, true)
+        var state = BoardInteractionState.initial(position, Side.WHITE)
+        state = BoardInteractionReducer.reduce(
+            context,
+            state,
+            BoardEvent.TapSquare(Square.parse("e1")),
+        ).state
+        val warning = BoardInteractionReducer.reduce(
+            context,
+            state,
+            BoardEvent.TapSquare(Square.parse("g1")),
+        ).state.selfCheckWarning
+        assertThat(warning?.reason == SelfCheckWarningReason.CASTLE_THROUGH_CHECK)
+        assertThat(warning?.kingSquare == Square.parse("e1"))
+        assertThat(warning?.unsafeKingSquare == Square.parse("f1"))
+        assertThat(warning?.attackerSquares == setOf(Square.parse("f8")))
+    }
+    suite.test("castling into check identifies the destination and attacker") {
+        val position = ChessPosition.fromFen("k5r1/8/8/8/8/8/8/4K2R w K - 0 1")
+        val warning = SelfCheckDiagnostics.forAttempt(
+            position,
+            Square.parse("e1"),
+            Square.parse("g1"),
+        )
+        assertThat(warning?.reason == SelfCheckWarningReason.CASTLE_INTO_CHECK)
+        assertThat(warning?.unsafeKingSquare == Square.parse("g1"))
+        assertThat(warning?.attackerSquares == setOf(Square.parse("g8")))
+    }
+    suite.test("castling while checked identifies the current king square and attacker") {
+        val position = ChessPosition.fromFen("k3r3/8/8/8/8/8/8/4K2R w K - 0 1")
+        val warning = SelfCheckDiagnostics.forAttempt(
+            position,
+            Square.parse("e1"),
+            Square.parse("g1"),
+        )
+        assertThat(warning?.reason == SelfCheckWarningReason.CASTLE_WHILE_IN_CHECK)
+        assertThat(warning?.unsafeKingSquare == Square.parse("e1"))
+        assertThat(warning?.attackerSquares == setOf(Square.parse("e8")))
     }
     suite.test("drag and drop submits a legal move") {
         val position = ChessPosition.starting()
@@ -1050,6 +1265,85 @@ fun main() {
         assertThat(ignored.state.selected == null)
         val flipped = BoardInteractionReducer.reduce(context, state, BoardEvent.FlipBoard)
         assertThat(flipped.state.orientation == BoardOrientation.BLACK_AT_BOTTOM)
+    }
+    suite.test("bot-thinking preselection accepts only the human side and never submits") {
+        val position = ChessRules.apply(ChessPosition.starting(), UciMove("e2e4"))
+        val context = BoardInteractionContext(
+            position = position,
+            interactive = false,
+            selectionSide = Side.WHITE,
+            preselectionEnabled = true,
+        )
+        var state = BoardInteractionState.initial(position, Side.WHITE)
+        val selected = BoardInteractionReducer.reduce(
+            context,
+            state,
+            BoardEvent.TapSquare(Square.parse("g1")),
+        )
+        assertThat(selected.action == null)
+        assertThat(selected.state.selected == Square.parse("g1") && selected.state.preselected)
+
+        state = selected.state
+        val opponentPiece = BoardInteractionReducer.reduce(
+            context,
+            state,
+            BoardEvent.TapSquare(Square.parse("g8")),
+        )
+        assertThat(opponentPiece.action == null && opponentPiece.state.selected == null)
+    }
+    suite.test("selection-only events never turn a highlighted destination into a pre-move") {
+        val position = ChessPosition.starting()
+        val context = BoardInteractionContext(
+            position = position,
+            interactive = true,
+            selectionSide = Side.WHITE,
+        )
+        val selected = BoardInteractionReducer.reduce(
+            context,
+            BoardInteractionState.initial(position, Side.WHITE),
+            BoardEvent.PreselectSquare(Square.parse("g1")),
+        )
+        val destination = BoardInteractionReducer.reduce(
+            context,
+            selected.state,
+            BoardEvent.PreselectSquare(Square.parse("f3")),
+        )
+        assertThat(selected.state.selected == Square.parse("g1"))
+        assertThat(destination.action == null && destination.state.selected == null)
+    }
+    suite.test("preselection survives the bot move when the piece remains on its square") {
+        val before = ChessRules.apply(ChessPosition.starting(), UciMove("e2e4"))
+        val after = ChessRules.apply(before, UciMove("e7e5"))
+        val waiting = BoardInteractionState.initial(before, Side.WHITE).copy(
+            selected = Square.parse("g1"),
+            preselected = true,
+        )
+        val ready = BoardInteractionReducer.reconcile(
+            BoardInteractionContext(
+                position = after,
+                interactive = true,
+                selectionSide = Side.WHITE,
+            ),
+            waiting,
+        )
+        assertThat(ready.selected == Square.parse("g1") && !ready.preselected)
+    }
+    suite.test("preselection is cleared when the bot captures the selected piece") {
+        val before = ChessPosition.fromFen("4k3/8/8/1b6/8/8/4R3/4K3 b - - 0 1")
+        val after = ChessRules.apply(before, UciMove("b5e2"))
+        val waiting = BoardInteractionState.initial(before, Side.WHITE).copy(
+            selected = Square.parse("e2"),
+            preselected = true,
+        )
+        val ready = BoardInteractionReducer.reconcile(
+            BoardInteractionContext(
+                position = after,
+                interactive = true,
+                selectionSide = Side.WHITE,
+            ),
+            waiting,
+        )
+        assertThat(ready.selected == null && !ready.preselected)
     }
     suite.test("promotion requires an explicit piece choice") {
         val position = ChessPosition.fromFen("4k3/P7/8/8/8/8/8/4K3 w - - 0 1")
@@ -1082,9 +1376,18 @@ fun main() {
         val stale = BoardInteractionState.initial(before, Side.WHITE).copy(
             selected = Square.parse("e2"),
             promotionPrompt = PromotionPrompt(Square.parse("a7"), Square.parse("a8"), listOf(PieceType.QUEEN)),
+            selfCheckWarning = SelfCheckWarning(
+                kingSquare = Square.parse("e1"),
+                unsafeKingSquare = Square.parse("e1"),
+                attackerSquares = setOf(Square.parse("e8")),
+                reason = SelfCheckWarningReason.MOVE_EXPOSES_KING,
+            ),
         )
         val reconciled = BoardInteractionReducer.reconcile(BoardInteractionContext(after, false), stale)
-        assertThat(reconciled.selected == null && reconciled.promotionPrompt == null)
+        assertThat(
+            reconciled.selected == null && reconciled.promotionPrompt == null &&
+                reconciled.selfCheckWarning == null,
+        )
         assertThat(reconciled.orientation == stale.orientation)
     }
     suite.test("presenter produces 64 display-ordered cells") {
@@ -1105,6 +1408,26 @@ fun main() {
         val screen = BoardPresenter.present(fixture.coordinator.snapshot(), config, interaction)
         assertThat(screen.cells.single { it.square == Square.parse("e3") }.target == TargetKind.QUIET)
         assertThat(screen.cells.single { it.square == Square.parse("e4") }.target == TargetKind.QUIET)
+    }
+    suite.test("presenter maps a self-check warning onto king attacker and unsafe cells") {
+        val fen = "k4r2/8/8/8/8/8/8/4K2R w K - 0 1"
+        val position = ChessPosition.fromFen(fen)
+        val config = coordinatorConfig(initialFen = fen)
+        val fixture = coordinatorFixture(config)
+        val warning = requireNotNull(
+            SelfCheckDiagnostics.forAttempt(position, Square.parse("e1"), Square.parse("g1")),
+        )
+        val interaction = BoardInteractionState.initial(position, Side.WHITE).copy(
+            selected = Square.parse("e1"),
+            selfCheckWarning = warning,
+        )
+        val screen = BoardPresenter.present(fixture.coordinator.snapshot(), config, interaction)
+        val king = screen.cells.single { it.square == Square.parse("e1") }
+        val transit = screen.cells.single { it.square == Square.parse("f1") }
+        val attacker = screen.cells.single { it.square == Square.parse("f8") }
+        assertThat(king.selfCheckKing && king.accessibility.selfCheckKing)
+        assertThat(transit.selfCheckUnsafe && transit.accessibility.selfCheckUnsafe)
+        assertThat(attacker.selfCheckAttacker && attacker.accessibility.selfCheckAttacker)
     }
     suite.test("presenter marks capture target and accessible label") {
         val fen = "4k3/8/3p4/4P3/8/8/8/4K3 w - - 0 1"
@@ -1202,9 +1525,19 @@ fun main() {
     suite.test("built-in theme and piece identifiers are unique") {
         assertThat(BoardThemes.all.size == 5)
         assertThat(BoardThemes.all.map { it.id }.distinct().size == BoardThemes.all.size)
-        assertThat(BoardThemes.all.map { it.id }.distinct().size == BoardThemes.all.size)
         assertThat(BoardThemes.all.all { it.lightSquare != it.darkSquare })
-        assertThat(BoardThemes.fromId("royal_amethyst") == BoardThemes.ROYAL_AMETHYST)
+        BoardThemes.all.forEach { theme -> assertThat(BoardThemes.fromId(theme.id) == theme) }
+        assertThat(BoardThemes.all.all { it.textureId != null })
+        listOf(
+            "obsidian_glass",
+            "arctic_slate",
+            "modern_walnut",
+            "emerald_court",
+            "royal_amethyst",
+        ).forEach { retiredId ->
+            assertThat(BoardThemes.fromId(retiredId) == BoardThemes.DEFAULT)
+        }
+        assertThat(BoardThemes.fromId("malachite_court") == BoardThemes.VERDIGRIS_COPPER)
         assertThat(BoardThemes.fromId("removed-or-corrupt") == BoardThemes.DEFAULT)
         assertThat(BoardThemes.fromId(null) == BoardThemes.DEFAULT)
         assertThat(PieceSets.all.map { it.id }.distinct().size == PieceSets.all.size)
@@ -1330,6 +1663,28 @@ fun main() {
         val model = controller.boardEvent(BoardEvent.TapSquare(Square.parse("e4")))
         assertThat(fixture.engine.requests.size == 1)
         assertThat(model.board.phase == CoordinatorPhase.BOT_THINKING)
+    }
+    suite.test("screen controller carries a bot-thinking preselection into the human turn") {
+        val config = coordinatorConfig()
+        val fixture = coordinatorFixture(config)
+        val controller = GameScreenController(fixture.coordinator, config)
+        controller.boardEvent(BoardEvent.TapSquare(Square.parse("e2")))
+        controller.boardEvent(BoardEvent.TapSquare(Square.parse("e4")))
+
+        val waiting = controller.boardEvent(BoardEvent.TapSquare(Square.parse("g1")))
+        assertThat(waiting.board.phase == CoordinatorPhase.BOT_THINKING)
+        assertThat(waiting.board.interaction.selected == Square.parse("g1"))
+        assertThat(waiting.board.cells.none { it.target != null })
+        assertThat(fixture.engine.requests.size == 1)
+
+        fixture.engine.respond(move = "e7e5")
+        val ready = controller.model()
+        assertThat(ready.board.phase == CoordinatorPhase.HUMAN_TURN)
+        assertThat(ready.board.interaction.selected == Square.parse("g1"))
+        assertThat(ready.board.cells.single { it.square == Square.parse("f3") }.target == TargetKind.QUIET)
+
+        controller.boardEvent(BoardEvent.TapSquare(Square.parse("f3")))
+        assertThat(fixture.engine.requests.size == 2)
     }
     suite.test("screen controller produces SAN move-history rows") {
         val config = coordinatorConfig()
@@ -1461,6 +1816,8 @@ fun main() {
             winner = Side.BLACK,
             reason = EndReason.CHECKMATE,
             score = GameScore(100, 100, 0),
+            rules = blackConfig.rules,
+            adjudicationFacts = checkmate.coordinator.snapshot().session.adjudicationFacts,
         ))
 
         val whiteConfig = coordinatorConfig(humanSide = Side.WHITE)
@@ -1472,6 +1829,8 @@ fun main() {
             winner = Side.BLACK,
             reason = EndReason.RESIGNATION,
             score = GameScore(0, 100, 0),
+            rules = whiteConfig.rules,
+            adjudicationFacts = null,
         ))
     }
     suite.test("screen result reports the explicit threat assistance penalty") {
@@ -1543,9 +1902,9 @@ fun main() {
             assertThat(themed.history == before.history)
             assertThat(themed.board.interaction == before.board.interaction)
         }
-        var model = controller.selectTheme(BoardThemes.MODERN_WALNUT)
+        var model = controller.selectTheme(BoardThemes.VERDIGRIS_COPPER)
         model = controller.selectPieceSet(PieceSets.SCULPTED)
-        assertThat(model.board.theme == BoardThemes.MODERN_WALNUT)
+        assertThat(model.board.theme == BoardThemes.VERDIGRIS_COPPER)
         assertThat(model.board.pieceSet == PieceSets.SCULPTED)
         assertThat(model.history.isEmpty())
     }

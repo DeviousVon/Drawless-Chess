@@ -8,7 +8,8 @@ const rules = () => ({
   stalemate: "trapped_player_loses",
   repetition: { threshold: 3, completingPlayerLoses: true, forcedMoveException: true },
   deadPosition: "material_victory",
-  fiftyMove: "disabled",
+  bareKing: "bare_king_loses",
+  fiftyMove: "material_victory",
   materialValues: { pawn: 1, knight: 3, bishop: 3, rook: 5, queen: 9 },
 });
 
@@ -26,6 +27,10 @@ const savedGame = () => ({
 });
 
 test("accepts the immutable rules v1 contract", () => assert.equal(validateRulesV1(rules()), true));
+test("accepts a legacy rules v1 contract without bare-king policy", () => {
+  const value = rules(); delete value.bareKing;
+  assert.equal(validateRulesV1(value), true);
+});
 test("rejects a changed repetition threshold in v1", () => {
   const value = rules(); value.repetition.threshold = 4;
   assert.equal(validateRulesV1(value), false);

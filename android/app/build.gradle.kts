@@ -251,8 +251,8 @@ android {
         applicationId = "com.drawlesschess"
         minSdk = 26
         targetSdk = 36
-        versionCode = 2
-        versionName = "0.2.0"
+        versionCode = 3
+        versionName = "0.3.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         ndk {
@@ -272,6 +272,8 @@ android {
 
     androidResources {
         generateLocaleConfig = true
+        // SoundPool needs seekable file descriptors; keep the runtime Vorbis assets un-deflated.
+        noCompress += "ogg"
     }
 
     signingConfigs {
@@ -297,6 +299,9 @@ android {
             // A release build cannot opt into the development engine, even when the Gradle
             // property is present on the command line.
             buildConfigField("boolean", "USE_DEVELOPMENT_ENGINE", "false")
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
             if (releaseSigningReady) {
                 signingConfig = signingConfigs.getByName("releaseUpload")
             }

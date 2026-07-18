@@ -51,16 +51,16 @@ than hard-coded device names.
 
 Five semantic board themes are exposed in the app:
 
-- Obsidian Glass
-- Arctic Slate
-- Modern Walnut
-- Emerald Court
-- Royal Amethyst
+- Imperial Marble
+- Desert Sandstone
+- Glacier Slate
+- Verdigris Copper
+- Amethyst Geode
 
-Obsidian Glass remains the default. Selecting a theme updates the board, app surfaces,
-home gradient, and code-native piece colors immediately. The selected stable theme ID is
+Imperial Marble remains the default. Selecting a theme updates only the chess board and its
+code-native piece colors; menus and the home screen keep the product color system. The stable theme ID is
 stored as a presentation preference, so it survives relaunches without becoming part of a
-game checkpoint or rules contract. Unknown or retired IDs safely fall back to Obsidian.
+game checkpoint or rules contract. Unknown or retired IDs safely fall back to Imperial Marble.
 
 Three piece-set contracts are reserved:
 

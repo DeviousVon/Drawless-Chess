@@ -16,6 +16,8 @@ The design and release controls are documented here:
 - `docs/ADR-003-ANDROID-ENGINE-RUNTIME.md` — accepted JNI runtime and GPL release boundary.
 - `docs/NATIVE_ENGINE.md` — pinned patch, native package boundary, verification, and release gates.
 - `docs/ANDROID_MACHINE_VERIFICATION.md` — pinned Android toolchain and device evidence gate.
+- `docs/NEXT_RELEASE_GATES.md` — mandatory code, localization, optimization, version, and Play
+  country-targeting gates for the release after `0.2.0`.
 - `contracts/` — language-neutral JSON contracts for rules and saved games.
 
 The Android foundation lives under `android/` and includes a dependency-free Kotlin
@@ -142,7 +144,7 @@ source for the exact binary.
 Create the whole-project source archive only from the exact release tree:
 
 ```bash
-npm run bundle:source -- release/drawless-chess-0.2.0-source.tar.gz
+npm run bundle:source -- release/drawless-chess-0.3.0-source.tar.gz
 ```
 
 The archive includes the complete prepared Fairy-Stockfish checkout and all Drawless

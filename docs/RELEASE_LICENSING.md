@@ -56,7 +56,7 @@ publish. Before each public release:
    dirty tree:
 
    ```bash
-   scripts/source-bundle.sh release/drawless-chess-0.2.0-source.tar.gz
+   scripts/source-bundle.sh release/drawless-chess-0.3.0-source.tar.gz
    ```
 
    `scripts/native-source-bundle.sh` is a compatibility alias and produces the

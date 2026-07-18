@@ -57,6 +57,10 @@ internal object SampledSoundCatalog {
         R.raw.chess_move_wood_50,
     )
 
+    // FFmpeg volumedetect measured this at -22.3 dB mean: the midpoint of the move set.
+    val volumePreview: Int
+        get() = moves[16]
+
     val captures = intArrayOf(
         R.raw.chess_capture_wood_01,
         R.raw.chess_capture_wood_02,
