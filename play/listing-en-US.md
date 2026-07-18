@@ -8,7 +8,7 @@ Character count: 14 of 30.
 
 ## Short description
 
-`Offline chess with decisive no-draw rules, seven bot levels, and no ads.`
+`Offline chess with decisive rules, seven bot levels, and textured themes`
 
 Character count: 72 of 80.
 
