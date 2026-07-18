@@ -1,0 +1,21 @@
+{
+  "name": "Drawless Chess",
+  "short_name": "Drawless Chess",
+  "description": "Offline chess. Decisive by design.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#081014",
+  "theme_color": "#0b1216",
+  "icons": [
+    {
+      "src": "/media/app-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/media/app-icon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

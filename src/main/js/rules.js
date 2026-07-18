@@ -7,10 +7,15 @@ export const DeadPositionPolicy = Object.freeze({
   MATERIAL_VICTORY: "MATERIAL_VICTORY",
   FINAL_CAPTURE_VICTORY: "FINAL_CAPTURE_VICTORY",
 });
+export const BareKingPolicy = Object.freeze({
+  CONTINUE: "CONTINUE",
+  BARE_KING_LOSES: "BARE_KING_LOSES",
+});
 export const FiftyMovePolicy = Object.freeze({
   DISABLED: "DISABLED",
   COMPLETING_PLAYER_LOSES: "COMPLETING_PLAYER_LOSES",
   FORCED_MOVE_EXCEPTION: "FORCED_MOVE_EXCEPTION",
+  MATERIAL_VICTORY: "MATERIAL_VICTORY",
 });
 export const EndReason = Object.freeze({
   NONE: "NONE",
@@ -19,6 +24,7 @@ export const EndReason = Object.freeze({
   REPETITION: "REPETITION",
   DEAD_POSITION_MATERIAL: "DEAD_POSITION_MATERIAL",
   DEAD_POSITION_FINAL_CAPTURE: "DEAD_POSITION_FINAL_CAPTURE",
+  BARE_KING: "BARE_KING",
   FIFTY_MOVE_LIMIT: "FIFTY_MOVE_LIMIT",
 });
 
@@ -28,9 +34,10 @@ export function ruleset({
   id = "drawless",
   stalemate = StalematePolicy.TRAPPED_PLAYER_LOSES,
   deadPosition = DeadPositionPolicy.MATERIAL_VICTORY,
-  fiftyMove = FiftyMovePolicy.DISABLED,
+  fiftyMove = FiftyMovePolicy.MATERIAL_VICTORY,
+  bareKing = BareKingPolicy.BARE_KING_LOSES,
 } = {}) {
-  return Object.freeze({ id, stalemate, deadPosition, fiftyMove });
+  return Object.freeze({ id, stalemate, deadPosition, fiftyMove, bareKing });
 }
 
 export function positionAfterMove(overrides = {}) {
@@ -46,6 +53,7 @@ export function positionAfterMove(overrides = {}) {
     moveWasCapture: false,
     whiteMaterial: 0,
     blackMaterial: 0,
+    lastCaptureBy: null,
     ...overrides,
   };
   for (const key of ["legalMoveCount", "repetitionAvoidingAlternativesBeforeMove",
@@ -56,6 +64,9 @@ export function positionAfterMove(overrides = {}) {
     throw new RangeError("positionOccurrenceCount must be a positive integer");
   }
   if (![Side.WHITE, Side.BLACK].includes(p.mover)) throw new TypeError("mover must be WHITE or BLACK");
+  if (p.lastCaptureBy !== null && ![Side.WHITE, Side.BLACK].includes(p.lastCaptureBy)) {
+    throw new TypeError("lastCaptureBy must be WHITE, BLACK, or null");
+  }
   return Object.freeze(p);
 }
 
@@ -81,6 +92,14 @@ export function adjudicate(rules, p) {
     return win(EndReason.REPETITION, opposite(loser), `${loser} loses by causing a third repetition`);
   }
 
+  if (rules.bareKing === BareKingPolicy.BARE_KING_LOSES) {
+    const winner = p.whiteMaterial === 0 && p.blackMaterial > 0 ? Side.BLACK
+      : p.blackMaterial === 0 && p.whiteMaterial > 0 ? Side.WHITE : null;
+    if (winner !== null) {
+      return win(EndReason.BARE_KING, winner, `${opposite(winner)} loses with only a king remaining`);
+    }
+  }
+
   if (p.deadPosition) {
     if (rules.deadPosition === DeadPositionPolicy.FINAL_CAPTURE_VICTORY) {
       if (!p.moveWasCapture) throw new Error("Final-capture adjudication requires a capture transition");
@@ -94,11 +113,19 @@ export function adjudicate(rules, p) {
   }
 
   if (p.halfmoveClock >= 100 && rules.fiftyMove !== FiftyMovePolicy.DISABLED) {
-    const forced = rules.fiftyMove === FiftyMovePolicy.FORCED_MOVE_EXCEPTION
-      && p.fiftyMoveAvoidingAlternativesBeforeMove === 0;
-    const loser = forced ? sideToMove : p.mover;
-    return win(EndReason.FIFTY_MOVE_LIMIT, opposite(loser),
-      `${loser} loses by reaching the configured 50-move limit`);
+    let winner;
+    if (rules.fiftyMove === FiftyMovePolicy.MATERIAL_VICTORY) {
+      winner = p.whiteMaterial > p.blackMaterial ? Side.WHITE
+        : p.blackMaterial > p.whiteMaterial ? Side.BLACK
+          : p.lastCaptureBy ?? (p.fiftyMoveAvoidingAlternativesBeforeMove === 0 ? p.mover : sideToMove);
+    } else {
+      const forced = rules.fiftyMove === FiftyMovePolicy.FORCED_MOVE_EXCEPTION
+        && p.fiftyMoveAvoidingAlternativesBeforeMove === 0;
+      const loser = forced ? sideToMove : p.mover;
+      winner = opposite(loser);
+    }
+    return win(EndReason.FIFTY_MOVE_LIMIT, winner,
+      `${winner} wins at the configured 50-move limit`);
   }
 
   return ongoing();

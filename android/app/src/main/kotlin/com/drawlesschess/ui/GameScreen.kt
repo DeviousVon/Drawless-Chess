@@ -5,14 +5,18 @@
 
 package com.drawlesschess.ui
 
+import android.widget.ImageView
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.AnimationVector1D
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.awaitTouchSlopOrCancellation
 import androidx.compose.foundation.interaction.DragInteraction
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -30,10 +34,15 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -52,13 +61,16 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.drawlesschess.core.Side
 import com.drawlesschess.core.EndReason
+import com.drawlesschess.core.FiftyMovePolicy
 import com.drawlesschess.core.GameMode
 import com.drawlesschess.core.RulesContractV1
+import com.drawlesschess.core.StalematePolicy
 import com.drawlesschess.core.coordinator.CoordinatorPhase
 import com.drawlesschess.core.chess.PieceType
 import com.drawlesschess.core.chess.Square
@@ -82,6 +94,7 @@ internal fun GameRoute(
     playerStatistics: PlayerStatistics?,
     selectedTheme: BoardTheme,
     onShowThemes: () -> Unit,
+    onShowOptions: () -> Unit,
     onExit: () -> Unit,
     onRematch: () -> Unit,
     onGameCompleted: () -> Unit,
@@ -94,6 +107,9 @@ internal fun GameRoute(
     var model by remember(controller) { mutableStateOf(controller.model()) }
     val uiScope = rememberCoroutineScope()
     var soundedPlyCount by remember(controller) { mutableIntStateOf(model.history.plyCount()) }
+    var hapticPlyCount by remember(controller) { mutableIntStateOf(model.history.plyCount()) }
+    val view = LocalView.current
+    val gameHaptics = remember(view) { GameHaptics(view) }
     var confirmResign by remember { mutableStateOf(false) }
     var previousPhase by remember(controller) { mutableStateOf(model.board.phase) }
     var completedMoveAnimationPly by remember(controller) { mutableIntStateOf(model.history.plyCount()) }
@@ -142,6 +158,29 @@ internal fun GameRoute(
         soundedPlyCount = visiblePlyCount
     }
 
+    LaunchedEffect(
+        gameHaptics,
+        preferences.hapticFeedbackEnabled,
+        visiblePlyCount,
+        model.board.phase,
+        lifecycleStarted,
+    ) {
+        if (preferences.hapticFeedbackEnabled && lifecycleStarted &&
+            visiblePlyCount > hapticPlyCount
+        ) {
+            model.history.lastPlayedEntry()?.let { entry ->
+                GameHapticClassifier.forMove(
+                    mover = entry.mover,
+                    humanSide = model.board.humanSide,
+                    capture = entry.accessibility.capturedPiece != null,
+                    check = entry.notation.endsWith("+") || entry.notation.endsWith("#"),
+                    terminal = model.board.phase == CoordinatorPhase.COMPLETED,
+                )?.let(gameHaptics::perform)
+            }
+        }
+        hapticPlyCount = visiblePlyCount
+    }
+
     LaunchedEffect(soundPlayer, preferences.soundEnabled, lifecycleStarted) {
         if (!preferences.soundEnabled || !lifecycleStarted) soundPlayer.stopAll()
     }
@@ -167,7 +206,13 @@ internal fun GameRoute(
         }
     }
 
-    LaunchedEffect(pendingCompletion, completedMoveAnimationPly, lifecycleStarted) {
+    LaunchedEffect(
+        pendingCompletion,
+        completedMoveAnimationPly,
+        lifecycleStarted,
+        preferences.hapticFeedbackEnabled,
+        gameHaptics,
+    ) {
         if (!lifecycleStarted) return@LaunchedEffect
         pendingCompletion?.let { pending ->
             if (pending.waitForAnimationPly == null ||
@@ -176,6 +221,9 @@ internal fun GameRoute(
                 postGameResult = pending.result
                 completionEffect = pending.result.takeIf {
                     preferences.celebrationEffectsEnabled
+                }
+                if (preferences.hapticFeedbackEnabled) {
+                    gameHaptics.perform(GameHapticClassifier.forCompletion(pending.result.playerWon))
                 }
                 pendingCompletion = null
             }
@@ -212,90 +260,95 @@ internal fun GameRoute(
         soundPlayer.stopAll()
         onRematch()
     }
+    val handleBoardEvent: (BoardEvent) -> Unit = { event ->
+        val before = model
+        val after = controller.boardEvent(event)
+        if (preferences.hapticFeedbackEnabled && lifecycleStarted) {
+            GameHapticClassifier.forInteraction(before.board, after.board, event)
+                ?.let(gameHaptics::perform)
+        }
+        model = after
+    }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Column {
-                        Text(stringResource(R.string.app_name))
-                        Text(
-                            stringResource(
-                                R.string.game_title_summary,
-                                stringResource(
-                                    if (model.rulesPreset == RulesContractV1.Preset.DRAWLESS) {
-                                        R.string.rules_label_drawless
-                                    } else {
-                                        R.string.rules_label_escape
-                                    },
-                                ),
-                                stringResource(
-                                    if (model.mode == GameMode.CASUAL) R.string.mode_casual
-                                    else R.string.mode_rated,
-                                ),
-                            ),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                },
-                navigationIcon = {
-                    TextButton(onClick = exitGame, modifier = Modifier.testTag("game_save_exit")) {
-                        Text(stringResource(R.string.game_save_exit))
-                    }
-                },
-                actions = {
-                    TextButton(
-                        onClick = onShowThemes,
-                        modifier = Modifier.testTag("game_theme_selector"),
-                    ) {
-                        Text(stringResource(R.string.action_theme))
-                    }
-                },
-            )
-        },
-        bottomBar = {
-            postGameResult?.let { result ->
-                PostGameBar(
-                    result = result,
-                    opponentName = opponentDisplayName,
-                    careerAverageGameScore = playerStatistics
-                        ?.takeIf { it.latestGameId == runtime.gameId }
-                        ?.averageScore,
-                    onHome = exitGame,
-                    onRematch = rematchGame,
-                )
-            }
-        },
-    ) { padding ->
-        Box(Modifier.fillMaxSize().padding(padding)) {
-            GameBody(
-                model = model,
-                opponent = opponentProfile,
-                modifier = Modifier.fillMaxSize(),
-                onBoardEvent = { model = controller.boardEvent(it) },
-                onPause = { model = controller.pauseOrResume() },
-                onUndo = { model = controller.undo() },
-                onHint = { model = controller.hint() },
-                onFlip = { model = controller.boardEvent(BoardEvent.FlipBoard) },
-                onRetryBot = { model = controller.retryBot() },
-                onResign = { confirmResign = true },
-                onDismissMessage = { model = controller.dismissMessage() },
-                showBoardCoordinates = preferences.boardCoordinatesEnabled,
-                onMoveAnimationFinished = { ply ->
-                    completedMoveAnimationPly = maxOf(completedMoveAnimationPly, ply)
-                },
-            )
-            completionEffect?.let { result ->
-                CompletionEffectOverlay(
-                    result = result,
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val fullWindowLayout = ResponsiveBoardLayout.calculate(
+            maxWidth.value.roundToInt(),
+            maxHeight.value.roundToInt(),
+        )
+        val headerInSidePanel = fullWindowLayout.controlPlacement == ControlPlacement.BESIDE_BOARD
+
+        Scaffold(
+            topBar = {
+                if (!headerInSidePanel) {
+                    GameTopBar(
+                        model = model,
+                        onExit = exitGame,
+                        onShowOptions = onShowOptions,
+                        onShowThemes = onShowThemes,
+                    )
+                }
+            },
+            bottomBar = {
+                postGameResult?.let { result ->
+                    PostGameBar(
+                        result = result,
+                        opponentName = opponentDisplayName,
+                        careerAverageGameScore = playerStatistics
+                            ?.takeIf { it.latestGameId == runtime.gameId }
+                            ?.averageScore,
+                        onHome = exitGame,
+                        onRematch = rematchGame,
+                    )
+                }
+            },
+        ) { padding ->
+            Box(Modifier.fillMaxSize().padding(padding)) {
+                GameBody(
+                    model = model,
                     opponent = opponentProfile,
                     modifier = Modifier.fillMaxSize(),
-                    onCue = { won ->
-                        if (preferences.soundEnabled) soundPlayer.playCompletionCue(won)
+                    sideHeader = {
+                        if (headerInSidePanel) {
+                            GameSideHeader(
+                                model = model,
+                                onExit = exitGame,
+                                onShowOptions = onShowOptions,
+                                onShowThemes = onShowThemes,
+                            )
+                        }
                     },
-                    onFinished = { completionEffect = null },
+                    onBoardEvent = handleBoardEvent,
+                    onPause = { model = controller.pauseOrResume() },
+                    onUndo = { model = controller.undo() },
+                    onHint = { model = controller.hint() },
+                    onFlip = { handleBoardEvent(BoardEvent.FlipBoard) },
+                    onRetryBot = { model = controller.retryBot() },
+                    onResign = { confirmResign = true },
+                    onDismissMessage = { model = controller.dismissMessage() },
+                    showBoardCoordinates = preferences.boardCoordinatesEnabled,
+                    onMoveAnimationFinished = { ply ->
+                        completedMoveAnimationPly = maxOf(completedMoveAnimationPly, ply)
+                    },
                 )
+                model.board.interaction.selfCheckWarning?.let { warning ->
+                    SelfCheckWarningBanner(
+                        reason = warning.reason,
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .padding(12.dp),
+                    )
+                }
+                completionEffect?.let { result ->
+                    CompletionEffectOverlay(
+                        result = result,
+                        opponent = opponentProfile,
+                        modifier = Modifier.fillMaxSize(),
+                        onCue = { won ->
+                            if (preferences.soundEnabled) soundPlayer.playCompletionCue(won)
+                        },
+                        onFinished = { completionEffect = null },
+                    )
+                }
             }
         }
     }
@@ -304,8 +357,8 @@ internal fun GameRoute(
         PromotionDialog(
             side = model.board.sideToMove,
             choices = prompt.choices,
-            onChoose = { model = controller.boardEvent(BoardEvent.PromotionChosen(it)) },
-            onDismiss = { model = controller.boardEvent(BoardEvent.PromotionCancelled) },
+            onChoose = { handleBoardEvent(BoardEvent.PromotionChosen(it)) },
+            onDismiss = { handleBoardEvent(BoardEvent.PromotionCancelled) },
         )
     }
 
@@ -328,6 +381,138 @@ internal fun GameRoute(
                     modifier = Modifier.testTag("cancel_resign_game"),
                 ) { Text(stringResource(R.string.action_keep_playing)) }
             },
+        )
+    }
+}
+
+@Composable
+internal fun GameTopBar(
+    model: GameScreenModel,
+    onExit: () -> Unit,
+    onShowOptions: () -> Unit,
+    onShowThemes: () -> Unit,
+) {
+    TopAppBar(
+        title = { GameHeaderTitle(model) },
+        navigationIcon = {
+            TextButton(onClick = onExit, modifier = Modifier.testTag("game_save_exit")) {
+                Text(stringResource(R.string.game_save_exit))
+            }
+        },
+        actions = {
+            GameHeaderActions(onShowOptions, onShowThemes)
+        },
+    )
+}
+
+@Composable
+internal fun GameSideHeader(
+    model: GameScreenModel,
+    onExit: () -> Unit,
+    onShowOptions: () -> Unit,
+    onShowThemes: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("game_side_header"),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            TextButton(onClick = onExit, modifier = Modifier.testTag("game_save_exit")) {
+                Text(stringResource(R.string.game_save_exit))
+            }
+            Spacer(Modifier.weight(1f))
+            GameHeaderTitle(model, horizontalAlignment = Alignment.End)
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End,
+        ) {
+            GameHeaderActions(onShowOptions, onShowThemes)
+        }
+        HorizontalDivider()
+    }
+}
+
+@Composable
+private fun GameHeaderTitle(
+    model: GameScreenModel,
+    horizontalAlignment: Alignment.Horizontal = Alignment.Start,
+) {
+    Column(horizontalAlignment = horizontalAlignment) {
+        Text(stringResource(R.string.app_name), maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(
+            stringResource(
+                R.string.game_title_summary,
+                stringResource(
+                    if (model.rulesPreset == RulesContractV1.Preset.DRAWLESS) {
+                        R.string.rules_label_drawless
+                    } else {
+                        R.string.rules_label_escape
+                    },
+                ),
+                stringResource(
+                    if (model.mode == GameMode.CASUAL) R.string.mode_casual
+                    else R.string.mode_rated,
+                ),
+            ),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
+private fun GameHeaderActions(
+    onShowOptions: () -> Unit,
+    onShowThemes: () -> Unit,
+) {
+    TextButton(
+        onClick = onShowOptions,
+        modifier = Modifier.testTag("game_options"),
+    ) {
+        Text(stringResource(R.string.options_title))
+    }
+    TextButton(
+        onClick = onShowThemes,
+        modifier = Modifier.testTag("game_theme_selector"),
+    ) {
+        Text(stringResource(R.string.action_theme))
+    }
+}
+
+@Composable
+internal fun SelfCheckWarningBanner(
+    reason: SelfCheckWarningReason,
+    modifier: Modifier = Modifier,
+) {
+    val message = stringResource(
+        when (reason) {
+            SelfCheckWarningReason.MOVE_EXPOSES_KING -> R.string.warning_move_exposes_king
+            SelfCheckWarningReason.CASTLE_WHILE_IN_CHECK -> R.string.warning_castle_while_in_check
+            SelfCheckWarningReason.CASTLE_THROUGH_CHECK -> R.string.warning_castle_through_check
+            SelfCheckWarningReason.CASTLE_INTO_CHECK -> R.string.warning_castle_into_check
+        },
+    )
+    Surface(
+        modifier = modifier
+            .testTag("self_check_warning")
+            .semantics { liveRegion = LiveRegionMode.Assertive },
+        shape = RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.errorContainer,
+        contentColor = MaterialTheme.colorScheme.onErrorContainer,
+        tonalElevation = 8.dp,
+        shadowElevation = 8.dp,
+    ) {
+        Text(
+            message,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+            fontWeight = FontWeight.SemiBold,
         )
     }
 }
@@ -400,7 +585,7 @@ internal fun PostGameBar(
                     fontWeight = FontWeight.SemiBold,
                     color = onContainer,
                 )
-                Text(resultReasonText(result.reason), color = onContainer.copy(alpha = 0.82f))
+                Text(resultReasonText(result), color = onContainer.copy(alpha = 0.82f))
                 Text(
                     text = stringResource(R.string.game_score, result.score.points, result.score.maximumPoints),
                     modifier = Modifier.testTag("post_game_score"),
@@ -482,24 +667,111 @@ private fun ScorePenaltyLine(
 }
 
 @Composable
-private fun resultReasonText(reason: EndReason): String = stringResource(
-    when (reason) {
-        EndReason.CHECKMATE -> R.string.result_checkmate
-        EndReason.STALEMATE -> R.string.result_stalemate
-        EndReason.REPETITION -> R.string.result_threefold_repetition
-        EndReason.DEAD_POSITION_MATERIAL -> R.string.result_dead_position_material
-        EndReason.DEAD_POSITION_FINAL_CAPTURE -> R.string.result_dead_position_final_capture
-        EndReason.FIFTY_MOVE_LIMIT -> R.string.result_fifty_move
-        EndReason.RESIGNATION -> R.string.result_resignation
-        EndReason.TIMEOUT -> R.string.result_timeout
-    },
-)
+internal fun resultReasonText(result: GameResultView): String {
+    val facts = result.adjudicationFacts
+    return when (result.reason) {
+        EndReason.CHECKMATE -> stringResource(R.string.result_checkmate)
+        EndReason.STALEMATE -> stringResource(
+            if (result.rules.stalemate == StalematePolicy.TRAPPED_PLAYER_WINS) {
+                R.string.result_escape_stalemate
+            } else {
+                R.string.result_stalemate
+            },
+        )
+        EndReason.REPETITION -> when (val alternatives =
+            facts?.repetitionAvoidingAlternativesBeforeMove
+        ) {
+            0 -> stringResource(
+                R.string.result_forced_repetition,
+                sideName(result.winner),
+                sideName(result.winner.opposite()),
+            )
+            null -> stringResource(R.string.result_threefold_repetition)
+            else -> pluralStringResource(
+                R.plurals.result_avoidable_repetition,
+                alternatives,
+                sideName(result.winner.opposite()),
+                alternatives,
+            )
+        }
+        EndReason.DEAD_POSITION_MATERIAL -> facts?.materialAfter?.let { material ->
+            if (material.white == material.black) {
+                stringResource(
+                    R.string.result_dead_position_material_tie,
+                    material.white,
+                    sideName(result.winner),
+                )
+            } else {
+                stringResource(
+                    R.string.result_dead_position_material_score,
+                    material.white,
+                    material.black,
+                    sideName(result.winner),
+                )
+            }
+        } ?: stringResource(R.string.result_dead_position_material)
+        EndReason.DEAD_POSITION_FINAL_CAPTURE ->
+            stringResource(R.string.result_dead_position_final_capture)
+        EndReason.BARE_KING -> stringResource(
+            R.string.result_bare_king,
+            sideName(result.winner.opposite()),
+            sideName(result.winner),
+        )
+        EndReason.FIFTY_MOVE_LIMIT -> when (result.rules.fiftyMove) {
+            FiftyMovePolicy.COMPLETING_PLAYER_LOSES ->
+                stringResource(R.string.result_fifty_move_completing_player)
+            FiftyMovePolicy.FORCED_MOVE_EXCEPTION -> when (val alternatives =
+                facts?.fiftyMoveAvoidingAlternativesBeforeMove
+            ) {
+                0 -> stringResource(
+                    R.string.result_forced_fifty_move,
+                    sideName(result.winner),
+                    sideName(result.winner.opposite()),
+                )
+                null -> stringResource(R.string.result_fifty_move)
+                else -> pluralStringResource(
+                    R.plurals.result_avoidable_fifty_move,
+                    alternatives,
+                    sideName(result.winner.opposite()),
+                    alternatives,
+                )
+            }
+            FiftyMovePolicy.MATERIAL_VICTORY -> facts?.let { materialFacts ->
+                val material = materialFacts.materialAfter
+                when {
+                    material.white != material.black -> stringResource(
+                        R.string.result_fifty_move_material_score,
+                        material.white,
+                        material.black,
+                        sideName(result.winner),
+                    )
+                    materialFacts.lastCaptureBy != null -> materialFacts.lastCaptureBy.let { capturer ->
+                        stringResource(
+                            R.string.result_fifty_move_material_last_capture,
+                            material.white,
+                            sideName(requireNotNull(capturer)),
+                        )
+                    }
+                    else -> stringResource(
+                        R.string.result_fifty_move_material_no_capture,
+                        material.white,
+                        sideName(result.winner),
+                    )
+                }
+            } ?: stringResource(R.string.result_fifty_move)
+            FiftyMovePolicy.DISABLED -> stringResource(R.string.result_fifty_move)
+        }
+        EndReason.RESIGNATION -> stringResource(R.string.result_resignation)
+        EndReason.TIMEOUT -> stringResource(R.string.result_timeout)
+    }
+}
 
 @Composable
 internal fun GameBody(
     model: GameScreenModel,
     opponent: OpponentProfile,
     modifier: Modifier,
+    sideHeader: @Composable () -> Unit = {},
     onBoardEvent: (BoardEvent) -> Unit,
     onPause: () -> Unit,
     onUndo: () -> Unit,
@@ -513,10 +785,19 @@ internal fun GameBody(
 ) {
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
         val layout = ResponsiveBoardLayout.calculate(maxWidth.value.roundToInt(), maxHeight.value.roundToInt())
+        val moveHistoryHeightDp = if (LocalDensity.current.fontScale >= 1.5f) {
+            maxOf(layout.panelMoveHistoryHeightDp, 280)
+        } else {
+            layout.panelMoveHistoryHeightDp
+        }
         if (layout.controlPlacement == ControlPlacement.BELOW_BOARD) {
-            GameStackedContentContainer(
-                outerPadding = layout.outerPaddingDp.dp,
-                modifier = Modifier.fillMaxSize(),
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(layout.outerPaddingDp.dp)
+                    .testTag("game_stacked_content"),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 ClockRow(model)
                 ChessBoard(
@@ -526,18 +807,27 @@ internal fun GameBody(
                     showBoardCoordinates,
                     onMoveAnimationFinished,
                 )
-                OpponentStatusCard(
-                    model = model,
-                    opponent = opponent,
-                    portraitSize = 54.dp,
-                    onRetryBot = onRetryBot,
-                    onDismissMessage = onDismissMessage,
-                )
-                GameControls(model.controls, onPause, onUndo, onHint, onFlip, onResign)
-                MoveHistory(
-                    model.history,
-                    Modifier.fillMaxWidth().height(layout.panelMoveHistoryHeightDp.dp),
-                )
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState())
+                        .testTag("game_stacked_controls"),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    OpponentStatusCard(
+                        model = model,
+                        opponent = opponent,
+                        portraitSize = 54.dp,
+                        onRetryBot = onRetryBot,
+                        onDismissMessage = onDismissMessage,
+                    )
+                    GameControls(model.controls, onPause, onUndo, onHint, onFlip, onResign)
+                    MoveHistory(
+                        model.history,
+                        Modifier.fillMaxWidth().height(moveHistoryHeightDp.dp),
+                    )
+                }
             }
         } else {
             Row(
@@ -558,6 +848,7 @@ internal fun GameBody(
                     panelWidthDp = layout.panelWidthDp,
                     modifier = Modifier.fillMaxHeight(),
                 ) {
+                    sideHeader()
                     ClockRow(model, forceStackCards = layout.panelWidthDp < 320)
                     OpponentStatusCard(
                         model = model,
@@ -569,7 +860,7 @@ internal fun GameBody(
                     GameControls(model.controls, onPause, onUndo, onHint, onFlip, onResign)
                     MoveHistory(
                         model.history,
-                        Modifier.fillMaxWidth().height(layout.panelMoveHistoryHeightDp.dp),
+                        Modifier.fillMaxWidth().height(moveHistoryHeightDp.dp),
                     )
                 }
             }
@@ -581,12 +872,13 @@ internal fun GameBody(
 internal fun GameStackedContentContainer(
     outerPadding: Dp,
     modifier: Modifier = Modifier,
+    userScrollEnabled: Boolean = true,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Column(
         modifier = modifier
             .testTag("game_stacked_content")
-            .verticalScroll(rememberScrollState())
+            .verticalScroll(rememberScrollState(), enabled = userScrollEnabled)
             .padding(outerPadding),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -619,7 +911,7 @@ internal fun ChessBoard(
     onMoveAnimationFinished: (Int) -> Unit,
 ) {
     var boardPixels by remember { mutableIntStateOf(1) }
-    var dragOffset by remember { mutableStateOf(Offset.Zero) }
+    val dragOverlay = remember { DragOverlayHandle() }
     var presentedPositionMarker by remember { mutableStateOf(model.positionMarker) }
     var presentedPlyCount by remember { mutableIntStateOf(model.plyCount) }
     val moveToAnimate = model.moveMotion?.takeIf { motion ->
@@ -648,7 +940,7 @@ internal fun ChessBoard(
         if (animatedPly != null) onMoveAnimationFinished(animatedPly)
     }
 
-    val animationRunning = moveToAnimate != null && moveProgress.value < 1f
+    val animationRunning = moveToAnimate != null
     val hiddenDestinations = if (animationRunning) {
         moveToAnimate.pieces.mapTo(mutableSetOf()) { it.to }
     } else {
@@ -660,39 +952,113 @@ internal fun ChessBoard(
             .size(boardSizeDp.dp)
             .testTag("chess_board_${model.theme.id}")
             .onSizeChanged { boardPixels = it.width.coerceAtLeast(1) }
-            .pointerInput(model.positionMarker, model.interaction.orientation, animationRunning) {
+            .pointerInput(
+                model.positionMarker,
+                model.interaction.orientation,
+                animationRunning,
+            ) {
                 if (!animationRunning) {
-                    detectDragGestures(
-                        onDragStart = { offset ->
-                            dragOffset = offset
-                            squareAtOffset(model, offset, boardPixels)?.let { onEvent(BoardEvent.DragStarted(it)) }
-                        },
-                        onDrag = { change, amount ->
-                            if (change.positionChange() != Offset.Zero) change.consume()
-                            dragOffset += amount
-                        },
-                        onDragEnd = {
-                            squareAtOffset(model, dragOffset, boardPixels)?.let { onEvent(BoardEvent.Dropped(it)) }
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+                        var change = awaitTouchSlopOrCancellation(down.id) { moved, _ ->
+                            moved.consume()
+                        }
+                        if (change != null) {
+                            dragOverlay.moveTo(down.position, boardPixels)
+                            squareAtOffset(model, down.position, boardPixels)
+                                ?.let { onEvent(BoardEvent.DragStarted(it)) }
+
+                            var finalPosition = change.position
+                            dragOverlay.moveTo(finalPosition, boardPixels)
+                            while (change?.pressed == true) {
+                                val event = awaitPointerEvent()
+                                change = event.changes.firstOrNull { it.id == down.id }
+                                change?.let { moved ->
+                                    // ACTION_UP can carry a newer position than the final MOVE.
+                                    // Keeping that lift coordinate prevents quick drags from
+                                    // dropping one square short of the player's finger.
+                                    finalPosition = moved.position
+                                    dragOverlay.moveTo(finalPosition, boardPixels)
+                                    if (moved.positionChange() != Offset.Zero) moved.consume()
+                                }
+                            }
+                            squareAtOffset(model, finalPosition, boardPixels)
+                                ?.let { onEvent(BoardEvent.Dropped(it)) }
                                 ?: onEvent(BoardEvent.DragCancelled)
-                        },
-                        onDragCancel = { onEvent(BoardEvent.DragCancelled) },
-                    )
+                        }
+                    }
                 }
             }
             .border(1.dp, Color.Black.copy(alpha = 0.35f), RoundedCornerShape(10.dp)),
     ) {
-        Column(Modifier.fillMaxSize()) {
-            for (row in 0..7) {
-                Row(Modifier.weight(1f)) {
-                    model.cells.filter { it.displayRow == row }.forEach { cell ->
-                        SquareCell(
-                            cell,
-                            model,
-                            hidePiece = cell.square in hiddenDestinations,
-                            inputEnabled = model.interactive && !animationRunning,
-                            showCoordinates = showCoordinates,
-                            onClick = { onEvent(BoardEvent.TapSquare(cell.square)) },
-                            modifier = Modifier.weight(1f).fillMaxHeight(),
+        Box(
+            Modifier
+                .fillMaxSize()
+                .graphicsLayer {
+                    compositingStrategy = CompositingStrategy.Offscreen
+                }
+                .boardSurface(model.theme, model.interaction.orientation),
+        ) {
+            Column(Modifier.fillMaxSize()) {
+                for (row in 0..7) {
+                    Row(Modifier.weight(1f)) {
+                        model.cells.filter { it.displayRow == row }.forEach { cell ->
+                            SquareCell(
+                                cell,
+                                model,
+                                hidePiece = cell.square in hiddenDestinations,
+                                inputEnabled = model.interactive || model.preselectionEnabled,
+                                showTargets = !animationRunning,
+                                showCoordinates = showCoordinates,
+                                onClick = {
+                                    onEvent(
+                                        if (animationRunning) BoardEvent.PreselectSquare(cell.square)
+                                        else BoardEvent.TapSquare(cell.square),
+                                    )
+                                },
+                                modifier = Modifier.weight(1f).fillMaxHeight(),
+                            )
+                        }
+                    }
+                }
+            }
+
+            model.interaction.selfCheckWarning?.let { warning ->
+                val warningColor = MaterialTheme.colorScheme.error
+                val routeColor = MaterialTheme.colorScheme.tertiary
+                Canvas(
+                    Modifier
+                        .fillMaxSize()
+                        .testTag("self_check_attack_line")
+                        .clearAndSetSemantics {},
+                ) {
+                    fun centerOf(square: Square): Offset {
+                        val cell = model.cells.single { it.square == square }
+                        val squarePixels = size.width / 8f
+                        return Offset(
+                            (cell.displayColumn + 0.5f) * squarePixels,
+                            (cell.displayRow + 0.5f) * squarePixels,
+                        )
+                    }
+
+                    val unsafeCenter = centerOf(warning.unsafeKingSquare)
+                    val dash = PathEffect.dashPathEffect(floatArrayOf(12f, 8f))
+                    warning.attackerSquares.forEach { attacker ->
+                        drawLine(
+                            color = warningColor.copy(alpha = 0.82f),
+                            start = centerOf(attacker),
+                            end = unsafeCenter,
+                            strokeWidth = 4f,
+                            pathEffect = dash,
+                        )
+                    }
+                    if (warning.kingSquare != warning.unsafeKingSquare) {
+                        drawLine(
+                            color = routeColor.copy(alpha = 0.9f),
+                            start = centerOf(warning.kingSquare),
+                            end = unsafeCenter,
+                            strokeWidth = 4f,
+                            pathEffect = dash,
                         )
                     }
                 }
@@ -700,48 +1066,91 @@ internal fun ChessBoard(
         }
 
         if (animationRunning) {
-            val squarePixels = boardPixels / 8f
-            moveToAnimate.pieces.forEach { motion ->
-                val from = model.cells.single { it.square == motion.from }
-                val to = model.cells.single { it.square == motion.to }
-                val startX = from.displayColumn * squarePixels
-                val startY = from.displayRow * squarePixels
-                val endX = to.displayColumn * squarePixels
-                val endY = to.displayRow * squarePixels
-                val progress = moveProgress.value
-                ChessPiece(
-                    side = motion.piece.side,
-                    type = motion.piece.type,
-                    modifier = Modifier
-                        .testTag("moving_piece_${motion.from.algebraic}_${motion.to.algebraic}")
-                        .offset {
-                            IntOffset(
-                                (startX + (endX - startX) * progress).roundToInt(),
-                                (startY + (endY - startY) * progress).roundToInt(),
-                            )
-                        }
-                        .size((boardSizeDp / 8).dp)
-                        .padding(5.dp),
-                )
-            }
+            MovingPieces(moveToAnimate, model.cells, boardPixels, boardSizeDp, moveProgress)
         }
 
         val dragged = model.interaction.draggingFrom?.let { square ->
             model.cells.firstOrNull { it.square == square }?.piece
         }
-        if (dragged != null) {
-            ChessPiece(
-                dragged.side,
-                dragged.type,
-                modifier = Modifier
-                    .offset {
-                    val half = boardPixels / 16f
-                    IntOffset((dragOffset.x - half).roundToInt(), (dragOffset.y - half).roundToInt())
-                    }
-                    .size((boardSizeDp / 8).dp)
-                    .padding(5.dp),
-            )
+        if (dragged != null) DraggedPieceOverlay(dragged, dragOverlay, boardPixels, boardSizeDp)
+    }
+}
+
+private class DragOverlayHandle {
+    var position: Offset = Offset.Zero
+        private set
+    var view: ImageView? = null
+
+    fun moveTo(position: Offset, boardPixels: Int) {
+        this.position = position
+        val half = boardPixels / 16f
+        view?.let {
+            it.translationX = position.x - half
+            it.translationY = position.y - half
         }
+    }
+}
+
+@Composable
+private fun DraggedPieceOverlay(
+    piece: PieceView,
+    dragOverlay: DragOverlayHandle,
+    boardPixels: Int,
+    boardSizeDp: Int,
+) {
+    val palette = LocalDrawlessVisualTheme.current.pieces
+    val raster = remember(piece.side, piece.type, palette) {
+        chessPieceRaster(piece.side, piece.type, palette).asAndroidBitmap()
+    }
+    AndroidView(
+        factory = { context ->
+            ImageView(context).apply {
+                scaleType = ImageView.ScaleType.FIT_CENTER
+                setImageBitmap(raster)
+                dragOverlay.view = this
+                dragOverlay.moveTo(dragOverlay.position, boardPixels)
+            }
+        },
+        update = { view ->
+            if (view.drawable == null) view.setImageBitmap(raster)
+            dragOverlay.view = view
+            dragOverlay.moveTo(dragOverlay.position, boardPixels)
+        },
+        modifier = Modifier
+            .size((boardSizeDp / 8).dp)
+            .padding(5.dp),
+    )
+}
+
+@Composable
+private fun MovingPieces(
+    move: BoardMoveMotion,
+    cells: List<SquareView>,
+    boardPixels: Int,
+    boardSizeDp: Int,
+    progress: Animatable<Float, AnimationVector1D>,
+) {
+    val squarePixels = boardPixels / 8f
+    move.pieces.forEach { motion ->
+        val from = cells.single { it.square == motion.from }
+        val to = cells.single { it.square == motion.to }
+        val startX = from.displayColumn * squarePixels
+        val startY = from.displayRow * squarePixels
+        val endX = to.displayColumn * squarePixels
+        val endY = to.displayRow * squarePixels
+        ChessPiece(
+            side = motion.piece.side,
+            type = motion.piece.type,
+            modifier = Modifier
+                .testTag("moving_piece_${motion.from.algebraic}_${motion.to.algebraic}")
+                .graphicsLayer {
+                    val fraction = progress.value
+                    translationX = startX + (endX - startX) * fraction
+                    translationY = startY + (endY - startY) * fraction
+                }
+                .size((boardSizeDp / 8).dp)
+                .padding(5.dp),
+        )
     }
 }
 
@@ -751,22 +1160,27 @@ internal fun SquareCell(
     board: BoardScreenState,
     hidePiece: Boolean,
     inputEnabled: Boolean,
+    showTargets: Boolean = true,
     showCoordinates: Boolean,
     onClick: () -> Unit,
     modifier: Modifier,
 ) {
-    val squareDescription = squareAccessibilityText(cell.accessibility)
-    val base = if (cell.square.isLight) board.theme.lightSquare.color() else board.theme.darkSquare.color()
+    val accessibility = if (showTargets) {
+        cell.accessibility
+    } else {
+        cell.accessibility.copy(target = null)
+    }
+    val squareDescription = squareAccessibilityText(accessibility)
     val overlay = when {
-        cell.inCheck -> board.theme.check.color()
+        cell.inCheck || cell.selfCheckKing -> board.theme.check.color()
+        cell.selfCheckUnsafe -> MaterialTheme.colorScheme.error.copy(alpha = 0.34f)
         cell.selected -> board.theme.selected.color()
         cell.lastMove -> board.theme.lastMove.color()
         else -> Color.Transparent
     }
     Box(
         modifier = modifier
-            .background(base)
-            .background(overlay)
+            .then(if (overlay == Color.Transparent) Modifier else Modifier.background(overlay))
             .testTag("board_square_${cell.square.algebraic}")
             .semantics(mergeDescendants = true) {
                 contentDescription = squareDescription
@@ -775,10 +1189,10 @@ internal fun SquareCell(
             .clickable(enabled = inputEnabled, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        if (cell.target == TargetKind.QUIET) {
+        if (showTargets && cell.target == TargetKind.QUIET) {
             Box(Modifier.size(14.dp).background(board.theme.legalMove.color(), CircleShape))
         }
-        if (cell.target == TargetKind.CAPTURE) {
+        if (showTargets && cell.target == TargetKind.CAPTURE) {
             Box(Modifier.fillMaxSize().padding(4.dp).border(4.dp, board.theme.legalCapture.color(), CircleShape))
         }
         if (cell.threatened) {
@@ -787,6 +1201,26 @@ internal fun SquareCell(
                     .fillMaxSize()
                     .padding(1.dp)
                     .border(2.dp, MaterialTheme.colorScheme.tertiary, RoundedCornerShape(5.dp)),
+            )
+        }
+        if (cell.selfCheckKing || cell.selfCheckAttacker || cell.selfCheckUnsafe) {
+            val tag = when {
+                cell.selfCheckKing -> "self_check_king_${cell.square.algebraic}"
+                cell.selfCheckAttacker -> "self_check_attacker_${cell.square.algebraic}"
+                else -> "self_check_unsafe_${cell.square.algebraic}"
+            }
+            val color = if (cell.selfCheckUnsafe && !cell.selfCheckKing) {
+                MaterialTheme.colorScheme.tertiary
+            } else {
+                MaterialTheme.colorScheme.error
+            }
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .padding(1.dp)
+                    .border(3.dp, color, RoundedCornerShape(6.dp))
+                    .testTag(tag)
+                    .clearAndSetSemantics {},
             )
         }
         cell.piece?.takeUnless { hidePiece }?.let { piece ->
@@ -877,6 +1311,11 @@ private fun squareAccessibilityText(facts: SquareAccessibilityFacts): String {
         }
         if (facts.inCheck) add(stringResource(R.string.board_in_check))
         if (facts.threatened) add(stringResource(R.string.board_under_threat))
+        if (facts.selfCheckKing) add(stringResource(R.string.board_self_check_king))
+        if (facts.selfCheckAttacker) add(stringResource(R.string.board_self_check_attacker))
+        if (facts.selfCheckUnsafe && !facts.selfCheckKing) {
+            add(stringResource(R.string.board_self_check_unsafe))
+        }
     }
     return details.fold(base) { text, detail ->
         stringResource(R.string.board_accessibility_join, text, detail)
@@ -907,7 +1346,10 @@ private fun ClockRow(
         )
     } ?: stringResource(R.string.game_captured_even)
     BoxWithConstraints(modifier.fillMaxWidth()) {
-        val stackCards = forceStackCards || maxWidth < 280.dp || LocalDensity.current.fontScale >= 1.5f
+        // Each compact card intentionally has 115dp of content width, enough for the maximum
+        // capture inventory even at 2x text. Stacking solely because text is large consumes the
+        // vertical space needed by the board and lower controls on phones.
+        val stackCards = forceStackCards || maxWidth < 280.dp
         Column(
             modifier = Modifier.fillMaxWidth().testTag("captured_material"),
             verticalArrangement = Arrangement.spacedBy(3.dp),
@@ -1373,6 +1815,9 @@ private fun List<MoveHistoryRow>.plyCount(): Int = sumOf { row ->
 
 private fun List<MoveHistoryRow>.lastPlayedSan(): String? =
     lastOrNull()?.let { row -> row.black ?: row.white }?.notation
+
+private fun List<MoveHistoryRow>.lastPlayedEntry(): MoveHistoryEntry? =
+    lastOrNull()?.let { row -> row.black ?: row.white }
 
 @Composable
 private fun sideName(side: Side): String = stringResource(

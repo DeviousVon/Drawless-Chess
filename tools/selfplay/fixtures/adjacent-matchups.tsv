@@ -1,0 +1,7 @@
+schema_version	matchup_id	lower_level	lower_elo	higher_level	higher_elo	legs_per_opening	pair_colors	alternate_leg_order
+1	m00-learner-casual	learner	500	casual	650	2	true	true
+1	m01-casual-challenger	casual	650	challenger	850	2	true	true
+1	m02-challenger-club	challenger	850	club	1100	2	true	true
+1	m03-club-expert	club	1100	expert	1500	2	true	true
+1	m04-expert-master	expert	1500	master	2000	2	true	true
+1	m05-master-grandmaster	master	2000	grandmaster	2500	2	true	true

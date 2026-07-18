@@ -20,7 +20,8 @@
       }
     },
     "deadPosition": { "enum": ["material_victory", "final_capture_victory"] },
-    "fiftyMove": { "enum": ["disabled", "completing_player_loses", "forced_move_exception"] },
+    "bareKing": { "enum": ["continue", "bare_king_loses"] },
+    "fiftyMove": { "enum": ["disabled", "completing_player_loses", "forced_move_exception", "material_victory"] },
     "materialValues": {
       "type": "object",
       "additionalProperties": false,

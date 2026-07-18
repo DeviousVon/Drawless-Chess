@@ -1,11 +1,11 @@
 {
-  "schema": 2,
-  "pack": "Drawless Chess Curated Physical Foley Pack",
+  "schema": 3,
+  "pack": "Drawless Chess High-Quality Stereo Foley Pack",
   "format": {
     "codec": "Ogg Vorbis",
     "sample_rate_hz": 48000,
-    "channels": 1,
-    "quality": 5
+    "channels": 2,
+    "quality": "libvorbis q8"
   },
   "sources": {
     "disk_drop_1": {
@@ -172,1148 +172,1145 @@
     {
       "file": "chess_move_wood_01.ogg",
       "category": "move",
-      "duration_seconds": 0.108,
-      "sha256": "91ec0a95a8555b7e02a85a2550221ff51fe77b33c6e258927c0eafe04c55421b",
+      "duration_seconds": 0.22,
+      "sha256": "e50cc27eb6c0287b76b353469bac617d3f0e7db0e2f9e812fa3a30b1a5254e8b",
       "sources": [
         "disk_drop_1",
-        "mh2o_alabaster"
+        "disk_drop_2"
       ],
-      "processing": "Two genuine piece/board contacts; deterministic 1-5 ms offset, restrained EQ, level matching, trim and fade. No slide, sweep, pitch shift, or synthesis."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 master from genuine chess contacts; aligned transient, restrained body layer, full contact tail, and loudness/true-peak mastering. No synthesis or pitch shift."
     },
     {
       "file": "chess_move_wood_02.ogg",
       "category": "move",
-      "duration_seconds": 0.0716,
-      "sha256": "7a9c4754eb37a3952d2c8bd99484ee3b8e3677e62de45155064ef6265b34a6fe",
+      "duration_seconds": 0.22,
+      "sha256": "a928dc5fdfe8ae565632b45e82a41acd97e354dba65d0ca873d1d2bbdac00716",
       "sources": [
         "disk_drop_5",
         "disk_drop_4"
       ],
-      "processing": "Two real chess-piece takes at natural speed; subtle EQ, millisecond contact offset, trim, gain and fades. No synthesis."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 master from genuine chess contacts; aligned transient, restrained body layer, full contact tail, and loudness/true-peak mastering. No synthesis or pitch shift."
     },
     {
       "file": "chess_move_wood_03.ogg",
       "category": "move",
-      "duration_seconds": 0.0823,
-      "sha256": "0fe9a9f4c8bcc0529c3805c550bc72c9c11c63ff9f51b13686851646c82e3377",
+      "duration_seconds": 0.22,
+      "sha256": "2a674779ccc6e4e35b54b5c577364dcc3bc0852425c47357d607623a867d3bfb",
       "sources": [
         "disk_drop_4",
         "disk_drop_5"
       ],
-      "processing": "Two real chess-piece takes at natural speed; subtle EQ, millisecond contact offset, trim, gain and fades. No synthesis."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 master from genuine chess contacts; aligned transient, restrained body layer, full contact tail, and loudness/true-peak mastering. No synthesis or pitch shift."
     },
     {
       "file": "chess_move_wood_04.ogg",
       "category": "move",
-      "duration_seconds": 0.115,
-      "sha256": "b204cd6e518bef164b62529f6a439130860222a4295ae910084cff7a88ae04e1",
+      "duration_seconds": 0.22,
+      "sha256": "d48ce5503ffaad936d8a8b50ce08b4f98629871afcd4b692d798673286344af1",
       "sources": [
         "disk_drop_2",
-        "mh2o_alabaster"
+        "disk_drop_3"
       ],
-      "processing": "Two genuine piece/board contacts; deterministic 1-5 ms offset, restrained EQ, level matching, trim and fade. No slide, sweep, pitch shift, or synthesis."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 master from genuine chess contacts; aligned transient, restrained body layer, full contact tail, and loudness/true-peak mastering. No synthesis or pitch shift."
     },
     {
       "file": "chess_move_wood_05.ogg",
       "category": "move",
-      "duration_seconds": 0.0797,
-      "sha256": "65746709ff9fb7740e7b232b8e839749f63a2d337882a9c4a654c955a7dfb3b5",
+      "duration_seconds": 0.22,
+      "sha256": "ce03127bf91eaa849377e256dd093e99e8b5d783d469d1f2a4bafaa3c02c781a",
       "sources": [
         "disk_drop_2",
         "disk_drop_1"
       ],
-      "processing": "Two real chess-piece takes at natural speed; subtle EQ, millisecond contact offset, trim, gain and fades. No synthesis."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 master from genuine chess contacts; aligned transient, restrained body layer, full contact tail, and loudness/true-peak mastering. No synthesis or pitch shift."
     },
     {
       "file": "chess_move_wood_06.ogg",
       "category": "move",
-      "duration_seconds": 0.1035,
-      "sha256": "419e79d73f0da3e135ebc33f950834744ab0f6560e1b9b591d3c0b9772683acf",
+      "duration_seconds": 0.22,
+      "sha256": "d85aba09edb734a7fa4207ead4ec195c7e8823e634c3073d9fa1c981b8f16ea1",
       "sources": [
         "disk_drop_1",
         "disk_drop_2"
       ],
-      "processing": "Two real chess-piece takes at natural speed; subtle EQ, millisecond contact offset, trim, gain and fades. No synthesis."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 master from genuine chess contacts; aligned transient, restrained body layer, full contact tail, and loudness/true-peak mastering. No synthesis or pitch shift."
     },
     {
       "file": "chess_move_wood_07.ogg",
       "category": "move",
-      "duration_seconds": 0.122,
-      "sha256": "0df773c6dc48544f4e2b33fd63eaa4f59a4030347be4bf587f27a429c4a70732",
+      "duration_seconds": 0.22,
+      "sha256": "ccaaa841853af4396e7faba82c089d6c1e8650bff7da76307b424710cf9a9997",
       "sources": [
         "disk_drop_3",
-        "mh2o_alabaster"
+        "disk_drop_4"
       ],
-      "processing": "Two genuine piece/board contacts; deterministic 1-5 ms offset, restrained EQ, level matching, trim and fade. No slide, sweep, pitch shift, or synthesis."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 master from genuine chess contacts; aligned transient, restrained body layer, full contact tail, and loudness/true-peak mastering. No synthesis or pitch shift."
     },
     {
       "file": "chess_move_wood_08.ogg",
       "category": "move",
-      "duration_seconds": 0.129,
-      "sha256": "bd366e8356ae04e8483e031662653285677d73d97f5b932138027632330a987a",
+      "duration_seconds": 0.22,
+      "sha256": "1f7411e9ef32d7fcc94d8c0ece00a4625658fb5c5eae991df055d720bded3765",
       "sources": [
         "disk_drop_4",
-        "mh2o_alabaster"
+        "disk_drop_1"
       ],
-      "processing": "Two genuine piece/board contacts; deterministic 1-5 ms offset, restrained EQ, level matching, trim and fade. No slide, sweep, pitch shift, or synthesis."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 master from genuine chess contacts; aligned transient, restrained body layer, full contact tail, and loudness/true-peak mastering. No synthesis or pitch shift."
     },
     {
       "file": "chess_move_wood_09.ogg",
       "category": "move",
-      "duration_seconds": 0.136,
-      "sha256": "376c4f945adc94e91506f3afaaa64de6dc057292e9c0bb7d21c9728f02dcc38c",
+      "duration_seconds": 0.22,
+      "sha256": "fac2eb9f86f767d8aa8a7137048eb3bde9a8b47d1a8fed1b15dedf5a906c186a",
       "sources": [
         "disk_drop_5",
-        "mh2o_alabaster"
+        "disk_drop_3"
       ],
-      "processing": "Two genuine piece/board contacts; deterministic 1-5 ms offset, restrained EQ, level matching, trim and fade. No slide, sweep, pitch shift, or synthesis."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 master from genuine chess contacts; aligned transient, restrained body layer, full contact tail, and loudness/true-peak mastering. No synthesis or pitch shift."
     },
     {
       "file": "chess_move_wood_10.ogg",
       "category": "move",
-      "duration_seconds": 0.108,
-      "sha256": "f5b9e7d63d29ba0a0787b141d97ae18d5f6c2ade49b95994e49e5e0d9dfa1f3c",
+      "duration_seconds": 0.22,
+      "sha256": "d86c5b8762aba4fb0073b0dd14ab1570580869bc819406d232b6204617e2943a",
       "sources": [
-        "mh2o_alabaster",
+        "disk_drop_5",
         "disk_drop_1"
       ],
-      "processing": "Two genuine piece/board contacts; deterministic 1-5 ms offset, restrained EQ, level matching, trim and fade. No slide, sweep, pitch shift, or synthesis."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 master from genuine chess contacts; aligned transient, restrained body layer, full contact tail, and loudness/true-peak mastering. No synthesis or pitch shift."
     },
     {
       "file": "chess_move_wood_11.ogg",
       "category": "move",
-      "duration_seconds": 0.0941,
-      "sha256": "8aea62c177a6983700e33c6648d76885a20a0dcdb049880f9d5e35a6cc820ebb",
+      "duration_seconds": 0.22,
+      "sha256": "036d6cebcff1f4a7f5f3b00b41f58a0a74b391b57803ca2db9f8aa1c8ee32cc0",
       "sources": [
         "disk_drop_3",
         "disk_drop_1"
       ],
-      "processing": "Two real chess-piece takes at natural speed; subtle EQ, millisecond contact offset, trim, gain and fades. No synthesis."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 master from genuine chess contacts; aligned transient, restrained body layer, full contact tail, and loudness/true-peak mastering. No synthesis or pitch shift."
     },
     {
       "file": "chess_move_wood_12.ogg",
       "category": "move",
-      "duration_seconds": 0.0798,
-      "sha256": "2a519aab88f502c6ea40619832366c6f66f5b5685bbe2e40ad702efbf05ba9c7",
+      "duration_seconds": 0.22,
+      "sha256": "e491ebc1905525559b93a562e5228aab73144a09ec0f438b5af7142646ada0f6",
       "sources": [
         "disk_drop_2",
         "disk_drop_3"
       ],
-      "processing": "Two real chess-piece takes at natural speed; subtle EQ, millisecond contact offset, trim, gain and fades. No synthesis."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 master from genuine chess contacts; aligned transient, restrained body layer, full contact tail, and loudness/true-peak mastering. No synthesis or pitch shift."
     },
     {
       "file": "chess_move_wood_13.ogg",
       "category": "move",
-      "duration_seconds": 0.1035,
-      "sha256": "f4cd242e35435d69bdfd9080e95c3906a354481ed21dc0e1f8a21de74b538ad4",
+      "duration_seconds": 0.22,
+      "sha256": "9204d1a0cc0bcb800e38c453231aa6c04abbab675d8397824a51e46aa6624279",
       "sources": [
         "disk_drop_1",
         "disk_drop_4"
       ],
-      "processing": "Two real chess-piece takes at natural speed; subtle EQ, millisecond contact offset, trim, gain and fades. No synthesis."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 master from genuine chess contacts; aligned transient, restrained body layer, full contact tail, and loudness/true-peak mastering. No synthesis or pitch shift."
     },
     {
       "file": "chess_move_wood_14.ogg",
       "category": "move",
-      "duration_seconds": 0.115,
-      "sha256": "881402fcf48240dbfde4edeeb9d8b7f8075e19321bfe167b56deb3d3e2a2f6eb",
+      "duration_seconds": 0.22,
+      "sha256": "740bf72d3750fa9dcfafed437a8e029bd11927b0f14e60fd30ef0665d7e83720",
       "sources": [
-        "mh2o_alabaster",
+        "disk_drop_3",
         "disk_drop_2"
       ],
-      "processing": "Two genuine piece/board contacts; deterministic 1-5 ms offset, restrained EQ, level matching, trim and fade. No slide, sweep, pitch shift, or synthesis."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 master from genuine chess contacts; aligned transient, restrained body layer, full contact tail, and loudness/true-peak mastering. No synthesis or pitch shift."
     },
     {
       "file": "chess_move_wood_15.ogg",
       "category": "move",
-      "duration_seconds": 0.122,
-      "sha256": "c52845e910233397726d62fa4d285f5cb9d5dc23299a42b78414a643e1fd6fad",
+      "duration_seconds": 0.22,
+      "sha256": "25a8601cbb48867f67887d831bb70ea02ab35605a24cff65a5ac434cf3574a8f",
       "sources": [
-        "mh2o_alabaster",
+        "disk_drop_5",
         "disk_drop_3"
       ],
-      "processing": "Two genuine piece/board contacts; deterministic 1-5 ms offset, restrained EQ, level matching, trim and fade. No slide, sweep, pitch shift, or synthesis."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 master from genuine chess contacts; aligned transient, restrained body layer, full contact tail, and loudness/true-peak mastering. No synthesis or pitch shift."
     },
     {
       "file": "chess_move_wood_16.ogg",
       "category": "move",
-      "duration_seconds": 0.0716,
-      "sha256": "6cd13661a7542c10277ff8f84c2bc4ec110c88549795296d173ceedfbf86df05",
+      "duration_seconds": 0.22,
+      "sha256": "26fc6d05c0413b7fc0b2eca32175396f880a44c397db8a891de30dc57d61029d",
       "sources": [
         "disk_drop_5",
         "disk_drop_1"
       ],
-      "processing": "Two real chess-piece takes at natural speed; subtle EQ, millisecond contact offset, trim, gain and fades. No synthesis."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 master from genuine chess contacts; aligned transient, restrained body layer, full contact tail, and loudness/true-peak mastering. No synthesis or pitch shift."
     },
     {
       "file": "chess_move_wood_17.ogg",
       "category": "move",
-      "duration_seconds": 0.0892,
-      "sha256": "b67ea30d7bde32f72983a1b30f9dcf193847506019131ad2881124547aea3da7",
+      "duration_seconds": 0.22,
+      "sha256": "ed578b18009d49110bc7d75e63544386a7dca935af904abe8bddb46c64266b53",
       "sources": [
         "disk_drop_4",
         "disk_drop_2"
       ],
-      "processing": "Two real chess-piece takes at natural speed; subtle EQ, millisecond contact offset, trim, gain and fades. No synthesis."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 master from genuine chess contacts; aligned transient, restrained body layer, full contact tail, and loudness/true-peak mastering. No synthesis or pitch shift."
     },
     {
       "file": "chess_move_wood_18.ogg",
       "category": "move",
-      "duration_seconds": 0.094,
-      "sha256": "bb4585dd8067d42bc4aa4eeca2e41d66cdf40e50c5d8f61a3e39b164798a44b8",
+      "duration_seconds": 0.22,
+      "sha256": "8c53b3c3f2d2b3a9c67ed482eb4e01c07196bda3c096685abbd4aa503768e7e6",
       "sources": [
         "disk_drop_3",
         "disk_drop_4"
       ],
-      "processing": "Two real chess-piece takes at natural speed; subtle EQ, millisecond contact offset, trim, gain and fades. No synthesis."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 master from genuine chess contacts; aligned transient, restrained body layer, full contact tail, and loudness/true-peak mastering. No synthesis or pitch shift."
     },
     {
       "file": "chess_move_wood_19.ogg",
       "category": "move",
-      "duration_seconds": 0.0799,
-      "sha256": "5259e015a2d459688bd5e678a56595f2bb93938dee1ae72403942c3630e60b08",
+      "duration_seconds": 0.22,
+      "sha256": "df10369ac5e5a17f5794eeb2bab0a0591f5d3d43d3ffb407ce9761a4efbef151",
       "sources": [
         "disk_drop_2",
         "disk_drop_4"
       ],
-      "processing": "Two real chess-piece takes at natural speed; subtle EQ, millisecond contact offset, trim, gain and fades. No synthesis."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 master from genuine chess contacts; aligned transient, restrained body layer, full contact tail, and loudness/true-peak mastering. No synthesis or pitch shift."
     },
     {
       "file": "chess_move_wood_20.ogg",
       "category": "move",
-      "duration_seconds": 0.0929,
-      "sha256": "eae702c2b151230d5e84c36a884fefd581a18952daa3cb7fad23046231ba5d82",
+      "duration_seconds": 0.22,
+      "sha256": "dbf3fe682ab6dfd24fc3068ebd788e07fbceb7d3c014ffdf2c89a26bfa7acfd5",
       "sources": [
         "disk_drop_1",
         "disk_drop_5"
       ],
-      "processing": "Two real chess-piece takes at natural speed; subtle EQ, millisecond contact offset, trim, gain and fades. No synthesis."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 master from genuine chess contacts; aligned transient, restrained body layer, full contact tail, and loudness/true-peak mastering. No synthesis or pitch shift."
     },
     {
       "file": "chess_move_wood_21.ogg",
       "category": "move",
-      "duration_seconds": 0.129,
-      "sha256": "a208141e1446cdcc9a78297039f9b4ccf71fd026c3bbac6e693883cfb5681e7d",
+      "duration_seconds": 0.22,
+      "sha256": "f7369d0026599582777dba86de238439a3523c559d6f2159c450ea2bae956574",
       "sources": [
-        "mh2o_alabaster",
+        "disk_drop_2",
         "disk_drop_4"
       ],
-      "processing": "Two genuine piece/board contacts; deterministic 1-5 ms offset, restrained EQ, level matching, trim and fade. No slide, sweep, pitch shift, or synthesis."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 master from genuine chess contacts; aligned transient, restrained body layer, full contact tail, and loudness/true-peak mastering. No synthesis or pitch shift."
     },
     {
       "file": "chess_move_wood_22.ogg",
       "category": "move",
-      "duration_seconds": 0.136,
-      "sha256": "b34a1e9fc4977f63eacb71a63debfd10bfc70648cae3723a86ecf37e29587b6c",
+      "duration_seconds": 0.22,
+      "sha256": "08136e23887641d0db9cbd6c8149d25503fbda77eee53afdbd119a9085803d57",
       "sources": [
-        "mh2o_alabaster",
+        "disk_drop_4",
         "disk_drop_5"
       ],
-      "processing": "Two genuine piece/board contacts; deterministic 1-5 ms offset, restrained EQ, level matching, trim and fade. No slide, sweep, pitch shift, or synthesis."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 master from genuine chess contacts; aligned transient, restrained body layer, full contact tail, and loudness/true-peak mastering. No synthesis or pitch shift."
     },
     {
       "file": "chess_move_wood_23.ogg",
       "category": "move",
-      "duration_seconds": 0.0717,
-      "sha256": "219269e05b2d5dd448f7ba37cbe4fb6bce6e48bd6ed38ab641507c31b51187f2",
+      "duration_seconds": 0.22,
+      "sha256": "695b34b970c68287f5e50689303585e1423037fd076e04b392eb34707e01ebad",
       "sources": [
         "disk_drop_5",
         "disk_drop_3"
       ],
-      "processing": "Two real chess-piece takes at natural speed; subtle EQ, millisecond contact offset, trim, gain and fades. No synthesis."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 master from genuine chess contacts; aligned transient, restrained body layer, full contact tail, and loudness/true-peak mastering. No synthesis or pitch shift."
     },
     {
       "file": "chess_move_wood_24.ogg",
       "category": "move",
-      "duration_seconds": 0.0891,
-      "sha256": "dbecb48d43a133922b49cef9ccfcf316dcbbe6ce5f041f241454cc53398172e4",
+      "duration_seconds": 0.22,
+      "sha256": "41d8a8b62477fb76088c39d4d89a61b4a80998d25e204739b4039a6c427621bf",
       "sources": [
         "disk_drop_4",
         "disk_drop_5"
       ],
-      "processing": "Two real chess-piece takes at natural speed; subtle EQ, millisecond contact offset, trim, gain and fades. No synthesis."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 master from genuine chess contacts; aligned transient, restrained body layer, full contact tail, and loudness/true-peak mastering. No synthesis or pitch shift."
     },
     {
       "file": "chess_move_wood_25.ogg",
       "category": "move",
-      "duration_seconds": 0.0872,
-      "sha256": "e54aa479b332a0385661039f822f4a8b71c3b2a48658ba49e501d1f3ede43757",
+      "duration_seconds": 0.22,
+      "sha256": "862d268668a8baa34c7224ba094bbc771eaafb139d6bc658ecadeac44d2dbf22",
       "sources": [
         "disk_drop_3",
         "disk_drop_5"
       ],
-      "processing": "Two real chess-piece takes at natural speed; subtle EQ, millisecond contact offset, trim, gain and fades. No synthesis."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 master from genuine chess contacts; aligned transient, restrained body layer, full contact tail, and loudness/true-peak mastering. No synthesis or pitch shift."
     },
     {
       "file": "chess_move_wood_26.ogg",
       "category": "move",
-      "duration_seconds": 0.108,
-      "sha256": "5cbf4a135b6a5efc13ce8ac23ec32647802b54b6a2eefe33955aad9459595269",
+      "duration_seconds": 0.22,
+      "sha256": "591a860ef210839acc53e57f54a4f17189bc6745a9fd9a70ed2fef85f83d4471",
       "sources": [
         "disk_drop_1",
         "disk_drop_3"
       ],
-      "processing": "Two genuine piece/board contacts; deterministic 1-5 ms offset, restrained EQ, level matching, trim and fade. No slide, sweep, pitch shift, or synthesis."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 master from genuine chess contacts; aligned transient, restrained body layer, full contact tail, and loudness/true-peak mastering. No synthesis or pitch shift."
     },
     {
       "file": "chess_move_wood_27.ogg",
       "category": "move",
-      "duration_seconds": 0.1035,
-      "sha256": "b013adfe8bc3de048f038719e41dbf5ab4b49ace5d69804b4a0971106af447fe",
+      "duration_seconds": 0.22,
+      "sha256": "9069523d8de854985d9bc85ccc02063ff05ca79cbd99dc591febafcf0a54df94",
       "sources": [
         "disk_drop_1",
         "disk_drop_2"
       ],
-      "processing": "Two real chess-piece takes at natural speed; subtle EQ, millisecond contact offset, trim, gain and fades. No synthesis."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 master from genuine chess contacts; aligned transient, restrained body layer, full contact tail, and loudness/true-peak mastering. No synthesis or pitch shift."
     },
     {
       "file": "chess_move_wood_28.ogg",
       "category": "move",
-      "duration_seconds": 0.115,
-      "sha256": "7f8e3ac8100fbc3b6bd0328fe299a5c8dee13dde23a3681dc614529340881d66",
+      "duration_seconds": 0.22,
+      "sha256": "57cd26442369b2f6763895513757c601fedbdf5f0faae0b9a676043d8e4af2a6",
       "sources": [
         "disk_drop_2",
         "disk_drop_4"
       ],
-      "processing": "Two genuine piece/board contacts; deterministic 1-5 ms offset, restrained EQ, level matching, trim and fade. No slide, sweep, pitch shift, or synthesis."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 master from genuine chess contacts; aligned transient, restrained body layer, full contact tail, and loudness/true-peak mastering. No synthesis or pitch shift."
     },
     {
       "file": "chess_move_wood_29.ogg",
       "category": "move",
-      "duration_seconds": 0.122,
-      "sha256": "aa55796295bd0ae86c98a78a4e55c929ee9d3c1a6fc3931c19e7119abad45dbe",
+      "duration_seconds": 0.22,
+      "sha256": "8b3f491c0fdf7e070cf4630439cf688026a95ed5f761ff0fa9523311b0174d1c",
       "sources": [
         "disk_drop_3",
         "disk_drop_5"
       ],
-      "processing": "Two genuine piece/board contacts; deterministic 1-5 ms offset, restrained EQ, level matching, trim and fade. No slide, sweep, pitch shift, or synthesis."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 master from genuine chess contacts; aligned transient, restrained body layer, full contact tail, and loudness/true-peak mastering. No synthesis or pitch shift."
     },
     {
       "file": "chess_move_wood_30.ogg",
       "category": "move",
-      "duration_seconds": 0.0716,
-      "sha256": "088562cf53b6f1c4360ec3dbf4d9b29cfea4911d74d5befa49339879de3e6b6e",
+      "duration_seconds": 0.22,
+      "sha256": "4bf62574ae7bb66f8624fbd325b436f8fccb603a450e1b04b40a64a344c49d41",
       "sources": [
         "disk_drop_5",
         "disk_drop_4"
       ],
-      "processing": "Two real chess-piece takes at natural speed; subtle EQ, millisecond contact offset, trim, gain and fades. No synthesis."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 master from genuine chess contacts; aligned transient, restrained body layer, full contact tail, and loudness/true-peak mastering. No synthesis or pitch shift."
     },
     {
       "file": "chess_move_wood_31.ogg",
       "category": "move",
-      "duration_seconds": 0.0906,
-      "sha256": "1d4a2cb6ff8b00a0c0b8d393ef76a9539c513531f955811f598c9570d0cf11ea",
+      "duration_seconds": 0.22,
+      "sha256": "7ec85412dc68e62661b36abc5fff184c88066f7d9e2ce2bb3e221fb8c61f2cea",
       "sources": [
         "disk_drop_4",
         "disk_drop_5"
       ],
-      "processing": "Two real chess-piece takes at natural speed; subtle EQ, millisecond contact offset, trim, gain and fades. No synthesis."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 master from genuine chess contacts; aligned transient, restrained body layer, full contact tail, and loudness/true-peak mastering. No synthesis or pitch shift."
     },
     {
       "file": "chess_move_wood_32.ogg",
       "category": "move",
-      "duration_seconds": 0.129,
-      "sha256": "1037aee306ef67922394015fdbcefb2b3d1b29a7ae2951bcc213401cd759ed21",
+      "duration_seconds": 0.22,
+      "sha256": "82afd06e89a29143395110df75ec2bb1961d3145db946852ed163e8827e32ad3",
       "sources": [
         "disk_drop_4",
         "disk_drop_1"
       ],
-      "processing": "Two genuine piece/board contacts; deterministic 1-5 ms offset, restrained EQ, level matching, trim and fade. No slide, sweep, pitch shift, or synthesis."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 master from genuine chess contacts; aligned transient, restrained body layer, full contact tail, and loudness/true-peak mastering. No synthesis or pitch shift."
     },
     {
       "file": "chess_move_wood_33.ogg",
       "category": "move",
-      "duration_seconds": 0.0798,
-      "sha256": "d3ba5a20e547c32df6536a15ef96bf25e443163e885a318b452480ee3b26358b",
+      "duration_seconds": 0.22,
+      "sha256": "f9ac5679cc18f0410cc7a3e9336f75d4c81f9a6a28007cc26f7b46142e466396",
       "sources": [
         "disk_drop_2",
         "disk_drop_1"
       ],
-      "processing": "Two real chess-piece takes at natural speed; subtle EQ, millisecond contact offset, trim, gain and fades. No synthesis."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 master from genuine chess contacts; aligned transient, restrained body layer, full contact tail, and loudness/true-peak mastering. No synthesis or pitch shift."
     },
     {
       "file": "chess_move_wood_34.ogg",
       "category": "move",
-      "duration_seconds": 0.1035,
-      "sha256": "a4cc31756c37ab18e56208fe47f0481441b82c283b7737f6376cb1319dae15e8",
+      "duration_seconds": 0.22,
+      "sha256": "741023a35a9bcc016b025794c2bc29e17b2ba53b50067aca319523d912fb86b3",
       "sources": [
         "disk_drop_1",
         "disk_drop_3"
       ],
-      "processing": "Two real chess-piece takes at natural speed; subtle EQ, millisecond contact offset, trim, gain and fades. No synthesis."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 master from genuine chess contacts; aligned transient, restrained body layer, full contact tail, and loudness/true-peak mastering. No synthesis or pitch shift."
     },
     {
       "file": "chess_move_wood_35.ogg",
       "category": "move",
-      "duration_seconds": 0.136,
-      "sha256": "9a953032ed5f1d9dda9f1ecffe2295729fcec72c825134392b4049262bfb8f29",
+      "duration_seconds": 0.22,
+      "sha256": "c2b8c624d7ebb220ec4d9704d802d5caefc9f455faa4a643ada06d644485ca0d",
       "sources": [
         "disk_drop_5",
         "disk_drop_2"
       ],
-      "processing": "Two genuine piece/board contacts; deterministic 1-5 ms offset, restrained EQ, level matching, trim and fade. No slide, sweep, pitch shift, or synthesis."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 master from genuine chess contacts; aligned transient, restrained body layer, full contact tail, and loudness/true-peak mastering. No synthesis or pitch shift."
     },
     {
       "file": "chess_move_wood_36.ogg",
       "category": "move",
-      "duration_seconds": 0.108,
-      "sha256": "29785673983ee75bf6e8c1c577d4749d8bd166ca91854aed4e0f159f281fcb5d",
+      "duration_seconds": 0.22,
+      "sha256": "47368782055c35053b295679d54c44683c337f2d32f9306ddb385c6ec75f0052",
       "sources": [
         "disk_drop_1",
         "disk_drop_4"
       ],
-      "processing": "Two genuine piece/board contacts; deterministic 1-5 ms offset, restrained EQ, level matching, trim and fade. No slide, sweep, pitch shift, or synthesis."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 master from genuine chess contacts; aligned transient, restrained body layer, full contact tail, and loudness/true-peak mastering. No synthesis or pitch shift."
     },
     {
       "file": "chess_move_wood_37.ogg",
       "category": "move",
-      "duration_seconds": 0.115,
-      "sha256": "b47b311b4581a0283e37b28d77d30969ec0dfee8de0891e7fe20f322420bef0c",
+      "duration_seconds": 0.22,
+      "sha256": "c1c75ad7befe49f6304d7f28d53982e72234f9fa7e3330de6ac80fa892419ac2",
       "sources": [
         "disk_drop_2",
         "disk_drop_5"
       ],
-      "processing": "Two genuine piece/board contacts; deterministic 1-5 ms offset, restrained EQ, level matching, trim and fade. No slide, sweep, pitch shift, or synthesis."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 master from genuine chess contacts; aligned transient, restrained body layer, full contact tail, and loudness/true-peak mastering. No synthesis or pitch shift."
     },
     {
       "file": "chess_move_wood_38.ogg",
       "category": "move",
-      "duration_seconds": 0.0905,
-      "sha256": "696f1b643e391550edab433da694d918fe8481f2016c2383df3b45aa795176d5",
+      "duration_seconds": 0.22,
+      "sha256": "00cdd6a26cd99fc8a39d2b85ece6a625482c544c6810589bee226198dc1b164d",
       "sources": [
         "disk_drop_4",
         "disk_drop_1"
       ],
-      "processing": "Two real chess-piece takes at natural speed; subtle EQ, millisecond contact offset, trim, gain and fades. No synthesis."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 master from genuine chess contacts; aligned transient, restrained body layer, full contact tail, and loudness/true-peak mastering. No synthesis or pitch shift."
     },
     {
       "file": "chess_move_wood_39.ogg",
       "category": "move",
-      "duration_seconds": 0.0941,
-      "sha256": "45b860fa7838f0f10805dca7bb667b099e337e4e6421ea0e948cd9eff39c2750",
+      "duration_seconds": 0.22,
+      "sha256": "8294e3e1b835498e205afa436f59ecb4890c20a7df0de916a3d34ef045840ff0",
       "sources": [
         "disk_drop_3",
         "disk_drop_2"
       ],
-      "processing": "Two real chess-piece takes at natural speed; subtle EQ, millisecond contact offset, trim, gain and fades. No synthesis."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 master from genuine chess contacts; aligned transient, restrained body layer, full contact tail, and loudness/true-peak mastering. No synthesis or pitch shift."
     },
     {
       "file": "chess_move_wood_40.ogg",
       "category": "move",
-      "duration_seconds": 0.0825,
-      "sha256": "8674bb6272055612984f519d8787ded9aeede47192c027d9f8867c59391d42d2",
+      "duration_seconds": 0.22,
+      "sha256": "81198ead234ce3c749bb4a7f15b87b1e3c08b0ac5f033cc147704f78001a3302",
       "sources": [
         "disk_drop_2",
         "disk_drop_3"
       ],
-      "processing": "Two real chess-piece takes at natural speed; subtle EQ, millisecond contact offset, trim, gain and fades. No synthesis."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 master from genuine chess contacts; aligned transient, restrained body layer, full contact tail, and loudness/true-peak mastering. No synthesis or pitch shift."
     },
     {
       "file": "chess_move_wood_41.ogg",
       "category": "move",
-      "duration_seconds": 0.1035,
-      "sha256": "84c2ac71ddee62047eb8fa7ba01faa49e23a72104eb3365f38305c4edd8d3f1d",
+      "duration_seconds": 0.22,
+      "sha256": "4e9dc617c41e981df37a266efa6b6fcbbc9ee912d9bcc27c590f8c5071db4ba9",
       "sources": [
         "disk_drop_1",
         "disk_drop_4"
       ],
-      "processing": "Two real chess-piece takes at natural speed; subtle EQ, millisecond contact offset, trim, gain and fades. No synthesis."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 master from genuine chess contacts; aligned transient, restrained body layer, full contact tail, and loudness/true-peak mastering. No synthesis or pitch shift."
     },
     {
       "file": "chess_move_wood_42.ogg",
       "category": "move",
-      "duration_seconds": 0.122,
-      "sha256": "7386b31f0faef06ddd215a581f46f8471c7139ba27957d4f07c4577b027b7512",
+      "duration_seconds": 0.22,
+      "sha256": "86297ad20ffbc7a68518e685160f59d3105d96929c4475a4e6475cf7e0cc6e64",
       "sources": [
         "disk_drop_3",
         "disk_drop_1"
       ],
-      "processing": "Two genuine piece/board contacts; deterministic 1-5 ms offset, restrained EQ, level matching, trim and fade. No slide, sweep, pitch shift, or synthesis."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 master from genuine chess contacts; aligned transient, restrained body layer, full contact tail, and loudness/true-peak mastering. No synthesis or pitch shift."
     },
     {
       "file": "chess_move_wood_43.ogg",
       "category": "move",
-      "duration_seconds": 0.129,
-      "sha256": "a0a8e61538e63bb35414e470ee5f922a3fe24e33d69d3e19ab4843522443ed56",
+      "duration_seconds": 0.22,
+      "sha256": "f07053f88c0e813f3ae8e90cd4d4c8f61cd4560275916b1b3fc75f60352cb24c",
       "sources": [
         "disk_drop_4",
         "disk_drop_2"
       ],
-      "processing": "Two genuine piece/board contacts; deterministic 1-5 ms offset, restrained EQ, level matching, trim and fade. No slide, sweep, pitch shift, or synthesis."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 master from genuine chess contacts; aligned transient, restrained body layer, full contact tail, and loudness/true-peak mastering. No synthesis or pitch shift."
     },
     {
       "file": "chess_move_wood_44.ogg",
       "category": "move",
-      "duration_seconds": 0.0716,
-      "sha256": "d25652679a0f950b6137883b93750a38cba32972f4857b8471656cd3f26e0b05",
+      "duration_seconds": 0.22,
+      "sha256": "6fb4cf0ed3b17727552094a750ef845c3e4275146681eeb11ff256417bf6d0f1",
       "sources": [
         "disk_drop_5",
         "disk_drop_1"
       ],
-      "processing": "Two real chess-piece takes at natural speed; subtle EQ, millisecond contact offset, trim, gain and fades. No synthesis."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 master from genuine chess contacts; aligned transient, restrained body layer, full contact tail, and loudness/true-peak mastering. No synthesis or pitch shift."
     },
     {
       "file": "chess_move_wood_45.ogg",
       "category": "move",
-      "duration_seconds": 0.0891,
-      "sha256": "17796f5c2db803d0d94d7dcc99534c4a13cc515cd9582a0a8013f030ae7a8c40",
+      "duration_seconds": 0.22,
+      "sha256": "bdfa961416c1022df0cefc0272a9f9b139e6a3a89ecadcc0b43cbdb226fee1a3",
       "sources": [
         "disk_drop_4",
         "disk_drop_3"
       ],
-      "processing": "Two real chess-piece takes at natural speed; subtle EQ, millisecond contact offset, trim, gain and fades. No synthesis."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 master from genuine chess contacts; aligned transient, restrained body layer, full contact tail, and loudness/true-peak mastering. No synthesis or pitch shift."
     },
     {
       "file": "chess_move_wood_46.ogg",
       "category": "move",
-      "duration_seconds": 0.0941,
-      "sha256": "c8875206b24d9d7bacee7076047c633164c0267b67bf8ecaffc419c854926114",
+      "duration_seconds": 0.22,
+      "sha256": "338fcf7a2ea89077ae40d32fda3fabeb872a982d818c4bfe5164b208ac1afbfe",
       "sources": [
         "disk_drop_3",
         "disk_drop_4"
       ],
-      "processing": "Two real chess-piece takes at natural speed; subtle EQ, millisecond contact offset, trim, gain and fades. No synthesis."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 master from genuine chess contacts; aligned transient, restrained body layer, full contact tail, and loudness/true-peak mastering. No synthesis or pitch shift."
     },
     {
       "file": "chess_move_wood_47.ogg",
       "category": "move",
-      "duration_seconds": 0.0785,
-      "sha256": "6582383de49d8c6df96ab41c822d976da83dec50c77ba64a77cb55b5351e7eb0",
+      "duration_seconds": 0.22,
+      "sha256": "42f8eebb4f41123f249702d8aabb832a85f5044c59081a4a3d9f62df96738339",
       "sources": [
         "disk_drop_2",
         "disk_drop_5"
       ],
-      "processing": "Two real chess-piece takes at natural speed; subtle EQ, millisecond contact offset, trim, gain and fades. No synthesis."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 master from genuine chess contacts; aligned transient, restrained body layer, full contact tail, and loudness/true-peak mastering. No synthesis or pitch shift."
     },
     {
       "file": "chess_move_wood_48.ogg",
       "category": "move",
-      "duration_seconds": 0.136,
-      "sha256": "0ed49b01e6db50286dd913253094208e34243400e77a96c7e5813e110c61fd85",
+      "duration_seconds": 0.22,
+      "sha256": "3de9e91c0cfd4069474475326ddfd326d5ad943c2b1aef8e2f49f3776fbdcef4",
       "sources": [
         "disk_drop_5",
         "disk_drop_3"
       ],
-      "processing": "Two genuine piece/board contacts; deterministic 1-5 ms offset, restrained EQ, level matching, trim and fade. No slide, sweep, pitch shift, or synthesis."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 master from genuine chess contacts; aligned transient, restrained body layer, full contact tail, and loudness/true-peak mastering. No synthesis or pitch shift."
     },
     {
       "file": "chess_move_wood_49.ogg",
       "category": "move",
-      "duration_seconds": 0.108,
-      "sha256": "479806ea36d10b3e927a2cc575a81ed1b597ed14390b163e34a5d78e0086d1a5",
+      "duration_seconds": 0.22,
+      "sha256": "ee13e4b689e628cfd72a70845a0b7bff3c94e9e63a3140cb8dfc78a6061d9f30",
       "sources": [
         "disk_drop_1",
         "disk_drop_5"
       ],
-      "processing": "Two genuine piece/board contacts; deterministic 1-5 ms offset, restrained EQ, level matching, trim and fade. No slide, sweep, pitch shift, or synthesis."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 master from genuine chess contacts; aligned transient, restrained body layer, full contact tail, and loudness/true-peak mastering. No synthesis or pitch shift."
     },
     {
       "file": "chess_move_wood_50.ogg",
       "category": "move",
-      "duration_seconds": 0.115,
-      "sha256": "58135e131565a57a513074bd2be59ec0fb7e3722044ec679a2c6a38de2098846",
+      "duration_seconds": 0.22,
+      "sha256": "296587933ecba814d419d3153c15086699ac308281d739f5ba967afeb6065fc6",
       "sources": [
         "disk_drop_2",
         "disk_drop_3"
       ],
-      "processing": "Two genuine piece/board contacts; deterministic 1-5 ms offset, restrained EQ, level matching, trim and fade. No slide, sweep, pitch shift, or synthesis."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 master from genuine chess contacts; aligned transient, restrained body layer, full contact tail, and loudness/true-peak mastering. No synthesis or pitch shift."
     },
     {
       "file": "chess_capture_wood_01.ogg",
       "category": "capture",
-      "duration_seconds": 0.172,
-      "sha256": "3e943a3a2d3d556e2533eecf157b295151df0cc21ec8a486782e9a238ef24308",
+      "duration_seconds": 0.36,
+      "sha256": "d3ed2418fd6cfe4b1185b94e919185c99ed45585a18f8dc43fd4bbb9f8b61b1b",
       "sources": [
         "disk_drop_1",
         "disk_drop_4",
         "disk_drop_2"
       ],
-      "processing": "Two-action physical capture: quieter recorded-piece removal followed by a firmer recorded-piece placement and restrained board body. No slide, household impact, or synthesis."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 two-action capture from recorded piece removal and placement contacts with natural board body and mastered impact. No procedural audio."
     },
     {
       "file": "chess_capture_wood_02.ogg",
       "category": "capture",
-      "duration_seconds": 0.184,
-      "sha256": "94bd1c4c8c6f66625894aaac7b5d15452c85743f1eb687eab7a402dc1fd15121",
+      "duration_seconds": 0.36,
+      "sha256": "50d6e8f455675483617aea87f41550f8cd301a77136b1294ab49746b0b441085",
       "sources": [
         "disk_drop_2",
         "disk_drop_5",
         "disk_drop_3"
       ],
-      "processing": "Two-action physical capture: quieter recorded-piece removal followed by a firmer recorded-piece placement and restrained board body. No slide, household impact, or synthesis."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 two-action capture from recorded piece removal and placement contacts with natural board body and mastered impact. No procedural audio."
     },
     {
       "file": "chess_capture_wood_03.ogg",
       "category": "capture",
-      "duration_seconds": 0.196,
-      "sha256": "b5f2ee8ce1cd4599abaafb31af9632370df7f93e9358d05501837d471096943a",
+      "duration_seconds": 0.36,
+      "sha256": "51e80f0e1ebfac97ef49062b6b0c01684fc31178cdd111c1f9c680fe7aae6bed",
       "sources": [
         "disk_drop_3",
-        "mh2o_alabaster",
+        "disk_drop_1",
         "disk_drop_4"
       ],
-      "processing": "Two-action physical capture: quieter recorded-piece removal followed by a firmer recorded-piece placement and restrained board body. No slide, household impact, or synthesis."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 two-action capture from recorded piece removal and placement contacts with natural board body and mastered impact. No procedural audio."
     },
     {
       "file": "chess_capture_wood_04.ogg",
       "category": "capture",
-      "duration_seconds": 0.208,
-      "sha256": "bfd1e1a54e713b4fa317bc643d540db7313d3f20c59ba106a277252ca9ad95ef",
+      "duration_seconds": 0.36,
+      "sha256": "bd136d88ff501ed13ded4abe889638d8d8957bc98b7ee7b0a06c702f5e95f64e",
       "sources": [
         "disk_drop_4",
         "disk_drop_1",
         "disk_drop_5"
       ],
-      "processing": "Two-action physical capture: quieter recorded-piece removal followed by a firmer recorded-piece placement and restrained board body. No slide, household impact, or synthesis."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 two-action capture from recorded piece removal and placement contacts with natural board body and mastered impact. No procedural audio."
     },
     {
       "file": "chess_capture_wood_05.ogg",
       "category": "capture",
-      "duration_seconds": 0.172,
-      "sha256": "3b48d06702b4f730167117a697b05b88bdf673d2fc149a59a653cd91ebd389ad",
+      "duration_seconds": 0.36,
+      "sha256": "5d05281e973b615e8dd5e903f207283471597b353cc01c30be2f80f5bd4e2c48",
       "sources": [
         "disk_drop_5",
-        "disk_drop_2",
-        "mh2o_alabaster"
+        "disk_drop_2"
       ],
-      "processing": "Two-action physical capture: quieter recorded-piece removal followed by a firmer recorded-piece placement and restrained board body. No slide, household impact, or synthesis."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 two-action capture from recorded piece removal and placement contacts with natural board body and mastered impact. No procedural audio."
     },
     {
       "file": "chess_capture_wood_06.ogg",
       "category": "capture",
-      "duration_seconds": 0.184,
-      "sha256": "f5f6570379d464c589476707d50865a921bab033a0d326f18bff326bcadc7f30",
+      "duration_seconds": 0.36,
+      "sha256": "e6d9c5ade2f215c0f1b540ed96b9538393086bbc16534514260099e2bfd895f9",
       "sources": [
-        "mh2o_alabaster",
+        "disk_drop_2",
         "disk_drop_3",
         "disk_drop_1"
       ],
-      "processing": "Two-action physical capture: quieter recorded-piece removal followed by a firmer recorded-piece placement and restrained board body. No slide, household impact, or synthesis."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 two-action capture from recorded piece removal and placement contacts with natural board body and mastered impact. No procedural audio."
     },
     {
       "file": "chess_capture_wood_07.ogg",
       "category": "capture",
-      "duration_seconds": 0.196,
-      "sha256": "5f71b9ebc6deb3af703ea31a0e7978a397d968909e478f2f142511c5ace21e64",
+      "duration_seconds": 0.36,
+      "sha256": "1262bcb940ad87fb13db1af9ac891abe8543abb478ff66789ad92a2760f8697a",
       "sources": [
         "disk_drop_2",
         "disk_drop_5",
         "disk_drop_3"
       ],
-      "processing": "Two-action physical capture: quieter recorded-piece removal followed by a firmer recorded-piece placement and restrained board body. No slide, household impact, or synthesis."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 two-action capture from recorded piece removal and placement contacts with natural board body and mastered impact. No procedural audio."
     },
     {
       "file": "chess_capture_wood_08.ogg",
       "category": "capture",
-      "duration_seconds": 0.208,
-      "sha256": "366636ae356a40c7f0c9af47778f1caa45612be5e46431df2f9b54a0e23576d0",
+      "duration_seconds": 0.36,
+      "sha256": "fe7a211a417e0be77c92171bfa814bbf3eec7c5ff6226900ff8e2d3c03ec89f2",
       "sources": [
         "disk_drop_3",
-        "mh2o_alabaster",
+        "disk_drop_1",
         "disk_drop_4"
       ],
-      "processing": "Two-action physical capture: quieter recorded-piece removal followed by a firmer recorded-piece placement and restrained board body. No slide, household impact, or synthesis."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 two-action capture from recorded piece removal and placement contacts with natural board body and mastered impact. No procedural audio."
     },
     {
       "file": "chess_capture_wood_09.ogg",
       "category": "capture",
-      "duration_seconds": 0.172,
-      "sha256": "b9c77393e1ddaac6529bbbdccdee1d250e52e2608929dfbd6f82f261714b9d2d",
+      "duration_seconds": 0.36,
+      "sha256": "4b8e5c2b3a7397d46f7536b0775053235c81cdfebdf0d4679981757a516a00b5",
       "sources": [
         "disk_drop_4",
         "disk_drop_1",
         "disk_drop_5"
       ],
-      "processing": "Two-action physical capture: quieter recorded-piece removal followed by a firmer recorded-piece placement and restrained board body. No slide, household impact, or synthesis."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 two-action capture from recorded piece removal and placement contacts with natural board body and mastered impact. No procedural audio."
     },
     {
       "file": "chess_capture_wood_10.ogg",
       "category": "capture",
-      "duration_seconds": 0.184,
-      "sha256": "526f1b70d6f3716e6162ff55f046a6fa174d90072e176651d8c6a8a038a4f37a",
+      "duration_seconds": 0.36,
+      "sha256": "385f320f4ca7f6515cf18fc3619cd575526689de27e8aafac809464c88a97256",
       "sources": [
         "disk_drop_5",
-        "disk_drop_2",
-        "mh2o_alabaster"
+        "disk_drop_2"
       ],
-      "processing": "Two-action physical capture: quieter recorded-piece removal followed by a firmer recorded-piece placement and restrained board body. No slide, household impact, or synthesis."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 two-action capture from recorded piece removal and placement contacts with natural board body and mastered impact. No procedural audio."
     },
     {
       "file": "chess_capture_wood_11.ogg",
       "category": "capture",
-      "duration_seconds": 0.196,
-      "sha256": "49b78e295ccb0f5904043f7877e18e9fff8e954b9d656350fa4c7500dbfe8cc9",
+      "duration_seconds": 0.36,
+      "sha256": "75c55f6fa3f2a3b8a7b32bf9c39f999520b36cbe8a442ffc1a4165536d94c44c",
       "sources": [
-        "mh2o_alabaster",
+        "disk_drop_2",
         "disk_drop_3",
         "disk_drop_1"
       ],
-      "processing": "Two-action physical capture: quieter recorded-piece removal followed by a firmer recorded-piece placement and restrained board body. No slide, household impact, or synthesis."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 two-action capture from recorded piece removal and placement contacts with natural board body and mastered impact. No procedural audio."
     },
     {
       "file": "chess_capture_wood_12.ogg",
       "category": "capture",
-      "duration_seconds": 0.208,
-      "sha256": "86b4a359a9bcf66be6a8c28aeb19ad6a35d404584f8ac00a2f6829faf5a3266b",
+      "duration_seconds": 0.36,
+      "sha256": "8deca0005d3b16d53bfd14e5e0e10b06fa0c20565fb434c0eefcdb3a96a38407",
       "sources": [
         "disk_drop_1",
         "disk_drop_4",
         "disk_drop_2"
       ],
-      "processing": "Two-action physical capture: quieter recorded-piece removal followed by a firmer recorded-piece placement and restrained board body. No slide, household impact, or synthesis."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 two-action capture from recorded piece removal and placement contacts with natural board body and mastered impact. No procedural audio."
     },
     {
       "file": "chess_castle_wood_01.ogg",
       "category": "castle",
-      "duration_seconds": 0.255,
-      "sha256": "1b64d84741937af486c7488897a8b871e9dc5e25260305aa532e818396a98c3e",
+      "duration_seconds": 0.42,
+      "sha256": "41d6c58e092d42f627833364ce55375a1107556c9e5add09a214dc26e6f42b6a",
       "sources": [
         "disk_drop_1",
         "disk_drop_4"
       ],
-      "processing": "Two distinct genuine piece/board placements with a deterministic king/rook gap. No generic tap or synthesis."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 king-and-rook sequence from two genuine chess contacts, with audible separation and natural tails."
     },
     {
       "file": "chess_castle_wood_02.ogg",
       "category": "castle",
-      "duration_seconds": 0.267,
-      "sha256": "772a3e6ab048cca429d9a87fe31af874fb98b3f649a8d4a0d5250e1b0c85f2a2",
+      "duration_seconds": 0.42,
+      "sha256": "9cff244ee5c1ab55e496ea288df3dd8603fa6e540c2b6e0ec1f3953e671fd8f9",
       "sources": [
         "disk_drop_2",
         "disk_drop_5"
       ],
-      "processing": "Two distinct genuine piece/board placements with a deterministic king/rook gap. No generic tap or synthesis."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 king-and-rook sequence from two genuine chess contacts, with audible separation and natural tails."
     },
     {
       "file": "chess_castle_wood_03.ogg",
       "category": "castle",
-      "duration_seconds": 0.279,
-      "sha256": "46d22c692f43c17923e40f49f5a98e71be81418226e967f9496bd46cd3e7dfd4",
+      "duration_seconds": 0.42,
+      "sha256": "4d3f1a56131330c61bf98fa391445b88095c51077566d3f4aadbd7d9c0afd3d0",
       "sources": [
-        "disk_drop_3",
-        "mh2o_alabaster"
+        "disk_drop_3"
       ],
-      "processing": "Two distinct genuine piece/board placements with a deterministic king/rook gap. No generic tap or synthesis."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 king-and-rook sequence from two genuine chess contacts, with audible separation and natural tails."
     },
     {
       "file": "chess_castle_wood_04.ogg",
       "category": "castle",
-      "duration_seconds": 0.291,
-      "sha256": "b4a987d531f29afcbe0a8c2f68b7a04058b309cb05eb42c2d8f66960e87545f3",
+      "duration_seconds": 0.42,
+      "sha256": "0a760036384aed380f0f4e72074bd221740fa99c4d48033a650cf73b4cce54bb",
       "sources": [
         "disk_drop_4",
         "disk_drop_1"
       ],
-      "processing": "Two distinct genuine piece/board placements with a deterministic king/rook gap. No generic tap or synthesis."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 king-and-rook sequence from two genuine chess contacts, with audible separation and natural tails."
     },
     {
       "file": "chess_castle_wood_05.ogg",
       "category": "castle",
-      "duration_seconds": 0.303,
-      "sha256": "a67b27df99131f84dc1cf701a70f4fc22946f6e87cb66fc84f939545bc75140f",
+      "duration_seconds": 0.42,
+      "sha256": "fec2907be374edde1cf12be9a5f1b30053cbee03c704679fbb40195011918718",
       "sources": [
         "disk_drop_5",
         "disk_drop_2"
       ],
-      "processing": "Two distinct genuine piece/board placements with a deterministic king/rook gap. No generic tap or synthesis."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 king-and-rook sequence from two genuine chess contacts, with audible separation and natural tails."
     },
     {
       "file": "chess_castle_wood_06.ogg",
       "category": "castle",
-      "duration_seconds": 0.315,
-      "sha256": "45a159e823da1f162f99d47b060770929b76421f0f6b3f6c4bba7323002e15d2",
+      "duration_seconds": 0.42,
+      "sha256": "66b49e17a987f3219418ab04f1ff769e07630db2c195b212b8085edfe1160a42",
       "sources": [
-        "mh2o_alabaster",
+        "disk_drop_4",
         "disk_drop_3"
       ],
-      "processing": "Two distinct genuine piece/board placements with a deterministic king/rook gap. No generic tap or synthesis."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 king-and-rook sequence from two genuine chess contacts, with audible separation and natural tails."
     },
     {
       "file": "chess_firework_low_01.ogg",
       "category": "firework_low",
-      "duration_seconds": 0.65,
-      "sha256": "8785cd3fb4839727ba4f78fdcf251e31f6a3d05098faef1cc37b31452c2b1cb6",
+      "duration_seconds": 0.805,
+      "sha256": "0dcf2ce5adc47003abd7f0a7941911bb91cb6d8d8a5296514633885f0adaa20f",
       "sources": [
         "rudmer_firework_pops"
       ],
-      "processing": "Onset-aligned segment from a genuine CC0 firework recording; mono microphone-perspective mix, restrained EQ, trim and tail fade. No pitch shift, synthesis, or household substitute."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 runtime master preserving the real microphone stereo field and complete first-firework decay from the retained HQ preview; loudness and true-peak mastered without synthesis."
     },
     {
       "file": "chess_firework_low_02.ogg",
       "category": "firework_low",
-      "duration_seconds": 0.65,
-      "sha256": "12fddabd2ac825075e3253d22585decf655513332f5a91349f38aec4582f3595",
+      "duration_seconds": 0.805,
+      "sha256": "8ddf634ccd53db1230bea0e220d1a8f79a89ae1ae7d3aa7ab5e9e248151cefcd",
       "sources": [
         "rudmer_firework_pops"
       ],
-      "processing": "Onset-aligned segment from a genuine CC0 firework recording; mono microphone-perspective mix, restrained EQ, trim and tail fade. No pitch shift, synthesis, or household substitute."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 runtime master preserving the real microphone stereo field and complete first-firework decay from the retained HQ preview; loudness and true-peak mastered without synthesis."
     },
     {
       "file": "chess_firework_mid_01.ogg",
       "category": "firework_mid",
-      "duration_seconds": 0.82,
-      "sha256": "37e042ee98e1ef60f7a5804fc31675a29aa346c9ca9d7a1907ea3146626898fc",
+      "duration_seconds": 2.175,
+      "sha256": "f8d5ccc67a15555acf3bb82e1d4b6bb97b11a8449e840d26c28f99dc8db425a6",
       "sources": [
         "rudmer_firework_pops"
       ],
-      "processing": "Onset-aligned segment from a genuine CC0 firework recording; mono microphone-perspective mix, restrained EQ, trim and tail fade. No pitch shift, synthesis, or household substitute."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 runtime master preserving the real microphone stereo field and long second-firework decay from the retained HQ preview; loudness and true-peak mastered without synthesis."
     },
     {
       "file": "chess_firework_mid_02.ogg",
       "category": "firework_mid",
-      "duration_seconds": 0.82,
-      "sha256": "09cc3e4e53b5c0633b2c145b77de0725b86df59fb5a59229bfc69f822933ee79",
+      "duration_seconds": 2.175,
+      "sha256": "1f08c735ca3bdfb94569b28235162cf455d01e9fc5532b23070ca0ba566b7a5c",
       "sources": [
         "rudmer_firework_pops"
       ],
-      "processing": "Onset-aligned segment from a genuine CC0 firework recording; mono microphone-perspective mix, restrained EQ, trim and tail fade. No pitch shift, synthesis, or household substitute."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 runtime master preserving the real microphone stereo field and long second-firework decay from the retained HQ preview; loudness and true-peak mastered without synthesis."
     },
     {
       "file": "chess_firework_high_01.ogg",
       "category": "firework_high",
-      "duration_seconds": 0.56,
-      "sha256": "55b29168a2397c14718aaabafee8505f3c54f879910e755a293574cfc28c9bb5",
+      "duration_seconds": 1.251,
+      "sha256": "f19ec6f1e2f842fcd32bdc5db58923bda190160cbab206fe549a656172c65370",
       "sources": [
         "rudmer_firework_rocket"
       ],
-      "processing": "Onset-aligned explosion from a genuine CC0 firework-rocket recording; mono microphone-perspective mix, restrained EQ, trim and tail fade. No pitch shift, synthesis, or household substitute."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 runtime master preserving the real rocket explosion stereo field, low-frequency body, and complete natural decay from the retained HQ preview; loudness and true-peak mastered."
     },
     {
       "file": "chess_firework_high_02.ogg",
       "category": "firework_high",
-      "duration_seconds": 0.56,
-      "sha256": "2b42b6d6d64057ca70a50fc45e5df09487117c4962f3baaab89f9793b328b966",
+      "duration_seconds": 1.251,
+      "sha256": "866657c8d0d7427ef87ed5c7fda83720db009e065f34941133e185c9b127ff5c",
       "sources": [
         "rudmer_firework_rocket"
       ],
-      "processing": "Onset-aligned explosion from a genuine CC0 firework-rocket recording; mono microphone-perspective mix, restrained EQ, trim and tail fade. No pitch shift, synthesis, or household substitute."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 runtime master preserving the real rocket explosion stereo field, low-frequency body, and complete natural decay from the retained HQ preview; loudness and true-peak mastered."
     },
     {
       "file": "chess_glass_impact_01.ogg",
       "category": "glass_impact",
-      "duration_seconds": 0.194,
-      "sha256": "d71338f4bdd5c9366ee7718e21bba7bedcc171a4ea3508b07191d55ec7251c12",
+      "duration_seconds": 0.42,
+      "sha256": "b43ec6525ec27ab1534c8017f324b9bd67f392d6661f6fcd01174eb65f1028f6",
       "sources": [
         "light_bulb_breaking",
         "branch_break"
       ],
-      "processing": "Recorded break onset with restrained low body."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 recorded break impact with preserved source stereo, low body, natural tail, and impact mastering."
     },
     {
       "file": "chess_glass_fracture_01.ogg",
       "category": "glass_fracture",
-      "duration_seconds": 0.48,
-      "sha256": "7374e4040a3476b4a8795b7eb5512801a0fef838ee9cdb57025339d1760b8440",
+      "duration_seconds": 0.84,
+      "sha256": "7143347fe86e420430e9b34b023f0889a3b3391a49bf4ec7993253c3f86d3718",
       "sources": [
         "light_bulb_breaking",
         "glass"
       ],
-      "processing": "Recorded crack/fracture body, high-passed for clarity."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 recorded glass fracture with preserved spatial detail and extended natural decay."
     },
     {
       "file": "chess_glass_shards_01.ogg",
       "category": "glass_shards",
-      "duration_seconds": 0.6666,
-      "sha256": "d53b396d60b26eed78169480a4b2c2e7bd220437e53ae81aef08d32c43c13a55",
+      "duration_seconds": 1.42,
+      "sha256": "546c7f230193f7b9e57f88ab913dcddefe07c209ae1a7370458a7cc6663f6b57",
       "sources": [
         "light_bulb_breaking",
         "glass"
       ],
-      "processing": "Recorded falling-shard tail with long natural fade."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 recorded falling-glass tail with preserved source ambience and long natural fade."
     },
     {
       "file": "chess_glass_impact_02.ogg",
       "category": "glass_impact",
-      "duration_seconds": 0.212,
-      "sha256": "f15c436ec66b264b6d6c6d37e274794f2d7d3639d16c85289fe49d969bd9bd0c",
+      "duration_seconds": 0.42,
+      "sha256": "387a1bbc571bbb63edee57c6fa5fd5f84d792609a9db0976df76e48a10d7442f",
       "sources": [
         "light_bulb_breaking",
         "branch_break"
       ],
-      "processing": "Recorded break onset with restrained low body."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 recorded break impact with preserved source stereo, low body, natural tail, and impact mastering."
     },
     {
       "file": "chess_glass_fracture_02.ogg",
       "category": "glass_fracture",
-      "duration_seconds": 0.5073,
-      "sha256": "8730f664a8cd9901f6be6aaef2e6773170b8661280c3724d3188faf098c72a87",
+      "duration_seconds": 0.84,
+      "sha256": "7e66e8740177da7810dfa80004f61e5baf23d05d95d8fe68429a90b2ffbf626d",
       "sources": [
         "light_bulb_breaking",
         "glass"
       ],
-      "processing": "Recorded crack/fracture body, high-passed for clarity."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 recorded glass fracture with preserved spatial detail and extended natural decay."
     },
     {
       "file": "chess_glass_shards_02.ogg",
       "category": "glass_shards",
-      "duration_seconds": 0.6357,
-      "sha256": "0224d8187ed17560fcb64ea2b9ca2a6cf846d452f073b0f5cbda37037ea17d4d",
+      "duration_seconds": 1.42,
+      "sha256": "608260e11e0cd9da99cf27ef19953651e4900197c5b96f0062cbc01ebfe8dfa0",
       "sources": [
         "light_bulb_breaking",
         "glass"
       ],
-      "processing": "Recorded falling-shard tail with long natural fade."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 recorded falling-glass tail with preserved source ambience and long natural fade."
     },
     {
       "file": "chess_glass_impact_03.ogg",
       "category": "glass_impact",
-      "duration_seconds": 0.2164,
-      "sha256": "8c49f1bcce92f6cf4a5495f8001b72b12fe5f8a38eed50825a06345fbfef5bc2",
+      "duration_seconds": 0.42,
+      "sha256": "7b490f563d5c3981aefde2f88ec2e14808cb815e10aa2968bb9ebe0397034cbd",
       "sources": [
         "light_bulb_breaking",
         "branch_break"
       ],
-      "processing": "Recorded break onset with restrained low body."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 recorded break impact with preserved source stereo, low body, natural tail, and impact mastering."
     },
     {
       "file": "chess_glass_fracture_03.ogg",
       "category": "glass_fracture",
-      "duration_seconds": 0.57,
-      "sha256": "b71f05918fbf80d31ff28a1af3712ab16ac992540edec6d95494958c9b909947",
+      "duration_seconds": 0.84,
+      "sha256": "031b206c654f7f7a7e3a26688c966a7f94fd9a42fd25aa59f65f2613ad4c4b72",
       "sources": [
         "light_bulb_breaking",
         "glass"
       ],
-      "processing": "Recorded crack/fracture body, high-passed for clarity."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 recorded glass fracture with preserved spatial detail and extended natural decay."
     },
     {
       "file": "chess_glass_shards_03.ogg",
       "category": "glass_shards",
-      "duration_seconds": 0.6132,
-      "sha256": "e5405afeb072c1df28a842f0f55185350868e1ceabf64ff45efe18204119e7bc",
+      "duration_seconds": 1.42,
+      "sha256": "536b62f38e092096a1c2f5c40d815b23178e34e47e077af6ce67dcea9de999fe",
       "sources": [
         "light_bulb_breaking",
         "glass"
       ],
-      "processing": "Recorded falling-shard tail with long natural fade."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 recorded falling-glass tail with preserved source ambience and long natural fade."
     },
     {
       "file": "chess_check_crystal_01.ogg",
       "category": "check",
-      "duration_seconds": 0.075,
-      "sha256": "2325b1afd87121aec767e158ea82d578cde20b479e1047ed0c97191593bae52f",
+      "duration_seconds": 0.22,
+      "sha256": "6b34eb279fa8938a3dcad3cb73f4e88be6c51f35efb579972ed421ac3833ad36",
       "sources": [
         "glass"
       ],
-      "processing": "Very short recorded glass tick intended at low mix level."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 cue cut from a recorded glass tick; replaces the procedural two-tone check cue."
     },
     {
       "file": "chess_check_crystal_02.ogg",
       "category": "check",
-      "duration_seconds": 0.087,
-      "sha256": "6aa811e715f621fe5c9191ff535815befef94a05cbb6560dedd3dcdef5ee6b0e",
+      "duration_seconds": 0.22,
+      "sha256": "d37c04067d24c64d5e47bba286d456247dc729a94696790d2ec2add32033f4c5",
       "sources": [
         "glass"
       ],
-      "processing": "Very short recorded glass tick intended at low mix level."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 cue cut from a recorded glass tick; replaces the procedural two-tone check cue."
     },
     {
       "file": "chess_check_crystal_03.ogg",
       "category": "check",
-      "duration_seconds": 0.099,
-      "sha256": "931116b141bbc38a794e6de0278ef6960401f8bd0b2a117b06b7828523a5c9b4",
+      "duration_seconds": 0.22,
+      "sha256": "1ae078097b11317ed40dfc71a0b96f6fb3dd67a1d9848ac0f839d51067c092a7",
       "sources": [
         "glass"
       ],
-      "processing": "Very short recorded glass tick intended at low mix level."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 cue cut from a recorded glass tick; replaces the procedural two-tone check cue."
     },
     {
       "file": "chess_check_crystal_04.ogg",
       "category": "check",
-      "duration_seconds": 0.111,
-      "sha256": "6b557d817496e11f3d9889be2a560bc8ba13c58fbb38f1b7bb74199aac6fa38e",
+      "duration_seconds": 0.22,
+      "sha256": "749879943d2c1a43d1839a9bd0cc0594cf0097032a974297ee7f41b11f49d19a",
       "sources": [
         "glass"
       ],
-      "processing": "Very short recorded glass tick intended at low mix level."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 cue cut from a recorded glass tick; replaces the procedural two-tone check cue."
     },
     {
       "file": "chess_promotion_01.ogg",
       "category": "promotion",
-      "duration_seconds": 0.1565,
-      "sha256": "c8c0b3152cb50546e47b16c14a09d3aed2e55619e97594484e5c09840870c971",
+      "duration_seconds": 0.48,
+      "sha256": "d7fc129f132e546f1cd8bdd6ee71ec2d9bbb90dd4afe006a57a62f54d1c83f20",
       "sources": [
         "disk_drop_1",
         "disk_drop_2",
         "glass"
       ],
-      "processing": "Recorded placement with a quiet recorded-glass promotion accent."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 promotion cue from recorded piece contacts and glass accent, with a complete decay."
     },
     {
       "file": "chess_promotion_02.ogg",
       "category": "promotion",
-      "duration_seconds": 0.2251,
-      "sha256": "ff2e87132fcadbdab61fe67e2f0acd2049ce6889ba22770162baa9ed0a4bfad5",
+      "duration_seconds": 0.48,
+      "sha256": "d8d5edbe9a7fcc8cc806791e132a1d1464dde7ef82871a4c8b99b94c8fb4b46e",
       "sources": [
         "disk_drop_1",
         "disk_drop_2",
         "glass"
       ],
-      "processing": "Recorded placement with a quiet recorded-glass promotion accent."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 promotion cue from recorded piece contacts and glass accent, with a complete decay."
     },
     {
       "file": "chess_promotion_03.ogg",
       "category": "promotion",
-      "duration_seconds": 0.1681,
-      "sha256": "1eed6b9a94bdb230bdb635293127d8aa505637c4f46bb0450d25acdf37daf23e",
+      "duration_seconds": 0.48,
+      "sha256": "84187f02b511a45790b81f0fa6c1c761449f9a71fb5d4eacf4937ecd72867140",
       "sources": [
         "disk_drop_1",
         "disk_drop_2",
         "glass"
       ],
-      "processing": "Recorded placement with a quiet recorded-glass promotion accent."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 promotion cue from recorded piece contacts and glass accent, with a complete decay."
     },
     {
       "file": "chess_promotion_04.ogg",
       "category": "promotion",
-      "duration_seconds": 0.1361,
-      "sha256": "1a484152b9696de837bec5985e0d1fb950821d4ae312b4c6eabdff305c9af174",
+      "duration_seconds": 0.48,
+      "sha256": "abd84290c7a85708646476a40b8b8fd2c4466967ebd2d1fee950bbb05aad173c",
       "sources": [
         "disk_drop_1",
         "disk_drop_2",
         "glass"
       ],
-      "processing": "Recorded placement with a quiet recorded-glass promotion accent."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 promotion cue from recorded piece contacts and glass accent, with a complete decay."
     },
     {
       "file": "chess_hint_01.ogg",
       "category": "hint",
-      "duration_seconds": 0.1548,
-      "sha256": "0e31c16cb7f03a1187254ede4780ab3e8612ca4ba6b157bc5e246777b7b74b9a",
+      "duration_seconds": 0.2063,
+      "sha256": "74525544d7c2e34465b22abbc663427c2db195cfb8e535c17d767b4464aae759",
       "sources": [
         "disk_drop_1",
         "disk_drop_2"
       ],
-      "processing": "Soft real placement cue."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 soft hint from a genuine chess contact."
     },
     {
       "file": "chess_hint_02.ogg",
       "category": "hint",
-      "duration_seconds": 0.0957,
-      "sha256": "e0e5ebe52555a5f1b99045db9d375a7711f377aeb7ebf19a54b881f548b828aa",
+      "duration_seconds": 0.2063,
+      "sha256": "233740b1275767c78822412b9d7b39f5f49bfba92eb858ffa2e5302371141ff0",
       "sources": [
         "disk_drop_1",
         "disk_drop_2"
       ],
-      "processing": "Soft real placement cue."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 soft hint from a genuine chess contact."
     },
     {
       "file": "chess_hint_03.ogg",
       "category": "hint",
-      "duration_seconds": 0.0661,
-      "sha256": "44ff2ebef055fb4818634d890dbc62a478394cf88657d6a261f3eb87a80df004",
+      "duration_seconds": 0.2063,
+      "sha256": "c76788fb7a5696eec15ead04beb7e5bc1badc6f4c0c7a87889e699d0b2eade35",
       "sources": [
         "disk_drop_1",
         "disk_drop_2"
       ],
-      "processing": "Soft real placement cue."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 soft hint from a genuine chess contact."
     },
     {
       "file": "chess_low_time_01.ogg",
       "category": "low_time",
-      "duration_seconds": 0.1192,
-      "sha256": "b6db60c3afa3f38badabd917c67680529e9565ce6b7a34dd6a7af50bd0e707e7",
+      "duration_seconds": 0.34,
+      "sha256": "7e2c51d6ec7cab86c6ecce09558ca1660ec9f48d79acf1d5d8ad185d33f64e28",
       "sources": [
         "button_tiny"
       ],
-      "processing": "Short recorded threshold tap; use once, not as a repeating clock tick."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 threshold cue preserving the recorded source channels and transient."
     },
     {
       "file": "chess_low_time_02.ogg",
       "category": "low_time",
-      "duration_seconds": 0.1017,
-      "sha256": "9989ab5a4d9df110589c8da86454b1985473c0d47e5a32fb681f3276623db0b2",
+      "duration_seconds": 0.34,
+      "sha256": "b4f14c66ccbf988efb506a00aaa5df20e45fd2f29d9040f8f25859e4e2cf0c56",
       "sources": [
         "snap"
       ],
-      "processing": "Short recorded threshold tap; use once, not as a repeating clock tick."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 threshold cue preserving the recorded source channels and transient."
     },
     {
       "file": "chess_low_time_03.ogg",
       "category": "low_time",
-      "duration_seconds": 0.1192,
-      "sha256": "598caa16f26a43e5bae2e8620a5f29b1f566a522fe4ff5ff368c5aca7f66fc5c",
+      "duration_seconds": 0.34,
+      "sha256": "bf71994605007be25bf4b472589b7f4e9842945473917f529e6667ec22acab07",
       "sources": [
         "button_tiny"
       ],
-      "processing": "Short recorded threshold tap; use once, not as a repeating clock tick."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 threshold cue preserving the recorded source channels and transient."
     },
     {
       "file": "chess_low_time_04.ogg",
       "category": "low_time",
-      "duration_seconds": 0.1017,
-      "sha256": "b510ab160427d1a4d2be6c9d99aa8c38c932d7e2511b7eb4d62f746c677963ae",
+      "duration_seconds": 0.34,
+      "sha256": "f5e8cf76b5ec37c2797aea810677011a39ca5aa529812e58cdad191d4ede524a",
       "sources": [
         "snap"
       ],
-      "processing": "Short recorded threshold tap; use once, not as a repeating clock tick."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 threshold cue preserving the recorded source channels and transient."
     },
     {
       "file": "chess_game_start_01.ogg",
       "category": "game_start",
-      "duration_seconds": 0.2127,
-      "sha256": "cd4ca289411ec7e044c07247792c224a6b19fe7ca8e01dcc43b24f897ab3085b",
+      "duration_seconds": 0.42,
+      "sha256": "2640880b5ccb8c5b897c4b4bcd3f895dcec928a48c71a55ce56b360dd50420c0",
       "sources": [
         "disk_drop_1",
         "disk_drop_2"
       ],
-      "processing": "Two soft recorded placements as the board becomes playable."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 game-start cue from two soft recorded chess placements."
     },
     {
       "file": "chess_game_start_02.ogg",
       "category": "game_start",
-      "duration_seconds": 0.22,
-      "sha256": "861b5d58c5f084ce0c69774e1e45e3456726dfc637ebfc8d32eb9d8bb01dc555",
+      "duration_seconds": 0.42,
+      "sha256": "35e9f34d5325189259ba036177c2dc913dd7e524dccdae6f655f9ea9dc2f609d",
       "sources": [
         "disk_drop_1",
         "disk_drop_2"
       ],
-      "processing": "Two soft recorded placements as the board becomes playable."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 game-start cue from two soft recorded chess placements."
     },
     {
       "file": "chess_game_start_03.ogg",
       "category": "game_start",
-      "duration_seconds": 0.3959,
-      "sha256": "4bdcab7f52899ce80df4e5af5a00a592a8217b3bc1919f599d893862e288f0d1",
+      "duration_seconds": 0.42,
+      "sha256": "dc4e0f158731ae59db059d6c3627cf629b75c8bd6feb7cc7b10fc5e3d60931c2",
       "sources": [
         "disk_drop_1",
         "disk_drop_2"
       ],
-      "processing": "Two soft recorded placements as the board becomes playable."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 game-start cue from two soft recorded chess placements."
     },
     {
       "file": "chess_undo_01.ogg",
       "category": "undo",
-      "duration_seconds": 0.068,
-      "sha256": "f045b4f677a4bc9c3617f6e25453e42b72d2ef7fdcc7900fed4ffcbc549c7bde",
+      "duration_seconds": 0.2063,
+      "sha256": "7845b961d7230110632c6302f480cbc7569363373b4b70a7db0d60a218370237",
       "sources": [
         "disk_drop_1",
         "disk_drop_2"
       ],
-      "processing": "Optional very quiet reverse of a recorded placement."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 understated undo cue from a genuine recorded chess contact; no reversed or synthesized audio."
     },
     {
       "file": "chess_undo_02.ogg",
       "category": "undo",
-      "duration_seconds": 0.0626,
-      "sha256": "59927517556353762451d0d7e7499c8a48f3aad4a21c16b946de441fe0c4dcda",
+      "duration_seconds": 0.2063,
+      "sha256": "43a2a34f7e7ef7c45666957be756716408df45b4b2d80676463d303793ea4aed",
       "sources": [
         "disk_drop_1",
         "disk_drop_2"
       ],
-      "processing": "Optional very quiet reverse of a recorded placement."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 understated undo cue from a genuine recorded chess contact; no reversed or synthesized audio."
     },
     {
       "file": "chess_undo_03.ogg",
       "category": "undo",
-      "duration_seconds": 0.0867,
-      "sha256": "f01fdf00c2054cca7d260ee903793019b456a88404cff934d74ed7919a2a8b20",
+      "duration_seconds": 0.2063,
+      "sha256": "f88eb71ed44341d3e08fc14c0f27b5eb70305dc94c412e71ff956788ffe0080a",
       "sources": [
         "disk_drop_1",
         "disk_drop_2"
       ],
-      "processing": "Optional very quiet reverse of a recorded placement."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 understated undo cue from a genuine recorded chess contact; no reversed or synthesized audio."
     }
   ]
 }

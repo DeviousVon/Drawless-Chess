@@ -1,6 +1,5 @@
 package com.drawlesschess.ui
 
-import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.util.Log
 import androidx.compose.foundation.background
@@ -16,6 +15,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asAndroidBitmap
@@ -61,8 +61,15 @@ class ThreatIndicatorVisualInstrumentedTest {
     fun compactThreatBadgeStaysAboveLargePiecesAcrossThemes() {
         val pieceTypes = listOf(PieceType.QUEEN, PieceType.BISHOP, PieceType.KING)
         val sides = listOf(Side.WHITE, Side.BLACK)
+        var badgeColor = 0
+        var markColor = 0
         compose.setContent {
             DrawlessTheme {
+                val appColors = MaterialTheme.colorScheme
+                SideEffect {
+                    badgeColor = appColors.tertiary.toArgb()
+                    markColor = appColors.onTertiary.toArgb()
+                }
                 val deviceDensity = LocalDensity.current.density
                 Column(
                     modifier = Modifier
@@ -111,7 +118,7 @@ class ThreatIndicatorVisualInstrumentedTest {
         )
         writePng(
             compose.onNodeWithTag(
-                fixtureTag(BoardThemes.OBSIDIAN_GLASS, Side.WHITE, PieceType.QUEEN),
+                fixtureTag(BoardThemes.GLACIER_SLATE, Side.WHITE, PieceType.QUEEN),
                 useUnmergedTree = true,
             ).captureToImage().asAndroidBitmap(),
             lowDensityFixtureOutput,
@@ -121,11 +128,7 @@ class ThreatIndicatorVisualInstrumentedTest {
             "pre_assert_evidence=${evidenceOutput.absolutePath} bytes=${evidenceOutput.length()} " +
                 "fixture=${lowDensityFixtureOutput.absolutePath} bytes=${lowDensityFixtureOutput.length()}",
         )
-        val isDark = targetContext.resources.configuration.uiMode and
-            Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
         BoardThemes.all.forEach { theme ->
-            val visualTheme = DrawlessVisualThemes.fromBoardTheme(theme)
-            val colors = if (isDark) visualTheme.darkColors else visualTheme.lightColors
             sides.forEach { side ->
                 val silhouettes = mutableMapOf<PieceType, Bitmap>()
                 pieceTypes.forEach { type ->
@@ -136,8 +139,8 @@ class ThreatIndicatorVisualInstrumentedTest {
                     silhouettes[type] = bitmap
                     assertBadgeInteriorVisible(
                         bitmap = bitmap,
-                        badgeColor = colors.tertiary.toArgb(),
-                        markColor = colors.onTertiary.toArgb(),
+                        badgeColor = badgeColor,
+                        markColor = markColor,
                         label = "${theme.id} ${side.name.lowercase()} ${type.name.lowercase()}",
                     )
                     assertPieceSilhouetteVisible(

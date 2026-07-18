@@ -8,6 +8,7 @@ import androidx.sqlite.db.framework.FrameworkSQLiteOpenHelperFactory
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.drawlesschess.core.AssistanceCounts
+import com.drawlesschess.core.BareKingPolicy
 import com.drawlesschess.core.DeadPositionPolicy
 import com.drawlesschess.core.EndReason
 import com.drawlesschess.core.EngineCancellation
@@ -67,6 +68,13 @@ class RoomCheckpointStoreInstrumentedTest {
             entity.copy(payloadJson = legacyPayload.toString()),
         )
         assertEquals(false, legacyDecoded.assistance.threatIndication)
+        val preBareKingPayload = JSONObject(entity.payloadJson).apply {
+            getJSONObject("config").getJSONObject("rules").remove("bareKing")
+        }
+        val preBareKingDecoded = CoordinatorCheckpointCodec.decode(
+            entity.copy(payloadJson = preBareKingPayload.toString()),
+        )
+        assertEquals(BareKingPolicy.CONTINUE, preBareKingDecoded.config.rules.bareKing)
         val preOpponentIdPayload = JSONObject(entity.payloadJson).apply {
             getJSONObject("config").remove("opponentLevelId")
         }

@@ -57,10 +57,11 @@
     <string name="rules_stalemate">• No Drawless padrão, quem não tem lances legais perde. Na variante opcional Escape, o jogador afogado vence.</string>
     <string name="rules_repetition">• Quem provoca a mesma posição pela terceira vez perde, a menos que todos os lances legais repitam a posição.</string>
     <string name="rules_dead_position">• Se o xeque-mate se tornar impossível, a regra de posição morta selecionada decide a partida.</string>
-    <string name="rules_fifty_move">• Não há encerramento automático pela regra dos 50 lances.</string>
+    <string name="rules_bare_king">• Um jogador que fica apenas com o rei perde imediatamente.</string>
+    <string name="rules_fifty_move">• Após 50 lances sem movimento de peão ou captura, os pontos de material decidem o vencedor.</string>
     <string name="action_got_it">Entendi</string>
     <string name="license_title">Software de código aberto</string>
-    <string name="license_body">Drawless Chess é licenciado sob a GNU GPL versão 3 ou posterior. O áudio amostrado inclui gravações de xadrez CC0 de JJTaynos e mh2o, fogos de artifício CC0 de Rudmer_Rotteveel e gravações ion.sound de Denis Ineshin sob licença MIT. O código-fonte correspondente exato e os avisos de terceiros acompanham a versão oficial v0.2.0.</string>
+    <string name="license_body">Drawless Chess é licenciado sob a GNU GPL versão 3 ou posterior. O áudio amostrado inclui gravações de xadrez CC0 de JJTaynos e mh2o, fogos de artifício CC0 de Rudmer_Rotteveel e gravações ion.sound de Denis Ineshin sob licença MIT. O código-fonte correspondente exato e os avisos de terceiros acompanham a versão oficial v%1$s.</string>
     <string name="license_view_source">Ver código-fonte</string>
     <string name="privacy_title">Privacidade</string>
     <string name="privacy_body">Drawless Chess funciona totalmente offline. A BB_Games não coleta, transmite, compartilha nem vende dados pessoais. Partidas salvas, histórico de partidas concluídas, estatísticas locais e configurações ficam armazenados no seu dispositivo e podem ser incluídos nos backups do Android se você os ativar; a BB_Games não pode acessar esses backups. Dúvidas sobre privacidade: realitymaster@protonmail.ch</string>
@@ -132,17 +133,17 @@
 
     <!-- Temas -->
     <string name="theme_choose">Escolha um tema</string>
-    <string name="theme_picker_description">O tabuleiro, as peças e os menus são atualizados imediatamente. Sua escolha fica salva.</string>
-    <string name="theme_obsidian_glass">Vidro de obsidiana</string>
-    <string name="theme_arctic_slate">Ardósia ártica</string>
-    <string name="theme_modern_walnut">Nogueira moderna</string>
-    <string name="theme_emerald_court">Corte de esmeralda</string>
-    <string name="theme_royal_amethyst">Ametista real</string>
-    <string name="theme_description_obsidian_glass">Carvão frio e menta</string>
-    <string name="theme_description_arctic_slate">Prata nítida e azul</string>
-    <string name="theme_description_modern_walnut">Madeira quente e verde-azulado</string>
-    <string name="theme_description_emerald_court">Verde intenso e dourado</string>
-    <string name="theme_description_royal_amethyst">Crepúsculo roxo e coral</string>
+    <string name="theme_picker_description">O tabuleiro e as peças são atualizados imediatamente. Sua escolha fica salva.</string>
+    <string name="theme_imperial_marble">Mármore imperial</string>
+    <string name="theme_description_imperial_marble">Branco Carrara e verde com veios</string>
+    <string name="theme_desert_sandstone">Arenito do deserto</string>
+    <string name="theme_description_desert_sandstone">Camadas douradas e grão quente</string>
+    <string name="theme_glacier_slate">Ardósia glacial</string>
+    <string name="theme_verdigris_copper">Cobre com verdete</string>
+    <string name="theme_amethyst_geode">Geodo de ametista</string>
+    <string name="theme_description_glacier_slate">Pedra clivada e brilho de mica</string>
+    <string name="theme_description_verdigris_copper">Cobre patinado e calcário marfim</string>
+    <string name="theme_description_amethyst_geode">Cristal violeta e brilhos dourados</string>
 
     <!-- Opções -->
     <string name="options_title">Opções</string>
@@ -150,6 +151,8 @@
     <string name="options_audio_description">Controle os sons físicos do tabuleiro e dos resultados da partida.</string>
     <string name="options_sound_effects">Efeitos sonoros</string>
     <string name="options_sound_effects_description">Reproduza sons de lance, captura, vitória e derrota.</string>
+    <string name="options_sound_volume">Volume dos efeitos</string>
+    <string name="options_sound_volume_description">Ajuste os sons do jogo sem alterar o volume do dispositivo.</string>
     <string name="options_board">Tabuleiro</string>
     <string name="options_board_description">Escolha as orientações exibidas ao redor e sobre o tabuleiro.</string>
     <string name="options_board_coordinates">Coordenadas do tabuleiro</string>
@@ -158,9 +161,12 @@
     <string name="options_threat_indication_description">Destaque suas peças que estão sendo atacadas pelo adversário. Isso é uma ajuda: uma vitória vale 95 em vez de 100 pontos e não se qualifica para partidas ranqueadas. A opção vale para novas partidas; uma partida retomada mantém a configuração com que começou.</string>
     <string name="options_game_feedback">Apresentação da partida</string>
     <string name="options_game_feedback_description">Ajuste a apresentação do resultado sem alterar as regras do xadrez.</string>
+    <string name="options_haptic_feedback">Feedback tátil</string>
+    <string name="options_haptic_feedback_description">Use vibrações sutis para seleções, jogadas, capturas, xeques e resultados. A configuração de feedback tátil do dispositivo continua sendo respeitada.</string>
     <string name="options_celebration_effects">Efeitos de celebração de vitória ou derrota</string>
     <string name="options_celebration_effects_description">Mostre a animação de vitória ou derrota em tela cheia e reproduza o efeito correspondente de fogos de artifício ou vidro. A opção Efeitos sonoros continua sendo o controle principal do áudio. O resultado e a pontuação são sempre exibidos.</string>
     <string name="options_local_storage_notice">Salvo localmente pelo Drawless Chess e não enviado à BB_Games. O backup do Android pode incluir estas configurações de acordo com os ajustes do seu dispositivo.</string>
+    <string name="options_version">Versão %1$s (%2$d)</string>
 
     <!-- Estatísticas do jogador -->
     <string name="stats_title">Estatísticas do jogador</string>
@@ -246,6 +252,13 @@
     <string name="board_legal_capture">captura legal</string>
     <string name="board_in_check">em xeque</string>
     <string name="board_under_threat">sob ameaça</string>
+    <string name="board_self_check_king">seu rei ficaria exposto</string>
+    <string name="board_self_check_attacker">atacante que expõe seu rei</string>
+    <string name="board_self_check_unsafe">casa insegura para seu rei</string>
+    <string name="warning_move_exposes_king">Esse lance deixaria seu rei em xeque.</string>
+    <string name="warning_castle_while_in_check">Você não pode rocar enquanto seu rei está em xeque.</string>
+    <string name="warning_castle_through_check">Você não pode rocar atravessando uma casa ameaçada.</string>
+    <string name="warning_castle_into_check">Você não pode rocar para uma casa ameaçada.</string>
     <string name="board_accessibility_join">%1$s, %2$s</string>
     <string name="status_your_turn">Sua vez</string>
     <string name="status_hint_thinking">Analisando a posição…</string>
@@ -285,14 +298,24 @@
 
     <!-- Motivos estruturados do resultado -->
     <string name="result_checkmate">Xeque-mate.</string>
-    <string name="result_stalemate">O jogador sem lances legais perdeu.</string>
-    <string name="result_escape_stalemate">O jogador afogado escapou com a vitória.</string>
-    <string name="result_threefold_repetition">A mesma posição ocorreu três vezes.</string>
-    <string name="result_forced_repetition">Todos os lances legais repetiam a posição.</string>
-    <string name="result_dead_position_material">O xeque-mate se tornou impossível; o material decidiu a partida.</string>
-    <string name="result_dead_position_final_capture">A captura final tornou o xeque-mate impossível.</string>
+    <string name="result_stalemate">O jogador da vez não tinha lances legais e não estava em xeque. Pelas regras Drawless, esse jogador perde.</string>
+    <string name="result_escape_stalemate">O jogador da vez não tinha lances legais e não estava em xeque. Pelas regras Escape, esse jogador vence.</string>
+    <string name="result_threefold_repetition">A mesma posição ocorreu três vezes, então a regra de repetição decidiu a partida.</string>
+    <string name="result_forced_repetition">Todos os lances legais de %1$s produziam a terceira ocorrência da posição. Pela exceção de repetição forçada, %2$s perde por forçar o ciclo.</string>
+    <plurals name="result_avoidable_repetition"><item quantity="one">%1$s produziu a terceira ocorrência, embora %2$d lance legal a teria evitado. Pela regra de repetição, %1$s perde.</item><item quantity="other">%1$s produziu a terceira ocorrência, embora %2$d lances legais a teriam evitado. Pela regra de repetição, %1$s perde.</item></plurals>
+    <string name="result_dead_position_material">O xeque-mate se tornou impossível, então a regra de material decidiu o vencedor.</string>
+    <string name="result_dead_position_material_score">O xeque-mate se tornou impossível. As brancas tinham %1$d pontos de material e as pretas %2$d, então %3$s venceu pela regra de material.</string>
+    <string name="result_dead_position_material_tie">O xeque-mate se tornou impossível com o material empatado em %1$d pontos para cada lado. Pela regra de material, venceu quem fez o lance final: %2$s.</string>
+    <string name="result_dead_position_final_capture">A captura final tornou o xeque-mate impossível. Pela regra Final Capture, venceu o jogador que fez essa captura.</string>
+    <string name="result_bare_king">%1$s ficou apenas com o rei, então %2$s venceu.</string>
     <string name="result_timeout">O tempo acabou.</string>
     <string name="result_resignation">A partida terminou por desistência.</string>
     <string name="result_forfeit">A partida terminou por abandono.</string>
-    <string name="result_fifty_move">O limite de cinquenta lances decidiu a partida.</string>
+    <string name="result_fifty_move">O limite de 50 lances foi atingido, então essa regra decidiu a partida.</string>
+    <string name="result_fifty_move_material_score">O limite de 50 lances foi atingido. As brancas tinham %1$d pontos de material e as pretas %2$d, então %3$s venceu.</string>
+    <string name="result_fifty_move_material_last_capture">O limite de 50 lances foi atingido com o material empatado em %1$d pontos para cada lado. %2$s fez a última captura e venceu.</string>
+    <string name="result_fifty_move_material_no_capture">O limite de 50 lances foi atingido com o material empatado em %1$d pontos para cada lado e sem capturas anteriores. O desempate por falta de progresso concedeu a partida a %2$s.</string>
+    <string name="result_fifty_move_completing_player">O limite de 50 lances foi atingido sem movimento de peão ou captura. O jogador cujo lance atingiu o limite perde.</string>
+    <string name="result_forced_fifty_move">Todos os lances legais de %1$s atingiriam o limite de 50 lances. Pela exceção de lance forçado, %2$s perde por forçar essa situação.</string>
+    <plurals name="result_avoidable_fifty_move"><item quantity="one">%1$s atingiu o limite de 50 lances, embora %2$d lance legal teria reiniciado a contagem. Pela regra dos 50 lances, %1$s perde.</item><item quantity="other">%1$s atingiu o limite de 50 lances, embora %2$d lances legais teriam reiniciado a contagem. Pela regra dos 50 lances, %1$s perde.</item></plurals>
 </resources>

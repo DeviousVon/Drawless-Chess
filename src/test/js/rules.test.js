@@ -1,7 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  adjudicate, DeadPositionPolicy as Dead, EndReason, FiftyMovePolicy as Fifty,
+  adjudicate, BareKingPolicy as BareKing, DeadPositionPolicy as Dead, EndReason,
+  FiftyMovePolicy as Fifty,
   positionAfterMove as pos, ruleset, Side, StalematePolicy as Stalemate,
 } from "../../main/js/rules.js";
 
@@ -9,9 +10,9 @@ const drawless = ruleset();
 const outcome = (overrides, rules = drawless) => adjudicate(rules, pos(overrides));
 
 test("ordinary position continues", () => assert.equal(outcome({}).terminal, false));
-test("drawless defaults to no 50-move limit", () => {
-  assert.equal(drawless.fiftyMove, Fifty.DISABLED);
-  assert.equal(outcome({ halfmoveClock: 100 }).terminal, false);
+test("drawless defaults to material victory at the 50-move limit", () => {
+  assert.equal(drawless.fiftyMove, Fifty.MATERIAL_VICTORY);
+  assert.equal(outcome({ halfmoveClock: 100, whiteMaterial: 5, blackMaterial: 3 }).winner, Side.WHITE);
 });
 test("checkmate awards mover", () => assert.equal(outcome({ mover: Side.BLACK, legalMoveCount: 0, sideToMoveInCheck: true }).winner, Side.BLACK));
 test("drawless stalemate defeats trapped player", () => assert.equal(outcome({ mover: Side.WHITE, legalMoveCount: 0 }).winner, Side.WHITE));
@@ -24,11 +25,11 @@ test("forced third repetition defeats forcing opponent", () => assert.equal(outc
   { mover: Side.WHITE, positionOccurrenceCount: 3, repetitionAvoidingAlternativesBeforeMove: 0 }).winner, Side.WHITE));
 test("second occurrence continues", () => assert.equal(outcome({ positionOccurrenceCount: 2 }).terminal, false));
 test("material victory chooses greater material", () => assert.equal(outcome(
-  { mover: Side.BLACK, deadPosition: true, moveWasCapture: true, whiteMaterial: 3, blackMaterial: 0 }).winner, Side.WHITE));
+  { mover: Side.BLACK, deadPosition: true, moveWasCapture: true, whiteMaterial: 3, blackMaterial: 1 }).winner, Side.WHITE));
 test("equal dead material rewards causing mover", () => assert.equal(outcome(
   { mover: Side.BLACK, deadPosition: true, moveWasCapture: true }).winner, Side.BLACK));
 test("final-capture rule rewards capturer", () => assert.equal(outcome(
-  { mover: Side.WHITE, deadPosition: true, moveWasCapture: true, blackMaterial: 9 },
+  { mover: Side.WHITE, deadPosition: true, moveWasCapture: true, whiteMaterial: 1, blackMaterial: 9 },
   ruleset({ deadPosition: Dead.FINAL_CAPTURE_VICTORY })).winner, Side.WHITE));
 test("final-capture rule rejects a non-capture transition", () => assert.throws(() => outcome(
   { deadPosition: true }, ruleset({ deadPosition: Dead.FINAL_CAPTURE_VICTORY }))));
@@ -40,6 +41,21 @@ test("disabled 50-move policy continues", () => assert.equal(outcome(
 test("forced 50-move exception defeats forcing opponent", () => assert.equal(outcome(
   { mover: Side.WHITE, halfmoveClock: 100, fiftyMoveAvoidingAlternativesBeforeMove: 0 },
   ruleset({ fiftyMove: Fifty.FORCED_MOVE_EXCEPTION })).winner, Side.WHITE));
+test("bare king loses immediately", () => assert.deepEqual(
+  { winner: outcome({ whiteMaterial: 5, blackMaterial: 0 }).winner,
+    reason: outcome({ whiteMaterial: 5, blackMaterial: 0 }).reason },
+  { winner: Side.WHITE, reason: EndReason.BARE_KING }));
+test("legacy bare-king policy continues", () => assert.equal(outcome(
+  { whiteMaterial: 5, blackMaterial: 0 },
+  ruleset({ bareKing: BareKing.CONTINUE, fiftyMove: Fifty.DISABLED })).terminal, false));
+test("50-move material tie rewards last capturer", () => assert.equal(outcome(
+  { halfmoveClock: 100, whiteMaterial: 5, blackMaterial: 5, lastCaptureBy: Side.BLACK }).winner,
+  Side.BLACK));
+test("50-move material tie without captures uses the forced-move exception", () => {
+  assert.equal(outcome({ mover: Side.WHITE, halfmoveClock: 100 }).winner, Side.BLACK);
+  assert.equal(outcome({ mover: Side.WHITE, halfmoveClock: 100,
+    fiftyMoveAvoidingAlternativesBeforeMove: 0 }).winner, Side.WHITE);
+});
 test("checkmate outranks repetition", () => assert.equal(outcome(
   { legalMoveCount: 0, sideToMoveInCheck: true, positionOccurrenceCount: 3 }).reason, EndReason.CHECKMATE));
 test("repetition outranks dead-position adjudication", () => assert.equal(outcome(

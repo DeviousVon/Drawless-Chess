@@ -24,7 +24,7 @@ Official references:
 2. First-run Drawless rules guide and an in-app GPL/open-source summary.
 3. Casual play by default; the unfinished offline-rating mode is no longer exposed.
 4. Drawless defaults with Escape and dead-position variants under Advanced Rules.
-5. No automatic 50-move ending; dead-position and third-repetition adjudication remain.
+5. A bare king loses immediately; after 50 moves without a pawn move or capture, material points decide. Dead-position and third-repetition adjudication remain.
 6. Untimed, 3-minute, 5-minute, 10-minute, and 15+10 clocks.
 7. Random player side by default, with White or Black choices, and seven descriptive opponent levels.
 8. Responsive game screen, durable Room-backed Resume, post-game result, Home, and Rematch.

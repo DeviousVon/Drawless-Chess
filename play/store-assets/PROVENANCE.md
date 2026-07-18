@@ -17,36 +17,33 @@ tool; their source masters, prompts, derivation details, and hashes are retained
 
 ## Current screenshot capture set
 
-All ten screenshots were captured on July 14, 2026 from the same current debug candidate:
+All ten screenshots were recaptured on July 18, 2026 from the same current debug candidate:
 
 - app APK: `android/app/build/outputs/apk/debug/app-debug.apk`
-- size: 17,709,024 bytes
-- SHA-256: `25a252a21b65a768c19b74e1dfecdb4ee7af2093ee0761c9fa06e3c85d0b87ff`
+- size: 18,861,297 bytes
+- SHA-256: `76e896c3b9ab6728c352f27050d0771219fd33dd9958f63dd8d72072cb44f8b3`
 
 The phone set came from the Android 16 / API 36 emulator at its native 1080 × 2400 display size.
-It is identified as emulator output and is not represented as a Pixel capture. The physical Pixel
-had already completed its separate candidate acceptance run before disconnecting.
-
-The tablet set came from a physical TAB R6 Ultra running Android 13 / API 33. Portrait captures
-are native 1200 × 2000; the landscape defeat capture is native 2000 × 1200. The tablet was awake,
-unlocked, and kept on USB power. Its original automatic-rotation setting was restored after the
-landscape run.
+The tablet set came from the same API 36 emulator using a deterministic 1200 × 2000, 240 dpi
+tablet profile; its landscape capture is 2000 × 1200. Both sets are identified as emulator output
+and are not represented as physical Pixel or tablet captures. Physical-device play testing remains
+a separate release gate.
 
 Raw device captures are retained locally under `source-captures/current` and ignored by Git so
 system chrome is never unintentionally published. Their exact hashes are:
 
 | Raw capture | SHA-256 |
 |---|---|
-| `phone-home-current.png` | `c26da515159c75d89a44d5aeb754b76491a8a55f0252cfac17a53bae8257ec4b` |
-| `phone-themes-current.png` | `65abc974f88d1aadfeef57b4ddd5b390488f69c954887cd708502926e5543fb1` |
-| `phone-gameplay-current.png` | `925d1888c265ace174d479bf52517498bfd1f4feff0a7b7bc0a93ff8711ed97a` |
-| `phone-victory-current.png` | `47ec9af9e692a3dcfccb199d92d175256cf8f7893705b20610ccc1ba59d4d0a1` |
-| `phone-defeat-current.png` | `208f97642007091225552d38cbbd67ecc3f511dec307f61f475f9ea2c9078ff7` |
-| `tablet-home-current.png` | `71ea54e1e0fd99d21d99613259ed4b605e2b41313316599a2dba60126e27e0a1` |
-| `tablet-themes-current.png` | `ebae43410f126b22349d2f254eec2c8a396f726915c2cd6ce8a2d4143d3c6792` |
-| `tablet-gameplay-current.png` | `d0373a76e94dbce93f9324468b43de60904c4278c6d739377b05d9f2066b9dff` |
-| `tablet-victory-current.png` | `8864a3e5e7b9a008ce2670867594f44d2c1201f64ebb7b4dd3fde30d365a3e70` |
-| `tablet-defeat-landscape-current.png` | `f558443919931e32fee0e99cb1a979ae4bdd5c056cb2846e9457d71541a8e551` |
+| `phone-home-current.png` | `f8c5f27e5933e41e4b57bd244b7942d870942d80b9d3f7d0cb1f8da30b362e64` |
+| `phone-themes-current.png` | `57e83aa9dce4c548b452d495afc46b0cea89d3c7ae472bbfef1ad3012715266b` |
+| `phone-gameplay-current.png` | `6ce51c6409fd768473824fdf9658b279e685b2238a8c99befd78172f9025d2fa` |
+| `phone-victory-current.png` | `2def6327b49c5b898ebc574c10c45321dacf8f19d287254e7d50dfc3881efdf3` |
+| `phone-defeat-current.png` | `fd38b4fe5883ad2555f532f5e05375eda9d05231ad7364695b2135d409190598` |
+| `tablet-home-current.png` | `b3d2815604389f8ee08fdb08588ca647dedacdd993a05a5021863a5a0887bdcb` |
+| `tablet-themes-current.png` | `ae26b7971757530f7f4c669031759f3d20074ef3026dfe4f0a0ca9d301469054` |
+| `tablet-gameplay-current.png` | `225e188c1da1e81639d0b4f755832404b9db5bd564a45e40932dbf977d5f791c` |
+| `tablet-victory-current.png` | `f3a4741d674ac15cfb749832f9b7e714917c9ae3319fadb0ba24799547b56342` |
+| `tablet-defeat-landscape-current.png` | `bc395c3dbfc99a50909764272809912eb99ccfce5e48441e73be08482b3d2ce2` |
 
 ## Deterministic marketing states
 
@@ -64,8 +61,8 @@ The game states are legal, reproducible chess positions rather than stress fixtu
 
 The production victory timeline is captured at exactly 1,210 ms and the production defeat
 timeline at exactly 890 ms by the Compose test clock. This keeps the real animation renderer at a
-repeatable, legible frame without synthesizing or retouching any overlay. The harness passed on
-both the API 36 phone emulator and the physical API 33 tablet.
+repeatable, legible frame without synthesizing or retouching any overlay. This refreshed capture
+run passed on both the API 36 phone and tablet emulator profiles.
 
 ## Processing
 
@@ -74,9 +71,9 @@ No screenshot is stretched, composited, painted over, or altered inside the app 
 
 - Phone captures are cropped without scaling to 1080 × 1920. Crop origins are recorded per row
   in `asset-manifest.csv`; system bars and unused vertical device area are excluded.
-- Portrait tablet captures remove only the 41-pixel status bar and 41-pixel navigation bar,
-  producing 1200 × 1918 images without scaling.
-- The landscape tablet capture removes the same system bars and remains 2000 × 1118 without
+- Portrait tablet captures exclude emulator system chrome and produce 1200 × 1838 images without
+  scaling.
+- The landscape tablet capture excludes emulator system chrome and remains 2000 × 1054 without
   scaling.
 
 Exact source paths, transformations, output dimensions, byte sizes, hashes, and suggested alt text
@@ -87,7 +84,7 @@ are recorded in `asset-manifest.csv`.
 - Store icon: 512 × 512, fully opaque 32-bit ARGB PNG, 6,461 bytes.
 - Feature graphic: 1024 × 500, 24-bit RGB PNG, 43,272 bytes.
 - Phone screenshots: five 1080 × 1920 24-bit RGB PNGs.
-- Tablet screenshots: four 1200 × 1918 and one 2000 × 1118 24-bit RGB PNGs.
+- Tablet screenshots: four 1200 × 1838 and one 2000 × 1054 24-bit RGB PNGs.
 - Every screenshot is within Google's 2:1 maximum long-side/short-side ratio.
 - All twelve outputs were inspected at rendered and original resolution. Text is legible, modal
   content is complete, no image is stretched, and no system notification identifier remains.

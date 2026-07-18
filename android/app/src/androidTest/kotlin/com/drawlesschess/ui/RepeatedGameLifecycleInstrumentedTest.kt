@@ -2,6 +2,7 @@ package com.drawlesschess.ui
 
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.assertContentDescriptionEquals
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.onAllNodesWithContentDescription
@@ -43,11 +44,10 @@ class RepeatedGameLifecycleInstrumentedTest {
         startWhiteCustomGame()
 
         compose.onNodeWithTag("game_theme_selector").performClick()
-        compose.onNodeWithTag("theme_option_emerald_court").performClick().assertIsSelected()
-        compose.onNodeWithText("Done").performClick()
+        compose.onNodeWithTag("theme_option_verdigris_copper").performClick()
         compose.waitUntil(timeoutMillis = 10_000L) {
             runCatching {
-                compose.onNodeWithTag("chess_board_emerald_court").fetchSemanticsNode()
+                compose.onNodeWithTag("chess_board_verdigris_copper").fetchSemanticsNode()
             }.isSuccess
         }
 
@@ -104,18 +104,18 @@ class RepeatedGameLifecycleInstrumentedTest {
     @Test
     fun customGameUsesDescriptiveLevelsAndKeepsEscapeAdvanced() {
         dismissRulesGuideIfShown()
+        compose.onNodeWithTag("home_brand_hero").assertIsDisplayed()
         waitForText("Theme ·", substring = true)
         compose.onNodeWithTag("home_theme").performClick()
         BoardThemes.all.forEach { theme ->
             compose.onNodeWithTag("theme_option_${theme.id}").performScrollTo().fetchSemanticsNode()
         }
-        compose.onNodeWithTag("theme_option_royal_amethyst")
+        compose.onNodeWithTag("theme_option_amethyst_geode")
             .performScrollTo()
             .performClick()
-            .assertIsSelected()
-        assertEquals(BoardThemes.ROYAL_AMETHYST, ThemePreferenceStore(compose.activity).load())
-        compose.onNodeWithText("Done").performClick()
-        waitForText("Theme · Royal Amethyst")
+        assertEquals(BoardThemes.AMETHYST_GEODE, ThemePreferenceStore(compose.activity).load())
+        waitForText("Theme · Amethyst Geode")
+        compose.onNodeWithTag("home_brand_hero").assertIsDisplayed()
 
         waitForText("Custom game")
         compose.onNodeWithText("Custom game").performClick()
@@ -157,7 +157,9 @@ class RepeatedGameLifecycleInstrumentedTest {
         waitForText("Resign this game?")
         compose.onNodeWithText("Resign game").performClick()
         waitForText("Defeat")
-        waitForText("Theo won this game.")
+        // Quick Play intentionally remembers the opponent chosen by earlier sessions, so this
+        // lifecycle test must not assume the default character is still selected.
+        waitForText("won this game.", substring = true)
         waitForText("Rematch")
 
         compose.onNodeWithTag("post_game_rematch").performClick()

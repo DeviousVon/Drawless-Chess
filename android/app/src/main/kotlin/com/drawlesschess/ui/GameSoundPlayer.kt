@@ -31,6 +31,11 @@ internal class GameSoundPlayer(context: Context) : AutoCloseable {
         val resource: Int? = null,
     )
 
+    private data class ActiveStream(
+        val id: Int,
+        val baseVolume: Float,
+    )
+
     private val lock = Any()
     private val pool = SoundPool.Builder()
         .setMaxStreams(MAX_SIMULTANEOUS_STREAMS)
@@ -46,8 +51,7 @@ internal class GameSoundPlayer(context: Context) : AutoCloseable {
     private val loadedSamples = HashSet<Int>(SampledSoundCatalog.all.size)
     private val failedSamples = HashSet<Int>()
     private val pendingSamples = HashMap<Int, PendingSample>()
-    private val activeStreams = ArrayDeque<Int>()
-
+    private val activeStreams = ArrayDeque<ActiveStream>()
     private val moves = SoundShuffleBag(SampledSoundCatalog.moves)
     private val captures = SoundShuffleBag(SampledSoundCatalog.captures)
     private val castles = SoundShuffleBag(SampledSoundCatalog.castles)
@@ -65,8 +69,10 @@ internal class GameSoundPlayer(context: Context) : AutoCloseable {
     private val undo = SoundShuffleBag(SampledSoundCatalog.undo)
 
     private var enabled = true
+    private var volumeMultiplier = soundVolumeMultiplier(DEFAULT_SOUND_VOLUME_PERCENT)
     private var closed = false
     private var completionSession: CompletionSession? = null
+    private var previewStreamId: Int? = null
 
     init {
         pool.setOnLoadCompleteListener loadListener@{ _, sampleId, status ->
@@ -119,7 +125,7 @@ internal class GameSoundPlayer(context: Context) : AutoCloseable {
     fun playMove(capture: Boolean) {
         synchronized(lock) {
             if (closed || !enabled) return
-            playBagLocked(if (capture) captures else moves, if (capture) 0.54f else 0.46f)
+            playBagLocked(if (capture) captures else moves, if (capture) CAPTURE_VOLUME else MOVE_VOLUME)
         }
     }
 
@@ -127,11 +133,13 @@ internal class GameSoundPlayer(context: Context) : AutoCloseable {
     fun playMove(san: String) {
         synchronized(lock) {
             if (closed || !enabled) return
-            when {
-                san.startsWith("O-O") -> playBagLocked(castles, 0.55f)
-                'x' in san -> playBagLocked(captures, 0.54f)
-                else -> playBagLocked(moves, 0.46f)
+            val plan = moveSoundPlan(san)
+            when (plan.primary) {
+                PrimaryMoveSound.MOVE -> playBagLocked(moves, MOVE_VOLUME)
+                PrimaryMoveSound.CAPTURE -> playBagLocked(captures, CAPTURE_VOLUME)
+                PrimaryMoveSound.CASTLE -> playBagLocked(castles, CASTLE_VOLUME)
             }
+            if (plan.checkTick) playBagLocked(checks, CHECK_VOLUME)
         }
     }
 
@@ -144,29 +152,67 @@ internal class GameSoundPlayer(context: Context) : AutoCloseable {
         }
     }
 
+    /** Applies a true linear 0-100% master to the already mastered source mix. */
+    fun setVolumePercent(value: Int) {
+        synchronized(lock) {
+            if (closed) return
+            volumeMultiplier = soundVolumeMultiplier(value)
+            activeStreams.forEach { stream ->
+                val volume = effectiveVolume(stream.baseVolume)
+                try {
+                    pool.setVolume(stream.id, volume, volume)
+                } catch (_: RuntimeException) {
+                    // A short sample may have completed while its persisted level changed.
+                }
+            }
+        }
+    }
+
+    /** Previews a stable, median-loudness move sample at the currently selected master level. */
+    fun playVolumePreview() {
+        synchronized(lock) {
+            if (closed || !enabled) return
+            stopPreviewLocked()
+            clearOrdinaryPendingLocked()
+
+            val resource = SampledSoundCatalog.volumePreview
+            val sampleId = resourceToSample[resource] ?: return
+            if (sampleId in loadedSamples) {
+                previewStreamId = startSampleLocked(sampleId, MOVE_VOLUME).takeIf { it != 0 }
+            } else if (sampleId !in failedSamples) {
+                playResourceLocked(resource, MOVE_VOLUME, token = null)
+            }
+        }
+    }
+
     /** Plays the sample at the exact marker crossed by the shared visual animation clock. */
     fun playCompletionCue(cue: CompletionEffectCue) {
         synchronized(lock) {
             if (closed || !enabled) return
             when (cue) {
                 CompletionEffectCue.FIREWORK_LOW -> startVictoryLocked()
-                CompletionEffectCue.FIREWORK_MID -> continueVictoryLocked(fireworkMid, 0.52f)
-                CompletionEffectCue.FIREWORK_HIGH -> continueVictoryLocked(fireworkHigh, 0.48f)
+                CompletionEffectCue.FIREWORK_MID -> continueVictoryLocked(fireworkMid, FIREWORK_VOLUME)
+                CompletionEffectCue.FIREWORK_HIGH -> continueVictoryLocked(fireworkHigh, FIREWORK_VOLUME)
                 CompletionEffectCue.GLASS_IMPACT -> startDefeatLocked()
-                CompletionEffectCue.GLASS_FRACTURE -> continueDefeatLocked(cue, 0.52f)
-                CompletionEffectCue.GLASS_SHARDS -> continueDefeatLocked(cue, 0.42f)
+                CompletionEffectCue.GLASS_FRACTURE -> continueDefeatLocked(cue, GLASS_FRACTURE_VOLUME)
+                CompletionEffectCue.GLASS_SHARDS -> continueDefeatLocked(cue, GLASS_SHARDS_VOLUME)
             }
         }
     }
 
-    // Reserved for the matching UI events; intentionally not wired until those event contracts
+    // Reserved for matching UI events; intentionally not wired until those event contracts
     // can guarantee one-shot playback across recreation and saved-game restore.
-    fun playCheck() = playOptional(checks, 0.16f)
-    fun playPromotion() = playOptional(promotions, 0.24f)
-    fun playHint() = playOptional(hints, 0.24f)
-    fun playLowTime() = playOptional(lowTime, 0.24f)
-    fun playGameStart() = playOptional(gameStart, 0.28f)
-    fun playUndo() = playOptional(undo, 0.20f)
+    fun playCheck() {
+        synchronized(lock) {
+            if (closed || !enabled) return
+            playBagLocked(checks, CHECK_VOLUME)
+        }
+    }
+    fun playPromotion() = playOptional(promotions, PROMOTION_VOLUME)
+    fun playHint() = playOptional(hints, HINT_VOLUME)
+    fun playLowTime() = playOptional(lowTime, LOW_TIME_VOLUME)
+    fun playGameStart() = playOptional(gameStart, GAME_START_VOLUME)
+    fun playUndo() = playOptional(undo, UNDO_VOLUME)
 
     fun stopAll() {
         synchronized(lock) {
@@ -206,7 +252,7 @@ internal class GameSoundPlayer(context: Context) : AutoCloseable {
         cancelCompletionLocked()
         val session = CompletionSession(CompletionKind.VICTORY)
         completionSession = session
-        playBagLocked(fireworkLow, 0.55f, session.token)
+        playBagLocked(fireworkLow, FIREWORK_VOLUME, session.token)
     }
 
     private fun continueVictoryLocked(bag: SoundShuffleBag, volume: Float) {
@@ -222,7 +268,7 @@ internal class GameSoundPlayer(context: Context) : AutoCloseable {
         completionSession = session
         playResourceLocked(
             SampledSoundCatalog.glassImpact[variant],
-            0.64f,
+            GLASS_IMPACT_VOLUME,
             session.token,
         )
     }
@@ -348,33 +394,54 @@ internal class GameSoundPlayer(context: Context) : AutoCloseable {
     }
 
     private fun playSampleLocked(sampleId: Int, volume: Float): Boolean =
+        startSampleLocked(sampleId, volume) != 0
+
+    private fun startSampleLocked(sampleId: Int, volume: Float): Int =
         try {
-            val streamId = pool.play(sampleId, volume, volume, 1, 0, 1f)
+            val effectiveVolume = effectiveVolume(volume)
+            val streamId = pool.play(sampleId, effectiveVolume, effectiveVolume, 1, 0, 1f)
             if (streamId == 0) {
                 Log.w(AUDIO_LOG_TAG, "SoundPool could not start sample=$sampleId")
-                false
+                0
             } else {
-                activeStreams.addLast(streamId)
+                activeStreams.addLast(ActiveStream(streamId, volume))
                 while (activeStreams.size > MAX_TRACKED_STREAMS) {
-                    pool.stop(activeStreams.removeFirst())
+                    val removed = activeStreams.removeFirst()
+                    if (previewStreamId == removed.id) previewStreamId = null
+                    pool.stop(removed.id)
                 }
-                true
+                streamId
             }
         } catch (exception: RuntimeException) {
             Log.w(AUDIO_LOG_TAG, "Sample playback failed", exception)
-            false
+            0
         }
+
+    private fun effectiveVolume(baseVolume: Float): Float =
+        (baseVolume * volumeMultiplier).coerceIn(0f, 1f)
 
     private fun clearOrdinaryPendingLocked() {
         pendingSamples.entries.removeAll { entry -> entry.value.completionToken == null }
     }
 
+    private fun stopPreviewLocked() {
+        val streamId = previewStreamId ?: return
+        previewStreamId = null
+        activeStreams.removeAll { stream -> stream.id == streamId }
+        try {
+            pool.stop(streamId)
+        } catch (_: RuntimeException) {
+            // The short preview may have completed before the player selects another level.
+        }
+    }
+
     private fun stopAllLocked() {
         cancelCompletionLocked()
         pendingSamples.clear()
+        previewStreamId = null
         while (activeStreams.isNotEmpty()) {
             try {
-                pool.stop(activeStreams.removeFirst())
+                pool.stop(activeStreams.removeFirst().id)
             } catch (_: RuntimeException) {
                 // Already stopped or released by the platform.
             }
@@ -386,6 +453,22 @@ internal class GameSoundPlayer(context: Context) : AutoCloseable {
         pendingSamples.entries.removeAll { entry -> entry.value.completionToken != null }
     }
 }
+
+internal enum class PrimaryMoveSound { MOVE, CAPTURE, CASTLE }
+
+internal data class MoveSoundPlan(
+    val primary: PrimaryMoveSound,
+    val checkTick: Boolean,
+)
+
+internal fun moveSoundPlan(san: String): MoveSoundPlan = MoveSoundPlan(
+    primary = when {
+        san.startsWith("O-O") -> PrimaryMoveSound.CASTLE
+        'x' in san -> PrimaryMoveSound.CAPTURE
+        else -> PrimaryMoveSound.MOVE
+    },
+    checkTick = san.endsWith("+") || san.endsWith("#"),
+)
 
 /** Shuffle bag with cycle-boundary repeat prevention; callers provide their own synchronization. */
 internal class SoundShuffleBag(
@@ -513,3 +596,16 @@ private const val AUDIO_LOG_TAG = "DrawlessAudio"
 private const val MAX_SIMULTANEOUS_STREAMS = 8
 private const val MAX_TRACKED_STREAMS = 64
 private const val PENDING_SAMPLE_MAX_AGE_MS = 250L
+private const val MOVE_VOLUME = 0.90f
+private const val CAPTURE_VOLUME = 0.95f
+private const val CASTLE_VOLUME = 0.90f
+private const val CHECK_VOLUME = 0.70f
+private const val FIREWORK_VOLUME = 1.00f
+private const val GLASS_IMPACT_VOLUME = 0.95f
+private const val GLASS_FRACTURE_VOLUME = 0.85f
+private const val GLASS_SHARDS_VOLUME = 0.75f
+private const val PROMOTION_VOLUME = 1.00f
+private const val HINT_VOLUME = 0.70f
+private const val LOW_TIME_VOLUME = 0.80f
+private const val GAME_START_VOLUME = 0.80f
+private const val UNDO_VOLUME = 0.70f

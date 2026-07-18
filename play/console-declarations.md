@@ -1,6 +1,6 @@
 # Play Console declaration recommendations
 
-These are draft answers for the inspected `com.drawlesschess` version `0.2.0` build. Match
+These are draft answers for the inspected `com.drawlesschess` version `0.3.0` build. Match
 them to the current Console wording, and revisit every answer if the app changes.
 
 ## Ads

@@ -9,14 +9,10 @@ import android.graphics.Bitmap
 import android.os.SystemClock
 import android.text.TextUtils
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.MutableState
@@ -60,17 +56,20 @@ import com.drawlesschess.core.presentation.BoardPresenter
 import com.drawlesschess.core.presentation.BoardTheme
 import com.drawlesschess.core.presentation.BoardThemes
 import com.drawlesschess.core.presentation.ClockView
+import com.drawlesschess.core.presentation.ControlPlacement
 import com.drawlesschess.core.presentation.GameControlsView
 import com.drawlesschess.core.presentation.GameHistoryPresenter
 import com.drawlesschess.core.presentation.GameResultView
 import com.drawlesschess.core.presentation.GameScreenModel
 import com.drawlesschess.core.presentation.PieceSets
+import com.drawlesschess.core.presentation.ResponsiveBoardLayout
 import com.drawlesschess.persistence.DrawlessDatabase
 import com.drawlesschess.persistence.RoomCheckpointStore
 import java.io.File
 import java.io.FileOutputStream
 import java.util.Locale
 import java.util.concurrent.Executors
+import kotlin.math.roundToInt
 
 /**
  * Opt-in Google Play screenshot exporter. It deliberately reuses an existing test method so the
@@ -118,8 +117,24 @@ internal object StoreScreenshotHarness {
                         DrawlessTheme(theme = themeFor(scene.value)) {
                             when (scene.value) {
                                 MarketingScene.HOME -> DrawlessApp(viewModel, soundPlayer)
-                                MarketingScene.GAMEPLAY -> MarketingGame(
-                                    model = gameplayModel(),
+                                MarketingScene.GLACIER_SLATE -> MarketingGame(
+                                    model = gameplayModel(BoardThemes.GLACIER_SLATE),
+                                    opponent = OpponentProfiles.quickPlay,
+                                )
+                                MarketingScene.DESERT_SANDSTONE -> MarketingGame(
+                                    model = gameplayModel(BoardThemes.DESERT_SANDSTONE),
+                                    opponent = OpponentProfiles.quickPlay,
+                                )
+                                MarketingScene.IMPERIAL_MARBLE -> MarketingGame(
+                                    model = gameplayModel(BoardThemes.IMPERIAL_MARBLE),
+                                    opponent = OpponentProfiles.quickPlay,
+                                )
+                                MarketingScene.VERDIGRIS_COPPER -> MarketingGame(
+                                    model = gameplayModel(BoardThemes.VERDIGRIS_COPPER),
+                                    opponent = OpponentProfiles.quickPlay,
+                                )
+                                MarketingScene.AMETHYST_GEODE -> MarketingGame(
+                                    model = gameplayModel(BoardThemes.AMETHYST_GEODE),
                                     opponent = OpponentProfiles.quickPlay,
                                 )
                                 MarketingScene.VICTORY -> MarketingGame(
@@ -160,7 +175,7 @@ internal object StoreScreenshotHarness {
         compose.onNodeWithTag("home_theme").performClick()
         compose.onNodeWithTag("theme_picker").fetchSemanticsNode()
         save(compose, "phone-themes-current.png")
-        setScene(compose, scene, MarketingScene.GAMEPLAY)
+        setScene(compose, scene, MarketingScene.IMPERIAL_MARBLE)
         save(compose, "phone-gameplay-current.png")
         setTimedScene(compose, scene, MarketingScene.VICTORY, VICTORY_CAPTURE_MILLIS)
         save(compose, "phone-victory-current.png", waitForIdle = false)
@@ -177,7 +192,7 @@ internal object StoreScreenshotHarness {
         compose.onNodeWithTag("home_theme").performClick()
         compose.onNodeWithTag("theme_picker").fetchSemanticsNode()
         save(compose, "tablet-themes-current.png")
-        setScene(compose, scene, MarketingScene.GAMEPLAY)
+        setScene(compose, scene, MarketingScene.IMPERIAL_MARBLE)
         save(compose, "tablet-gameplay-current.png")
         setTimedScene(compose, scene, MarketingScene.VICTORY, VICTORY_CAPTURE_MILLIS)
         save(compose, "tablet-victory-current.png", waitForIdle = false)
@@ -289,89 +304,76 @@ internal object StoreScreenshotHarness {
         opponent: OpponentProfile,
         completion: GameResultView? = null,
     ) {
-        Scaffold(
-            topBar = {
-                TopAppBar(
-                    title = {
-                        Column {
-                            Text(stringResource(R.string.app_name))
-                            Text(
-                                stringResource(
-                                    R.string.game_title_summary,
-                                    stringResource(
-                                        if (model.rulesPreset == RulesContractV1.Preset.DRAWLESS) {
-                                            R.string.rules_label_drawless
-                                        } else {
-                                            R.string.rules_label_escape
-                                        },
-                                    ),
-                                    stringResource(
-                                        if (model.mode == GameMode.CASUAL) R.string.mode_casual
-                                        else R.string.mode_rated,
-                                    ),
-                                ),
-                                style = MaterialTheme.typography.labelSmall,
-                            )
-                        }
-                    },
-                    navigationIcon = {
-                        TextButton(onClick = {}) { Text(stringResource(R.string.game_save_exit)) }
-                    },
-                    actions = {
-                        TextButton(onClick = {}) { Text(stringResource(R.string.action_theme)) }
-                    },
-                )
-            },
-        ) { padding ->
-            Box(Modifier.fillMaxSize().padding(padding)) {
-                GameBody(
-                    model = model,
-                    opponent = opponent,
-                    modifier = Modifier.fillMaxSize(),
-                    onBoardEvent = {},
-                    onPause = {},
-                    onUndo = {},
-                    onHint = {},
-                    onFlip = {},
-                    onRetryBot = {},
-                    onResign = {},
-                    onDismissMessage = {},
-                    showBoardCoordinates = true,
-                    onMoveAnimationFinished = {},
-                )
-                completion?.let { result ->
-                    CompletionEffectOverlay(
-                        result = result,
+        BoxWithConstraints(Modifier.fillMaxSize()) {
+            val fullWindowLayout = ResponsiveBoardLayout.calculate(
+                maxWidth.value.roundToInt(),
+                maxHeight.value.roundToInt(),
+            )
+            val headerInSidePanel = fullWindowLayout.controlPlacement ==
+                ControlPlacement.BESIDE_BOARD
+
+            Scaffold(
+                topBar = {
+                    if (!headerInSidePanel) {
+                        GameTopBar(model, {}, {}, {})
+                    }
+                },
+            ) { padding ->
+                Box(Modifier.fillMaxSize().padding(padding)) {
+                    GameBody(
+                        model = model,
                         opponent = opponent,
-                        onCue = {},
-                        onFinished = {},
                         modifier = Modifier.fillMaxSize(),
+                        sideHeader = {
+                            if (headerInSidePanel) GameSideHeader(model, {}, {}, {})
+                        },
+                        onBoardEvent = {},
+                        onPause = {},
+                        onUndo = {},
+                        onHint = {},
+                        onFlip = {},
+                        onRetryBot = {},
+                        onResign = {},
+                        onDismissMessage = {},
+                        showBoardCoordinates = true,
+                        onMoveAnimationFinished = {},
                     )
+                    completion?.let { result ->
+                        CompletionEffectOverlay(
+                            result = result,
+                            opponent = opponent,
+                            onCue = {},
+                            onFinished = {},
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    }
                 }
             }
         }
     }
 
-    private fun gameplayModel(): GameScreenModel = modelFromMoves(
+    private fun gameplayModel(
+        theme: BoardTheme = BoardThemes.GLACIER_SLATE,
+    ): GameScreenModel = modelFromMoves(
         moves = listOf(
             "e2e4", "d7d5", "e4d5", "d8d5", "b1c3", "d5d8",
             "d2d4", "g8f6", "g1f3", "c7c6", "f1d3", "c8g4",
         ),
         humanSide = Side.WHITE,
-        theme = BoardThemes.MODERN_WALNUT,
+        theme = theme,
     )
 
     private fun victoryModel(): GameScreenModel = modelFromMoves(
         moves = listOf("e2e4", "e7e5", "d1h5", "b8c6", "f1c4", "g8f6", "h5f7"),
         humanSide = Side.WHITE,
-        theme = BoardThemes.EMERALD_COURT,
+        theme = BoardThemes.VERDIGRIS_COPPER,
         result = victoryResult(),
     )
 
     private fun defeatModel(): GameScreenModel = modelFromMoves(
         moves = listOf("f2f3", "e7e5", "g2g4", "d8h4"),
         humanSide = Side.WHITE,
-        theme = BoardThemes.EMERALD_COURT,
+        theme = BoardThemes.VERDIGRIS_COPPER,
         result = defeatResult(),
     )
 
@@ -459,12 +461,25 @@ internal object StoreScreenshotHarness {
     )
 
     private fun themeFor(scene: MarketingScene): BoardTheme = when (scene) {
-        MarketingScene.HOME -> BoardThemes.OBSIDIAN_GLASS
-        MarketingScene.GAMEPLAY -> BoardThemes.MODERN_WALNUT
-        MarketingScene.VICTORY, MarketingScene.DEFEAT -> BoardThemes.EMERALD_COURT
+        MarketingScene.HOME -> BoardThemes.IMPERIAL_MARBLE
+        MarketingScene.GLACIER_SLATE -> BoardThemes.GLACIER_SLATE
+        MarketingScene.DESERT_SANDSTONE -> BoardThemes.DESERT_SANDSTONE
+        MarketingScene.IMPERIAL_MARBLE -> BoardThemes.IMPERIAL_MARBLE
+        MarketingScene.VERDIGRIS_COPPER -> BoardThemes.VERDIGRIS_COPPER
+        MarketingScene.AMETHYST_GEODE -> BoardThemes.AMETHYST_GEODE
+        MarketingScene.VICTORY, MarketingScene.DEFEAT -> BoardThemes.VERDIGRIS_COPPER
     }
 
-    private enum class MarketingScene { HOME, GAMEPLAY, VICTORY, DEFEAT }
+    private enum class MarketingScene {
+        HOME,
+        GLACIER_SLATE,
+        DESERT_SANDSTONE,
+        IMPERIAL_MARBLE,
+        VERDIGRIS_COPPER,
+        AMETHYST_GEODE,
+        VICTORY,
+        DEFEAT,
+    }
 
     /** Instrumentation's package context has no Application object on some older Android builds. */
     private class SelfApplicationContext(base: Context) : ContextWrapper(base) {

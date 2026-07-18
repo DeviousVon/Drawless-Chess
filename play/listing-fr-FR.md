@@ -26,7 +26,8 @@ Drawless Chess revisite les règles familières des échecs afin de remplacer le
 • Avec la règle de pat par défaut, un joueur sans coup légal perd.
 • Le joueur qui provoque une troisième occurrence de la même position perd, sauf si tous les coups légaux répètent la position.
 • Quand l’échec et mat devient impossible, la règle de position morte sélectionnée attribue la victoire.
-• Il n’y a pas de fin automatique selon la règle des 50 coups.
+• Un joueur auquel il ne reste que le roi perd immédiatement.
+• Après 50 coups sans mouvement de pion ni capture, les points de matériel déterminent le vainqueur.
 
 JOUEZ ENTIÈREMENT HORS LIGNE
 Affrontez le moteur d’échecs intégré sans compte, sans connexion Internet et sans mise en relation en ligne. Choisissez parmi sept niveaux d’adversaire clairement décrits, de Débutant à Grand maître.
@@ -47,21 +48,21 @@ CONÇU POUR DE VRAIES PARTIES
 • Interfaces adaptées aux téléphones et aux tablettes
 
 CINQ THÈMES DISTINCTS
-Choisissez parmi Verre d’obsidienne, Ardoise arctique, Noyer moderne, Cour d’émeraude et Améthyste royale. Votre choix est mémorisé sur votre appareil.
+Choisissez parmi Marbre impérial, Grès du désert, Ardoise glaciaire, Cuivre vert-de-gris et Géode d’améthyste. Votre choix est mémorisé sur votre appareil.
 
 LA CONFIDENTIALITÉ AVANT TOUT
 Aucun compte. Aucune publicité. Aucune analyse d’utilisation ni aucun suivi. Aucun achat intégré. Les parties et les préférences restent dans le stockage local de l’application, sous réserve de vos paramètres de sauvegarde Android.
 
 LOGICIEL OPEN SOURCE
 Drawless Chess est proposé sous licence GNU GPL version 3 ou ultérieure. Le code source du projet et les mentions sont disponibles à l’adresse suivante :
-https://github.com/DeviousVon/Drawless-Chess/releases/tag/v0.2.0
+https://github.com/DeviousVon/Drawless-Chess/releases/tag/v0.3.0
 ```
 
 Nombre de caractères : 2 647 sur 4 000, retours à la ligne compris.
 
 ## Notes de version
 
-Brouillon pour la version `0.2.0` :
+Brouillon pour la version `0.3.0` :
 
 ```text
 Bienvenue dans Drawless Chess. Jouez hors ligne contre sept adversaires illustrés, en Partie rapide avec un camp aléatoire ou avec vos règles et cadences. Suivez les captures, le matériel, l’historique, les séries et les scores ; profitez des menaces facultatives, des indices, des annulations, de cinq thèmes, des sons d’échiquier, des revanches et des effets de victoire ou de défaite. Sans compte, publicité, analyse d’utilisation ni achat intégré.

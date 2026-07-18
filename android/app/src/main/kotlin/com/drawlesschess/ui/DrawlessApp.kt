@@ -7,6 +7,7 @@ package com.drawlesschess.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
@@ -20,10 +21,12 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
@@ -33,8 +36,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.drawlesschess.core.*
-import com.drawlesschess.core.chess.PieceType
 import com.drawlesschess.core.presentation.BoardTheme
+import com.drawlesschess.core.engine.NamedBotLevel
 import com.drawlesschess.R
 import java.math.RoundingMode
 import java.text.NumberFormat
@@ -42,8 +45,18 @@ import java.text.NumberFormat
 @Composable
 internal fun DrawlessApp(viewModel: DrawlessAppViewModel, soundPlayer: GameSoundPlayer) {
     var showThemePicker by rememberSaveable { mutableStateOf(false) }
+    var showInGameOptions by rememberSaveable { mutableStateOf(false) }
 
-    LaunchedEffect(soundPlayer, viewModel.gamePreferences.soundEnabled) {
+    LaunchedEffect(viewModel.route) {
+        if (viewModel.route != AppRoute.GAME) showInGameOptions = false
+    }
+
+    LaunchedEffect(
+        soundPlayer,
+        viewModel.gamePreferences.soundEnabled,
+        viewModel.gamePreferences.soundVolumePercent,
+    ) {
+        soundPlayer.setVolumePercent(viewModel.gamePreferences.soundVolumePercent)
         soundPlayer.setEnabled(viewModel.gamePreferences.soundEnabled)
     }
 
@@ -52,8 +65,10 @@ internal fun DrawlessApp(viewModel: DrawlessAppViewModel, soundPlayer: GameSound
             resumeState = viewModel.resumeState,
             playerStatsState = viewModel.playerStatsState,
             selectedTheme = viewModel.selectedTheme,
+            quickPlayOpponentLevel = viewModel.quickPlayOpponentLevel,
             onResume = viewModel::resumeGame,
             onQuickPlay = viewModel::startQuickPlay,
+            onQuickPlayOpponentChanged = viewModel::selectQuickPlayOpponent,
             onCustomGame = viewModel::showNewGameSetup,
             onShowOptions = viewModel::showOptions,
             onShowStats = viewModel::showStats,
@@ -75,6 +90,10 @@ internal fun DrawlessApp(viewModel: DrawlessAppViewModel, soundPlayer: GameSound
             OptionsScreen(
                 preferences = viewModel.gamePreferences,
                 onPreferencesChanged = viewModel::updateGamePreferences,
+                onSoundVolumePreview = { volumePercent ->
+                    soundPlayer.setVolumePercent(volumePercent)
+                    soundPlayer.playVolumePreview()
+                },
                 onBack = viewModel::leaveOptions,
             )
         }
@@ -94,18 +113,24 @@ internal fun DrawlessApp(viewModel: DrawlessAppViewModel, soundPlayer: GameSound
                 }
             } else {
                 BackHandler(onBack = viewModel::exitGame)
-                GameRoute(
-                    runtime = runtime,
-                    soundPlayer = soundPlayer,
-                    preferences = viewModel.gamePreferences,
-                    playerStatistics = (viewModel.playerStatsState as? PlayerStatsState.Ready)
-                        ?.statistics,
-                    selectedTheme = viewModel.selectedTheme,
-                    onShowThemes = { showThemePicker = true },
-                    onExit = viewModel::exitGame,
-                    onRematch = viewModel::rematchGame,
-                    onGameCompleted = viewModel::completedGameRecorded,
-                )
+                CompositionLocalProvider(
+                    LocalDrawlessVisualTheme provides
+                        DrawlessVisualThemes.fromBoardTheme(viewModel.selectedTheme),
+                ) {
+                    GameRoute(
+                        runtime = runtime,
+                        soundPlayer = soundPlayer,
+                        preferences = viewModel.gamePreferences,
+                        playerStatistics = (viewModel.playerStatsState as? PlayerStatsState.Ready)
+                            ?.statistics,
+                        selectedTheme = viewModel.selectedTheme,
+                        onShowThemes = { showThemePicker = true },
+                        onShowOptions = { showInGameOptions = true },
+                        onExit = viewModel::exitGame,
+                        onRematch = viewModel::rematchGame,
+                        onGameCompleted = viewModel::completedGameRecorded,
+                    )
+                }
             }
         }
     }
@@ -129,6 +154,19 @@ internal fun DrawlessApp(viewModel: DrawlessAppViewModel, soundPlayer: GameSound
             onDismiss = { showThemePicker = false },
         )
     }
+
+    if (showInGameOptions && viewModel.route == AppRoute.GAME) {
+        BackHandler(onBack = { showInGameOptions = false })
+        OptionsScreen(
+            preferences = viewModel.gamePreferences,
+            onPreferencesChanged = viewModel::updateGamePreferences,
+            onSoundVolumePreview = { volumePercent ->
+                soundPlayer.setVolumePercent(volumePercent)
+                soundPlayer.playVolumePreview()
+            },
+            onBack = { showInGameOptions = false },
+        )
+    }
 }
 
 @Composable
@@ -136,8 +174,10 @@ private fun HomeScreen(
     resumeState: ResumeState,
     playerStatsState: PlayerStatsState,
     selectedTheme: BoardTheme,
+    quickPlayOpponentLevel: NamedBotLevel,
     onResume: () -> Unit,
     onQuickPlay: () -> Unit,
+    onQuickPlayOpponentChanged: (NamedBotLevel) -> Unit,
     onCustomGame: () -> Unit,
     onShowOptions: () -> Unit,
     onShowStats: () -> Unit,
@@ -147,56 +187,19 @@ private fun HomeScreen(
 ) {
     var showLicense by rememberSaveable { mutableStateOf(false) }
     var showPrivacy by rememberSaveable { mutableStateOf(false) }
-    val quickPlayOpponent = OpponentProfiles.quickPlay
-    val visualTheme = LocalDrawlessVisualTheme.current
-    val home = visualTheme.home
+    var showQuickPlayOpponentPicker by rememberSaveable { mutableStateOf(false) }
+    val quickPlayOpponent = OpponentProfiles.forLevel(quickPlayOpponentLevel)
+    val colors = MaterialTheme.colorScheme
     val primaryButtonColors = ButtonDefaults.buttonColors(
-        containerColor = home.accent,
-        contentColor = home.onAccent,
-        disabledContainerColor = home.accent.copy(alpha = 0.34f),
-        disabledContentColor = home.title.copy(alpha = 0.55f),
+        containerColor = colors.primary,
+        contentColor = colors.onPrimary,
+        disabledContainerColor = colors.onSurface.copy(alpha = 0.12f),
+        disabledContentColor = colors.onSurface.copy(alpha = 0.38f),
     )
-    val outlinedButtonColors = ButtonDefaults.outlinedButtonColors(contentColor = home.accent)
-    val textButtonColors = ButtonDefaults.textButtonColors(contentColor = home.accent)
+    val outlinedButtonColors = ButtonDefaults.outlinedButtonColors(contentColor = colors.primary)
+    val textButtonColors = ButtonDefaults.textButtonColors(contentColor = colors.primary)
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                Brush.verticalGradient(home.gradient),
-            )
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 28.dp, vertical = 32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(18.dp),
-        ) {
-            Surface(
-                color = home.accent.copy(alpha = 0.14f),
-                shape = RoundedCornerShape(30.dp),
-                tonalElevation = 10.dp,
-            ) {
-                ChessPiece(
-                    side = Side.BLACK,
-                    type = PieceType.KING,
-                    modifier = Modifier.size(118.dp).padding(12.dp),
-                )
-            }
-            Text(
-                stringResource(R.string.app_name),
-                color = home.title,
-                fontSize = 38.sp,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Text(
-                stringResource(R.string.brand_tagline),
-                color = home.subtitle,
-                fontSize = 18.sp,
-            )
+    val homeControls: @Composable ColumnScope.() -> Unit = {
             when (resumeState) {
                 is ResumeState.Ready -> {
                     Button(
@@ -223,7 +226,7 @@ private fun HomeScreen(
                 is ResumeState.Failed -> {
                     Text(
                         resumeState.message.resolve(),
-                        color = visualTheme.darkColors.error,
+                        color = colors.error,
                         style = MaterialTheme.typography.bodyMedium,
                     )
                     TextButton(onClick = onDiscard, colors = textButtonColors) {
@@ -241,13 +244,39 @@ private fun HomeScreen(
                 ) {
                     Text(stringResource(R.string.home_quick_play), fontSize = 17.sp)
                 }
+                OutlinedButton(
+                    onClick = { showQuickPlayOpponentPicker = true },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 54.dp)
+                        .testTag("home_quick_play_opponent"),
+                    shape = RoundedCornerShape(18.dp),
+                    colors = outlinedButtonColors,
+                    border = BorderStroke(1.dp, colors.outline),
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            stringResource(R.string.setup_opponent),
+                            color = colors.onSurfaceVariant,
+                            style = MaterialTheme.typography.labelSmall,
+                        )
+                        Text(
+                            stringResource(
+                                R.string.game_title_summary,
+                                opponentName(quickPlayOpponent),
+                                botLevelName(quickPlayOpponent.level),
+                            ),
+                            fontSize = 15.sp,
+                        )
+                    }
+                }
                 Text(
                     stringResource(
                         R.string.home_quick_play_summary,
                         opponentName(quickPlayOpponent),
                         botLevelName(quickPlayOpponent.level),
                     ),
-                    color = home.muted,
+                    color = colors.onSurfaceVariant,
                     fontSize = 13.sp,
                 )
                 OutlinedButton(
@@ -256,7 +285,7 @@ private fun HomeScreen(
                     modifier = Modifier.fillMaxWidth().height(54.dp).testTag("home_custom_game"),
                     shape = RoundedCornerShape(18.dp),
                     colors = outlinedButtonColors,
-                    border = BorderStroke(1.dp, home.accent.copy(alpha = 0.72f)),
+                    border = BorderStroke(1.dp, colors.outline),
                 ) {
                     Text(stringResource(R.string.home_custom_game), fontSize = 16.sp)
                 }
@@ -265,7 +294,7 @@ private fun HomeScreen(
                     modifier = Modifier.fillMaxWidth().height(50.dp).testTag("home_theme"),
                     shape = RoundedCornerShape(18.dp),
                     colors = outlinedButtonColors,
-                    border = BorderStroke(1.dp, home.accent.copy(alpha = 0.72f)),
+                    border = BorderStroke(1.dp, colors.outline),
                 ) {
                     Text(stringResource(R.string.home_theme, themeName(selectedTheme.id)), fontSize = 15.sp)
                 }
@@ -277,14 +306,14 @@ private fun HomeScreen(
                         .testTag("home_stats"),
                     shape = RoundedCornerShape(18.dp),
                     colors = outlinedButtonColors,
-                    border = BorderStroke(1.dp, home.accent.copy(alpha = 0.72f)),
+                    border = BorderStroke(1.dp, colors.outline),
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(stringResource(R.string.home_player_stats), fontSize = 15.sp)
                         Text(
                             homeStatsSummary(playerStatsState),
                             fontSize = 12.sp,
-                            color = home.muted,
+                            color = colors.onSurfaceVariant,
                         )
                     }
                 }
@@ -296,7 +325,7 @@ private fun HomeScreen(
                         .testTag("home_options"),
                     shape = RoundedCornerShape(18.dp),
                     colors = outlinedButtonColors,
-                    border = BorderStroke(1.dp, home.accent.copy(alpha = 0.72f)),
+                    border = BorderStroke(1.dp, colors.outline),
                 ) {
                     Text(stringResource(R.string.home_options), fontSize = 15.sp)
                 }
@@ -317,9 +346,63 @@ private fun HomeScreen(
             }
             Text(
                 stringResource(R.string.brand_features),
-                color = home.faint,
+                color = colors.onSurfaceVariant.copy(alpha = 0.76f),
                 fontSize = 13.sp,
             )
+    }
+
+    BoxWithConstraints(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(colors.background),
+    ) {
+        val isLandscape = maxWidth > maxHeight
+        if (isLandscape) {
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 20.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(20.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                HomeBrandHero(
+                    modifier = Modifier
+                        .weight(0.92f)
+                        .fillMaxWidth(),
+                )
+                Column(
+                    modifier = Modifier
+                        .weight(1.08f)
+                        .fillMaxHeight()
+                        .verticalScroll(rememberScrollState())
+                        .padding(vertical = 8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(14.dp),
+                    content = homeControls,
+                )
+            }
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 28.dp, vertical = 32.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(18.dp),
+                ) {
+                    HomeBrandHero(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .widthIn(max = 720.dp),
+                    )
+                    homeControls()
+                }
+            }
         }
     }
 
@@ -329,6 +412,26 @@ private fun HomeScreen(
     if (showPrivacy) {
         PrivacyDialog(onDismiss = { showPrivacy = false })
     }
+    if (showQuickPlayOpponentPicker) {
+        QuickPlayOpponentDialog(
+            selectedLevel = quickPlayOpponentLevel,
+            onSelected = onQuickPlayOpponentChanged,
+            onDismiss = { showQuickPlayOpponentPicker = false },
+        )
+    }
+}
+
+@Composable
+private fun HomeBrandHero(modifier: Modifier = Modifier) {
+    Image(
+        painter = painterResource(R.drawable.home_hero_kings),
+        contentDescription = stringResource(R.string.app_name),
+        modifier = modifier
+            .aspectRatio(16f / 9f)
+            .clip(RoundedCornerShape(22.dp))
+            .testTag("home_brand_hero"),
+        contentScale = ContentScale.Fit,
+    )
 }
 
 @Composable
@@ -414,6 +517,7 @@ private fun RulesGuideDialog(onDismiss: () -> Unit) {
                 Text(stringResource(R.string.rules_stalemate))
                 Text(stringResource(R.string.rules_repetition))
                 Text(stringResource(R.string.rules_dead_position))
+                Text(stringResource(R.string.rules_bare_king))
                 Text(stringResource(R.string.rules_fifty_move))
             }
         },
@@ -439,7 +543,7 @@ private fun LicenseDialog(onDismiss: () -> Unit) {
             TextButton(
                 onClick = {
                     uriHandler.openUri(
-                        "https://github.com/DeviousVon/Drawless-Chess/releases/tag/v0.2.0",
+                        "https://github.com/DeviousVon/Drawless-Chess/releases/tag/v0.3.0",
                     )
                 },
             ) {
@@ -753,6 +857,33 @@ private fun OpponentDetailCard(profile: OpponentProfile) {
             }
         }
     }
+
+}
+
+@Composable
+internal fun QuickPlayOpponentDialog(
+    selectedLevel: NamedBotLevel,
+    onSelected: (NamedBotLevel) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        modifier = Modifier.testTag("quick_play_opponent_dialog"),
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.setup_opponent)) },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                OpponentPicker(selectedLevel = selectedLevel, onSelected = onSelected)
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.action_done))
+            }
+        },
+    )
 }
 
 private data class ClockChoice(val control: TimeControl)

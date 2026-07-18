@@ -5,11 +5,11 @@
   "metadata": {
     "component": {
       "type": "application",
-      "bom-ref": "pkg:generic/drawless-chess@0.2.0",
+      "bom-ref": "pkg:generic/drawless-chess@0.3.0",
       "group": "com.drawlesschess",
       "name": "Drawless Chess",
-      "version": "0.2.0",
-      "purl": "pkg:generic/drawless-chess@0.2.0",
+      "version": "0.3.0",
+      "purl": "pkg:generic/drawless-chess@0.3.0",
       "licenses": [
         {
           "license": {
@@ -20,7 +20,7 @@
       "properties": [
         {
           "name": "drawless:androidVersionCode",
-          "value": "2"
+          "value": "3"
         },
         {
           "name": "drawless:gradleConfiguration",
@@ -4415,7 +4415,7 @@
   ],
   "dependencies": [
     {
-      "ref": "pkg:generic/drawless-chess@0.2.0",
+      "ref": "pkg:generic/drawless-chess@0.3.0",
       "dependsOn": [
         "pkg:maven/androidx.activity/activity-compose@1.12.4",
         "pkg:maven/androidx.activity/activity-ktx@1.12.4",

@@ -10,10 +10,16 @@ enum class DeadPositionPolicy {
     FINAL_CAPTURE_VICTORY,
 }
 
+enum class BareKingPolicy {
+    CONTINUE,
+    BARE_KING_LOSES,
+}
+
 enum class FiftyMovePolicy {
     DISABLED,
     COMPLETING_PLAYER_LOSES,
     FORCED_MOVE_EXCEPTION,
+    MATERIAL_VICTORY,
 }
 
 enum class EndReason {
@@ -22,6 +28,7 @@ enum class EndReason {
     REPETITION,
     DEAD_POSITION_MATERIAL,
     DEAD_POSITION_FINAL_CAPTURE,
+    BARE_KING,
     FIFTY_MOVE_LIMIT,
     RESIGNATION,
     TIMEOUT,
@@ -50,6 +57,7 @@ data class RulesContractV1(
     val completingPlayerLosesRepetition: Boolean = true,
     val forcedRepetitionException: Boolean = true,
     val materialValues: MaterialValues = MaterialValues(),
+    val bareKing: BareKingPolicy = BareKingPolicy.BARE_KING_LOSES,
 ) {
     val schemaVersion: Int = 1
 
@@ -68,7 +76,7 @@ data class RulesContractV1(
     companion object {
         fun drawless(
             deadPosition: DeadPositionPolicy = DeadPositionPolicy.MATERIAL_VICTORY,
-            fiftyMove: FiftyMovePolicy = FiftyMovePolicy.DISABLED,
+            fiftyMove: FiftyMovePolicy = FiftyMovePolicy.MATERIAL_VICTORY,
         ) = RulesContractV1(
             preset = Preset.DRAWLESS,
             stalemate = StalematePolicy.TRAPPED_PLAYER_LOSES,
@@ -78,7 +86,7 @@ data class RulesContractV1(
 
         fun escape(
             deadPosition: DeadPositionPolicy = DeadPositionPolicy.MATERIAL_VICTORY,
-            fiftyMove: FiftyMovePolicy = FiftyMovePolicy.DISABLED,
+            fiftyMove: FiftyMovePolicy = FiftyMovePolicy.MATERIAL_VICTORY,
         ) = RulesContractV1(
             preset = Preset.ESCAPE,
             stalemate = StalematePolicy.TRAPPED_PLAYER_WINS,
@@ -99,6 +107,7 @@ data class PositionFacts(
     val deadPositionAfter: Boolean,
     val moveWasCapture: Boolean,
     val materialAfter: MaterialScore,
+    val lastCaptureBy: Side?,
 )
 
 data class GameOutcome(
@@ -136,6 +145,15 @@ class DrawlessAdjudicator {
             return GameOutcome(loser.opposite(), reason = EndReason.REPETITION)
         }
 
+        if (rules.bareKing == BareKingPolicy.BARE_KING_LOSES) {
+            val winner = when {
+                facts.materialAfter.white == 0 && facts.materialAfter.black > 0 -> Side.BLACK
+                facts.materialAfter.black == 0 && facts.materialAfter.white > 0 -> Side.WHITE
+                else -> null
+            }
+            if (winner != null) return GameOutcome(winner, reason = EndReason.BARE_KING)
+        }
+
         if (facts.deadPositionAfter) {
             if (rules.deadPosition == DeadPositionPolicy.FINAL_CAPTURE_VICTORY) {
                 check(facts.moveWasCapture) {
@@ -151,11 +169,25 @@ class DrawlessAdjudicator {
             return GameOutcome(winner, reason = EndReason.DEAD_POSITION_MATERIAL)
         }
 
-        if (facts.halfmoveClockAfter >= 100 && rules.fiftyMove != FiftyMovePolicy.DISABLED) {
-            val forced = rules.fiftyMove == FiftyMovePolicy.FORCED_MOVE_EXCEPTION &&
-                facts.fiftyMoveAvoidingAlternativesBeforeMove == 0
-            val loser = if (forced) sideToMove else facts.mover
-            return GameOutcome(loser.opposite(), reason = EndReason.FIFTY_MOVE_LIMIT)
+        if (facts.halfmoveClockAfter >= 100) {
+            val winner = when (rules.fiftyMove) {
+                FiftyMovePolicy.DISABLED -> null
+                FiftyMovePolicy.COMPLETING_PLAYER_LOSES -> sideToMove
+                FiftyMovePolicy.FORCED_MOVE_EXCEPTION -> {
+                    if (facts.fiftyMoveAvoidingAlternativesBeforeMove == 0) facts.mover
+                    else sideToMove
+                }
+                FiftyMovePolicy.MATERIAL_VICTORY -> when {
+                    facts.materialAfter.white > facts.materialAfter.black -> Side.WHITE
+                    facts.materialAfter.black > facts.materialAfter.white -> Side.BLACK
+                    facts.lastCaptureBy != null -> facts.lastCaptureBy
+                    facts.fiftyMoveAvoidingAlternativesBeforeMove == 0 -> facts.mover
+                    else -> sideToMove
+                }
+            }
+            if (winner != null) {
+                return GameOutcome(winner, reason = EndReason.FIFTY_MOVE_LIMIT)
+            }
         }
 
         return null

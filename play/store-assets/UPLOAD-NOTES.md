@@ -1,8 +1,8 @@
 # Google Play upload selection
 
 The icon, feature graphic, and all ten screenshots are current and ready for the first Play Console
-listing upload. They form one coherent July 14, 2026 set from app candidate SHA-256
-`25a252a21b65a768c19b74e1dfecdb4ee7af2093ee0761c9fa06e3c85d0b87ff`.
+listing upload. They form one coherent July 18, 2026 set from app candidate SHA-256
+`76e896c3b9ab6728c352f27050d0771219fd33dd9958f63dd8d72072cb44f8b3`.
 
 ## Phone screenshots
 
@@ -27,9 +27,9 @@ Upload in this order:
 4. `screenshots/tablet/tablet-04-victory.png`
 5. `screenshots/tablet/tablet-05-defeat-landscape.png`
 
-The first four tablet images are 1200 × 1918 portrait 24-bit RGB PNGs. The final image is a
-2000 × 1118 landscape 24-bit RGB PNG. All were captured on the physical Android 13 / API 33 TAB
-R6 Ultra and show the current responsive tablet layout.
+The first four tablet images are 1200 × 1838 portrait 24-bit RGB PNGs. The final image is a
+2000 × 1054 landscape 24-bit RGB PNG. All were captured on the Android 16 / API 36 emulator's
+deterministic tablet profile and show the current responsive tablet layout.
 
 ## Upload checks
 

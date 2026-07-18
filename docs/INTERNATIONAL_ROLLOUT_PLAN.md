@@ -643,6 +643,10 @@ Actions:
 - Merge the already-based international branch onto the owner-approved post-review base, then
   rerun migrations and all tests. Do not rebase a published evidence branch.
 - Assign the next version code/name.
+- Display the installed version from build metadata and eliminate stale hard-coded release
+  identities from localized resources.
+- Enable and verify R8 optimization/resource shrinking with JNI and generated-code keep rules;
+  retain the mapping file for deobfuscation.
 - Regenerate dependency/SBOM/source evidence and localized assets.
 - Create the clean signed AAB using owner-controlled secrets.
 - Run `scripts/verify-play-aab.ps1` on the exact AAB and source archive.
@@ -653,6 +657,8 @@ Pass:
 
 - Exact signed AAB, source archive, listings, screenshots, declarations, prices, and countries all
   agree.
+- The optimized candidate passes clean install and `0.2.0` upgrade testing on the required device
+  and locale matrix.
 - The owner approves the exact final Console diff.
 
 ### G10 — Controlled international activation
@@ -660,6 +666,9 @@ Pass:
 Actions:
 
 - Apply country targeting and localized listings in approved waves.
+- Treat country targeting as a per-track hard gate. Verify the exact closed-testing track reports
+  more than one targeted country/region before inviting international testers, and verify
+  production targeting separately before production rollout.
 - Start with English-first low-barrier markets, then Wave 1 localized markets.
 - Keep held/deferred/excluded markets off.
 - Monitor Android vitals, crashes/ANRs, reviews, refunds, support mail, trial conversion, purchase

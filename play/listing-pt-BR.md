@@ -26,7 +26,8 @@ Drawless Chess adapta regras conhecidas do xadrez para substituir finais comuns 
 • Pela regra de afogamento padrão, quem não tem lances legais perde.
 • Quem provoca a mesma posição pela terceira vez perde, a menos que todos os lances legais repitam a posição.
 • Quando o xeque-mate se torna impossível, a regra de posição morta selecionada decide a partida.
-• Não há encerramento automático pela regra dos 50 lances.
+• Um jogador que fica apenas com o rei perde imediatamente.
+• Após 50 lances sem movimento de peão ou captura, os pontos de material decidem o vencedor.
 
 JOGUE TOTALMENTE OFFLINE
 Enfrente o motor de xadrez integrado sem conta, conexão com a internet ou pareamento online. Escolha entre sete níveis descritivos de adversário, de Aprendiz a Grande mestre.
@@ -47,21 +48,21 @@ FEITO PARA PARTIDAS DE VERDADE
 • Layouts para celulares e tablets
 
 CINCO TEMAS DIFERENTES
-Alterne entre Vidro de obsidiana, Ardósia ártica, Nogueira moderna, Corte de esmeralda e Ametista real. Sua escolha fica salva no dispositivo.
+Alterne entre Mármore imperial, Arenito do deserto, Ardósia glacial, Cobre com verdete e Geodo de ametista. Sua escolha fica salva no dispositivo.
 
 PRIVACIDADE DESDE A CONCEPÇÃO
 Sem conta. Sem anúncios. Sem análise de uso ou rastreamento. Sem compras no app. As partidas e preferências permanecem no armazenamento local do app, sujeitas às configurações de backup do Android.
 
 SOFTWARE DE CÓDIGO ABERTO
 Drawless Chess é licenciado sob a GNU GPL versão 3 ou posterior. O código-fonte e os avisos do projeto estão disponíveis em:
-https://github.com/DeviousVon/Drawless-Chess/releases/tag/v0.2.0
+https://github.com/DeviousVon/Drawless-Chess/releases/tag/v0.3.0
 ```
 
 Contagem de caracteres: 2.386 de 4.000.
 
 ## Notas da versão
 
-Rascunho para a versão `0.2.0`:
+Rascunho para a versão `0.3.0`:
 
 ```text
 Boas-vindas ao Drawless Chess. Jogue partidas decisivas offline contra sete adversários ilustrados, com Partida rápida de lado aleatório ou regras e relógios personalizados. Acompanhe capturas, material, histórico de lances, sequências e pontuações; use indicação opcional de ameaças, dicas, desfazer, cinco temas, sons realistas do tabuleiro, revanches e efeitos claros de vitória ou derrota. Sem conta, anúncios, análise de uso ou compras no app.

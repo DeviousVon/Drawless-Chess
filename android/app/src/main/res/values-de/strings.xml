@@ -52,10 +52,11 @@
     <string name="rules_stalemate">• Im Standardmodus von Drawless verliert ein Spieler ohne legalen Zug. In der optionalen Escape-Variante gewinnt stattdessen der pattgesetzte Spieler.</string>
     <string name="rules_repetition">• Wer dieselbe Stellung zum dritten Mal herbeiführt, verliert – außer jeder legale Zug wiederholt die Stellung.</string>
     <string name="rules_dead_position">• Wenn ein Schachmatt unmöglich wird, entscheidet die gewählte Regel für tote Stellungen über den Sieg.</string>
-    <string name="rules_fifty_move">• Es gibt kein automatisches Ende nach der 50-Züge-Regel.</string>
+    <string name="rules_bare_king">• Ein Spieler, dem nur noch der König bleibt, verliert sofort.</string>
+    <string name="rules_fifty_move">• Nach 50 Zügen ohne Bauernzug oder Schlagzug entscheiden die Materialpunkte.</string>
     <string name="action_got_it">Verstanden</string>
     <string name="license_title">Open-Source-Software</string>
-    <string name="license_body">Drawless Chess ist unter der GNU GPL Version 3 oder höher lizenziert. Die Audioaufnahmen umfassen CC0-Schachaufnahmen von JJTaynos und mh2o, CC0-Feuerwerk von Rudmer_Rotteveel sowie MIT-lizenzierte ion.sound-Aufnahmen von Denis Ineshin. Der genaue zugehörige Quellcode und Hinweise zu Drittanbietern werden mit der offiziellen Version v0.2.0 bereitgestellt.</string>
+    <string name="license_body">Drawless Chess ist unter der GNU GPL Version 3 oder höher lizenziert. Die Audioaufnahmen umfassen CC0-Schachaufnahmen von JJTaynos und mh2o, CC0-Feuerwerk von Rudmer_Rotteveel sowie MIT-lizenzierte ion.sound-Aufnahmen von Denis Ineshin. Der genaue zugehörige Quellcode und Hinweise zu Drittanbietern werden mit der offiziellen Version v%1$s bereitgestellt.</string>
     <string name="license_view_source">Quellcode ansehen</string>
     <string name="privacy_title">Datenschutz</string>
     <string name="privacy_body">Drawless Chess funktioniert vollständig offline. BB_Games erhebt, überträgt, teilt oder verkauft keine personenbezogenen Daten. Gespeicherte Partien, der Verlauf abgeschlossener Partien, lokale Statistiken und Einstellungen werden auf deinem Gerät gespeichert und können in Android-Sicherungen enthalten sein, wenn du diese aktivierst. BB_Games kann nicht auf diese Sicherungen zugreifen. Fragen zum Datenschutz: realitymaster@protonmail.ch</string>
@@ -124,23 +125,25 @@
     <string name="difficulty_description_grandmaster">Der stärkste verfügbare Gegner.</string>
 
     <string name="theme_choose">Design auswählen</string>
-    <string name="theme_picker_description">Brett, Figuren und Menüs werden sofort aktualisiert. Deine Auswahl wird gespeichert.</string>
-    <string name="theme_obsidian_glass">Obsidianglas</string>
-    <string name="theme_arctic_slate">Arktischer Schiefer</string>
-    <string name="theme_modern_walnut">Modernes Walnussholz</string>
-    <string name="theme_emerald_court">Smaragdhof</string>
-    <string name="theme_royal_amethyst">Königlicher Amethyst</string>
-    <string name="theme_description_obsidian_glass">Kühle Holzkohle und Minze</string>
-    <string name="theme_description_arctic_slate">Klares Silber und Blau</string>
-    <string name="theme_description_modern_walnut">Warmes Holz und Türkis</string>
-    <string name="theme_description_emerald_court">Tiefes Grün und Gold</string>
-    <string name="theme_description_royal_amethyst">Violette Dämmerung und Koralle</string>
+    <string name="theme_picker_description">Brett und Figuren werden sofort aktualisiert. Deine Auswahl wird gespeichert.</string>
+    <string name="theme_imperial_marble">Imperialer Marmor</string>
+    <string name="theme_description_imperial_marble">Carrara-Weiß und geädertes Grün</string>
+    <string name="theme_desert_sandstone">Wüsten-Sandstein</string>
+    <string name="theme_description_desert_sandstone">Sonnengebrannte Schichten und warme Körnung</string>
+    <string name="theme_glacier_slate">Gletscherschiefer</string>
+    <string name="theme_verdigris_copper">Grünspan-Kupfer</string>
+    <string name="theme_amethyst_geode">Amethyst-Geode</string>
+    <string name="theme_description_glacier_slate">Spaltstein und Glimmerlicht</string>
+    <string name="theme_description_verdigris_copper">Patiniertes Kupfer und elfenbeinfarbener Kalkstein</string>
+    <string name="theme_description_amethyst_geode">Violetter Kristall und goldene Glanzpunkte</string>
 
     <string name="options_title">Optionen</string>
     <string name="options_audio">Audio</string>
     <string name="options_audio_description">Brett- und Partieergebnisklänge einstellen.</string>
     <string name="options_sound_effects">Soundeffekte</string>
     <string name="options_sound_effects_description">Klänge für Züge, Schläge, Siege und Niederlagen wiedergeben.</string>
+    <string name="options_sound_volume">Effektlautstärke</string>
+    <string name="options_sound_volume_description">Spielklänge unabhängig von der Gerätelautstärke einstellen.</string>
     <string name="options_board">Brett</string>
     <string name="options_board_description">Lege fest, welche Hilfen am und auf dem Brett angezeigt werden.</string>
     <string name="options_board_coordinates">Brettkoordinaten</string>
@@ -149,9 +152,12 @@
     <string name="options_threat_indication_description">Markiert deine Figuren, die vom Gegner angegriffen werden. Dies gilt als Hilfe: Ein Sieg bringt 95 statt 100 Punkte und zählt nicht für gewertete Partien. Die Einstellung gilt für neue Partien; eine fortgesetzte Partie behält ihre ursprüngliche Einstellung.</string>
     <string name="options_game_feedback">Partie-Feedback</string>
     <string name="options_game_feedback_description">Die Ergebnisdarstellung anpassen, ohne die Schachregeln zu ändern.</string>
+    <string name="options_haptic_feedback">Haptisches Feedback</string>
+    <string name="options_haptic_feedback_description">Dezente Vibrationen begleiten Auswahl, Züge, Schlagzüge, Schachgebote und Partieergebnisse. Die Systemeinstellung für Berührungsfeedback gilt weiterhin.</string>
     <string name="options_celebration_effects">Sieges-/Niederlageneffekte</string>
     <string name="options_celebration_effects_description">Zeigt die bildschirmfüllende Sieges- oder Niederlagenanimation und spielt das passende Feuerwerk- oder Glassignal ab. Die Einstellung „Soundeffekte“ bleibt die zentrale Audiosteuerung. Ergebnis und Punktzahl werden immer angezeigt.</string>
     <string name="options_local_storage_notice">Wird lokal von Drawless Chess gespeichert und nicht an BB_Games gesendet. Je nach Geräteeinstellungen kann die Android-Sicherung diese Einstellungen enthalten.</string>
+    <string name="options_version">Version %1$s (%2$d)</string>
 
     <string name="stats_title">Spielerstatistik</string>
     <string name="stats_loading_title">Deine Statistik wird geladen…</string>
@@ -235,6 +241,13 @@
     <string name="board_legal_capture">legaler Schlagzug</string>
     <string name="board_in_check">im Schach</string>
     <string name="board_under_threat">bedroht</string>
+    <string name="board_self_check_king">dein König wäre ungedeckt</string>
+    <string name="board_self_check_attacker">Angreifer, der deinen König bedroht</string>
+    <string name="board_self_check_unsafe">unsicheres Feld für deinen König</string>
+    <string name="warning_move_exposes_king">Dieser Zug würde deinen König im Schach lassen.</string>
+    <string name="warning_castle_while_in_check">Du kannst nicht rochieren, solange dein König im Schach steht.</string>
+    <string name="warning_castle_through_check">Du kannst nicht durch ein bedrohtes Feld rochieren.</string>
+    <string name="warning_castle_into_check">Du kannst nicht auf ein bedrohtes Feld rochieren.</string>
     <string name="board_accessibility_join">%1$s, %2$s</string>
     <string name="status_your_turn">Du bist am Zug</string>
     <string name="status_hint_thinking">Stellung wird analysiert…</string>
@@ -271,14 +284,24 @@
     <string name="completion_opponent_won">%1$s hat gewonnen.</string>
 
     <string name="result_checkmate">Schachmatt.</string>
-    <string name="result_stalemate">Der Spieler ohne legalen Zug hat verloren.</string>
-    <string name="result_escape_stalemate">Der pattgesetzte Spieler ist entkommen und hat gewonnen.</string>
-    <string name="result_threefold_repetition">Dieselbe Stellung ist dreimal entstanden.</string>
-    <string name="result_forced_repetition">Jeder legale Zug hat die Stellung wiederholt.</string>
-    <string name="result_dead_position_material">Schachmatt wurde unmöglich; das Material hat die Partie entschieden.</string>
-    <string name="result_dead_position_final_capture">Der letzte Schlagzug hat ein Schachmatt unmöglich gemacht.</string>
+    <string name="result_stalemate">Der Spieler am Zug hatte keinen legalen Zug und stand nicht im Schach. Nach den Drawless-Regeln verliert dieser Spieler.</string>
+    <string name="result_escape_stalemate">Der Spieler am Zug hatte keinen legalen Zug und stand nicht im Schach. Nach den Escape-Regeln gewinnt dieser Spieler.</string>
+    <string name="result_threefold_repetition">Dieselbe Stellung ist dreimal entstanden; deshalb hat die Wiederholungsregel die Partie entschieden.</string>
+    <string name="result_forced_repetition">Jeder legale Zug von %1$s führte zum dritten Auftreten der Stellung. Nach der Ausnahme für erzwungene Wiederholungen verliert %2$s, weil diese Zugfolge erzwungen wurde.</string>
+    <plurals name="result_avoidable_repetition"><item quantity="one">%1$s führte die Stellung zum dritten Mal herbei, obwohl %2$d legaler Zug dies verhindert hätte. Nach der Wiederholungsregel verliert %1$s.</item><item quantity="other">%1$s führte die Stellung zum dritten Mal herbei, obwohl %2$d legale Züge dies verhindert hätten. Nach der Wiederholungsregel verliert %1$s.</item></plurals>
+    <string name="result_dead_position_material">Schachmatt wurde unmöglich; deshalb hat die Materialregel den Sieger bestimmt.</string>
+    <string name="result_dead_position_material_score">Schachmatt wurde unmöglich. Weiß hatte %1$d Materialpunkte und Schwarz %2$d; daher gewann %3$s nach der Materialregel.</string>
+    <string name="result_dead_position_material_tie">Schachmatt wurde unmöglich, und der Materialstand war mit jeweils %1$d Punkten gleich. Nach der Materialregel gewann der Spieler, der den letzten Zug machte: %2$s.</string>
+    <string name="result_dead_position_final_capture">Der letzte Schlagzug hat Schachmatt unmöglich gemacht. Nach der Final-Capture-Regel gewinnt der Spieler, der diesen Schlagzug gemacht hat.</string>
+    <string name="result_bare_king">%1$s hatte nur noch den König; daher gewann %2$s.</string>
     <string name="result_timeout">Die Zeit ist abgelaufen.</string>
     <string name="result_resignation">Die Partie endete durch Aufgabe.</string>
     <string name="result_forfeit">Die Partie wurde als verloren gewertet.</string>
-    <string name="result_fifty_move">Die 50-Züge-Regel hat die Partie entschieden.</string>
+    <string name="result_fifty_move">Die 50-Züge-Grenze wurde erreicht; deshalb hat diese Regel die Partie entschieden.</string>
+    <string name="result_fifty_move_material_score">Die 50-Züge-Grenze wurde erreicht. Weiß hatte %1$d Materialpunkte und Schwarz %2$d; daher gewann %3$s.</string>
+    <string name="result_fifty_move_material_last_capture">Die 50-Züge-Grenze wurde bei einem Materialstand von je %1$d Punkten erreicht. %2$s machte den letzten Schlagzug und gewann.</string>
+    <string name="result_fifty_move_material_no_capture">Die 50-Züge-Grenze wurde bei einem Materialstand von je %1$d Punkten und ohne vorherigen Schlagzug erreicht. Der Pattbrecher bei ausbleibendem Fortschritt sprach %2$s die Partie zu.</string>
+    <string name="result_fifty_move_completing_player">Die 50-Züge-Grenze wurde ohne Bauernzug oder Schlagzug erreicht. Der Spieler, dessen Zug die Grenze erreichte, verliert.</string>
+    <string name="result_forced_fifty_move">Jeder legale Zug von %1$s hätte die 50-Züge-Grenze erreicht. Nach der Ausnahme für erzwungene Züge verliert %2$s, weil diese Situation erzwungen wurde.</string>
+    <plurals name="result_avoidable_fifty_move"><item quantity="one">%1$s erreichte die 50-Züge-Grenze, obwohl %2$d legaler Zug den Zähler zurückgesetzt hätte. Nach der 50-Züge-Regel verliert %1$s.</item><item quantity="other">%1$s erreichte die 50-Züge-Grenze, obwohl %2$d legale Züge den Zähler zurückgesetzt hätten. Nach der 50-Züge-Regel verliert %1$s.</item></plurals>
 </resources>

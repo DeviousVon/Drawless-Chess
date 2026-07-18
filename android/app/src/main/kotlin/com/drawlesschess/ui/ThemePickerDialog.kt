@@ -1,24 +1,22 @@
 package com.drawlesschess.ui
 
-import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -51,16 +49,15 @@ internal fun ThemePickerDialog(
                     ThemeOption(
                         visualTheme = visualTheme,
                         selected = visualTheme.boardTheme.id == selectedTheme.id,
-                        onClick = { onSelect(visualTheme.boardTheme) },
+                        onClick = {
+                            onSelect(visualTheme.boardTheme)
+                            onDismiss()
+                        },
                     )
                 }
             }
         },
-        confirmButton = {
-            TextButton(onClick = onDismiss, modifier = Modifier.testTag("theme_picker_done")) {
-                Text(stringResource(R.string.action_done))
-            }
-        },
+        confirmButton = {},
     )
 }
 
@@ -105,12 +102,12 @@ private fun ThemeOption(
 @Composable
 internal fun themeName(themeId: String): String = stringResource(
     when (themeId) {
-        "obsidian_glass" -> R.string.theme_obsidian_glass
-        "arctic_slate" -> R.string.theme_arctic_slate
-        "modern_walnut" -> R.string.theme_modern_walnut
-        "emerald_court" -> R.string.theme_emerald_court
-        "royal_amethyst" -> R.string.theme_royal_amethyst
-        else -> R.string.theme_obsidian_glass
+        "imperial_marble" -> R.string.theme_imperial_marble
+        "desert_sandstone" -> R.string.theme_desert_sandstone
+        "glacier_slate" -> R.string.theme_glacier_slate
+        "verdigris_copper" -> R.string.theme_verdigris_copper
+        "amethyst_geode" -> R.string.theme_amethyst_geode
+        else -> R.string.theme_imperial_marble
     },
 )
 
@@ -118,21 +115,38 @@ internal fun themeName(themeId: String): String = stringResource(
 private fun ThemePreview(theme: BoardTheme) {
     val light = Color(theme.lightSquare.value)
     val dark = Color(theme.darkSquare.value)
-    Canvas(
-        Modifier
+    val tile = 27.dp
+    Box(
+        modifier = Modifier
             .size(54.dp)
             .clip(RoundedCornerShape(9.dp))
             .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(9.dp)),
     ) {
-        val half = Size(size.width / 2f, size.height / 2f)
-        drawRect(light, size = half)
-        drawRect(dark, topLeft = Offset(half.width, 0f), size = half)
-        drawRect(dark, topLeft = Offset(0f, half.height), size = half)
-        drawRect(light, topLeft = Offset(half.width, half.height), size = half)
-        drawCircle(
-            color = Color(theme.selected.value),
-            radius = size.minDimension * 0.12f,
-            center = center,
+        ThemePreviewTile(theme, light, true, 0, 1, Modifier.align(Alignment.TopStart).size(tile))
+        ThemePreviewTile(theme, dark, false, 1, 1, Modifier.align(Alignment.TopEnd).size(tile))
+        ThemePreviewTile(theme, dark, false, 0, 0, Modifier.align(Alignment.BottomStart).size(tile))
+        ThemePreviewTile(theme, light, true, 1, 0, Modifier.align(Alignment.BottomEnd).size(tile))
+        Box(
+            Modifier
+                .align(Alignment.Center)
+                .size(13.dp)
+                .background(Color(theme.selected.value), CircleShape),
         )
     }
+}
+
+@Composable
+private fun ThemePreviewTile(
+    theme: BoardTheme,
+    color: Color,
+    light: Boolean,
+    file: Int,
+    rank: Int,
+    modifier: Modifier,
+) {
+    Box(
+        modifier
+            .background(color)
+            .squareTexture(theme.textureId, light, file, rank),
+    )
 }

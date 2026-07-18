@@ -10,14 +10,18 @@ const nonNegativeInteger = (value) => Number.isInteger(value) && value >= 0;
 
 export function validateRulesV1(rules) {
   if (!exactKeys(rules,
-    ["schemaVersion", "preset", "stalemate", "repetition", "deadPosition", "fiftyMove", "materialValues"])) return false;
+    ["schemaVersion", "preset", "stalemate", "repetition", "deadPosition", "fiftyMove", "materialValues"],
+    ["bareKing"])) return false;
   if (rules.schemaVersion !== 1 || !oneOf(rules.preset, ["drawless", "escape"])) return false;
   if (!oneOf(rules.stalemate, ["trapped_player_loses", "trapped_player_wins"])) return false;
   if (!exactKeys(rules.repetition, ["threshold", "completingPlayerLoses", "forcedMoveException"])) return false;
   if (rules.repetition.threshold !== 3 || rules.repetition.completingPlayerLoses !== true
     || rules.repetition.forcedMoveException !== true) return false;
   if (!oneOf(rules.deadPosition, ["material_victory", "final_capture_victory"])) return false;
-  if (!oneOf(rules.fiftyMove, ["disabled", "completing_player_loses", "forced_move_exception"])) return false;
+  if (Object.hasOwn(rules, "bareKing")
+    && !oneOf(rules.bareKing, ["continue", "bare_king_loses"])) return false;
+  if (!oneOf(rules.fiftyMove,
+    ["disabled", "completing_player_loses", "forced_move_exception", "material_victory"])) return false;
   if (!exactKeys(rules.materialValues, ["pawn", "knight", "bishop", "rook", "queen"])) return false;
   const v = rules.materialValues;
   return v.pawn === 1 && v.knight === 3 && v.bishop === 3 && v.rook === 5 && v.queen === 9;
@@ -62,7 +66,7 @@ function validateAssistance(a) {
 
 function validateResult(result, plyCount) {
   const reasons = ["CHECKMATE", "STALEMATE", "REPETITION", "DEAD_POSITION_MATERIAL",
-    "DEAD_POSITION_FINAL_CAPTURE", "FIFTY_MOVE_LIMIT", "RESIGNATION", "TIMEOUT"];
+    "DEAD_POSITION_FINAL_CAPTURE", "BARE_KING", "FIFTY_MOVE_LIMIT", "RESIGNATION", "TIMEOUT"];
   return exactKeys(result, ["winner", "reason", "atPly"])
     && oneOf(result.winner, ["WHITE", "BLACK"])
     && oneOf(result.reason, reasons)

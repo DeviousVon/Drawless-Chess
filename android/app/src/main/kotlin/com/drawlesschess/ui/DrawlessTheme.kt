@@ -1,7 +1,7 @@
 package com.drawlesschess.ui
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
@@ -10,7 +10,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
-import androidx.annotation.StringRes
 import com.drawlesschess.R
 import com.drawlesschess.core.presentation.BoardTheme
 import com.drawlesschess.core.presentation.BoardThemes
@@ -26,213 +25,66 @@ internal data class DrawlessPiecePalette(
     val blackKingAccent: Color,
 )
 
-internal data class DrawlessHomePalette(
-    val gradient: List<Color>,
-    val title: Color,
-    val subtitle: Color,
-    val muted: Color,
-    val faint: Color,
-    val accent: Color,
-    val onAccent: Color,
-)
-
 internal data class DrawlessVisualTheme(
     val boardTheme: BoardTheme,
     @param:StringRes val descriptionRes: Int,
-    val lightColors: ColorScheme,
-    val darkColors: ColorScheme,
-    val home: DrawlessHomePalette,
     val pieces: DrawlessPiecePalette,
 )
 
 internal object DrawlessVisualThemes {
-    val OBSIDIAN_GLASS = DrawlessVisualTheme(
-        boardTheme = BoardThemes.OBSIDIAN_GLASS,
-        descriptionRes = R.string.theme_description_obsidian_glass,
-        lightColors = lightColorScheme(
-            primary = Color(0xFF236B58), onPrimary = Color.White,
-            primaryContainer = Color(0xFFBFEBDD), onPrimaryContainer = Color(0xFF052019),
-            secondary = Color(0xFF765B00), onSecondary = Color.White,
-            secondaryContainer = Color(0xFFFFE08B), onSecondaryContainer = Color(0xFF241A00),
-            background = Color(0xFFF4F7F8), onBackground = Color(0xFF172026),
-            surface = Color.White, onSurface = Color(0xFF172026),
-            surfaceVariant = Color(0xFFE1E9ED), onSurfaceVariant = Color(0xFF3F484D),
-            outline = Color(0xFF6F797E), error = Color(0xFFB3261E), onError = Color.White,
-            errorContainer = Color(0xFFF9DEDC), onErrorContainer = Color(0xFF410E0B),
-        ),
-        darkColors = darkColorScheme(
-            primary = Color(0xFF56C7A5), onPrimary = Color(0xFF052019),
-            primaryContainer = Color(0xFF164F41), onPrimaryContainer = Color(0xFFC0F2E2),
-            secondary = Color(0xFFE4C75A), onSecondary = Color(0xFF3D3000),
-            secondaryContainer = Color(0xFF554600), onSecondaryContainer = Color(0xFFFFE88B),
-            background = Color(0xFF0C1216), onBackground = Color(0xFFF2F5F6),
-            surface = Color(0xFF151E24), onSurface = Color(0xFFF2F5F6),
-            surfaceVariant = Color(0xFF24323A), onSurfaceVariant = Color(0xFFBFC9CE),
-            outline = Color(0xFF89949A), error = Color(0xFFFF806D), onError = Color(0xFF690005),
-            errorContainer = Color(0xFF8C1D18), onErrorContainer = Color(0xFFF9DEDC),
-        ),
-        home = DrawlessHomePalette(
-            gradient = listOf(Color(0xFF0B1216), Color(0xFF17262C), Color(0xFF0D1519)),
-            title = Color(0xFFF2F5F6), subtitle = Color(0xFFB7C7CF),
-            muted = Color(0xFF9EAFB7), faint = Color(0xFF82949D),
-            accent = Color(0xFF56C7A5), onAccent = Color(0xFF052019),
-        ),
-        pieces = DrawlessPiecePalette(
-            Color(0xFFF8F1DD), Color(0xFF283238), Color(0xFF665D4E), Color(0xFFB3261E),
-            Color(0xFF172126), Color(0xFFE8E1CF), Color(0xFFB9B19E), Color(0xFFFFC857),
-        ),
-    )
-
-    val ARCTIC_SLATE = DrawlessVisualTheme(
-        boardTheme = BoardThemes.ARCTIC_SLATE,
-        descriptionRes = R.string.theme_description_arctic_slate,
-        lightColors = lightColorScheme(
-            primary = Color(0xFF00639A), onPrimary = Color.White,
-            primaryContainer = Color(0xFFCDE5FF), onPrimaryContainer = Color(0xFF001D32),
-            secondary = Color(0xFF51606F), onSecondary = Color.White,
-            secondaryContainer = Color(0xFFD5E4F7), onSecondaryContainer = Color(0xFF0D1D2A),
-            background = Color(0xFFF8F9FF), onBackground = Color(0xFF191C20),
-            surface = Color.White, onSurface = Color(0xFF191C20),
-            surfaceVariant = Color(0xFFDEE3EA), onSurfaceVariant = Color(0xFF42474E),
-            outline = Color(0xFF72777F), error = Color(0xFFB3261E), onError = Color.White,
-            errorContainer = Color(0xFFF9DEDC), onErrorContainer = Color(0xFF410E0B),
-        ),
-        darkColors = darkColorScheme(
-            primary = Color(0xFF94CCFF), onPrimary = Color(0xFF003353),
-            primaryContainer = Color(0xFF004A75), onPrimaryContainer = Color(0xFFCDE5FF),
-            secondary = Color(0xFFB9C8DA), onSecondary = Color(0xFF23323F),
-            secondaryContainer = Color(0xFF394956), onSecondaryContainer = Color(0xFFD5E4F7),
-            background = Color(0xFF101418), onBackground = Color(0xFFE1E2E8),
-            surface = Color(0xFF181C20), onSurface = Color(0xFFE1E2E8),
-            surfaceVariant = Color(0xFF42474E), onSurfaceVariant = Color(0xFFC2C7CE),
-            outline = Color(0xFF8C9199), error = Color(0xFFFFB4AB), onError = Color(0xFF690005),
-            errorContainer = Color(0xFF93000A), onErrorContainer = Color(0xFFFFDAD6),
-        ),
-        home = DrawlessHomePalette(
-            gradient = listOf(Color(0xFF07131F), Color(0xFF0D2B3D), Color(0xFF091923)),
-            title = Color(0xFFF0F8FF), subtitle = Color(0xFFB9D3E3),
-            muted = Color(0xFF95B8CC), faint = Color(0xFF7798AB),
-            accent = Color(0xFF94CCFF), onAccent = Color(0xFF003353),
-        ),
+    val GLACIER_SLATE = DrawlessVisualTheme(
+        boardTheme = BoardThemes.GLACIER_SLATE,
+        descriptionRes = R.string.theme_description_glacier_slate,
         pieces = DrawlessPiecePalette(
             Color(0xFFF5FCFF), Color(0xFF18313F), Color(0xFF5A7785), Color(0xFFD63E58),
             Color(0xFF102630), Color(0xFFD9F3FF), Color(0xFF89A9B8), Color(0xFF45D7D9),
         ),
     )
 
-    val MODERN_WALNUT = DrawlessVisualTheme(
-        boardTheme = BoardThemes.MODERN_WALNUT,
-        descriptionRes = R.string.theme_description_modern_walnut,
-        lightColors = lightColorScheme(
-            primary = Color(0xFF93452F), onPrimary = Color.White,
-            primaryContainer = Color(0xFFFFDBD1), onPrimaryContainer = Color(0xFF3B0A02),
-            secondary = Color(0xFF77574F), onSecondary = Color.White,
-            secondaryContainer = Color(0xFFFFDAD1), onSecondaryContainer = Color(0xFF2C1510),
-            background = Color(0xFFFFF8F6), onBackground = Color(0xFF241A18),
-            surface = Color(0xFFFFF8F6), onSurface = Color(0xFF241A18),
-            surfaceVariant = Color(0xFFF5DDD8), onSurfaceVariant = Color(0xFF53433F),
-            outline = Color(0xFF85736E), error = Color(0xFFB3261E), onError = Color.White,
-            errorContainer = Color(0xFFF9DEDC), onErrorContainer = Color(0xFF410E0B),
-        ),
-        darkColors = darkColorScheme(
-            primary = Color(0xFFFFB4A2), onPrimary = Color(0xFF5D160B),
-            primaryContainer = Color(0xFF76301F), onPrimaryContainer = Color(0xFFFFDAD1),
-            secondary = Color(0xFFE7BDB3), onSecondary = Color(0xFF442A24),
-            secondaryContainer = Color(0xFF5D4039), onSecondaryContainer = Color(0xFFFFDAD1),
-            background = Color(0xFF1C100D), onBackground = Color(0xFFF5DED9),
-            surface = Color(0xFF251915), onSurface = Color(0xFFF5DED9),
-            surfaceVariant = Color(0xFF53433F), onSurfaceVariant = Color(0xFFD8C2BC),
-            outline = Color(0xFFA08C86), error = Color(0xFFFFB4AB), onError = Color(0xFF690005),
-            errorContainer = Color(0xFF93000A), onErrorContainer = Color(0xFFFFDAD6),
-        ),
-        home = DrawlessHomePalette(
-            gradient = listOf(Color(0xFF1A0D09), Color(0xFF3A1C13), Color(0xFF21100B)),
-            title = Color(0xFFFFF3E8), subtitle = Color(0xFFE5C3B4),
-            muted = Color(0xFFC69C8A), faint = Color(0xFFAD8372),
-            accent = Color(0xFFFFB4A2), onAccent = Color(0xFF5D160B),
-        ),
+    val VERDIGRIS_COPPER = DrawlessVisualTheme(
+        boardTheme = BoardThemes.VERDIGRIS_COPPER,
+        descriptionRes = R.string.theme_description_verdigris_copper,
         pieces = DrawlessPiecePalette(
-            Color(0xFFFFF3D8), Color(0xFF3B2118), Color(0xFF8B6555), Color(0xFFC5293D),
-            Color(0xFF26140F), Color(0xFFFFE1C2), Color(0xFFC69A7F), Color(0xFF36C2B4),
+            Color(0xFFF8F0D9), Color(0xFF1D3531), Color(0xFF607E77), Color(0xFFC84C32),
+            Color(0xFF102724), Color(0xFFF1E5CB), Color(0xFFA5BBB4), Color(0xFFE5A45D),
         ),
     )
 
-    val EMERALD_COURT = DrawlessVisualTheme(
-        boardTheme = BoardThemes.EMERALD_COURT,
-        descriptionRes = R.string.theme_description_emerald_court,
-        lightColors = lightColorScheme(
-            primary = Color(0xFF386A20), onPrimary = Color.White,
-            primaryContainer = Color(0xFFB7F397), onPrimaryContainer = Color(0xFF0A2100),
-            secondary = Color(0xFF55624C), onSecondary = Color.White,
-            secondaryContainer = Color(0xFFD8E7CB), onSecondaryContainer = Color(0xFF131F0D),
-            background = Color(0xFFFDFDF5), onBackground = Color(0xFF1A1C18),
-            surface = Color(0xFFFDFDF5), onSurface = Color(0xFF1A1C18),
-            surfaceVariant = Color(0xFFE0E4D6), onSurfaceVariant = Color(0xFF44483F),
-            outline = Color(0xFF74796E), error = Color(0xFFB3261E), onError = Color.White,
-            errorContainer = Color(0xFFF9DEDC), onErrorContainer = Color(0xFF410E0B),
-        ),
-        darkColors = darkColorScheme(
-            primary = Color(0xFF9CD67D), onPrimary = Color(0xFF103800),
-            primaryContainer = Color(0xFF205107), onPrimaryContainer = Color(0xFFB7F397),
-            secondary = Color(0xFFBCCBB0), onSecondary = Color(0xFF273420),
-            secondaryContainer = Color(0xFF3D4A35), onSecondaryContainer = Color(0xFFD8E7CB),
-            background = Color(0xFF12140F), onBackground = Color(0xFFE3E3DC),
-            surface = Color(0xFF12140F), onSurface = Color(0xFFE3E3DC),
-            surfaceVariant = Color(0xFF44483F), onSurfaceVariant = Color(0xFFC4C8BC),
-            outline = Color(0xFF8E9288), error = Color(0xFFFFB4AB), onError = Color(0xFF690005),
-            errorContainer = Color(0xFF93000A), onErrorContainer = Color(0xFFFFDAD6),
-        ),
-        home = DrawlessHomePalette(
-            gradient = listOf(Color(0xFF0B1710), Color(0xFF17301E), Color(0xFF0E1D13)),
-            title = Color(0xFFF2F8E9), subtitle = Color(0xFFC3D2BA),
-            muted = Color(0xFFA1B39A), faint = Color(0xFF84997F),
-            accent = Color(0xFF9CD67D), onAccent = Color(0xFF103800),
-        ),
-        pieces = DrawlessPiecePalette(
-            Color(0xFFF7F1D5), Color(0xFF26331F), Color(0xFF6B785C), Color(0xFFC84C32),
-            Color(0xFF182019), Color(0xFFE8E3C6), Color(0xFFA8B397), Color(0xFFF3C35B),
-        ),
-    )
-
-    val ROYAL_AMETHYST = DrawlessVisualTheme(
-        boardTheme = BoardThemes.ROYAL_AMETHYST,
-        descriptionRes = R.string.theme_description_royal_amethyst,
-        lightColors = lightColorScheme(
-            primary = Color(0xFF6750A4), onPrimary = Color.White,
-            primaryContainer = Color(0xFFEADDFF), onPrimaryContainer = Color(0xFF21005D),
-            secondary = Color(0xFF7D5260), onSecondary = Color.White,
-            secondaryContainer = Color(0xFFFFD8E4), onSecondaryContainer = Color(0xFF31111D),
-            background = Color(0xFFFFFBFE), onBackground = Color(0xFF1C1B1F),
-            surface = Color(0xFFFFFBFE), onSurface = Color(0xFF1C1B1F),
-            surfaceVariant = Color(0xFFE7E0EC), onSurfaceVariant = Color(0xFF49454F),
-            outline = Color(0xFF79747E), error = Color(0xFFB3261E), onError = Color.White,
-            errorContainer = Color(0xFFF9DEDC), onErrorContainer = Color(0xFF410E0B),
-        ),
-        darkColors = darkColorScheme(
-            primary = Color(0xFFD0BCFF), onPrimary = Color(0xFF381E72),
-            primaryContainer = Color(0xFF4F378B), onPrimaryContainer = Color(0xFFEADDFF),
-            secondary = Color(0xFFEFB8C8), onSecondary = Color(0xFF492532),
-            secondaryContainer = Color(0xFF633B48), onSecondaryContainer = Color(0xFFFFD8E4),
-            background = Color(0xFF1C1B1F), onBackground = Color(0xFFE6E1E5),
-            surface = Color(0xFF1C1B1F), onSurface = Color(0xFFE6E1E5),
-            surfaceVariant = Color(0xFF49454F), onSurfaceVariant = Color(0xFFCAC4D0),
-            outline = Color(0xFF938F99), error = Color(0xFFFFB4AB), onError = Color(0xFF690005),
-            errorContainer = Color(0xFF93000A), onErrorContainer = Color(0xFFFFDAD6),
-        ),
-        home = DrawlessHomePalette(
-            gradient = listOf(Color(0xFF130D22), Color(0xFF2C1B43), Color(0xFF181027)),
-            title = Color(0xFFF7F1FF), subtitle = Color(0xFFD3C4E5),
-            muted = Color(0xFFB5A3C9), faint = Color(0xFF9583AA),
-            accent = Color(0xFFD0BCFF), onAccent = Color(0xFF381E72),
-        ),
+    val AMETHYST_GEODE = DrawlessVisualTheme(
+        boardTheme = BoardThemes.AMETHYST_GEODE,
+        descriptionRes = R.string.theme_description_amethyst_geode,
         pieces = DrawlessPiecePalette(
             Color(0xFFFCF5E6), Color(0xFF2B1D38), Color(0xFF77648A), Color(0xFFC43E5C),
             Color(0xFF21162F), Color(0xFFEDE0F7), Color(0xFFBCA4D0), Color(0xFFFFD166),
         ),
     )
 
-    val DEFAULT = OBSIDIAN_GLASS
-    val all = listOf(OBSIDIAN_GLASS, ARCTIC_SLATE, MODERN_WALNUT, EMERALD_COURT, ROYAL_AMETHYST)
+    val DESERT_SANDSTONE = DrawlessVisualTheme(
+        boardTheme = BoardThemes.DESERT_SANDSTONE,
+        descriptionRes = R.string.theme_description_desert_sandstone,
+        pieces = DrawlessPiecePalette(
+            Color(0xFFFFF5DD), Color(0xFF3A281D), Color(0xFF8A6A52), Color(0xFFC43B2E),
+            Color(0xFF241710), Color(0xFFFFE4C7), Color(0xFFC89B78), Color(0xFF4DD8BD),
+        ),
+    )
+
+    val IMPERIAL_MARBLE = DrawlessVisualTheme(
+        boardTheme = BoardThemes.IMPERIAL_MARBLE,
+        descriptionRes = R.string.theme_description_imperial_marble,
+        pieces = DrawlessPiecePalette(
+            Color(0xFFFFFCF2), Color(0xFF26332D), Color(0xFF738078), Color(0xFFAD3043),
+            Color(0xFF111A16), Color(0xFFEAF1EC), Color(0xFF9FB0A6), Color(0xFFE9C349),
+        ),
+    )
+
+    val DEFAULT = IMPERIAL_MARBLE
+    val all = listOf(
+        IMPERIAL_MARBLE,
+        DESERT_SANDSTONE,
+        GLACIER_SLATE,
+        VERDIGRIS_COPPER,
+        AMETHYST_GEODE,
+    )
 
     init {
         check(all.map { it.boardTheme.id } == BoardThemes.all.map { it.id })
@@ -241,6 +93,48 @@ internal object DrawlessVisualThemes {
     fun fromBoardTheme(theme: BoardTheme): DrawlessVisualTheme =
         all.firstOrNull { it.boardTheme.id == theme.id } ?: DEFAULT
 }
+
+// Board themes deliberately do not own these colors. The same app chrome is used on
+// home, options, setup, statistics, and game controls regardless of board selection.
+private val DrawlessAppLightColors = lightColorScheme(
+    primary = Color(0xFF66561A), onPrimary = Color.White,
+    primaryContainer = Color(0xFFEFE2AD), onPrimaryContainer = Color(0xFF201B00),
+    secondary = Color(0xFF536348), onSecondary = Color.White,
+    secondaryContainer = Color(0xFFD7E8CA), onSecondaryContainer = Color(0xFF111F0C),
+    tertiary = Color(0xFF85513B), onTertiary = Color.White,
+    background = Color(0xFFF7F4EA), onBackground = Color(0xFF1B1D18),
+    surface = Color(0xFFF7F4EA), onSurface = Color(0xFF1B1D18),
+    surfaceVariant = Color(0xFFE2E6D8), onSurfaceVariant = Color(0xFF454A3F),
+    surfaceDim = Color(0xFFD9D8CF), surfaceBright = Color(0xFFF7F4EA),
+    surfaceContainerLowest = Color(0xFFFFFFFF), surfaceContainerLow = Color(0xFFF1EEE4),
+    surfaceContainer = Color(0xFFEBE8DE), surfaceContainerHigh = Color(0xFFE5E2D8),
+    surfaceContainerHighest = Color(0xFFDFDDD3), surfaceTint = Color(0xFF66561A),
+    inverseSurface = Color(0xFF30332C), inverseOnSurface = Color(0xFFF3F4EC),
+    inversePrimary = Color(0xFFC9B26F),
+    outline = Color(0xFF757B6C), outlineVariant = Color(0xFFC4C9BA),
+    scrim = Color.Black, error = Color(0xFFB3261E), onError = Color.White,
+    errorContainer = Color(0xFFF9DEDC), onErrorContainer = Color(0xFF410E0B),
+)
+
+private val DrawlessAppDarkColors = darkColorScheme(
+    primary = Color(0xFFC9B26F), onPrimary = Color(0xFF251D07),
+    primaryContainer = Color(0xFF3B3421), onPrimaryContainer = Color(0xFFEFE1B6),
+    secondary = Color(0xFFAEB89E), onSecondary = Color(0xFF1E2718),
+    secondaryContainer = Color(0xFF35402F), onSecondaryContainer = Color(0xFFD7E8CA),
+    tertiary = Color(0xFFC79D86), onTertiary = Color(0xFF33180D),
+    background = Color(0xFF141812), onBackground = Color(0xFFF3F0E6),
+    surface = Color(0xFF20261D), onSurface = Color(0xFFF3F0E6),
+    surfaceVariant = Color(0xFF30382C), onSurfaceVariant = Color(0xFFB8BDAF),
+    surfaceDim = Color(0xFF11150F), surfaceBright = Color(0xFF30362D),
+    surfaceContainerLowest = Color(0xFF0F130D), surfaceContainerLow = Color(0xFF1A1F18),
+    surfaceContainer = Color(0xFF20261D), surfaceContainerHigh = Color(0xFF283025),
+    surfaceContainerHighest = Color(0xFF30382C), surfaceTint = Color(0xFFC9B26F),
+    inverseSurface = Color(0xFFE5E7DE), inverseOnSurface = Color(0xFF2D302A),
+    inversePrimary = Color(0xFF66561A),
+    outline = Color(0xFF5D6657), outlineVariant = Color(0xFF454D40),
+    scrim = Color.Black, error = Color(0xFFFFB4AB), onError = Color(0xFF690005),
+    errorContainer = Color(0xFF93000A), onErrorContainer = Color(0xFFFFDAD6),
+)
 
 internal val LocalDrawlessVisualTheme = staticCompositionLocalOf { DrawlessVisualThemes.DEFAULT }
 
@@ -252,7 +146,7 @@ fun DrawlessTheme(
     val visualTheme = DrawlessVisualThemes.fromBoardTheme(theme)
     CompositionLocalProvider(LocalDrawlessVisualTheme provides visualTheme) {
         MaterialTheme(
-            colorScheme = if (isSystemInDarkTheme()) visualTheme.darkColors else visualTheme.lightColors,
+            colorScheme = if (isSystemInDarkTheme()) DrawlessAppDarkColors else DrawlessAppLightColors,
             typography = Typography(),
             content = content,
         )

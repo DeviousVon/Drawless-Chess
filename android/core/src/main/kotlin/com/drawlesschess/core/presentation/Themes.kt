@@ -18,51 +18,98 @@ data class BoardTheme(
     val check: ArgbColor,
     val surface: ArgbColor,
     val onSurface: ArgbColor,
+    val textureId: String? = null,
 )
 
+object BoardTextureIds {
+    const val SANDSTONE = "sandstone"
+    const val MARBLE = "marble"
+    const val SLATE = "slate"
+    const val VERDIGRIS = "verdigris"
+    const val AMETHYST = "amethyst"
+}
+
 object BoardThemes {
-    val OBSIDIAN_GLASS = BoardTheme(
-        "obsidian_glass",
-        ArgbColor(0xFFB7C2C8), ArgbColor(0xFF34454F), ArgbColor(0xFF56C7A5),
-        ArgbColor(0x9956C7A5), ArgbColor(0x99FF8066), ArgbColor(0x88E4C75A),
-        ArgbColor(0xB3E34F4F), ArgbColor(0xFF11181D), ArgbColor(0xFFF2F5F6),
+    val DESERT_SANDSTONE = BoardTheme(
+        id = "desert_sandstone",
+        lightSquare = ArgbColor(0xFFE9D9B0),
+        darkSquare = ArgbColor(0xFFB07E54),
+        selected = ArgbColor(0xCC2E8B74),
+        legalMove = ArgbColor(0x992E8B74),
+        legalCapture = ArgbColor(0x99C34A33),
+        lastMove = ArgbColor(0x88D9A441),
+        check = ArgbColor(0xB3C43B2E),
+        surface = ArgbColor(0xFF1C1410),
+        onSurface = ArgbColor(0xFFF6EEDD),
+        textureId = BoardTextureIds.SANDSTONE,
     )
-    val ARCTIC_SLATE = BoardTheme(
-        "arctic_slate",
-        ArgbColor(0xFFE8EDF2), ArgbColor(0xFF708399), ArgbColor(0xFF2878D0),
-        ArgbColor(0x802878D0), ArgbColor(0x99D85D4A), ArgbColor(0x88F2B84B),
-        ArgbColor(0xB3D73B45), ArgbColor(0xFFF5F7FA), ArgbColor(0xFF17202A),
+    val IMPERIAL_MARBLE = BoardTheme(
+        id = "imperial_marble",
+        lightSquare = ArgbColor(0xFFF2F0EB),
+        darkSquare = ArgbColor(0xFF344A3F),
+        selected = ArgbColor(0xCCD4AF37),
+        legalMove = ArgbColor(0x99C9A227),
+        legalCapture = ArgbColor(0x99B03A48),
+        lastMove = ArgbColor(0x88D4AF37),
+        check = ArgbColor(0xB3B22B38),
+        surface = ArgbColor(0xFF14171A),
+        onSurface = ArgbColor(0xFFF4F2ED),
+        textureId = BoardTextureIds.MARBLE,
     )
-    val MODERN_WALNUT = BoardTheme(
-        "modern_walnut",
-        ArgbColor(0xFFE5D1B4), ArgbColor(0xFF80563D), ArgbColor(0xFF3F8E7C),
-        ArgbColor(0x883F8E7C), ArgbColor(0x99BC493E), ArgbColor(0x88E0A83A),
-        ArgbColor(0xB3C83E4D), ArgbColor(0xFF211A17), ArgbColor(0xFFF7F0E8),
+    val GLACIER_SLATE = BoardTheme(
+        id = "glacier_slate",
+        lightSquare = ArgbColor(0xFFE4EAF0),
+        darkSquare = ArgbColor(0xFF61748A),
+        selected = ArgbColor(0xCC2878D0),
+        legalMove = ArgbColor(0x992878D0),
+        legalCapture = ArgbColor(0x99D85D4A),
+        lastMove = ArgbColor(0x88F2B84B),
+        check = ArgbColor(0xB3D73B45),
+        surface = ArgbColor(0xFF10161D),
+        onSurface = ArgbColor(0xFFF0F4F8),
+        textureId = BoardTextureIds.SLATE,
     )
-    val EMERALD_COURT = BoardTheme(
-        "emerald_court",
-        ArgbColor(0xFFDDE8C7), ArgbColor(0xFF4F6946), ArgbColor(0xCCF1B84B),
-        ArgbColor(0xA34FB477), ArgbColor(0xB3E25A4F), ArgbColor(0x99D8C34A),
-        ArgbColor(0xB3D7464E), ArgbColor(0xFF111C13), ArgbColor(0xFFF2F8E9),
+    val VERDIGRIS_COPPER = BoardTheme(
+        id = "verdigris_copper",
+        lightSquare = ArgbColor(0xFFECE4D2),
+        darkSquare = ArgbColor(0xFF356C67),
+        selected = ArgbColor(0xCCD29A3A),
+        legalMove = ArgbColor(0x99BD8A36),
+        legalCapture = ArgbColor(0x99C34A33),
+        lastMove = ArgbColor(0x88D8A24A),
+        check = ArgbColor(0xB3C43B3A),
+        surface = ArgbColor(0xFF0D1B1A),
+        onSurface = ArgbColor(0xFFF1F2EA),
+        textureId = BoardTextureIds.VERDIGRIS,
     )
-    val ROYAL_AMETHYST = BoardTheme(
-        "royal_amethyst",
-        ArgbColor(0xFFE2D8F1), ArgbColor(0xFF59406F), ArgbColor(0xCCF1C75B),
-        ArgbColor(0xA356C596), ArgbColor(0xB3FF6B6B), ArgbColor(0x99E9B949),
-        ArgbColor(0xB3D9465F), ArgbColor(0xFF1B1324), ArgbColor(0xFFF7F1FF),
+    val AMETHYST_GEODE = BoardTheme(
+        id = "amethyst_geode",
+        lightSquare = ArgbColor(0xFFE3D9F0),
+        darkSquare = ArgbColor(0xFF54406E),
+        selected = ArgbColor(0xCCF1C75B),
+        legalMove = ArgbColor(0x99C9A94E),
+        legalCapture = ArgbColor(0x99E25A4F),
+        lastMove = ArgbColor(0x88E9B949),
+        check = ArgbColor(0xB3D9465F),
+        surface = ArgbColor(0xFF171021),
+        onSurface = ArgbColor(0xFFF6F1FF),
+        textureId = BoardTextureIds.AMETHYST,
     )
 
-    val DEFAULT = OBSIDIAN_GLASS
+    val DEFAULT = IMPERIAL_MARBLE
     val all = listOf(
-        OBSIDIAN_GLASS,
-        ARCTIC_SLATE,
-        MODERN_WALNUT,
-        EMERALD_COURT,
-        ROYAL_AMETHYST,
+        IMPERIAL_MARBLE,
+        DESERT_SANDSTONE,
+        GLACIER_SLATE,
+        VERDIGRIS_COPPER,
+        AMETHYST_GEODE,
     )
 
-    /** Stable-id lookup for persisted presentation preferences. */
-    fun fromId(id: String?): BoardTheme = all.firstOrNull { it.id == id } ?: DEFAULT
+    /** Stable-id lookup for persisted presentation preferences, including retired themes. */
+    fun fromId(id: String?): BoardTheme = when (id) {
+        "malachite_court" -> VERDIGRIS_COPPER
+        else -> all.firstOrNull { it.id == id } ?: DEFAULT
+    }
 }
 
 data class PieceSet(

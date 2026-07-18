@@ -58,10 +58,11 @@
     <string name="rules_stalemate">• In default Drawless, a player with no legal move loses. The optional Escape variant makes stalemate a win instead.</string>
     <string name="rules_repetition">• Causing the same position a third time loses, unless every legal move repeats.</string>
     <string name="rules_dead_position">• If checkmate becomes impossible, the selected dead-position rule awards the game.</string>
-    <string name="rules_fifty_move">• There is no automatic 50-move ending.</string>
+    <string name="rules_bare_king">• A player left with only a king loses immediately.</string>
+    <string name="rules_fifty_move">• After 50 moves without a pawn move or capture, material points decide the winner.</string>
     <string name="action_got_it">Got it</string>
     <string name="license_title">Open-source software</string>
-    <string name="license_body">Drawless Chess is licensed under GNU GPL version 3 or later. Sampled audio includes CC0 chess recordings by JJTaynos and mh2o, CC0 fireworks by Rudmer_Rotteveel, and MIT-licensed ion.sound recordings by Denis Ineshin. Exact corresponding source and third-party notices accompany the official v0.2.0 release.</string>
+    <string name="license_body">Drawless Chess is licensed under GNU GPL version 3 or later. Sampled audio includes CC0 chess recordings by JJTaynos and mh2o, CC0 fireworks by Rudmer_Rotteveel, and MIT-licensed ion.sound recordings by Denis Ineshin. Exact corresponding source and third-party notices accompany the official v%1$s release.</string>
     <string name="license_view_source">View source</string>
     <string name="privacy_title">Privacy</string>
     <string name="privacy_body">Drawless Chess works entirely offline. BB_Games does not collect, transmit, share, or sell personal data. Saved games, completed-game history, local statistics, and settings are stored on your device and may be included in Android backups if you enable them; BB_Games cannot access those backups. Privacy questions: realitymaster@protonmail.ch</string>
@@ -134,17 +135,17 @@
 
     <!-- Themes -->
     <string name="theme_choose">Choose a theme</string>
-    <string name="theme_picker_description">Board, pieces, and menus update immediately. Your choice is saved.</string>
-    <string name="theme_obsidian_glass">Obsidian Glass</string>
-    <string name="theme_arctic_slate">Arctic Slate</string>
-    <string name="theme_modern_walnut">Modern Walnut</string>
-    <string name="theme_emerald_court">Emerald Court</string>
-    <string name="theme_royal_amethyst">Royal Amethyst</string>
-    <string name="theme_description_obsidian_glass">Cool charcoal and mint</string>
-    <string name="theme_description_arctic_slate">Crisp silver and blue</string>
-    <string name="theme_description_modern_walnut">Warm wood and teal</string>
-    <string name="theme_description_emerald_court">Deep green and gold</string>
-    <string name="theme_description_royal_amethyst">Purple dusk and coral</string>
+    <string name="theme_picker_description">Board and pieces update immediately. Your choice is saved.</string>
+    <string name="theme_imperial_marble">Imperial Marble</string>
+    <string name="theme_description_imperial_marble">Carrara white and veined verde</string>
+    <string name="theme_desert_sandstone">Desert Sandstone</string>
+    <string name="theme_description_desert_sandstone">Sun-baked strata and warm grain</string>
+    <string name="theme_glacier_slate">Glacier Slate</string>
+    <string name="theme_verdigris_copper">Verdigris Copper</string>
+    <string name="theme_amethyst_geode">Amethyst Geode</string>
+    <string name="theme_description_glacier_slate">Riven stone and mica light</string>
+    <string name="theme_description_verdigris_copper">Aged copper and ivory limestone</string>
+    <string name="theme_description_amethyst_geode">Violet crystal and gold glints</string>
 
     <!-- Options -->
     <string name="options_title">Options</string>
@@ -152,6 +153,9 @@
     <string name="options_audio_description">Control the physical board and game-result sounds.</string>
     <string name="options_sound_effects">Sound effects</string>
     <string name="options_sound_effects_description">Play move, capture, victory, and defeat sounds.</string>
+    <string name="options_sound_volume">Sound volume</string>
+    <string name="options_sound_volume_description">Adjust game sounds independently of your device volume.</string>
+    <string name="options_sound_volume_value" translatable="false">%1$d%%</string>
     <string name="options_board">Board</string>
     <string name="options_board_description">Choose the guidance shown around and on the board.</string>
     <string name="options_board_coordinates">Board coordinates</string>
@@ -160,9 +164,12 @@
     <string name="options_threat_indication_description">Highlight your pieces that are attacked by the opponent. This is assistance: a win scores 95 instead of 100 points and does not qualify for rated play. It applies to new games; a resumed game keeps the setting it started with.</string>
     <string name="options_game_feedback">Game feedback</string>
     <string name="options_game_feedback_description">Adjust result presentation without changing chess rules.</string>
+    <string name="options_haptic_feedback">Haptic feedback</string>
+    <string name="options_haptic_feedback_description">Use subtle vibrations for selections, moves, captures, checks, and game results. Your device’s touch-feedback setting still applies.</string>
     <string name="options_celebration_effects">Win/loss celebration effects</string>
     <string name="options_celebration_effects_description">Show the full-screen victory or defeat animation and play its matching fireworks or glass cue. The Sound effects setting remains the master audio control. The result and score are always shown.</string>
     <string name="options_local_storage_notice">Saved locally by Drawless Chess and not sent to BB_Games. Android backup may include these settings according to your device settings.</string>
+    <string name="options_version">Version %1$s (%2$d)</string>
 
     <!-- Player statistics -->
     <string name="stats_title">Player stats</string>
@@ -249,6 +256,13 @@
     <string name="board_legal_capture">legal capture</string>
     <string name="board_in_check">in check</string>
     <string name="board_under_threat">under threat</string>
+    <string name="board_self_check_king">your king would be exposed</string>
+    <string name="board_self_check_attacker">attacker exposing your king</string>
+    <string name="board_self_check_unsafe">unsafe square for your king</string>
+    <string name="warning_move_exposes_king">That move would leave your king in check.</string>
+    <string name="warning_castle_while_in_check">You cannot castle while your king is in check.</string>
+    <string name="warning_castle_through_check">You cannot castle through check.</string>
+    <string name="warning_castle_into_check">You cannot castle into check.</string>
     <string name="board_accessibility_join">%1$s, %2$s</string>
     <string name="status_your_turn">Your turn</string>
     <string name="status_hint_thinking">Analyzing the position…</string>
@@ -288,14 +302,24 @@
 
     <!-- Structured result reasons -->
     <string name="result_checkmate">Checkmate.</string>
-    <string name="result_stalemate">The player with no legal move lost.</string>
-    <string name="result_escape_stalemate">The stalemated player escaped with the win.</string>
-    <string name="result_threefold_repetition">The same position occurred three times.</string>
-    <string name="result_forced_repetition">Every legal move repeated the position.</string>
-    <string name="result_dead_position_material">Checkmate became impossible; material decided the game.</string>
-    <string name="result_dead_position_final_capture">The final capture made checkmate impossible.</string>
+    <string name="result_stalemate">The player to move had no legal move and was not in check. Under Drawless rules, that player loses.</string>
+    <string name="result_escape_stalemate">The player to move had no legal move and was not in check. Under Escape rules, that player wins.</string>
+    <string name="result_threefold_repetition">The same position occurred three times, so the repetition rule decided the game.</string>
+    <string name="result_forced_repetition">Every legal move available to %1$s produced the third occurrence of the position. Under the forced-repetition exception, %2$s loses for forcing the cycle.</string>
+    <plurals name="result_avoidable_repetition"><item quantity="one">%1$s produced the third occurrence even though %2$d legal move would have avoided it. Under the repetition rule, %1$s loses.</item><item quantity="other">%1$s produced the third occurrence even though %2$d legal moves would have avoided it. Under the repetition rule, %1$s loses.</item></plurals>
+    <string name="result_dead_position_material">Checkmate became impossible, so the material rule decided the winner.</string>
+    <string name="result_dead_position_material_score">Checkmate became impossible. White had %1$d material points and Black had %2$d, so %3$s won under the material rule.</string>
+    <string name="result_dead_position_material_tie">Checkmate became impossible with material tied at %1$d points each. Under the material rule, the player who made the final move—%2$s—won.</string>
+    <string name="result_dead_position_final_capture">The final capture made checkmate impossible. Under the Final Capture rule, the player who made that capture won.</string>
+    <string name="result_bare_king">%1$s had only a king remaining, so %2$s won.</string>
     <string name="result_timeout">Time expired.</string>
     <string name="result_resignation">The game ended by resignation.</string>
     <string name="result_forfeit">The game ended by forfeit.</string>
-    <string name="result_fifty_move">The fifty-move limit decided the game.</string>
+    <string name="result_fifty_move">The 50-move limit was reached, so that rule decided the game.</string>
+    <string name="result_fifty_move_completing_player">The 50-move limit was reached without a pawn move or capture. The player whose move reached the limit loses.</string>
+    <string name="result_fifty_move_material_score">The 50-move limit was reached. White had %1$d material points and Black had %2$d, so %3$s won.</string>
+    <string name="result_fifty_move_material_last_capture">The 50-move limit was reached with material tied at %1$d points each. %2$s made the last capture and won.</string>
+    <string name="result_fifty_move_material_no_capture">The 50-move limit was reached with material tied at %1$d points each and no previous capture. The no-progress tie-break awarded the game to %2$s.</string>
+    <string name="result_forced_fifty_move">Every legal move available to %1$s would have reached the 50-move limit. Under the forced-move exception, %2$s loses for forcing that situation.</string>
+    <plurals name="result_avoidable_fifty_move"><item quantity="one">%1$s reached the 50-move limit even though %2$d legal move would have reset the count. Under the 50-move rule, %1$s loses.</item><item quantity="other">%1$s reached the 50-move limit even though %2$d legal moves would have reset the count. Under the 50-move rule, %1$s loses.</item></plurals>
 </resources>

@@ -57,10 +57,11 @@
     <string name="rules_stalemate">• En Drawless predeterminado, quien no tiene movimientos legales pierde. La variante opcional Escape convierte el ahogado en victoria.</string>
     <string name="rules_repetition">• Quien provoca que la misma posición se repita por tercera vez pierde, salvo que todos los movimientos legales causen la repetición.</string>
     <string name="rules_dead_position">• Si el jaque mate se vuelve imposible, la regla de posición muerta seleccionada decide quién gana.</string>
-    <string name="rules_fifty_move">• No hay un final automático por la regla de los 50 movimientos.</string>
+    <string name="rules_bare_king">• Un jugador al que solo le queda el rey pierde inmediatamente.</string>
+    <string name="rules_fifty_move">• Después de 50 movimientos sin mover un peón ni hacer una captura, los puntos de material deciden quién gana.</string>
     <string name="action_got_it">Entendido</string>
     <string name="license_title">Software de código abierto</string>
-    <string name="license_body">Drawless Chess se distribuye bajo la licencia GNU GPL versión 3 o posterior. El audio muestreado incluye grabaciones de ajedrez CC0 de JJTaynos y mh2o, fuegos artificiales CC0 de Rudmer_Rotteveel y grabaciones de ion.sound con licencia MIT de Denis Ineshin. El código fuente correspondiente exacto y los avisos de terceros acompañan la versión oficial v0.2.0.</string>
+    <string name="license_body">Drawless Chess se distribuye bajo la licencia GNU GPL versión 3 o posterior. El audio muestreado incluye grabaciones de ajedrez CC0 de JJTaynos y mh2o, fuegos artificiales CC0 de Rudmer_Rotteveel y grabaciones de ion.sound con licencia MIT de Denis Ineshin. El código fuente correspondiente exacto y los avisos de terceros acompañan la versión oficial v%1$s.</string>
     <string name="license_view_source">Ver código fuente</string>
     <string name="privacy_title">Privacidad</string>
     <string name="privacy_body">Drawless Chess funciona completamente sin conexión. BB_Games no recopila, transmite, comparte ni vende datos personales. Las partidas guardadas, el historial de partidas terminadas, las estadísticas locales y los ajustes se almacenan en tu dispositivo y pueden incluirse en las copias de seguridad de Android si las activas; BB_Games no puede acceder a esas copias. Consultas sobre privacidad: realitymaster@protonmail.ch</string>
@@ -132,17 +133,17 @@
 
     <!-- Temas -->
     <string name="theme_choose">Elige un tema</string>
-    <string name="theme_picker_description">El tablero, las piezas y los menús se actualizan de inmediato. Tu elección queda guardada.</string>
-    <string name="theme_obsidian_glass">Vidrio de obsidiana</string>
-    <string name="theme_arctic_slate">Pizarra ártica</string>
-    <string name="theme_modern_walnut">Nogal moderno</string>
-    <string name="theme_emerald_court">Corte de esmeralda</string>
-    <string name="theme_royal_amethyst">Amatista real</string>
-    <string name="theme_description_obsidian_glass">Carbón frío y menta</string>
-    <string name="theme_description_arctic_slate">Plata nítida y azul</string>
-    <string name="theme_description_modern_walnut">Madera cálida y verde azulado</string>
-    <string name="theme_description_emerald_court">Verde intenso y dorado</string>
-    <string name="theme_description_royal_amethyst">Ocaso púrpura y coral</string>
+    <string name="theme_picker_description">El tablero y las piezas se actualizan de inmediato. Tu elección queda guardada.</string>
+    <string name="theme_imperial_marble">Mármol imperial</string>
+    <string name="theme_description_imperial_marble">Blanco Carrara y verde veteado</string>
+    <string name="theme_desert_sandstone">Arenisca del desierto</string>
+    <string name="theme_description_desert_sandstone">Estratos dorados y grano cálido</string>
+    <string name="theme_glacier_slate">Pizarra glaciar</string>
+    <string name="theme_verdigris_copper">Cobre con verdín</string>
+    <string name="theme_amethyst_geode">Geoda de amatista</string>
+    <string name="theme_description_glacier_slate">Piedra clivada y destellos de mica</string>
+    <string name="theme_description_verdigris_copper">Cobre patinado y caliza marfil</string>
+    <string name="theme_description_amethyst_geode">Cristal violeta y destellos dorados</string>
 
     <!-- Opciones -->
     <string name="options_title">Opciones</string>
@@ -150,6 +151,8 @@
     <string name="options_audio_description">Controla los sonidos del tablero físico y de los resultados.</string>
     <string name="options_sound_effects">Efectos de sonido</string>
     <string name="options_sound_effects_description">Reproduce sonidos de movimiento, captura, victoria y derrota.</string>
+    <string name="options_sound_volume">Volumen de los efectos</string>
+    <string name="options_sound_volume_description">Ajusta los sonidos del juego sin cambiar el volumen del dispositivo.</string>
     <string name="options_board">Tablero</string>
     <string name="options_board_description">Elige las ayudas que aparecen alrededor y sobre el tablero.</string>
     <string name="options_board_coordinates">Coordenadas del tablero</string>
@@ -158,9 +161,12 @@
     <string name="options_threat_indication_description">Resalta tus piezas atacadas por el oponente. Esto es una ayuda: una victoria otorga 95 puntos en lugar de 100 y no cumple los requisitos para partidas con clasificación. Se aplica a las partidas nuevas; una partida reanudada conserva el ajuste con el que comenzó.</string>
     <string name="options_game_feedback">Presentación de la partida</string>
     <string name="options_game_feedback_description">Ajusta la presentación del resultado sin cambiar las reglas del ajedrez.</string>
+    <string name="options_haptic_feedback">Respuesta háptica</string>
+    <string name="options_haptic_feedback_description">Usa vibraciones sutiles para selecciones, movimientos, capturas, jaques y resultados. Se sigue respetando la configuración de respuesta táctil del dispositivo.</string>
     <string name="options_celebration_effects">Efectos de celebración de victoria o derrota</string>
     <string name="options_celebration_effects_description">Muestra la animación de victoria o derrota en pantalla completa y reproduce los fuegos artificiales o el sonido de cristal correspondiente. El ajuste Efectos de sonido sigue siendo el control principal del audio. El resultado y la puntuación siempre se muestran.</string>
     <string name="options_local_storage_notice">Drawless Chess guarda estos datos localmente y no los envía a BB_Games. Las copias de seguridad de Android pueden incluir estos ajustes según la configuración de tu dispositivo.</string>
+    <string name="options_version">Versión %1$s (%2$d)</string>
 
     <!-- Estadísticas del jugador -->
     <string name="stats_title">Estadísticas del jugador</string>
@@ -246,6 +252,13 @@
     <string name="board_legal_capture">captura legal</string>
     <string name="board_in_check">en jaque</string>
     <string name="board_under_threat">bajo amenaza</string>
+    <string name="board_self_check_king">tu rey quedaría expuesto</string>
+    <string name="board_self_check_attacker">atacante que expone a tu rey</string>
+    <string name="board_self_check_unsafe">casilla insegura para tu rey</string>
+    <string name="warning_move_exposes_king">Esa jugada dejaría a tu rey en jaque.</string>
+    <string name="warning_castle_while_in_check">No puedes enrocar mientras tu rey está en jaque.</string>
+    <string name="warning_castle_through_check">No puedes enrocar atravesando una casilla amenazada.</string>
+    <string name="warning_castle_into_check">No puedes enrocar hacia una casilla amenazada.</string>
     <string name="board_accessibility_join">%1$s, %2$s</string>
     <string name="status_your_turn">Tu turno</string>
     <string name="status_hint_thinking">Analizando la posición…</string>
@@ -285,14 +298,24 @@
 
     <!-- Motivos estructurados del resultado -->
     <string name="result_checkmate">Jaque mate.</string>
-    <string name="result_stalemate">Perdió el jugador que no tenía movimientos legales.</string>
-    <string name="result_escape_stalemate">El jugador ahogado escapó con la victoria.</string>
-    <string name="result_threefold_repetition">La misma posición se repitió tres veces.</string>
-    <string name="result_forced_repetition">Todos los movimientos legales repetían la posición.</string>
-    <string name="result_dead_position_material">El jaque mate se volvió imposible; el material decidió la partida.</string>
-    <string name="result_dead_position_final_capture">La captura final volvió imposible el jaque mate.</string>
+    <string name="result_stalemate">El jugador al turno no tenía movimientos legales y no estaba en jaque. Según las reglas Drawless, ese jugador pierde.</string>
+    <string name="result_escape_stalemate">El jugador al turno no tenía movimientos legales y no estaba en jaque. Según las reglas Escape, ese jugador gana.</string>
+    <string name="result_threefold_repetition">La misma posición ocurrió tres veces, así que la regla de repetición decidió la partida.</string>
+    <string name="result_forced_repetition">Todos los movimientos legales de %1$s producían la tercera aparición de la posición. Según la excepción de repetición forzada, %2$s pierde por forzar el ciclo.</string>
+    <plurals name="result_avoidable_repetition"><item quantity="one">%1$s produjo la tercera aparición aunque %2$d movimiento legal la habría evitado. Según la regla de repetición, %1$s pierde.</item><item quantity="other">%1$s produjo la tercera aparición aunque %2$d movimientos legales la habrían evitado. Según la regla de repetición, %1$s pierde.</item></plurals>
+    <string name="result_dead_position_material">El jaque mate se volvió imposible, así que la regla de material decidió al ganador.</string>
+    <string name="result_dead_position_material_score">El jaque mate se volvió imposible. Las blancas tenían %1$d puntos de material y las negras %2$d, así que %3$s ganó según la regla de material.</string>
+    <string name="result_dead_position_material_tie">El jaque mate se volvió imposible con el material empatado en %1$d puntos por lado. Según la regla de material, ganó quien hizo el movimiento final: %2$s.</string>
+    <string name="result_dead_position_final_capture">La captura final volvió imposible el jaque mate. Según la regla Final Capture, ganó el jugador que hizo esa captura.</string>
+    <string name="result_bare_king">A %1$s solo le quedaba el rey, así que ganó %2$s.</string>
     <string name="result_timeout">Se agotó el tiempo.</string>
     <string name="result_resignation">La partida terminó por rendición.</string>
     <string name="result_forfeit">La partida terminó por abandono.</string>
-    <string name="result_fifty_move">El límite de cincuenta movimientos decidió la partida.</string>
+    <string name="result_fifty_move">Se alcanzó el límite de 50 movimientos, así que esa regla decidió la partida.</string>
+    <string name="result_fifty_move_material_score">Se alcanzó el límite de 50 movimientos. Las blancas tenían %1$d puntos de material y las negras %2$d, así que ganó %3$s.</string>
+    <string name="result_fifty_move_material_last_capture">Se alcanzó el límite de 50 movimientos con el material empatado en %1$d puntos por lado. %2$s hizo la última captura y ganó.</string>
+    <string name="result_fifty_move_material_no_capture">Se alcanzó el límite de 50 movimientos con el material empatado en %1$d puntos por lado y sin capturas previas. El desempate por falta de progreso otorgó la partida a %2$s.</string>
+    <string name="result_fifty_move_completing_player">Se alcanzó el límite de 50 movimientos sin mover un peón ni hacer una captura. Pierde el jugador cuyo movimiento alcanzó el límite.</string>
+    <string name="result_forced_fifty_move">Todos los movimientos legales de %1$s habrían alcanzado el límite de 50 movimientos. Según la excepción de movimiento forzado, %2$s pierde por forzar esa situación.</string>
+    <plurals name="result_avoidable_fifty_move"><item quantity="one">%1$s alcanzó el límite de 50 movimientos aunque %2$d movimiento legal habría reiniciado el conteo. Según la regla de 50 movimientos, %1$s pierde.</item><item quantity="other">%1$s alcanzó el límite de 50 movimientos aunque %2$d movimientos legales habrían reiniciado el conteo. Según la regla de 50 movimientos, %1$s pierde.</item></plurals>
 </resources>

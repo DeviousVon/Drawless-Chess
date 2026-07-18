@@ -19,6 +19,10 @@ object ChessRules {
         !isInCheck(moved, position.sideToMove)
     }
 
+    /** Structurally valid moves before own-king safety is applied, including unsafe castling. */
+    internal fun movesIgnoringOwnKingSafety(position: ChessPosition): List<ChessMove> =
+        pseudoLegalMoves(position, enforceCastlingSafety = false)
+
     fun legalUciMoves(position: ChessPosition): List<UciMove> = legalMoves(position).map(ChessMove::toUci)
 
     fun apply(position: ChessPosition, move: ChessMove): ChessPosition {
@@ -39,35 +43,38 @@ object ChessRules {
 
     fun isStalemate(position: ChessPosition): Boolean = !isInCheck(position) && legalMoves(position).isEmpty()
 
-    fun isSquareAttacked(position: ChessPosition, target: Square, bySide: Side): Boolean {
+    fun isSquareAttacked(position: ChessPosition, target: Square, bySide: Side): Boolean =
+        attackersOf(position, target, bySide).isNotEmpty()
+
+    /** Enemy origins attacking [target], used by both legality and explanatory presentation. */
+    fun attackersOf(position: ChessPosition, target: Square, bySide: Side): Set<Square> = buildSet {
         val pawnSourceRank = target.rank - if (bySide == Side.WHITE) 1 else -1
         for (fileOffset in listOf(-1, 1)) {
             val source = Square.at(target.file - fileOffset, pawnSourceRank)
-            if (source != null && position[source] == Piece(bySide, PieceType.PAWN)) return true
+            if (source != null && position[source] == Piece(bySide, PieceType.PAWN)) add(source)
         }
 
         for ((df, dr) in knightOffsets) {
             val source = Square.at(target.file + df, target.rank + dr)
-            if (source != null && position[source] == Piece(bySide, PieceType.KNIGHT)) return true
+            if (source != null && position[source] == Piece(bySide, PieceType.KNIGHT)) add(source)
         }
 
-        if (rayAttacked(position, target, bySide, bishopDirections, PieceType.BISHOP)) return true
-        if (rayAttacked(position, target, bySide, rookDirections, PieceType.ROOK)) return true
+        addAll(rayAttackers(position, target, bySide, bishopDirections, PieceType.BISHOP))
+        addAll(rayAttackers(position, target, bySide, rookDirections, PieceType.ROOK))
 
         for ((df, dr) in kingDirections) {
             val source = Square.at(target.file + df, target.rank + dr)
-            if (source != null && position[source] == Piece(bySide, PieceType.KING)) return true
+            if (source != null && position[source] == Piece(bySide, PieceType.KING)) add(source)
         }
-        return false
     }
 
-    private fun rayAttacked(
+    private fun rayAttackers(
         position: ChessPosition,
         target: Square,
         bySide: Side,
         directions: List<Pair<Int, Int>>,
         linePiece: PieceType,
-    ): Boolean {
+    ): Set<Square> = buildSet {
         for ((df, dr) in directions) {
             var file = target.file + df
             var rank = target.rank + dr
@@ -76,7 +83,7 @@ object ChessRules {
                 val piece = position[square]
                 if (piece != null) {
                     if (piece.side == bySide && (piece.type == linePiece || piece.type == PieceType.QUEEN)) {
-                        return true
+                        add(square)
                     }
                     break
                 }
@@ -84,10 +91,12 @@ object ChessRules {
                 rank += dr
             }
         }
-        return false
     }
 
-    private fun pseudoLegalMoves(position: ChessPosition): List<ChessMove> = buildList {
+    private fun pseudoLegalMoves(
+        position: ChessPosition,
+        enforceCastlingSafety: Boolean = true,
+    ): List<ChessMove> = buildList {
         for ((square, piece) in position.pieces()) {
             if (piece.side != position.sideToMove) continue
             when (piece.type) {
@@ -98,7 +107,7 @@ object ChessRules {
                 PieceType.QUEEN -> addSlidingMoves(position, square, piece.side, kingDirections, this)
                 PieceType.KING -> {
                     addJumpMoves(position, square, piece.side, kingDirections, this)
-                    addCastlingMoves(position, square, piece.side, this)
+                    addCastlingMoves(position, square, piece.side, enforceCastlingSafety, this)
                 }
             }
         }
@@ -180,19 +189,21 @@ object ChessRules {
         position: ChessPosition,
         king: Square,
         side: Side,
+        enforceKingSafety: Boolean,
         moves: MutableList<ChessMove>,
     ) {
         val rank = if (side == Side.WHITE) 0 else 7
         if (king != Square.at(4, rank) || position[king]?.type != PieceType.KING) return
-        if (isSquareAttacked(position, king, side.opposite())) return
+        if (enforceKingSafety && isSquareAttacked(position, king, side.opposite())) return
 
         val kingSideRight = if (side == Side.WHITE) position.castlingRights.whiteKingSide
         else position.castlingRights.blackKingSide
         if (kingSideRight &&
             position[Square.at(7, rank)!!] == Piece(side, PieceType.ROOK) &&
             position[Square.at(5, rank)!!] == null && position[Square.at(6, rank)!!] == null &&
-            !isSquareAttacked(position, Square.at(5, rank)!!, side.opposite()) &&
-            !isSquareAttacked(position, Square.at(6, rank)!!, side.opposite())) {
+            (!enforceKingSafety ||
+                (!isSquareAttacked(position, Square.at(5, rank)!!, side.opposite()) &&
+                    !isSquareAttacked(position, Square.at(6, rank)!!, side.opposite())))) {
             moves += ChessMove(king, Square.at(6, rank)!!)
         }
 
@@ -202,8 +213,9 @@ object ChessRules {
             position[Square.at(0, rank)!!] == Piece(side, PieceType.ROOK) &&
             position[Square.at(1, rank)!!] == null && position[Square.at(2, rank)!!] == null &&
             position[Square.at(3, rank)!!] == null &&
-            !isSquareAttacked(position, Square.at(3, rank)!!, side.opposite()) &&
-            !isSquareAttacked(position, Square.at(2, rank)!!, side.opposite())) {
+            (!enforceKingSafety ||
+                (!isSquareAttacked(position, Square.at(3, rank)!!, side.opposite()) &&
+                    !isSquareAttacked(position, Square.at(2, rank)!!, side.opposite())))) {
             moves += ChessMove(king, Square.at(2, rank)!!)
         }
     }

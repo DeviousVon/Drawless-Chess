@@ -43,8 +43,11 @@ data class BoardInteractionState(
     val positionMarker: String,
     val orientation: BoardOrientation,
     val selected: Square? = null,
+    /** Selection made while the bot is thinking; it may survive exactly one position update. */
+    val preselected: Boolean = false,
     val draggingFrom: Square? = null,
     val promotionPrompt: PromotionPrompt? = null,
+    val selfCheckWarning: SelfCheckWarning? = null,
 ) {
     companion object {
         fun initial(position: ChessPosition, humanSide: Side) = BoardInteractionState(
@@ -56,6 +59,8 @@ data class BoardInteractionState(
 
 sealed interface BoardEvent {
     data class TapSquare(val square: Square) : BoardEvent
+    /** Selects or clears a piece without ever attempting a move. */
+    data class PreselectSquare(val square: Square) : BoardEvent
     data class DragStarted(val square: Square) : BoardEvent
     data class Dropped(val square: Square) : BoardEvent
     data object DragCancelled : BoardEvent
@@ -68,6 +73,24 @@ sealed interface BoardAction {
     data class SubmitMove(val move: UciMove) : BoardAction
 }
 
+enum class SelfCheckWarningReason {
+    MOVE_EXPOSES_KING,
+    CASTLE_WHILE_IN_CHECK,
+    CASTLE_THROUGH_CHECK,
+    CASTLE_INTO_CHECK,
+}
+
+data class SelfCheckWarning(
+    val kingSquare: Square,
+    val unsafeKingSquare: Square,
+    val attackerSquares: Set<Square>,
+    val reason: SelfCheckWarningReason,
+) {
+    init {
+        require(attackerSquares.isNotEmpty())
+    }
+}
+
 data class BoardReduction(
     val state: BoardInteractionState,
     val action: BoardAction? = null,
@@ -76,18 +99,83 @@ data class BoardReduction(
 data class BoardInteractionContext(
     val position: ChessPosition,
     val interactive: Boolean,
+    val selectionSide: Side = position.sideToMove,
+    val preselectionEnabled: Boolean = false,
 )
+
+object SelfCheckDiagnostics {
+    fun forAttempt(position: ChessPosition, from: Square, to: Square): SelfCheckWarning? {
+        val candidates = ChessRules.movesIgnoringOwnKingSafety(position)
+            .filter { move -> move.from == from && move.to == to }
+        if (candidates.isEmpty()) return null
+
+        val moving = position[from] ?: return null
+        val kingSquare = position.pieces().single { (_, piece) ->
+            piece.side == position.sideToMove && piece.type == PieceType.KING
+        }.first
+        if (moving.type == PieceType.KING && kotlin.math.abs(to.file - from.file) == 2) {
+            val transit = Square.at((from.file + to.file) / 2, from.rank)!!
+            val unsafeSquares = listOf(
+                Triple(from, SelfCheckWarningReason.CASTLE_WHILE_IN_CHECK, from),
+                Triple(transit, SelfCheckWarningReason.CASTLE_THROUGH_CHECK, transit),
+                Triple(to, SelfCheckWarningReason.CASTLE_INTO_CHECK, to),
+            )
+            unsafeSquares.forEach { (testedSquare, reason, unsafeKingSquare) ->
+                val attackers = ChessRules.attackersOf(
+                    position,
+                    testedSquare,
+                    position.sideToMove.opposite(),
+                )
+                if (attackers.isNotEmpty()) {
+                    return SelfCheckWarning(kingSquare, unsafeKingSquare, attackers, reason)
+                }
+            }
+        }
+
+        val moved = ChessRules.applyUnchecked(position, candidates.first())
+        val unsafeKingSquare = moved.pieces().single { (_, piece) ->
+            piece.side == position.sideToMove && piece.type == PieceType.KING
+        }.first
+        val attackers = ChessRules.attackersOf(
+            moved,
+            unsafeKingSquare,
+            position.sideToMove.opposite(),
+        )
+        return attackers.takeIf { it.isNotEmpty() }?.let {
+            SelfCheckWarning(
+                kingSquare = kingSquare,
+                unsafeKingSquare = unsafeKingSquare,
+                attackerSquares = it,
+                reason = SelfCheckWarningReason.MOVE_EXPOSES_KING,
+            )
+        }
+    }
+}
 
 object BoardInteractionReducer {
     fun reconcile(
         context: BoardInteractionContext,
         state: BoardInteractionState,
-    ): BoardInteractionState = if (state.positionMarker == context.position.fen()) state else state.copy(
-        positionMarker = context.position.fen(),
-        selected = null,
-        draggingFrom = null,
-        promotionPrompt = null,
-    )
+    ): BoardInteractionState {
+        if (state.positionMarker == context.position.fen()) {
+            return if (context.interactive && state.preselected) {
+                state.copy(preselected = false)
+            } else {
+                state
+            }
+        }
+        val preservedSelection = state.selected?.takeIf { square ->
+            state.preselected && context.position[square]?.side == context.selectionSide
+        }
+        return state.copy(
+            positionMarker = context.position.fen(),
+            selected = preservedSelection,
+            preselected = preservedSelection != null && !context.interactive,
+            draggingFrom = null,
+            promotionPrompt = null,
+            selfCheckWarning = null,
+        )
+    }
 
     fun reduce(
         context: BoardInteractionContext,
@@ -98,7 +186,6 @@ object BoardInteractionReducer {
         if (event == BoardEvent.FlipBoard) {
             return BoardReduction(state.copy(orientation = state.orientation.flipped()))
         }
-        if (!context.interactive) return BoardReduction(state)
 
         val prompt = state.promotionPrompt
         if (prompt != null) {
@@ -106,20 +193,46 @@ object BoardInteractionReducer {
                 is BoardEvent.PromotionChosen -> {
                     if (event.piece !in prompt.choices) BoardReduction(state)
                     else BoardReduction(
-                        state.copy(selected = null, draggingFrom = null, promotionPrompt = null),
+                        state.copy(
+                            selected = null,
+                            draggingFrom = null,
+                            promotionPrompt = null,
+                            selfCheckWarning = null,
+                        ),
                         BoardAction.SubmitMove(ChessMove(prompt.from, prompt.to, event.piece).toUci()),
                     )
                 }
-                BoardEvent.PromotionCancelled -> BoardReduction(state.copy(promotionPrompt = null))
+                BoardEvent.PromotionCancelled -> BoardReduction(
+                    state.copy(promotionPrompt = null, selfCheckWarning = null),
+                )
                 else -> BoardReduction(state)
+            }
+        }
+
+        if (event is BoardEvent.PreselectSquare) {
+            return if (context.interactive || context.preselectionEnabled) {
+                preselect(context, state, event.square)
+            } else {
+                BoardReduction(state)
+            }
+        }
+
+        if (!context.interactive) {
+            return if (context.preselectionEnabled && event is BoardEvent.TapSquare) {
+                preselect(context, state, event.square)
+            } else {
+                BoardReduction(state)
             }
         }
 
         return when (event) {
             is BoardEvent.TapSquare -> tap(context, state, event.square)
+            is BoardEvent.PreselectSquare -> BoardReduction(state)
             is BoardEvent.DragStarted -> dragStart(context, state, event.square)
             is BoardEvent.Dropped -> drop(context, state, event.square)
-            BoardEvent.DragCancelled -> BoardReduction(state.copy(draggingFrom = null))
+            BoardEvent.DragCancelled -> BoardReduction(
+                state.copy(draggingFrom = null, selfCheckWarning = null),
+            )
             is BoardEvent.PromotionChosen, BoardEvent.PromotionCancelled, BoardEvent.FlipBoard -> BoardReduction(state)
         }
     }
@@ -133,16 +246,38 @@ object BoardInteractionReducer {
         val piece = context.position[square]
         if (selected == null) {
             return if (piece?.side == context.position.sideToMove) {
-                BoardReduction(state.copy(selected = square))
-            } else BoardReduction(state)
+                BoardReduction(state.copy(selected = square, preselected = false, selfCheckWarning = null))
+            } else BoardReduction(state.copy(preselected = false, selfCheckWarning = null))
         }
         if (square == selected) {
-            return BoardReduction(state.copy(selected = null, draggingFrom = null))
+            return BoardReduction(
+                state.copy(selected = null, preselected = false, draggingFrom = null, selfCheckWarning = null),
+            )
         }
         if (piece?.side == context.position.sideToMove) {
-            return BoardReduction(state.copy(selected = square, draggingFrom = null))
+            return BoardReduction(
+                state.copy(selected = square, preselected = false, draggingFrom = null, selfCheckWarning = null),
+            )
         }
         return attempt(context, state, selected, square)
+    }
+
+    private fun preselect(
+        context: BoardInteractionContext,
+        state: BoardInteractionState,
+        square: Square,
+    ): BoardReduction {
+        val piece = context.position[square]
+        val selected = if (piece?.side == context.selectionSide && state.selected != square) square else null
+        return BoardReduction(
+            state.copy(
+                selected = selected,
+                preselected = selected != null,
+                draggingFrom = null,
+                promotionPrompt = null,
+                selfCheckWarning = null,
+            ),
+        )
     }
 
     private fun dragStart(
@@ -152,8 +287,10 @@ object BoardInteractionReducer {
     ): BoardReduction {
         val piece = context.position[square]
         return if (piece?.side == context.position.sideToMove) {
-            BoardReduction(state.copy(selected = square, draggingFrom = square))
-        } else BoardReduction(state)
+            BoardReduction(
+                state.copy(selected = square, preselected = false, draggingFrom = square, selfCheckWarning = null),
+            )
+        } else BoardReduction(state.copy(selfCheckWarning = null))
     }
 
     private fun drop(
@@ -173,15 +310,24 @@ object BoardInteractionReducer {
         to: Square,
     ): BoardReduction {
         val matches = ChessRules.legalMoves(context.position).filter { it.from == from && it.to == to }
-        if (matches.isEmpty()) return BoardReduction(state)
+        if (matches.isEmpty()) {
+            return BoardReduction(
+                state.copy(selfCheckWarning = SelfCheckDiagnostics.forAttempt(context.position, from, to)),
+            )
+        }
         val promotions = matches.mapNotNull { it.promotion }
         if (promotions.isNotEmpty()) {
             val ordered = listOf(PieceType.QUEEN, PieceType.ROOK, PieceType.BISHOP, PieceType.KNIGHT)
                 .filter { it in promotions }
-            return BoardReduction(state.copy(promotionPrompt = PromotionPrompt(from, to, ordered)))
+            return BoardReduction(
+                state.copy(
+                    promotionPrompt = PromotionPrompt(from, to, ordered),
+                    selfCheckWarning = null,
+                ),
+            )
         }
         return BoardReduction(
-            state.copy(selected = null, draggingFrom = null),
+            state.copy(selected = null, preselected = false, draggingFrom = null, selfCheckWarning = null),
             BoardAction.SubmitMove(matches.single().toUci()),
         )
     }
@@ -221,6 +367,9 @@ data class SquareView(
     val inCheck: Boolean,
     val threatened: Boolean,
     val accessibility: SquareAccessibilityFacts,
+    val selfCheckKing: Boolean = false,
+    val selfCheckAttacker: Boolean = false,
+    val selfCheckUnsafe: Boolean = false,
 )
 
 /** Locale-neutral facts from which the Android UI builds an accessibility description. */
@@ -230,6 +379,9 @@ data class SquareAccessibilityFacts(
     val target: TargetKind?,
     val inCheck: Boolean,
     val threatened: Boolean,
+    val selfCheckKing: Boolean = false,
+    val selfCheckAttacker: Boolean = false,
+    val selfCheckUnsafe: Boolean = false,
 )
 
 enum class BoardStatus {
@@ -249,6 +401,7 @@ data class BoardScreenState(
     val cells: List<SquareView>,
     val interaction: BoardInteractionState,
     val interactive: Boolean,
+    val preselectionEnabled: Boolean = false,
     val phase: CoordinatorPhase,
     val status: BoardStatus,
     val theme: BoardTheme,
@@ -269,7 +422,13 @@ object BoardPresenter {
         val position = ChessPosition.fromFen(snapshot.currentFen)
         val interactive = snapshot.phase == CoordinatorPhase.HUMAN_TURN &&
             snapshot.session.sideToMove == config.humanSide
-        val context = BoardInteractionContext(position, interactive)
+        val preselectionEnabled = snapshot.phase == CoordinatorPhase.BOT_THINKING
+        val context = BoardInteractionContext(
+            position = position,
+            interactive = interactive,
+            selectionSide = config.humanSide,
+            preselectionEnabled = preselectionEnabled,
+        )
         val interaction = BoardInteractionReducer.reconcile(context, interactionState)
         val legalByTarget = if (interactive && interaction.selected != null) {
             ChessRules.legalMoves(position)
@@ -289,6 +448,7 @@ object BoardPresenter {
                 piece.side == position.sideToMove && piece.type == PieceType.KING
             }.first
         } else null
+        val selfCheckWarning = interaction.selfCheckWarning
 
         val cells = buildList {
             for (row in 0..7) for (column in 0..7) {
@@ -316,7 +476,13 @@ object BoardPresenter {
                         target = target,
                         inCheck = checkedKing == square,
                         threatened = square in threatenedPieces,
+                        selfCheckKing = selfCheckWarning?.kingSquare == square,
+                        selfCheckAttacker = square in selfCheckWarning?.attackerSquares.orEmpty(),
+                        selfCheckUnsafe = selfCheckWarning?.unsafeKingSquare == square,
                     ),
+                    selfCheckKing = selfCheckWarning?.kingSquare == square,
+                    selfCheckAttacker = square in selfCheckWarning?.attackerSquares.orEmpty(),
+                    selfCheckUnsafe = selfCheckWarning?.unsafeKingSquare == square,
                 ))
             }
         }
@@ -328,6 +494,7 @@ object BoardPresenter {
             cells = cells,
             interaction = interaction,
             interactive = interactive,
+            preselectionEnabled = preselectionEnabled,
             phase = snapshot.phase,
             status = status(snapshot),
             theme = theme,

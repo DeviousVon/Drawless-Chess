@@ -1,54 +1,45 @@
-# Sampled audio library
+# High-quality stereo sampled audio library
 
-The Android app ships 104 short mono, 48 kHz Ogg/Vorbis effects under
+The Android app ships 104 stereo, 48 kHz Ogg/Vorbis q8 effects under
 `android/app/src/main/res/raw`. `SampledSoundCatalog.kt` groups them into shuffle bags, including
-50 ordinary-move variations that all play before a pool repeats.
+50 ordinary-move variations that all play before a pool repeats. Android packaging stores the
+OGG resources without APK deflation so `SoundPool` receives seekable files.
 
-Normal moves, captures, and castling are derived only from approved physical chess-piece/board
-contacts. Victory assets are derived only from genuine firework recordings. Defeat glass and
-reserved check, promotion, hint, low-time, game-start, and undo pools use the separately audited
-sources in `audio_manifest.json`. Reserved pools remain disconnected until their UI events have
-one-shot behavior across process recreation and saved-game restore.
+The July 2026 quality remaster replaced the mono low-quality Ogg/Vorbis runtime pack after listening review
+found weak levels, truncated firework tails, collapsed stereo ambience, and procedural production
+cues. The current pack:
 
-## Curated rebuild
+- preserves genuine source stereo for fireworks and other stereo recordings;
+- centers mono chess-contact recordings without artificial widening;
+- uses stereo Vorbis q8 for a practical quality/size balance;
+- retains substantially longer natural firework and glass decays;
+- masters effects to category-specific loudness and a -1 dB true-peak ceiling;
+- excludes the brittle 8 kHz alabaster preview from runtime recipes; and
+- routes captures and checks to recorded sample pools rather than generated noise/sine cues.
 
-The 2026-07-13 imported archive was technically valid but failed listening review: a slide source
-contaminated 22/50 moves and 8/12 captures, and six household pops had been presented as
-fireworks. That imported pack is rejected and superseded as a whole: 46 runtime assets were
-rebuilt, while the other 58 passed the corrected source, license, and listening audit and remain
-byte-identical carry-forwards. Its SHA-256 was
-`0e593a0eaa199f22026a6cba3b72d5bb9342610f1acdcca84ba0be4bcc050808`;
-historical checksums are retained under `legacy/` only.
+The retained Freesound firework inputs are public HQ MP3 previews because original WAV downloads
+require an authenticated Freesound account. The q8 encode cannot reconstruct information already
+absent from those previews, but avoids the severe low-bitrate/downmixed result of the rejected
+pack. The manifest keeps the original-WAV identities for a future source-only upgrade.
 
-The current manifest is release-gate locked at SHA-256
-`b25ed214614f9a71c7995193ba48317d5991b19fc9ae0a297d728dda69ab6bd8`.
-The required verifier decodes all 104 files and checks format, hashes, duration, uniqueness,
-silence/clipping, source allowlists, transient onset, and an anti-sweep early-energy rule.
+## Rebuild
 
-Rebuild and then refresh the manifest with:
+Run the deterministic PowerShell builder with FFmpeg and FFprobe available:
 
 ```powershell
-wsl.exe -e bash /mnt/c/src/scripts/audio/rebuild_curated_foley.sh
-pwsh -NoProfile -File scripts/audio/update_curated_audio_manifest.ps1
+pwsh -NoProfile -File scripts/audio/rebuild_lossless_audio.ps1
 ```
 
-The checked-in assets were built with Ubuntu 22.04 packages
-`ffmpeg 7:4.4.2-0ubuntu0.22.04.1` and `libvorbisenc2 1.3.7-1build2`. The builder fails closed on
-a different toolchain unless `DRAWLESS_ALLOW_UNPINNED_AUDIO_TOOLCHAIN=1` is set for an intentional
-audited migration. It uses fixed source inputs, filters, Ogg flags, and stream serials; two passes
-on the pinned toolchain must produce zero SHA-256 changes across all 46 generated assets. Other
-FFmpeg builds may produce audibly equivalent decoded PCM but different Ogg bytes and must never be
-used to refresh the manifest lock without independent review. After an intentional recipe or
-toolchain change, independently review the new manifest before replacing the verifier's locked
-hash.
+The builder renders all 104 files into staging, verifies the complete count, atomically replaces
+the Android runtime set, and refreshes durations, SHA-256 hashes, source mappings, processing
+descriptions, and format metadata in `audio_manifest.json`.
 
-## Review material
+## Verification
 
-- `audio_manifest.json` records every output hash, category, processing description, and source.
-- `source_recordings/` retains the approved CC0 inputs and exact MIT upstream recordings.
-- `licenses/` retains the complete CC0 and ion.sound MIT terms.
-- `previews/` contains numbered listening reels only; the app never reads them.
-- `THIRD_PARTY_AUDIO.md` records licensing and immutable source identities.
-- `scripts/audio/rebuild_curated_previews.sh` recreates reels and includes every move.
+`npm run test:audio` checks the locked manifest, file/source hashes, category counts, unique
+encoded and decoded content, Ogg headers, stereo 48 kHz Vorbis format, duration, onset,
+non-silence, headroom, source allowlists, and licensing notices. Android instrumentation also
+loads every resource through both `MediaExtractor` and `SoundPool`.
 
-Run the release gate with `npm run test:audio`.
+The runtime pack is approximately 1.29 MB (1.23 MiB). Historical rejected Ogg identities remain
+under `legacy/` as evidence only and are never packaged.
