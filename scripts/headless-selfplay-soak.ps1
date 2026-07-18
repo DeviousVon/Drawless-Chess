@@ -498,7 +498,7 @@ function Read-ValidatedReportSummary {
         throw "$Matrix report did not pass its matched zero-work resume gate."
     }
 
-    $allowedReasons = @('CHECKMATE', 'STALEMATE', 'REPETITION', 'DEAD_POSITION_MATERIAL')
+    $allowedReasons = @('CHECKMATE', 'STALEMATE', 'REPETITION', 'DEAD_POSITION_MATERIAL', 'BARE_KING')
     $invalidOutcomeJobs = @()
     $invalidHistoryJobs = @()
     foreach ($game in $games) {
