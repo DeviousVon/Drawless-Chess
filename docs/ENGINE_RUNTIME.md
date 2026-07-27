@@ -147,7 +147,17 @@ Hint failures return to the human turn without poisoning bot UI state. The app p
 the engine-ranked best move in SAN and, when available, up to two lower-ranked MultiPV
 alternatives. Game review builds one full-strength request for every position in which a
 move was chosen and first validates the complete history. UCI scores are from the root
-side-to-move perspective; review code must invert comparisons on alternating plies.
+side-to-move perspective; review code inverts comparisons on alternating plies. The runner
+submits one 350 ms search at a time, appends a final live-position search for resignation or
+timeout, assigns Best/Good/Inaccuracy/Mistake/Blunder from expected-point loss, and supports
+cancellation, safe retry identities, progress, and a cached completed result. Natural terminal
+moves use the authoritative app outcome instead of attempting to search a terminal position.
+
+This first review is deliberately labeled Beta. Fairy currently receives the Drawless/Escape
+preset but not every app-side adjudication detail (notably bare-king and configurable
+dead-position/50-move policies). The runner corrects the recorded terminal move with the app's
+authoritative result, but an earlier suggested line near one of those boundaries can still need
+refinement. The app must not present this beta as an exact tablebase-like verdict.
 
 ## Offline ratings
 

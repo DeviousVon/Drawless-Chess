@@ -20,6 +20,7 @@ import com.drawlesschess.MainActivity
 import com.drawlesschess.R
 import com.drawlesschess.core.presentation.BoardThemes
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -187,6 +188,37 @@ class RepeatedGameLifecycleInstrumentedTest {
             compose.onAllNodesWithText("Forfeit current game?").fetchSemanticsNodes().isEmpty(),
         )
         assertTrue(compose.onAllNodesWithTag("home_quick_play").fetchSemanticsNodes().isEmpty())
+    }
+
+    @Test
+    fun completedGameRunsANativeReviewAndReturnsToTheResult() {
+        assertFalse(
+            "Native review smoke must not use the development engine",
+            com.drawlesschess.BuildConfig.USE_DEVELOPMENT_ENGINE,
+        )
+        dismissRulesGuideIfShown()
+        waitForText("Quick Play")
+        startWhiteCustomGame()
+
+        compose.onNodeWithTag("board_square_e2").performClick()
+        compose.onNodeWithTag("board_square_e4").performClick()
+        waitForStatus(R.string.status_your_turn, timeoutMillis = 20_000L)
+
+        compose.onNodeWithTag("resign_button").performClick()
+        waitForText("Resign this game?")
+        compose.onNodeWithText("Resign game").performClick()
+        waitForText("Defeat")
+
+        compose.onNodeWithTag("post_game_review").performClick()
+        waitForText("Game review")
+        compose.waitUntil(timeoutMillis = 30_000L) {
+            compose.onAllNodesWithText("Review complete").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithTag("review_move_1").fetchSemanticsNode()
+        compose.onNodeWithTag("review_move_2").fetchSemanticsNode()
+
+        compose.onNodeWithTag("review_back").performClick()
+        waitForText("Defeat")
     }
 
     @Test

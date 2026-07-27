@@ -1399,6 +1399,22 @@ fun main() {
         assertThat(screen.cells.first().square == Square.parse("a8"))
         assertThat(screen.interactive && screen.status == BoardStatus.HUMAN_TURN)
     }
+    suite.test("review presenter replays a prefix without enabling board input") {
+        val moves = listOf(UciMove("e2e4"), UciMove("e7e5"), UciMove("g1f3"))
+        val screen = BoardPresenter.presentReview(
+            initialFen = ChessPosition.START_FEN,
+            moves = moves,
+            humanSide = Side.WHITE,
+            orientation = BoardOrientation.BLACK_AT_BOTTOM,
+        )
+        assertThat(screen.cells.size == 64)
+        assertThat(screen.cells.first().square == Square.parse("h1"))
+        assertThat(screen.cells.single { it.square == Square.parse("f3") }.piece?.type == PieceType.KNIGHT)
+        assertThat(screen.cells.filter { it.lastMove }.map { it.square }.toSet() ==
+            setOf(Square.parse("g1"), Square.parse("f3")))
+        assertThat(!screen.interactive && !screen.preselectionEnabled)
+        assertThat(screen.plyCount == 3 && screen.moveMotion == null)
+    }
     suite.test("presenter marks quiet legal targets from selection") {
         val config = coordinatorConfig()
         val fixture = coordinatorFixture(config)

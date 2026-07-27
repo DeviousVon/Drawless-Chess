@@ -39,7 +39,9 @@ See `docs/BOARD_PRESENTATION.md`.
 The Compose application adds Quick Play, custom/advanced setup, a first-run rules guide,
 Room resume, clocks, SAN history, gestures, original code-native pieces, sampled close-board
 move/capture sounds, five persisted visual themes, post-game results, rematches, and local
-career statistics backed by immutable completed-game records. Its verified and unverified
+career statistics backed by immutable completed-game records. Completed games also offer a
+beta Game Review with move grades, better-move suggestions, short principal variations, and
+an interactive move-by-move board replay. Its verified and unverified
 boundaries are documented in `docs/COMPOSE_APP.md`.
 
 The production engine-facing core now adds strict UCI parsing, lifecycle and timeout

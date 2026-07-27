@@ -133,9 +133,31 @@ internal fun DrawlessApp(viewModel: DrawlessAppViewModel, soundPlayer: GameSound
                         onShowThemes = { showThemePicker = true },
                         onShowOptions = { showInGameOptions = true },
                         onExit = viewModel::exitGame,
+                        onReview = viewModel::showGameReview,
                         onQuickPlay = viewModel::postGameQuickPlay,
                         onRematch = viewModel::rematchGame,
                         onGameCompleted = viewModel::completedGameRecorded,
+                    )
+                }
+            }
+        }
+        AppRoute.REVIEW -> {
+            val runtime = viewModel.runtime
+            if (runtime == null) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+            } else {
+                BackHandler(onBack = viewModel::leaveGameReview)
+                CompositionLocalProvider(
+                    LocalDrawlessVisualTheme provides
+                        DrawlessVisualThemes.fromBoardTheme(viewModel.selectedTheme),
+                ) {
+                    GameReviewRoute(
+                        runtime = runtime,
+                        preferences = viewModel.gamePreferences,
+                        selectedTheme = viewModel.selectedTheme,
+                        onBack = viewModel::leaveGameReview,
                     )
                 }
             }

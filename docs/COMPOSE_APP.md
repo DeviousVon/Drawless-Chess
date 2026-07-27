@@ -31,6 +31,10 @@ Official references:
 9. Five full visual themes with home and in-game selection plus relaunch persistence.
 10. A dedicated Options screen with persisted sound, board-coordinate, result-effect, and
     threat-indication preferences.
+11. A post-game Game Review beta with cancellable progress, move grades, better-move and
+    short-line suggestions, evaluation display, board replay/flip controls, and a retained
+    Back path to the completed result. The result screen also keeps Quick Play and Rematch
+    available without returning home.
 
 The game screen renders:
 
@@ -56,6 +60,9 @@ The game screen renders:
 - Device-local player statistics derived from immutable, idempotent completed-game records:
   completed games, wins/losses, win percentage, average game score, current/best win streak,
   unassisted wins, and opponent-level breakdowns. Game score remains separate from Elo.
+- A non-interactive review board with starting/previous/next controls, selectable SAN move
+  rows, text-and-symbol grades that do not rely on color, and responsive phone/tablet layouts.
+  The review remains usable at 200% font scale and announces progress in 25% milestones.
 
 Medium portrait tablets keep the board stacked above the controls so the 600 dp breakpoint
 does not collapse the board. Landscape/expanded layouts use a side panel only when at least a

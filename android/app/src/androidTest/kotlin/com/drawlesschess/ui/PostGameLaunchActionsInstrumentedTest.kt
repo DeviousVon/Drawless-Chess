@@ -16,6 +16,7 @@ import com.drawlesschess.persistence.RoomCheckpointStore
 import java.util.ArrayDeque
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotSame
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -59,6 +60,18 @@ class PostGameLaunchActionsInstrumentedTest {
 
             onMain {
                 firstRuntime.controller.resign()
+                viewModel.showGameReview()
+            }
+            assertEquals(AppRoute.REVIEW, viewModel.route)
+            assertSame(firstRuntime, viewModel.runtime)
+
+            onMain {
+                viewModel.leaveGameReview()
+            }
+            assertEquals(AppRoute.GAME, viewModel.route)
+            assertSame(firstRuntime, viewModel.runtime)
+
+            onMain {
                 viewModel.rematchGame()
             }
             waitUntil { viewModel.runtime != null && viewModel.runtime !== firstRuntime }

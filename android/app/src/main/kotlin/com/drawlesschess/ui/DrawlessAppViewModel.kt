@@ -26,6 +26,7 @@ internal enum class AppRoute {
     OPTIONS,
     STATS,
     GAME,
+    REVIEW,
 }
 
 internal sealed interface ResumeState {
@@ -312,6 +313,15 @@ internal class DrawlessAppViewModel(
         // Like rematch, this action is offered only for a completed game and launches directly.
         // Starting from a fresh RANDOM selection deliberately draws the player's side again.
         launchNewGame(quickPlaySelection())
+    }
+
+    fun showGameReview() {
+        val activeRuntime = runtime ?: return
+        if (activeRuntime.controller.model().result != null) route = AppRoute.REVIEW
+    }
+
+    fun leaveGameReview() {
+        route = if (runtime == null) AppRoute.HOME else AppRoute.GAME
     }
 
     private fun quickPlaySelection(): SetupSelection = quickPlaySetup(quickPlayOpponentLevel)

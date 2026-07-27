@@ -96,6 +96,7 @@ internal fun GameRoute(
     onShowThemes: () -> Unit,
     onShowOptions: () -> Unit,
     onExit: () -> Unit,
+    onReview: () -> Unit,
     onQuickPlay: () -> Unit,
     onRematch: () -> Unit,
     onGameCompleted: () -> Unit,
@@ -265,6 +266,10 @@ internal fun GameRoute(
         soundPlayer.stopAll()
         onQuickPlay()
     }
+    val reviewGame = {
+        soundPlayer.stopAll()
+        onReview()
+    }
     val handleBoardEvent: (BoardEvent) -> Unit = { event ->
         val before = model
         val after = controller.boardEvent(event)
@@ -302,6 +307,7 @@ internal fun GameRoute(
                             ?.takeIf { it.latestGameId == runtime.gameId }
                             ?.averageScore,
                         onHome = exitGame,
+                        onReview = reviewGame,
                         onQuickPlay = quickPlayGame,
                         onRematch = rematchGame,
                     )
@@ -529,6 +535,7 @@ internal fun PostGameBar(
     opponentName: String? = null,
     careerAverageGameScore: Double? = null,
     onHome: () -> Unit,
+    onReview: () -> Unit = {},
     onQuickPlay: () -> Unit,
     onRematch: () -> Unit,
 ) {
@@ -641,9 +648,16 @@ internal fun PostGameBar(
                         color = onContainer.copy(alpha = 0.82f),
                     )
                 }
+                Button(
+                    onClick = onReview,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 48.dp)
+                        .testTag("post_game_review"),
+                ) { Text(stringResource(R.string.action_review_game)) }
                 if (stackPrimaryActions) {
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Button(
+                        FilledTonalButton(
                             onClick = onQuickPlay,
                             modifier = Modifier.fillMaxWidth().testTag("post_game_quick_play"),
                         ) { Text(stringResource(R.string.action_quick_play)) }
@@ -657,7 +671,7 @@ internal fun PostGameBar(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
-                        Button(
+                        FilledTonalButton(
                             onClick = onQuickPlay,
                             modifier = Modifier.weight(1f).testTag("post_game_quick_play"),
                         ) { Text(stringResource(R.string.action_quick_play)) }
@@ -1209,9 +1223,9 @@ internal fun SquareCell(
             .testTag("board_square_${cell.square.algebraic}")
             .semantics(mergeDescendants = true) {
                 contentDescription = squareDescription
-                role = Role.Button
+                if (inputEnabled) role = Role.Button
             }
-            .clickable(enabled = inputEnabled, onClick = onClick),
+            .then(if (inputEnabled) Modifier.clickable(onClick = onClick) else Modifier),
         contentAlignment = Alignment.Center,
     ) {
         if (showTargets && cell.target == TargetKind.QUIET) {

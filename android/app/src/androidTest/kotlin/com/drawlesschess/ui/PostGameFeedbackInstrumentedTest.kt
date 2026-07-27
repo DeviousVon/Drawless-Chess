@@ -46,6 +46,7 @@ class PostGameFeedbackInstrumentedTest {
     fun victoryFeedbackIsExplicitAndActionsRemainAvailable() {
         val context = targetContext()
         var homeClicks = 0
+        var reviewClicks = 0
         var quickPlayClicks = 0
         var rematchClicks = 0
 
@@ -60,6 +61,7 @@ class PostGameFeedbackInstrumentedTest {
                         score = GameScore(100, 100, 0),
                     ),
                     onHome = { homeClicks += 1 },
+                    onReview = { reviewClicks += 1 },
                     onQuickPlay = { quickPlayClicks += 1 },
                     onRematch = { rematchClicks += 1 },
                 )
@@ -73,12 +75,14 @@ class PostGameFeedbackInstrumentedTest {
         compose.onNodeWithTag("post_game_score")
             .assertTextEquals(context.getString(R.string.game_score, 100, 100))
 
+        compose.onNodeWithTag("post_game_review").performClick()
         compose.onNodeWithTag("post_game_home").performClick()
         compose.onNodeWithTag("post_game_quick_play").performClick()
         compose.onNodeWithTag("post_game_rematch").performClick()
         // performClick waits for Compose to become idle, so the callbacks are complete here.
         // Avoid another ActivityScenario hop after the final click: on some physical devices the
         // shared test host can already be tearing down when this test follows non-Compose tests.
+        assertEquals(1, reviewClicks)
         assertEquals(1, homeClicks)
         assertEquals(1, quickPlayClicks)
         assertEquals(1, rematchClicks)
@@ -259,6 +263,7 @@ class PostGameFeedbackInstrumentedTest {
         compose.onNodeWithTag("threat_score_penalty")
             .performScrollTo()
             .assertIsDisplayed()
+        compose.onNodeWithTag("post_game_review").performScrollTo().assertIsDisplayed()
         compose.onNodeWithTag("post_game_quick_play").performScrollTo().assertIsDisplayed()
         compose.onNodeWithTag("post_game_rematch").performScrollTo().assertIsDisplayed()
         compose.onNodeWithTag("post_game_home").performScrollTo().assertIsDisplayed()
