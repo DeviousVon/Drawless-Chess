@@ -33,7 +33,7 @@ internal data class OpponentProfile(
 )
 
 internal object OpponentProfiles {
-    val all: List<OpponentProfile> = listOf(
+    val named: List<OpponentProfile> = listOf(
         OpponentProfile(
             level = BotDifficultyCatalog.named("learner"),
             name = "Mira",
@@ -92,18 +92,31 @@ internal object OpponentProfiles {
         ),
     )
 
+    val adaptive: OpponentProfile = OpponentProfile(
+        level = BotDifficultyCatalog.adaptiveLevel(),
+        name = "Vesper",
+        nameRes = R.string.opponent_vesper_name,
+        epithetRes = R.string.opponent_vesper_epithet,
+        personalityRes = R.string.opponent_vesper_personality,
+        portraitRes = R.drawable.opponent_adaptive,
+    )
+
+    val all: List<OpponentProfile> = listOf(adaptive) + named
+
     private val byLevelId = all.associateBy { it.level.id }
     val quickPlay: OpponentProfile get() = byLevelId.getValue("casual")
 
     init {
-        check(all.map { it.level.id } == BotDifficultyCatalog.namedLevels.map { it.id }) {
+        check(named.map { it.level.id } == BotDifficultyCatalog.namedLevels.map { it.id }) {
             "Every named bot level must have exactly one opponent profile"
         }
         check(byLevelId.size == all.size) { "Opponent profile level ids must be unique" }
     }
 
-    fun forLevel(level: NamedBotLevel): OpponentProfile =
-        byLevelId[level.id] ?: error("No opponent profile for level '${level.id}'")
+    fun forLevel(level: NamedBotLevel): OpponentProfile = when (level.id) {
+        BotDifficultyCatalog.ADAPTIVE_LEVEL_ID -> adaptive.copy(level = level)
+        else -> byLevelId[level.id] ?: error("No opponent profile for level '${level.id}'")
+    }
 }
 
 @Composable
@@ -112,6 +125,7 @@ internal fun opponentName(profile: OpponentProfile): String = stringResource(pro
 @Composable
 internal fun botLevelName(level: NamedBotLevel): String = stringResource(
     when (level.id) {
+        BotDifficultyCatalog.ADAPTIVE_LEVEL_ID -> R.string.difficulty_adaptive
         "learner" -> R.string.difficulty_learner
         "casual" -> R.string.difficulty_casual
         "challenger" -> R.string.difficulty_challenger
@@ -126,6 +140,7 @@ internal fun botLevelName(level: NamedBotLevel): String = stringResource(
 @Composable
 internal fun botLevelDescription(level: NamedBotLevel): String = stringResource(
     when (level.id) {
+        BotDifficultyCatalog.ADAPTIVE_LEVEL_ID -> R.string.difficulty_description_adaptive
         "learner" -> R.string.difficulty_description_learner
         "casual" -> R.string.difficulty_description_casual
         "challenger" -> R.string.difficulty_description_challenger

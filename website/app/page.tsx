@@ -10,11 +10,12 @@ import {
 export const metadata: Metadata = {
   title: "Every game has a winner",
   description:
-    "Offline chess with decisive no-draw rules, seven illustrated opponents, and no ads or tracking.",
+    "Offline chess with decisive no-draw rules, eight illustrated opponents, and no ads or tracking.",
   alternates: { canonical: "/" },
 };
 
 const opponents = [
+  { id: "adaptive", name: "Vesper", level: "Adaptive" },
   { id: "learner", name: "Mira", level: "Learner" },
   { id: "casual", name: "Theo", level: "Casual" },
   { id: "challenger", name: "Rhea", level: "Challenger" },
@@ -55,7 +56,7 @@ export default function Home() {
             <h1 id="hero-title">Every game has a winner.</h1>
             <p className="hero-lede">
               Familiar chess, reworked to replace routine draws with decisive
-              results. Play seven illustrated opponents completely offline—no
+              results. Play eight illustrated opponents completely offline—no
               account, ads, or tracking.
             </p>
             <div className="button-row">
@@ -107,7 +108,7 @@ export default function Home() {
           <div className="section-shell proof-strip-inner">
             <span>Checkmate still wins</span>
             <span>Five board themes</span>
-            <span>Seven opponent levels</span>
+            <span>Eight opponents</span>
             <span>Games save locally</span>
           </div>
         </section>
@@ -243,8 +244,8 @@ export default function Home() {
         <section className="section section-shell opponents-section" id="opponents" aria-labelledby="opponents-title">
           <div className="split-heading">
             <div>
-              <p className="eyebrow">Seven opponents</p>
-              <h2 id="opponents-title">From Learner to Grandmaster.</h2>
+              <p className="eyebrow">Eight opponents</p>
+              <h2 id="opponents-title">Meet Vesper. Then climb the ranks.</h2>
             </div>
             <p>
               Each illustrated opponent has a distinct playing strength and

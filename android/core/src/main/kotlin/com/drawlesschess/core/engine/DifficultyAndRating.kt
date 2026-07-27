@@ -18,15 +18,17 @@ data class NamedBotLevel(
 object BotDifficultyCatalog {
     const val MINIMUM_ELO = 500
     const val MAXIMUM_ELO = 2850
+    const val ADAPTIVE_LEVEL_ID = "adaptive"
+    const val ADAPTIVE_STARTING_ELO = 800
 
     val namedLevels: List<NamedBotLevel> = listOf(
-        NamedBotLevel("learner", 500),
-        NamedBotLevel("casual", 650),
-        NamedBotLevel("challenger", 850),
-        NamedBotLevel("club", 1_100),
-        NamedBotLevel("expert", 1_500),
-        NamedBotLevel("master", 2_000),
-        NamedBotLevel("grandmaster", 2_500),
+        NamedBotLevel("learner", 550),
+        NamedBotLevel("casual", 800),
+        NamedBotLevel("challenger", 1_000),
+        NamedBotLevel("club", 1_300),
+        NamedBotLevel("expert", 1_675),
+        NamedBotLevel("master", 2_100),
+        NamedBotLevel("grandmaster", 2_550),
     )
 
     /**
@@ -54,6 +56,10 @@ object BotDifficultyCatalog {
 
     fun namedOrNull(id: String?): NamedBotLevel? =
         id?.let { candidate -> namedLevels.singleOrNull { it.id == candidate } }
+
+    /** UI-facing snapshot of the adaptive opponent at the Elo frozen for a game. */
+    fun adaptiveLevel(elo: Int = ADAPTIVE_STARTING_ELO): NamedBotLevel =
+        NamedBotLevel(ADAPTIVE_LEVEL_ID, clampElo(elo))
 
     fun nearest(elo: Int): NamedBotLevel = namedLevels.minBy { abs(it.approximateElo - elo) }
 
@@ -109,7 +115,7 @@ sealed interface BotDifficultySelection {
 
 data class ResolvedBotDifficulty(
     val kind: Kind,
-    /** Named level to present for NAMED/ADAPTIVE; null only for a custom Elo. */
+    /** Stable opponent level ID for named/adaptive play; null only for a custom Elo. */
     val levelId: String?,
     val targetElo: Int,
     val strength: EngineStrength.ApproximateElo = EngineStrength.ApproximateElo(targetElo),
@@ -135,7 +141,7 @@ object BotDifficultyResolver {
                 val target = BotDifficultyCatalog.clampElo(playerRating.rating)
                 ResolvedBotDifficulty(
                     kind = ResolvedBotDifficulty.Kind.ADAPTIVE,
-                    levelId = BotDifficultyCatalog.nearest(target).id,
+                    levelId = BotDifficultyCatalog.ADAPTIVE_LEVEL_ID,
                     targetElo = target,
                 )
             }

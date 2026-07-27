@@ -111,8 +111,8 @@ It must not silently retry a timed-out move after the game position has changed.
 
 Version 1 exposes all three agreed difficulty paths:
 
-- Seven named levels using the beginner-focused target ladder: Learner 500, Casual 650,
-  Challenger 850, Club 1100, Expert 1500, Master 2000, and Grandmaster 2500.
+- Seven named levels using the beginner-focused target ladder: Learner 550, Casual 800,
+  Challenger 1000, Club 1300, Expert 1675, Master 2100, and Grandmaster 2550.
 - A custom approximate Elo from 500 through 2850.
 - Adaptive difficulty targeting the relevant offline player rating.
 
@@ -120,11 +120,19 @@ The engine adapter maps approximate Elo to `UCI_LimitStrength` plus `UCI_Elo`, a
 raw skill to Fairy-Stockfish's `Skill Level`. Values are checked against the options
 reported by the actual binary rather than assumed.
 
-New checkpoints persist the named level ID separately from its target Elo. Checkpoints
+The app presents Adaptive as Vesper, a distinct opponent identity. Vesper begins near 800,
+freezes the current adaptive rating as the engine target for the entire game, and updates the
+installation-local rating only after a completed game without hints, undo, pauses, or threat
+indication. The first ten qualifying games use the provisional Elo update factor; subsequent
+updates become progressively steadier. Rating-before and rating-after snapshots are appended
+atomically with completed-game history, while every Vesper game remains grouped under the stable
+`bot:adaptive` identity even though its exact engine Elo changes.
+
+New checkpoints persist the named or adaptive level ID separately from its target Elo. Checkpoints
 from the previous 600/900/1200/1500/1850/2200/2600 ladder infer identity only from an
 exact historical value, preserving both the original opponent persona and the saved
-engine strength. In particular, legacy Club 1500 remains Club while new Expert 1500 is
-unambiguous. A present null ID remains a custom opponent and is never legacy-inferred.
+engine strength. In particular, legacy Club 1500 remains Club after the current ladder moves
+Expert to 1675. A present null ID remains a custom opponent and is never legacy-inferred.
 
 These numbers are target/estimated Elo values, not hardware-independent measurements;
 the production adapter sends the exact target through `UCI_LimitStrength` and `UCI_Elo`
@@ -202,13 +210,13 @@ acceptance pair above.
 The app instrumentation suite now contains 51 tests and passes twice from fresh processes against
 that exact clean APK pair on the API-33 ARM64 tablet, API-36 x86-64 emulator, and Pixel 9 Pro XL.
 The targeted forfeit flow also passes independently on all three. It covers confirmed-forfeit
-durability and stable named-opponent identity across the old
-Club/new Expert 1500 collision as well as current-ladder checkpoint round trips. In particular, its
+durability and stable named-opponent identity across legacy/current ladder changes as well as
+current-ladder checkpoint round trips. In particular, its
 native-hint acceptance case publishes a full-strength MultiPV hint and then completes a bot
 move through the same process-global session; rapid game replacement also completes a real
 bot move without reproducing the former second-game session failure. The completion and audio
 tests lock the two-second-plus finish timelines, exactly-once cue ordering, reduced-motion
-collapse behavior, and the 104-resource sampled-audio catalog/platform-loading contract.
+collapse behavior, and the 101-resource sampled-audio catalog/platform-loading contract.
 
 This evidence does not cover sustained performance, low-memory/native-crash resilience,
 every form factor, a signed release, or an App Bundle. The licensing decision is complete:

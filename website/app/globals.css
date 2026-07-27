@@ -403,7 +403,7 @@ h3 {
 
 .opponent-grid {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: repeat(8, 1fr);
   gap: 0.8rem;
   margin: 0;
   padding: 0;
@@ -535,7 +535,6 @@ h3 {
   .rule-number { margin-bottom: 3.4rem; }
   .split-heading { gap: 0.5rem; }
   .opponent-grid { grid-template-columns: repeat(2, 1fr); gap: 1rem; }
-  .opponent-card:last-child { grid-column: 1 / -1; width: calc(50% - 0.5rem); }
   .themes-layout { gap: 3rem; }
   .theme-preview { order: -1; }
   .privacy-panel { gap: 2rem; }

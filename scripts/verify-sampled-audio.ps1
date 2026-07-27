@@ -34,6 +34,8 @@ $raw = Join-Path $root 'android/app/src/main/res/raw'
 $catalogPath = Join-Path $root 'android/app/src/main/kotlin/com/drawlesschess/ui/SampledSoundCatalog.kt'
 $manifestPath = Join-Path $root 'docs/audio/audio_manifest.json'
 $sourceRoot = Join-Path $root 'docs/audio/source_recordings'
+$previewRoot = Join-Path $root 'docs/audio/previews'
+$previewMapPath = Join-Path $previewRoot 'audio-pack-preview-map.txt'
 $thirdPartyNotices = Join-Path $root 'THIRD_PARTY_NOTICES.md'
 
 foreach ($required in @(
@@ -41,6 +43,7 @@ foreach ($required in @(
     $catalogPath,
     $manifestPath,
     $sourceRoot,
+    $previewMapPath,
     (Join-Path $root 'docs/audio/licenses/CC0-1.0.txt'),
     (Join-Path $root 'docs/audio/licenses/ion-sound-MIT.txt'),
     $thirdPartyNotices
@@ -48,9 +51,39 @@ foreach ($required in @(
     if (-not (Test-Path -LiteralPath $required)) { Fail "missing $required" }
 }
 
-$auditedManifestSha256 = 'beb898bf98081060c30704230e9efcffb92d96680726291ffd291187d3691388'
+$auditedManifestSha256 = '0c7f66a055fc93bfd7d71470777fd6b636f33baeefd5b23eb9fae06486499c9f'
 if ((Get-Sha256 $manifestPath) -ne $auditedManifestSha256) {
     Fail 'audio_manifest.json differs from the independently audited source identities and pins'
+}
+
+$auditedPreviewSha256 = [ordered]@{
+    'audio-pack-preview-map.txt' = '9b014f86bb791c5df353ebf136d0082bc1dd49be8078b04715efda959bfb795a'
+    'audio-pack-preview.ogg' = 'c426b92962b7b8a4bcf3566fd558847a451f8efd6a6d5a3d53fc86dbf55e3c78'
+    'preview-captures-and-castling.ogg' = 'a4fb5a4eb4ed9727ca4d21dda3f83250bc241d1e54495a5f4a311d1ef15aba01'
+    'preview-fireworks.ogg' = '5ef68c1f4d7236416fbed7b6d19ced0b6d82179c953a1999269bc6306083c374'
+    'preview-glass-loss.ogg' = 'c5644a540d571eb8c46fd741b1be737f11304874e3f43a2e58f33d25bbe45218'
+    'preview-moves.ogg' = 'de1594f58c2105824ec758ae76123357a1a2878c15f27bc6e1746c747247d0dd'
+}
+foreach ($entry in $auditedPreviewSha256.GetEnumerator()) {
+    $path = Join-Path $previewRoot $entry.Key
+    if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
+        Fail "missing curated preview $($entry.Key)"
+    }
+    if ((Get-Sha256 $path) -ne $entry.Value) {
+        Fail "curated preview $($entry.Key) differs from its audited capture-pack reel"
+    }
+    if ($entry.Key.EndsWith('.ogg')) {
+        $stream = [IO.File]::OpenRead($path)
+        try {
+            $header = [byte[]]::new(4)
+            $read = $stream.Read($header, 0, $header.Length)
+        } finally {
+            $stream.Dispose()
+        }
+        if ($read -ne 4 -or [Text.Encoding]::ASCII.GetString($header) -ne 'OggS') {
+            Fail "curated preview $($entry.Key) does not have an Ogg identification header"
+        }
+    }
 }
 
 $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
@@ -71,7 +104,7 @@ $expectedCounts = [ordered]@{
     glass_impact = 3
     glass_fracture = 3
     glass_shards = 3
-    check = 4
+    check = 1
     promotion = 4
     hint = 3
     low_time = 4
@@ -84,9 +117,31 @@ if ($assets.Count -ne $expectedTotal) {
     Fail "expected $expectedTotal manifest assets, found $($assets.Count)"
 }
 
+$previewMapText = Get-Content -LiteralPath $previewMapPath -Raw
+if ($previewMapText -match 'chess_capture_wood_') {
+    Fail 'curated preview map still names the retired capture-contact family'
+}
+$mappedPreviewNames = @([regex]::Matches(
+    $previewMapText,
+    '(?m)^\s+\d{2}\. ([a-z][a-z0-9_]*\.ogg)\s*$'
+) | ForEach-Object { $_.Groups[1].Value })
+$previewedCategories = @(
+    'move', 'capture', 'castle',
+    'firework_low', 'firework_mid', 'firework_high'
+)
+$expectedPreviewNames = @($assets |
+    Where-Object { $_.category -in $previewedCategories } |
+    ForEach-Object { [string]$_.file })
+if ($mappedPreviewNames.Count -ne $expectedPreviewNames.Count -or
+    @($mappedPreviewNames | Sort-Object -Unique).Count -ne $expectedPreviewNames.Count -or
+    @($mappedPreviewNames | Where-Object { $_ -notin $expectedPreviewNames }).Count -ne 0 -or
+    @($expectedPreviewNames | Where-Object { $_ -notin $mappedPreviewNames }).Count -ne 0) {
+    Fail 'curated preview map file set differs from the manifest move/capture/castle/firework assets'
+}
+
 $declaredSources = @{}
 $manifest.sources.PSObject.Properties | ForEach-Object { $declaredSources[$_.Name] = $_.Value }
-if ($declaredSources.Count -ne 15) { Fail "expected 15 declared sources, found $($declaredSources.Count)" }
+if ($declaredSources.Count -ne 17) { Fail "expected 17 declared sources, found $($declaredSources.Count)" }
 foreach ($entry in $declaredSources.GetEnumerator()) {
     $source = $entry.Value
     if (-not $source.title -or -not $source.author -or -not $source.source) {
@@ -109,13 +164,14 @@ foreach ($id in @('disk_drop_1', 'disk_drop_2', 'disk_drop_3', 'disk_drop_4', 'd
     }
 }
 foreach ($entry in @(
-    @{ id = 'mh2o_alabaster'; sound = '351518'; preview = '351518_4502687-hq.mp3' },
-    @{ id = 'rudmer_firework_pops'; sound = '334042'; preview = '334042_4921277-hq.mp3' },
-    @{ id = 'rudmer_firework_rocket'; sound = '336008'; preview = '336008_4921277-hq.mp3' }
+    @{ id = 'mh2o_alabaster'; sound = '351518'; page = 'https://freesound.org/s/351518/'; preview = '351518_4502687-hq.mp3' },
+    @{ id = 'aerror_stonehit1'; sound = '350750'; page = 'https://freesound.org/people/aerror/sounds/350750/'; preview = '350750_2472895-hq.mp3' },
+    @{ id = 'rudmer_firework_pops'; sound = '334042'; page = 'https://freesound.org/s/334042/'; preview = '334042_4921277-hq.mp3' },
+    @{ id = 'rudmer_firework_rocket'; sound = '336008'; page = 'https://freesound.org/s/336008/'; preview = '336008_4921277-hq.mp3' }
 )) {
     $source = $declaredSources[$entry.id]
     if ($source.license -ne 'CC0-1.0' -or
-        $source.source -ne "https://freesound.org/s/$($entry.sound)/" -or
+        $source.source -ne $entry.page -or
         $source.source_preview -ne "https://cdn.freesound.org/previews/$($entry.sound.Substring(0, 3))/$($entry.preview)" -or
         $source.source_preview_sha256 -notmatch '^[0-9a-f]{64}$' -or
         $source.source_preview_sha256 -ne $source.local_sha256 -or
@@ -172,9 +228,13 @@ foreach ($asset in $assets) {
 
     $assetSources = @($asset.sources | ForEach-Object { [string]$_ })
     $contactSources = @('disk_drop_1', 'disk_drop_2', 'disk_drop_3', 'disk_drop_4', 'disk_drop_5', 'mh2o_alabaster')
-    if ($category -in @('move', 'capture', 'castle') -and
+    if ($category -in @('move', 'castle') -and
         @($assetSources | Where-Object { $_ -notin $contactSources }).Count -ne 0) {
         Fail "$name reintroduces a non-contact or slide source into the $category pool"
+    }
+    if ($category -eq 'capture' -and
+        ($assetSources.Count -ne 1 -or $assetSources[0] -ne 'aerror_stonehit1')) {
+        Fail "$name is not derived solely from the selected CC0 stone-crush recording"
     }
     if ($category -in @('firework_low', 'firework_mid') -and
         ($assetSources.Count -ne 1 -or $assetSources[0] -ne 'rudmer_firework_pops')) {
@@ -221,7 +281,7 @@ $catalogText = Get-Content -LiteralPath $catalogPath -Raw
 $catalogNames = @([regex]::Matches($catalogText, 'R\.raw\.([a-z][a-z0-9_]*)') |
     ForEach-Object { "$($_.Groups[1].Value).ogg" })
 if ($catalogNames.Count -ne $expectedTotal -or @($catalogNames | Sort-Object -Unique).Count -ne $expectedTotal) {
-    Fail 'SampledSoundCatalog does not reference 104 distinct resources exactly once'
+    Fail "SampledSoundCatalog does not reference $expectedTotal distinct resources exactly once"
 }
 if (@($catalogNames | Where-Object { $_ -notin $assetNames }).Count -ne 0 -or
     @($assetNames | Where-Object { $_ -notin $catalogNames }).Count -ne 0) {
@@ -244,7 +304,7 @@ if ($sourceFiles.Count -ne $hashedSourceIds.Count) {
     Fail "retained source set ($($sourceFiles.Count)) differs from hashed manifest sources ($($hashedSourceIds.Count))"
 }
 $unexpectedUnused = @($declaredSources.Keys | Where-Object {
-    $_ -notin @('ion_sound', 'keyboard_desk', 'mh2o_alabaster') -and -not $usedSourceIds.Contains($_)
+    $_ -notin @('ion_sound', 'keyboard_desk', 'mh2o_alabaster', 'snap') -and -not $usedSourceIds.Contains($_)
 })
 if ($unexpectedUnused.Count -ne 0) {
     Fail "runtime assets do not cite retained sources: $($unexpectedUnused -join ', ')"
@@ -303,6 +363,22 @@ if (($FfmpegPath -and (Test-Path -LiteralPath $FfmpegPath)) -or $useWslFfmpeg) {
     $decodeRoot = Join-Path ([IO.Path]::GetTempPath()) "drawless-audio-verify-$([guid]::NewGuid().ToString('N'))"
     $null = New-Item -ItemType Directory -Path $decodeRoot
     try {
+        foreach ($previewName in @('preview-captures-and-castling.ogg', 'audio-pack-preview.ogg')) {
+            $previewPath = Join-Path $previewRoot $previewName
+            if ($useWslFfmpeg) {
+                $wslPreview = (& wsl.exe -e wslpath -a $previewPath | Out-String).Trim()
+                $output = (& wsl.exe -e ffmpeg -hide_banner -nostats -i $wslPreview `
+                    -map '0:a:0' -f null - 2>&1 | Out-String)
+            } else {
+                $output = (& $FfmpegPath -hide_banner -nostats -i $previewPath -map '0:a:0' `
+                    -f null - 2>&1 | Out-String)
+            }
+            if ($LASTEXITCODE -ne 0) { Fail "FFmpeg could not decode curated preview $previewName" }
+            if ($output -notmatch 'Audio:\s+vorbis[^\r\n]*,\s+48000 Hz,\s+stereo') {
+                Fail "curated preview $previewName is not stereo 48 kHz Vorbis"
+            }
+        }
+
         foreach ($asset in $assets) {
             $path = Join-Path $raw $asset.file
             $pcmPath = Join-Path $decodeRoot "$($asset.file).s16le"

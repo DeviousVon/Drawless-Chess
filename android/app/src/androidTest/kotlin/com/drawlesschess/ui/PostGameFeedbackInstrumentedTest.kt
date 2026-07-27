@@ -46,6 +46,7 @@ class PostGameFeedbackInstrumentedTest {
     fun victoryFeedbackIsExplicitAndActionsRemainAvailable() {
         val context = targetContext()
         var homeClicks = 0
+        var quickPlayClicks = 0
         var rematchClicks = 0
 
         compose.setContent {
@@ -59,6 +60,7 @@ class PostGameFeedbackInstrumentedTest {
                         score = GameScore(100, 100, 0),
                     ),
                     onHome = { homeClicks += 1 },
+                    onQuickPlay = { quickPlayClicks += 1 },
                     onRematch = { rematchClicks += 1 },
                 )
             }
@@ -72,11 +74,13 @@ class PostGameFeedbackInstrumentedTest {
             .assertTextEquals(context.getString(R.string.game_score, 100, 100))
 
         compose.onNodeWithTag("post_game_home").performClick()
+        compose.onNodeWithTag("post_game_quick_play").performClick()
         compose.onNodeWithTag("post_game_rematch").performClick()
         // performClick waits for Compose to become idle, so the callbacks are complete here.
         // Avoid another ActivityScenario hop after the final click: on some physical devices the
         // shared test host can already be tearing down when this test follows non-Compose tests.
         assertEquals(1, homeClicks)
+        assertEquals(1, quickPlayClicks)
         assertEquals(1, rematchClicks)
     }
 
@@ -196,6 +200,7 @@ class PostGameFeedbackInstrumentedTest {
                     ),
                     careerAverageGameScore = 64.25,
                     onHome = {},
+                    onQuickPlay = {},
                     onRematch = {},
                 )
             }
@@ -241,6 +246,7 @@ class PostGameFeedbackInstrumentedTest {
                             ),
                             opponentName = "Lucian",
                             onHome = {},
+                            onQuickPlay = {},
                             onRematch = {},
                         )
                     }
@@ -253,8 +259,9 @@ class PostGameFeedbackInstrumentedTest {
         compose.onNodeWithTag("threat_score_penalty")
             .performScrollTo()
             .assertIsDisplayed()
+        compose.onNodeWithTag("post_game_quick_play").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithTag("post_game_rematch").performScrollTo().assertIsDisplayed()
         compose.onNodeWithTag("post_game_home").performScrollTo().assertIsDisplayed()
-        compose.onNodeWithTag("post_game_rematch").assertIsDisplayed()
     }
 
     @Test
@@ -356,7 +363,7 @@ class PostGameFeedbackInstrumentedTest {
 
         assertTrue(move.contentEquals(repeatedMove))
         assertEquals((SOUND_SAMPLE_RATE * 0.48).toInt(), move.size)
-        assertEquals((SOUND_SAMPLE_RATE * 0.58).toInt(), capture.size)
+        assertEquals((SOUND_SAMPLE_RATE * 0.56).toInt(), capture.size)
         listOf(move, capture).forEach { pcm ->
             val peak = pcm.maxOf { sample -> kotlin.math.abs(sample.toInt()) }
             assertTrue(peak in 20_000..27_000)
@@ -373,25 +380,24 @@ class PostGameFeedbackInstrumentedTest {
     }
 
     @Test
-    fun authoredCaptureCrushAndCheckTicksHaveDistinctTemporalSignatures() {
+    fun authoredCaptureCrushAndSingleCheckCueHaveDistinctTemporalSignatures() {
         val move = renderMoveSound(capture = false)
         val crush = renderCaptureCrushSound()
         val repeatedCrush = renderCaptureCrushSound()
-        val tick = renderCheckTickSound()
-        val repeatedTick = renderCheckTickSound()
+        val checkCue = renderCheckMechanicalSound()
+        val repeatedCheckCue = renderCheckMechanicalSound()
 
         assertTrue(crush.contentEquals(repeatedCrush))
-        assertTrue(tick.contentEquals(repeatedTick))
+        assertTrue(checkCue.contentEquals(repeatedCheckCue))
         assertTrue(rootMeanSquare(crush) > rootMeanSquare(move) * 1.8)
         assertTrue(kotlin.math.abs(normalizedCorrelation(move, crush)) < 0.20)
-        assertTrue(kotlin.math.abs(normalizedCorrelation(move, tick)) < 0.12)
+        assertTrue(kotlin.math.abs(normalizedCorrelation(move, checkCue)) < 0.12)
 
-        val firstTick = rootMeanSquare(tick, 0.070, 0.142)
-        val gap = rootMeanSquare(tick, 0.165, 0.235)
-        val secondTick = rootMeanSquare(tick, 0.255, 0.327)
-        assertTrue(firstTick > gap * 8.0)
-        assertTrue(secondTick > gap * 8.0)
-        assertTrue(secondTick > firstTick)
+        val latch = rootMeanSquare(checkCue, 0.0, 0.08)
+        val continuousTravel = rootMeanSquare(checkCue, 0.08, 0.56)
+        val finishedTail = rootMeanSquare(checkCue, 0.66, 0.72)
+        assertTrue(latch > finishedTail * 8.0)
+        assertTrue(continuousTravel > finishedTail * 8.0)
     }
 
     @Test

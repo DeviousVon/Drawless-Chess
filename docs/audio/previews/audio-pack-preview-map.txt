@@ -53,18 +53,18 @@ preview-moves.ogg — every ordinary move is included; no subset is hidden:
   50. chess_move_wood_50.ogg
 
 preview-captures-and-castling.ogg:
-  01. chess_capture_wood_01.ogg
-  02. chess_capture_wood_02.ogg
-  03. chess_capture_wood_03.ogg
-  04. chess_capture_wood_04.ogg
-  05. chess_capture_wood_05.ogg
-  06. chess_capture_wood_06.ogg
-  07. chess_capture_wood_07.ogg
-  08. chess_capture_wood_08.ogg
-  09. chess_capture_wood_09.ogg
-  10. chess_capture_wood_10.ogg
-  11. chess_capture_wood_11.ogg
-  12. chess_capture_wood_12.ogg
+  01. chess_capture_crush_01.ogg
+  02. chess_capture_crush_02.ogg
+  03. chess_capture_crush_03.ogg
+  04. chess_capture_crush_04.ogg
+  05. chess_capture_crush_05.ogg
+  06. chess_capture_crush_06.ogg
+  07. chess_capture_crush_07.ogg
+  08. chess_capture_crush_08.ogg
+  09. chess_capture_crush_09.ogg
+  10. chess_capture_crush_10.ogg
+  11. chess_capture_crush_11.ogg
+  12. chess_capture_crush_12.ogg
   13. chess_castle_wood_01.ogg
   14. chess_castle_wood_02.ogg
   15. chess_castle_wood_03.ogg

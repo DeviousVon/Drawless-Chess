@@ -36,6 +36,9 @@ import com.drawlesschess.core.coordinator.GameCoordinator
 import com.drawlesschess.core.coordinator.MoveClockSnapshot
 import com.drawlesschess.core.coordinator.TimeReading
 import com.drawlesschess.core.engine.BotDifficultyCatalog
+import com.drawlesschess.core.engine.OfflineElo
+import com.drawlesschess.core.engine.OfflineRating
+import com.drawlesschess.core.engine.RatedResult
 import java.io.IOException
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
@@ -368,6 +371,163 @@ class RoomCheckpointStoreInstrumentedTest {
             assertEquals(70, persisted.scoreFinalPoints)
             assertNull(persisted.ratingNamespace)
             assertNull(persisted.playerRatingBefore)
+        } finally {
+            store.closeForTest()
+        }
+    }
+
+    @Test
+    fun adaptiveHistoryStartsAt800AndStoresOneAtomicSnapshotChain() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val database = Room.inMemoryDatabaseBuilder(context, DrawlessDatabase::class.java).build()
+        val store = RoomCheckpointStore(
+            database = database,
+            ioExecutor = Executors.newSingleThreadExecutor(),
+            callbackExecutor = java.util.concurrent.Executor { it.run() },
+            localProfileIdSource = { "adaptive-profile" },
+        )
+        try {
+            val initial = OfflineRating(rating = BotDifficultyCatalog.ADAPTIVE_STARTING_ELO)
+            val afterWin = OfflineElo.update(
+                current = initial,
+                opponentElo = initial.rating,
+                result = RatedResult.WIN,
+            )
+            val afterLoss = OfflineElo.update(
+                current = afterWin,
+                opponentElo = afterWin.rating,
+                result = RatedResult.LOSS,
+            )
+            val first = completedCheckpoint(
+                gameId = "adaptive-win",
+                playerWon = true,
+                opponentElo = initial.rating,
+                opponentLevelId = BotDifficultyCatalog.ADAPTIVE_LEVEL_ID,
+            )
+            val second = completedCheckpoint(
+                gameId = "adaptive-loss",
+                playerWon = false,
+                opponentElo = afterWin.rating,
+                opponentLevelId = BotDifficultyCatalog.ADAPTIVE_LEVEL_ID,
+            )
+
+            val empty = loadStats(store).getOrThrow()
+            assertEquals(BotDifficultyCatalog.ADAPTIVE_STARTING_ELO, empty.adaptiveRating)
+            assertEquals(0, empty.adaptiveGamesPlayed)
+
+            store.activateNewGame().persist(first)
+            store.activateNewGame().persist(second)
+
+            val statistics = loadStats(store).getOrThrow()
+            assertEquals(afterLoss.rating, statistics.adaptiveRating)
+            assertEquals(2, statistics.adaptiveGamesPlayed)
+            assertEquals(1, statistics.opponents.size)
+            assertEquals(
+                AdaptiveRatingHistory.OPPONENT_STABLE_ID,
+                statistics.opponents.single().opponentStableId,
+            )
+            assertEquals(2, statistics.opponents.single().completedGames)
+            assertEquals(afterWin.rating, statistics.opponents.single().opponentExactElo)
+
+            val dao = database.activeGameCheckpointDao()
+            val profile = dao.loadLocalProfile()!!
+            val persisted = dao.loadCompletedGames(profile.localProfileId)
+            assertEquals(listOf(1L, 2L), persisted.map { it.completionSequence })
+            assertEquals(
+                listOf(
+                    initial.rating to afterWin.rating,
+                    afterWin.rating to afterLoss.rating,
+                ),
+                persisted.map { it.playerRatingBefore to it.playerRatingAfter },
+            )
+            assertTrue(persisted.all { it.ratingNamespace == AdaptiveRatingHistory.NAMESPACE })
+            assertTrue(persisted.all { it.ratingPool == AdaptiveRatingHistory.POOL })
+            assertTrue(persisted.all {
+                it.opponentStableId == AdaptiveRatingHistory.OPPONENT_STABLE_ID
+            })
+
+            // Rating columns are database-derived. An unstamped factory retry must compare as
+            // the same terminal fact and must not advance the rating again.
+            dao.appendCompletedGame(
+                CompletedGameRecordFactory.from(
+                    checkpoint = first,
+                    localProfileId = profile.localProfileId,
+                    completedAtEpochMillis = 999_000L,
+                ),
+            )
+            val afterRetry = loadStats(store).getOrThrow()
+            assertEquals(2, afterRetry.adaptiveGamesPlayed)
+            assertEquals(afterLoss.rating, afterRetry.adaptiveRating)
+            assertEquals(2, dao.loadCompletedGames(profile.localProfileId).size)
+        } finally {
+            store.closeForTest()
+        }
+    }
+
+    @Test
+    fun everyAssistanceKindExcludesAdaptiveRatingButKeepsTheNemesisHistoryGroup() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val database = Room.inMemoryDatabaseBuilder(context, DrawlessDatabase::class.java).build()
+        val store = RoomCheckpointStore(
+            database = database,
+            ioExecutor = Executors.newSingleThreadExecutor(),
+            callbackExecutor = java.util.concurrent.Executor { it.run() },
+            localProfileIdSource = { "assisted-adaptive-profile" },
+        )
+        try {
+            val assistedGames = listOf(
+                AssistanceCounts(hints = 1),
+                AssistanceCounts(undos = 1),
+                AssistanceCounts(pauses = 1),
+                AssistanceCounts(threatIndication = true),
+            ).mapIndexed { index, assistance ->
+                completedCheckpoint(
+                    gameId = "assisted-adaptive-$index",
+                    playerWon = index % 2 == 0,
+                    opponentElo = BotDifficultyCatalog.ADAPTIVE_STARTING_ELO,
+                    opponentLevelId = BotDifficultyCatalog.ADAPTIVE_LEVEL_ID,
+                    assistance = assistance,
+                )
+            }
+            assistedGames.forEach { store.activateNewGame().persist(it) }
+
+            val assistedStatistics = loadStats(store).getOrThrow()
+            assertEquals(BotDifficultyCatalog.ADAPTIVE_STARTING_ELO, assistedStatistics.adaptiveRating)
+            assertEquals(0, assistedStatistics.adaptiveGamesPlayed)
+            assertEquals(1, assistedStatistics.opponents.size)
+            assertEquals(
+                AdaptiveRatingHistory.OPPONENT_STABLE_ID,
+                assistedStatistics.opponents.single().opponentStableId,
+            )
+            assertEquals(assistedGames.size, assistedStatistics.opponents.single().completedGames)
+
+            val dao = database.activeGameCheckpointDao()
+            val profile = dao.loadLocalProfile()!!
+            val assistedRecords = dao.loadCompletedGames(profile.localProfileId)
+            assertTrue(assistedRecords.all { it.ratingNamespace == null })
+            assertTrue(assistedRecords.all { it.ratingPool == null })
+            assertTrue(assistedRecords.all { it.playerRatingBefore == null })
+            assertTrue(assistedRecords.all { it.playerRatingAfter == null })
+
+            val cleanLoss = completedCheckpoint(
+                gameId = "clean-adaptive-loss",
+                playerWon = false,
+                opponentElo = BotDifficultyCatalog.ADAPTIVE_STARTING_ELO,
+                opponentLevelId = BotDifficultyCatalog.ADAPTIVE_LEVEL_ID,
+            )
+            store.activateNewGame().persist(cleanLoss)
+            val expected = OfflineElo.update(
+                current = OfflineRating(rating = BotDifficultyCatalog.ADAPTIVE_STARTING_ELO),
+                opponentElo = BotDifficultyCatalog.ADAPTIVE_STARTING_ELO,
+                result = RatedResult.LOSS,
+            )
+            val finalStatistics = loadStats(store).getOrThrow()
+            assertEquals(expected.rating, finalStatistics.adaptiveRating)
+            assertEquals(1, finalStatistics.adaptiveGamesPlayed)
+            assertEquals(assistedGames.size + 1, finalStatistics.opponents.single().completedGames)
+            val cleanRecord = dao.loadCompletedGame(cleanLoss.config.gameId)!!
+            assertEquals(BotDifficultyCatalog.ADAPTIVE_STARTING_ELO, cleanRecord.playerRatingBefore)
+            assertEquals(expected.rating, cleanRecord.playerRatingAfter)
         } finally {
             store.closeForTest()
         }

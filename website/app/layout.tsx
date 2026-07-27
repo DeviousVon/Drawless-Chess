@@ -9,7 +9,7 @@ export const metadata: Metadata = {
     template: "%s · Drawless Chess",
   },
   description:
-    "Offline chess with decisive no-draw rules, seven illustrated opponents, and no ads.",
+    "Offline chess with decisive no-draw rules, eight illustrated opponents, and no ads.",
   applicationName: "Drawless Chess",
   authors: [{ name: "BB_Games" }],
   creator: "BB_Games",
@@ -19,7 +19,7 @@ export const metadata: Metadata = {
     siteName: "Drawless Chess",
     title: "Drawless Chess — Every game has a winner",
     description:
-      "Offline chess with decisive no-draw rules, seven illustrated opponents, and no ads.",
+      "Offline chess with decisive no-draw rules, eight illustrated opponents, and no ads.",
     images: [SOCIAL_IMAGE],
   },
   twitter: {

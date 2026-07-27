@@ -33,12 +33,12 @@ class SampledAudioInstrumentedTest {
     }
 
     @Test
-    fun sanPlansLayerCheckTicksOverTheCorrectPrimaryCue() {
-        assertEquals(MoveSoundPlan(PrimaryMoveSound.MOVE, false), moveSoundPlan("e4"))
-        assertEquals(MoveSoundPlan(PrimaryMoveSound.MOVE, true), moveSoundPlan("Qh7+"))
-        assertEquals(MoveSoundPlan(PrimaryMoveSound.CAPTURE, false), moveSoundPlan("Qxh7"))
-        assertEquals(MoveSoundPlan(PrimaryMoveSound.CAPTURE, true), moveSoundPlan("Qxh7#"))
-        assertEquals(MoveSoundPlan(PrimaryMoveSound.CASTLE, true), moveSoundPlan("O-O+"))
+    fun sanSelectsExactlyOneMoveCueAndCheckTakesPriority() {
+        assertEquals(MoveSoundCue.MOVE, moveSoundCue("e4"))
+        assertEquals(MoveSoundCue.CHECK, moveSoundCue("Qh7+"))
+        assertEquals(MoveSoundCue.CAPTURE, moveSoundCue("Qxh7"))
+        assertEquals(MoveSoundCue.CHECK, moveSoundCue("Qxh7#"))
+        assertEquals(MoveSoundCue.CHECK, moveSoundCue("O-O+"))
     }
 
     @Test
@@ -53,7 +53,7 @@ class SampledAudioInstrumentedTest {
             SampledSoundCatalog.glassImpact to 3,
             SampledSoundCatalog.glassFracture to 3,
             SampledSoundCatalog.glassShards to 3,
-            SampledSoundCatalog.checkAccents to 4,
+            intArrayOf(SampledSoundCatalog.check) to 1,
             SampledSoundCatalog.promotions to 4,
             SampledSoundCatalog.hints to 3,
             SampledSoundCatalog.lowTime to 4,
@@ -61,8 +61,8 @@ class SampledAudioInstrumentedTest {
             SampledSoundCatalog.undo to 3,
         )
         groups.forEach { (resources, expected) -> assertEquals(expected, resources.size) }
-        assertEquals(104, SampledSoundCatalog.all.size)
-        assertEquals(104, SampledSoundCatalog.all.toSet().size)
+        assertEquals(101, SampledSoundCatalog.all.size)
+        assertEquals(101, SampledSoundCatalog.all.toSet().size)
 
         SampledSoundCatalog.all.forEach { resource ->
             val name = context.resources.getResourceEntryName(resource)

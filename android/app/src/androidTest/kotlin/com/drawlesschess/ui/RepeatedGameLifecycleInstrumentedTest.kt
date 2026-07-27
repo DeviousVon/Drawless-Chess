@@ -130,7 +130,8 @@ class RepeatedGameLifecycleInstrumentedTest {
         compose.onNodeWithTag("selected_opponent_casual").fetchSemanticsNode()
         compose.onNodeWithTag("selected_opponent_name").assertTextEquals("Theo")
 
-        compose.onNodeWithTag("opponent_picker").performScrollToIndex(6)
+        val grandmasterIndex = OpponentProfiles.all.indexOfFirst { it.level.id == "grandmaster" }
+        compose.onNodeWithTag("opponent_picker").performScrollToIndex(grandmasterIndex)
         compose.onNodeWithTag("opponent_option_grandmaster").performClick().assertIsSelected()
         compose.onNodeWithTag("selected_opponent_grandmaster").fetchSemanticsNode()
         compose.onNodeWithTag("selected_opponent_name").assertTextEquals("Lucian")
@@ -168,6 +169,27 @@ class RepeatedGameLifecycleInstrumentedTest {
     }
 
     @Test
+    fun completedGameOffersWorkingQuickPlayWithoutReturningHome() {
+        dismissRulesGuideIfShown()
+        waitForText("Quick Play")
+        startWhiteCustomGame()
+
+        compose.onNodeWithTag("resign_button").performClick()
+        waitForText("Resign this game?")
+        compose.onNodeWithText("Resign game").performClick()
+        waitForText("Defeat")
+
+        compose.onNodeWithTag("post_game_quick_play").performClick()
+        waitForText("Save & exit")
+        waitForText("Theo")
+        assertTrue(compose.onAllNodesWithText("Defeat").fetchSemanticsNodes().isEmpty())
+        assertTrue(
+            compose.onAllNodesWithText("Forfeit current game?").fetchSemanticsNodes().isEmpty(),
+        )
+        assertTrue(compose.onAllNodesWithTag("home_quick_play").fetchSemanticsNodes().isEmpty())
+    }
+
+    @Test
     fun completedResultSurvivesActivityRecreationWithoutReplayingCelebration() {
         dismissRulesGuideIfShown()
         waitForText("Quick Play")
@@ -200,6 +222,7 @@ class RepeatedGameLifecycleInstrumentedTest {
             waitForText("Score: 0 / 100")
             compose.onNodeWithTag("post_game_feedback").fetchSemanticsNode()
             compose.onNodeWithText("Home").fetchSemanticsNode()
+            compose.onNodeWithText("Quick Play").fetchSemanticsNode()
             compose.onNodeWithText("Rematch").fetchSemanticsNode()
             assertTrue(
                 "Activity recreation replayed the one-shot completion effect",
@@ -276,6 +299,9 @@ class RepeatedGameLifecycleInstrumentedTest {
         compose.onNodeWithText("Custom game").performClick()
         waitForText("Start game")
         compose.onNodeWithTag("play_as_white").performClick().assertIsSelected()
+        // These tests exercise native session reuse and saved-game lifecycle behavior. Keep
+        // their opponent deterministic; Vesper's async rating lifecycle has dedicated coverage.
+        compose.onNodeWithTag("opponent_option_casual").performClick().assertIsSelected()
         compose.onNodeWithText("Start game").performClick()
         confirmForfeitIfShown()
         waitForText("Save & exit")

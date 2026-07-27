@@ -27,6 +27,9 @@ side effect of translated resources.
 - [ ] Test English, French, German, Latin American Spanish, and Brazilian Portuguese on the
   supported phone/tablet matrix. Include long-text layout, large font, TalkBack, locale switching,
   process restart, Quick Play, custom games, save/resume, results, and statistics.
+  The physical API-33 tablet locale/layout/200%-font/TalkBack portion passed on July 21, 2026;
+  see `docs/TABLET_LOCALE_ACCESSIBILITY_MATRIX.md`. The phone portion and remaining end-to-end
+  save/resume flows keep this combined gate open.
 - [ ] Test an upgrade from the Play-delivered `0.2.0` package to the exact next candidate without
   losing saved games, settings, statistics, or engine functionality.
 - [ ] Verify the exact AAB's language splits, both supported ABIs, native library loading, 16 KB

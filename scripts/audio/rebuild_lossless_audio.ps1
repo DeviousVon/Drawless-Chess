@@ -104,7 +104,7 @@ Get-ChildItem -LiteralPath $sourceRoot -Recurse -File | ForEach-Object {
 
 $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
 $assets = @($manifest.assets)
-if ($assets.Count -ne 104) { throw "Expected 104 manifest assets, found $($assets.Count)" }
+if ($assets.Count -ne 101) { throw "Expected 101 manifest assets, found $($assets.Count)" }
 
 $rebuilt = [Collections.Generic.List[object]]::new()
 for ($assetIndex = 0; $assetIndex -lt $assets.Count; $assetIndex += 1) {
@@ -141,17 +141,18 @@ for ($assetIndex = 0; $assetIndex -lt $assets.Count; $assetIndex += 1) {
             $processing = 'High-quality 48 kHz stereo Vorbis q8 master from genuine chess contacts; aligned transient, restrained body layer, full contact tail, and loudness/true-peak mastering. No synthesis or pitch shift.'
         }
         'capture' {
-            $placementDelay = 76 + (($number - 1) % 4) * 8
-            $bodyDelay = $placementDelay + 10
-            $second = [Math]::Min(1, $inputs.Count - 1)
-            $third = [Math]::Min(2, $inputs.Count - 1)
+            $starts = @(0.000, 0.004, 0.008, 0.012, 0.016, 0.020, 0.203, 0.207, 0.211, 0.476, 0.480, 0.484)
+            $start = $starts[$number - 1]
+            $focus = 420 + (($number - 1) % 4) * 145
+            $focusGain = 1 + (($number - 1) % 3)
+            $ceiling = 7600 + (($number - 1) % 4) * 800
             $master = Get-MasterFilter -IntegratedLoudness -14
-            $filter = "$(Get-PreparedInput 0 -2),atrim=0:0.18,asetpts=PTS-STARTPTS[r];" +
-                "$(Get-PreparedInput $second 0),atrim=0:0.21,asetpts=PTS-STARTPTS,adelay=$placementDelay|$placementDelay[p];" +
-                "$(Get-PreparedInput $third -12),lowpass=f=2200,atrim=0:0.18,asetpts=PTS-STARTPTS,adelay=$bodyDelay|$bodyDelay[b];" +
-                "[r][p][b]amix=inputs=3:duration=longest:normalize=0," +
-                "apad=pad_dur=0.36,atrim=0:0.36,afade=t=out:st=0.31:d=0.05,$master[out]"
-            $processing = 'High-quality 48 kHz stereo Vorbis q8 two-action capture from recorded piece removal and placement contacts with natural board body and mastered impact. No procedural audio.'
+            $filter = "$(Get-PreparedInput 0 0),atrim=start=$(Format-Decimal $start):duration=0.48," +
+                "asetpts=PTS-STARTPTS,lowpass=f=$ceiling," +
+                "equalizer=f=$focus`:t=q:w=1.1:g=$focusGain," +
+                "apad=pad_dur=0.48,atrim=0:0.48,afade=t=in:st=0:d=0.002," +
+                "afade=t=out:st=0.41:d=0.07,$master[out]"
+            $processing = 'High-quality 48 kHz stereo Vorbis q8 responsive capture cue cut from a CC0 field recording of a stone striking and crushing rocks; source stereo and granular fracture texture are preserved with subtle EQ variation and loudness/true-peak mastering. No normal-move contact is layered.'
         }
         'castle' {
             $gap = 132 + (($number - 1) % 4) * 12
@@ -223,11 +224,17 @@ for ($assetIndex = 0; $assetIndex -lt $assets.Count; $assetIndex += 1) {
             $processing = 'High-quality 48 kHz stereo Vorbis q8 recorded falling-glass tail with preserved source ambience and long natural fade.'
         }
         'check' {
-            $start = (($number - 1) % 4) * 0.028
-            $master = Get-MasterFilter -IntegratedLoudness -18
-            $filter = "$(Get-PreparedInput 0 -2),atrim=start=$(Format-Decimal $start):duration=0.22," +
-                "asetpts=PTS-STARTPTS,highpass=f=900,afade=t=out:st=0.17:d=0.05,$master[out]"
-            $processing = 'High-quality 48 kHz stereo Vorbis q8 cue cut from a recorded glass tick; replaces the procedural two-tone check cue.'
+            $starts = @(7.25, 9.40, 11.76, 13.83)
+            $durations = @(0.74, 1.22, 1.05, 0.93)
+            $start = $starts[$number - 1]
+            $duration = $durations[$number - 1]
+            $fadeStart = $duration - 0.08
+            $master = Get-MasterFilter -IntegratedLoudness -17
+            $filter = "[0:a]atrim=start=$(Format-Decimal $start):duration=$(Format-Decimal $duration)," +
+                "asetpts=PTS-STARTPTS,aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo," +
+                "highpass=f=55,lowpass=f=18000,afade=t=in:st=0:d=0.008," +
+                "afade=t=out:st=$(Format-Decimal $fadeStart):d=0.08,$master[out]"
+            $processing = 'High-quality 48 kHz stereo Vorbis q8 check cue cut from a genuine CC0 pump-action shotgun cycle recorded losslessly at 24-bit/96 kHz stereo; action only, with no gunshot.'
         }
         'promotion' {
             $second = [Math]::Min(1, $inputs.Count - 1)
@@ -295,8 +302,8 @@ for ($assetIndex = 0; $assetIndex -lt $assets.Count; $assetIndex += 1) {
     })
 }
 
-if ($rebuilt.Count -ne 104 -or (Get-ChildItem -LiteralPath $stagingRoot -Filter '*.ogg' -File).Count -ne 104) {
-    throw 'Stereo Vorbis build did not create exactly 104 OGG resources'
+if ($rebuilt.Count -ne 101 -or (Get-ChildItem -LiteralPath $stagingRoot -Filter '*.ogg' -File).Count -ne 101) {
+    throw 'Stereo Vorbis build did not create exactly 101 OGG resources'
 }
 
 # Generation is complete before the runtime set changes. Exact roots are resolved above and are
@@ -327,4 +334,4 @@ $json = $manifest | ConvertTo-Json -Depth 20
 [IO.File]::WriteAllText($manifestPath, "$json`n", [Text.UTF8Encoding]::new($false))
 Remove-Item -LiteralPath $stagingRoot -Force
 
-Write-Host 'Audio rebuild complete: 104 high-quality stereo 48 kHz Vorbis q8 resources.'
+Write-Host 'Audio rebuild complete: 101 high-quality stereo 48 kHz Vorbis q8 resources.'

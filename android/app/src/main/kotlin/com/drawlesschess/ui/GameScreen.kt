@@ -96,6 +96,7 @@ internal fun GameRoute(
     onShowThemes: () -> Unit,
     onShowOptions: () -> Unit,
     onExit: () -> Unit,
+    onQuickPlay: () -> Unit,
     onRematch: () -> Unit,
     onGameCompleted: () -> Unit,
 ) {
@@ -254,11 +255,15 @@ internal fun GameRoute(
         onExit()
     }
     val rematchGame = {
-        pendingCompletion = null
-        postGameResult = null
-        completionEffect = null
+        // Keep the durable result UI visible while an adaptive rematch resolves its latest
+        // rating. The whole route is disposed when the replacement runtime succeeds.
         soundPlayer.stopAll()
         onRematch()
+    }
+    val quickPlayGame = {
+        // Keep the result visible until the replacement runtime is ready, matching rematch.
+        soundPlayer.stopAll()
+        onQuickPlay()
     }
     val handleBoardEvent: (BoardEvent) -> Unit = { event ->
         val before = model
@@ -297,6 +302,7 @@ internal fun GameRoute(
                             ?.takeIf { it.latestGameId == runtime.gameId }
                             ?.averageScore,
                         onHome = exitGame,
+                        onQuickPlay = quickPlayGame,
                         onRematch = rematchGame,
                     )
                 }
@@ -523,6 +529,7 @@ internal fun PostGameBar(
     opponentName: String? = null,
     careerAverageGameScore: Double? = null,
     onHome: () -> Unit,
+    onQuickPlay: () -> Unit,
     onRematch: () -> Unit,
 ) {
     val headline = stringResource(if (result.playerWon) R.string.game_victory else R.string.game_defeat)
@@ -546,6 +553,7 @@ internal fun PostGameBar(
     BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
         val availableHeight = if (constraints.hasBoundedHeight) maxHeight else 420.dp
         val maximumBarHeight = minOf(420.dp, availableHeight * 0.62f)
+        val stackPrimaryActions = maxWidth < 480.dp
         Surface(
             modifier = Modifier.fillMaxWidth().heightIn(max = maximumBarHeight),
             color = container,
@@ -633,19 +641,36 @@ internal fun PostGameBar(
                         color = onContainer.copy(alpha = 0.82f),
                     )
                 }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    OutlinedButton(
-                        onClick = onHome,
-                        modifier = Modifier.weight(1f).testTag("post_game_home"),
-                    ) { Text(stringResource(R.string.action_home)) }
-                    Button(
-                        onClick = onRematch,
-                        modifier = Modifier.weight(1f).testTag("post_game_rematch"),
-                    ) { Text(stringResource(R.string.action_rematch)) }
+                if (stackPrimaryActions) {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Button(
+                            onClick = onQuickPlay,
+                            modifier = Modifier.fillMaxWidth().testTag("post_game_quick_play"),
+                        ) { Text(stringResource(R.string.action_quick_play)) }
+                        OutlinedButton(
+                            onClick = onRematch,
+                            modifier = Modifier.fillMaxWidth().testTag("post_game_rematch"),
+                        ) { Text(stringResource(R.string.action_rematch)) }
+                    }
+                } else {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        Button(
+                            onClick = onQuickPlay,
+                            modifier = Modifier.weight(1f).testTag("post_game_quick_play"),
+                        ) { Text(stringResource(R.string.action_quick_play)) }
+                        OutlinedButton(
+                            onClick = onRematch,
+                            modifier = Modifier.weight(1f).testTag("post_game_rematch"),
+                        ) { Text(stringResource(R.string.action_rematch)) }
+                    }
                 }
+                TextButton(
+                    onClick = onHome,
+                    modifier = Modifier.align(Alignment.CenterHorizontally).testTag("post_game_home"),
+                ) { Text(stringResource(R.string.action_home)) }
             }
         }
     }

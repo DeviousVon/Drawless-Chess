@@ -18,7 +18,8 @@ class OpponentProfileInstrumentedTest {
     @Test
     fun everyDifficultyHasOneDistinctCharacterAndRenderablePortrait() {
         assertEquals(
-            BotDifficultyCatalog.namedLevels.map { it.id },
+            listOf(BotDifficultyCatalog.ADAPTIVE_LEVEL_ID) +
+                BotDifficultyCatalog.namedLevels.map { it.id },
             OpponentProfiles.all.map { it.level.id },
         )
         assertEquals(OpponentProfiles.all.size, OpponentProfiles.all.map { it.name }.toSet().size)
@@ -41,5 +42,16 @@ class OpponentProfileInstrumentedTest {
         OpponentProfiles.all.forEach { profile ->
             compose.onNodeWithTag("portrait_fixture_${profile.level.id}").fetchSemanticsNode()
         }
+    }
+
+    @Test
+    fun adaptiveProfilePreservesTheFrozenEloSnapshot() {
+        val frozenLevel = BotDifficultyCatalog.adaptiveLevel(973)
+
+        val profile = OpponentProfiles.forLevel(frozenLevel)
+
+        assertEquals(BotDifficultyCatalog.ADAPTIVE_LEVEL_ID, profile.level.id)
+        assertEquals(973, profile.level.approximateElo)
+        assertEquals("Vesper", profile.name)
     }
 }

@@ -1,6 +1,7 @@
 package com.drawlesschess.core
 
 import com.drawlesschess.core.chess.ChessPosition
+import com.drawlesschess.core.coordinator.GameConfig
 import com.drawlesschess.core.engine.*
 
 private class RecordingTransport : UciTransport {
@@ -374,17 +375,20 @@ internal fun registerEngineLayerTests(suite: TestSuite) {
         val levels = BotDifficultyCatalog.namedLevels
         assertThat(
             levels.map { it.id to it.approximateElo } == listOf(
-                "learner" to 500,
-                "casual" to 650,
-                "challenger" to 850,
-                "club" to 1_100,
-                "expert" to 1_500,
-                "master" to 2_000,
-                "grandmaster" to 2_500,
+                "learner" to 550,
+                "casual" to 800,
+                "challenger" to 1_000,
+                "club" to 1_300,
+                "expert" to 1_675,
+                "master" to 2_100,
+                "grandmaster" to 2_550,
             ),
         )
         assertThat(levels.zipWithNext().all { (a, b) -> a.approximateElo < b.approximateElo })
-        assertThat(BotDifficultyResolver.resolve(BotDifficultySelection.Named("club"), OfflineRating()).targetElo == 1_100)
+        assertThat(BotDifficultyResolver.resolve(BotDifficultySelection.Named("club"), OfflineRating()).targetElo == 1_300)
+        assertThat(BotDifficultyCatalog.adaptiveLevel().id == BotDifficultyCatalog.ADAPTIVE_LEVEL_ID)
+        assertThat(BotDifficultyCatalog.adaptiveLevel().approximateElo == 800)
+        assertThat(BotDifficultyCatalog.adaptiveLevel(973).approximateElo == 973)
     }
     suite.test("legacy ladder identity is inferred only from exact historical Elo") {
         assertThat(BotDifficultyCatalog.legacyLevelIdForElo(900) == "casual")
@@ -419,7 +423,26 @@ internal fun registerEngineLayerTests(suite: TestSuite) {
     }
     suite.test("adaptive bot follows the selected rating pool") {
         val resolved = BotDifficultyResolver.resolve(BotDifficultySelection.Adaptive, OfflineRating(1_642, 12))
-        assertThat(resolved.targetElo == 1_642 && resolved.adaptive)
+        assertThat(
+            resolved.targetElo == 1_642 &&
+                resolved.levelId == BotDifficultyCatalog.ADAPTIVE_LEVEL_ID &&
+                resolved.adaptive,
+        )
+    }
+    suite.test("adaptive game configs require a frozen approximate Elo") {
+        assertThrows<IllegalArgumentException> {
+            GameConfig(
+                gameId = "adaptive-invalid",
+                initialFen = ChessPosition.START_FEN,
+                rules = RulesContractV1.drawless(),
+                mode = GameMode.CASUAL,
+                timeControl = TimeControl.Untimed,
+                humanSide = Side.WHITE,
+                engineStrength = EngineStrength.SkillLevel(0),
+                engineLimits = EngineLimits(moveTimeMillis = 350),
+                opponentLevelId = BotDifficultyCatalog.ADAPTIVE_LEVEL_ID,
+            )
+        }
     }
     suite.test("offline Elo rewards an upset win") {
         val rating = OfflineElo.update(OfflineRating(1_200, 0), 1_800, RatedResult.WIN)

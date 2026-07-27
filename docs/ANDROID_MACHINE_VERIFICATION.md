@@ -300,7 +300,7 @@ on the API-33 ARM64 tablet, API-36 x86-64 emulator, and Pixel 9 Pro XL. The targ
 flow also passes independently on all three. Coverage includes stable opponent identity across
 ladder changes, confirmed-forfeit durability, Room reopen/restore,
 rapid first-game-exit/second-game native behavior, same-session hint then bot analysis, responsive
-layouts/options/history, rematch, deterministic finish timing, and the 104 sampled resources.
+layouts/options/history, rematch, deterministic finish timing, and the 101 sampled resources.
 Separate physical acceptance has covered
 force-stop/relaunch/Resume. Folding the app suite into this immutable machine manifest,
 low-memory/native-crash behavior, sustained performance, and broader UI coverage remain

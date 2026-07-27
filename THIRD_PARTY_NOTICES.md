@@ -56,12 +56,15 @@ identified below. See `docs/AUDIO_PROVENANCE.md`.
 
 ## Sampled chess audio — CC0-1.0
 
-Move, capture, and castling effects derive from:
+Move and castling effects derive from:
 
 - “Chess Pieces Move (Close)” by JJTaynos:
   <https://freesound.org/people/JJTaynos/sounds/733927/>
 - “chess_move_on_alabaster.wav” by mh2o:
   <https://freesound.org/people/mh2o/sounds/351518/>
+
+Capture effects derive from “stonehit1.wav” by aerror, a stereo field recording of a
+stone hitting rocks: <https://freesound.org/people/aerror/sounds/350750/>.
 
 Victory fireworks derive from genuine pyrotechnic recordings by Rudmer_Rotteveel:
 
@@ -69,7 +72,12 @@ Victory fireworks derive from genuine pyrotechnic recordings by Rudmer_Rotteveel
 - “Whistle and Explosion Single_Firework”:
   <https://freesound.org/people/Rudmer_Rotteveel/sounds/336008/>
 
-All four source pages designate the recordings Creative Commons Zero 1.0. CC0
+The check cue derives from “Pump Action Shotgun Reload” by AugustSandberg:
+<https://freesound.org/people/AugustSandberg/sounds/508746/>. The retained original
+is a CC0 24-bit/96 kHz stereo WAV; only the recorded action cycle is used, with no
+gunshot.
+
+All six source pages designate the recordings Creative Commons Zero 1.0. CC0
 does not require attribution, but the identities, retained HQ preview files and
 hashes, original-download identities, and processing descriptions are preserved
 under `docs/audio/`. The complete CC0 legal text is in

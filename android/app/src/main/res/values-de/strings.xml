@@ -10,6 +10,7 @@
     <string name="action_dismiss">Ausblenden</string>
     <string name="action_try_again">Erneut versuchen</string>
     <string name="action_home">Startseite</string>
+    <string name="action_quick_play">Schnellspiel</string>
     <string name="action_rematch">Revanche</string>
     <string name="action_keep_playing">Weiterspielen</string>
     <string name="action_theme">Design</string>
@@ -109,6 +110,10 @@
     <string name="opponent_lucian_epithet">Höflicher Großmeister</string>
     <string name="opponent_lucian_name">Lucian</string>
     <string name="opponent_lucian_personality">Wortkarg, großzügig im Sieg und vom ersten Zug an konzentriert.</string>
+    <string name="opponent_vesper_name">Vesper</string>
+    <string name="opponent_vesper_epithet">Deine Nemesis</string>
+    <string name="opponent_vesper_personality">Vesper beobachtet dich, erinnert sich an alles und kehrt stets vorbereitet zurück.</string>
+    <string name="difficulty_adaptive">Adaptiv</string>
     <string name="difficulty_learner">Einsteiger</string>
     <string name="difficulty_casual">Locker</string>
     <string name="difficulty_challenger">Herausforderer</string>
@@ -123,6 +128,9 @@
     <string name="difficulty_description_expert">Scharfes, präzises Spiel für erfahrene Spieler.</string>
     <string name="difficulty_description_master">Eine anspruchsvolle strategische Herausforderung.</string>
     <string name="difficulty_description_grandmaster">Der stärkste verfügbare Gegner.</string>
+    <string name="difficulty_description_adaptive">Passt sich deiner aktuellen Spielstärke an und entwickelt sich nach jeder Partie ohne Hilfen weiter.</string>
+    <string name="adaptive_status_provisional">Deine Spielstärke wird ermittelt · etwa %1$d · %2$d/10 Partien</string>
+    <string name="adaptive_status_matched">Auf etwa %1$d abgestimmt</string>
 
     <string name="theme_choose">Design auswählen</string>
     <string name="theme_picker_description">Brett und Figuren werden sofort aktualisiert. Deine Auswahl wird gespeichert.</string>

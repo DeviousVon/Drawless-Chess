@@ -54,10 +54,19 @@ class GameRuntime private constructor(
         scheduler = movePacingScheduler,
         delayMillis = GamePacing.OPPONENT_MOVE_DELAY_MILLIS,
     )
-    internal val opponentLevel: NamedBotLevel = BotDifficultyCatalog.displayLevel(
-        explicitLevelId = config.opponentLevelId,
-        strength = config.engineStrength,
-    )
+    internal val opponentLevel: NamedBotLevel = if (
+        config.opponentLevelId == BotDifficultyCatalog.ADAPTIVE_LEVEL_ID
+    ) {
+        BotDifficultyCatalog.adaptiveLevel(
+            (config.engineStrength as? EngineStrength.ApproximateElo)?.elo
+                ?: BotDifficultyCatalog.ADAPTIVE_STARTING_ELO,
+        )
+    } else {
+        BotDifficultyCatalog.displayLevel(
+            explicitLevelId = config.opponentLevelId,
+            strength = config.engineStrength,
+        )
+    }
     private val timeSource = CoordinatorTimeSource {
         TimeReading(SystemClock.elapsedRealtime(), System.currentTimeMillis())
     }
@@ -98,8 +107,9 @@ class GameRuntime private constructor(
         initialTheme: BoardTheme = BoardThemes.DEFAULT,
         resolvedHumanSide: Side = selection.startingColor.resolve(),
         threatIndicationEnabled: Boolean = false,
+        adaptiveElo: Int = BotDifficultyCatalog.ADAPTIVE_STARTING_ELO,
     ) : this(
-        selection.gameConfig(resolvedHumanSide),
+        selection.gameConfig(resolvedHumanSide, adaptiveElo),
         null,
         applicationContext,
         checkpointSink,
@@ -308,14 +318,20 @@ private class DevelopmentChessEngine : ManagedChessEngineDelegate {
     }
 }
 
-private fun SetupSelection.gameConfig(resolvedHumanSide: Side): GameConfig = GameConfig(
+private fun SetupSelection.gameConfig(resolvedHumanSide: Side, adaptiveElo: Int): GameConfig = GameConfig(
     gameId = UUID.randomUUID().toString(),
     initialFen = ChessPosition.START_FEN,
     rules = rules(),
     mode = mode,
     timeControl = timeControl,
     humanSide = resolvedHumanSide,
-    engineStrength = EngineStrength.ApproximateElo(botLevel.approximateElo),
+    engineStrength = EngineStrength.ApproximateElo(
+        if (botLevel.id == BotDifficultyCatalog.ADAPTIVE_LEVEL_ID) {
+            BotDifficultyCatalog.clampElo(adaptiveElo)
+        } else {
+            botLevel.approximateElo
+        },
+    ),
     engineLimits = EngineLimits(moveTimeMillis = 350),
     opponentLevelId = botLevel.id,
 )

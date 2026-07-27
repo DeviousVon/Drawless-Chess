@@ -22,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.test.junit4.ComposeContentTestRule
@@ -282,6 +283,7 @@ internal object StoreScreenshotHarness {
             LocalContext provides localizedContext,
             LocalConfiguration provides localizedConfiguration,
             LocalLayoutDirection provides layoutDirection,
+            LocalResources provides localizedContext.resources,
             content = content,
         )
     }

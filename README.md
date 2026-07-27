@@ -69,7 +69,7 @@ SDK/JDK setup and commands for both host lanes are in `docs/ANDROID_MACHINE_VERI
 
 - `npm test` passes 37 JavaScript contract and adjudication tests.
 - `npm run test:kotlin` passes 223 JVM/core-and-endpoint tests.
-- `npm run test:audio` is a required gate over all 104 sampled effects: encoded and decoded
+- `npm run test:audio` is a required gate over all 101 sampled effects: encoded and decoded
   uniqueness, hashes, source pins, duration bounds, silence/clipping, format, and CC0/MIT notices.
 - The native engine instrumentation passes once on each runtime ABI: an Android 16/API-36
   x86-64 emulator and an Android 13/API-33 ARM64 tablet.

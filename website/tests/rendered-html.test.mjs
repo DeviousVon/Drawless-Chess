@@ -40,6 +40,12 @@ test("renders the final product story with accurate pre-release claims", async (
   assert.match(html, /Closed Android\s*beta now open/);
   assert.match(html, /public release is (?:still )?in\s*preparation/i);
   assert.match(html, /Level names are descriptive—not Elo claims\./);
+  assert.match(html, /Meet Vesper\. Then climb the ranks\./);
+  assert.match(html, /<strong>Vesper<\/strong><span>Adaptive<\/span>/);
+  assert.ok(
+    html.indexOf("Vesper") < html.indexOf("Mira"),
+    "Vesper leads the opponent roster",
+  );
   assert.match(html, /No internet permission/);
   assert.doesNotMatch(html, /Download now|Get it on Google Play|Available now/i);
   assert.doesNotMatch(html, /Codex is working|starter loading skeleton/i);
@@ -94,7 +100,7 @@ test("gives the proof and privacy selling points a stronger visual hierarchy", a
   for (const point of [
     "Checkmate still wins",
     "Five board themes",
-    "Seven opponent levels",
+    "Eight opponents",
     "Games save locally",
     "Private by design",
     "No account",
@@ -104,6 +110,18 @@ test("gives the proof and privacy selling points a stronger visual hierarchy", a
   ]) {
     assert.match(html, new RegExp(point));
   }
+
+  assert.equal(
+    [...html.matchAll(/class="opponent-card"/g)].length,
+    8,
+    "all eight opponent cards render",
+  );
+  assert.match(html, /src="\/media\/opponents\/adaptive-256\.webp"/i);
+  assert.equal(
+    (await stat(new URL("media/opponents/adaptive-256.webp", releaseRoot))).isFile(),
+    true,
+    "Vesper portrait",
+  );
 
   assert.match(
     css,

@@ -1,6 +1,7 @@
 package com.drawlesschess.core.coordinator
 
 import com.drawlesschess.core.*
+import com.drawlesschess.core.engine.BotDifficultyCatalog
 
 data class GameConfig(
     val gameId: String,
@@ -11,7 +12,7 @@ data class GameConfig(
     val humanSide: Side,
     val engineStrength: EngineStrength,
     val engineLimits: EngineLimits,
-    /** Stable named-opponent identity; null only for legacy or custom engine configurations. */
+    /** Stable named/adaptive opponent identity; null only for legacy or custom configurations. */
     val opponentLevelId: String? = null,
 ) {
     init {
@@ -19,6 +20,10 @@ data class GameConfig(
         require(opponentLevelId == null || opponentLevelId.matches(Regex("^[a-z][a-z0-9-]*$"))) {
             "Opponent level ID must be a stable lowercase identifier"
         }
+        require(
+            opponentLevelId != BotDifficultyCatalog.ADAPTIVE_LEVEL_ID ||
+                engineStrength is EngineStrength.ApproximateElo,
+        ) { "Adaptive opponents must freeze an approximate Elo for the game" }
     }
 }
 

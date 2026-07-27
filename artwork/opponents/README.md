@@ -1,11 +1,11 @@
 # Opponent portrait source and provenance
 
-These seven fictional opponent portraits were created for Drawless Chess on
-2026-07-13 with OpenAI's built-in image-generation tool. No photograph, stock
-asset, celebrity likeness, or third-party character artwork was supplied as a
-reference. Theo was generated first; his resulting image was used only as the
-rendering-style, camera, crop, and lighting reference for the other six
-characters.
+These eight fictional opponent portraits were created for Drawless Chess with
+OpenAI's built-in image-generation tool. The original seven were created on
+2026-07-13; Vesper was added on 2026-07-21. No photograph, stock asset,
+celebrity likeness, or third-party character artwork was supplied as a
+reference. Theo was generated first; project-owned portraits were subsequently
+used only as rendering-style, camera, crop, and lighting references.
 
 The original 1254 x 1254 RGB PNG outputs are retained in `source/`. The Android
 resources in `android/app/src/main/res/drawable-nodpi/` are 512 x 512 lossy WebP
@@ -21,6 +21,7 @@ selection UI, and integration code are original project material.
 
 | Level | Character | Personality |
 | --- | --- | --- |
+| Adaptive | Vesper | Watchful, severe, patient, and always prepared to match the player. |
 | Learner | Mira | Bright, curious, fearless about trying a new idea. |
 | Casual | Theo | Warm, observant, relaxed, and gracious about the result. |
 | Challenger | Rhea | Playfully competitive and energized by resistance. |
@@ -62,6 +63,39 @@ collection.
 ```
 
 Character-specific prompt blocks:
+
+### Vesper — Adaptive
+
+```text
+Use case: stylized-concept
+Asset type: square Android chess opponent portrait, visually consistent with
+the supplied existing opponent portraits.
+Primary request: Create a brand-new character named Vesper, the adaptive
+Nemesis who studies the player and matches their strength.
+Input images: Lucian and Yuna are style, crop, lighting-quality, and
+cast-consistency references only; do not reproduce either person's identity.
+Subject: an androgynous adult chess rival with a severe, intelligent, watchful
+expression and a very subtle knowing half-smile; magnetic and formidable, not
+monstrous or supernatural.
+Scene/backdrop: elegant shadowed chess club with an out-of-focus chessboard and
+pieces behind the subject.
+Style/medium: polished photorealistic painted portrait matching the existing
+cast, high-end game character portrait.
+Composition/framing: centered head-and-shoulders, direct eye contact, square
+crop, face readable at small circular avatar sizes, no important details at
+extreme edges.
+Lighting/mood: dramatic controlled chiaroscuro, cool violet and steel-blue key
+light with faint restrained amber background accents; foreboding, patient,
+calculating.
+Color palette: charcoal, black, deep violet, steel blue, tiny warm highlights.
+Wardrobe: sharp minimalist dark high-collared jacket, sophisticated and
+timeless, no logos.
+Constraints: one person only; adult; realistic human eyes; consistent fidelity
+and composition with references; no text, no watermark, no border.
+Avoid: horns, glowing eyes, skulls, weapons, fantasy armor, overt horror,
+caricature, exaggerated villain tropes, broad smile, copied identity from
+either reference.
+```
 
 ### Mira — Learner
 
@@ -161,6 +195,7 @@ Avoid: crown, trophy, arrogance, fantasy costume, or villain styling.
 
 | Level | Source PNG SHA-256 | Android WebP SHA-256 |
 | --- | --- | --- |
+| adaptive | `4f3253fe2b448b0ab0b6a78adeb2dda2925f5e7ee8888faa7e163fcdc44a8afe` | `17b6dc53f0a08544395cc70a39951e56061bddb1457ef356229f76c48aa7ea54` |
 | learner | `f05c78cded7cd8a6a95594b5b80827ca63a6c0b6fd21576159a08027be9b8de6` | `391aeae611c727234341d25d46b47313c968eb5673316999cf949cdd1c13cb04` |
 | casual | `fc4dadf4ca11e80ab0ea92d98e53ff57a25f91c0fcce426c8e85d46f4511188f` | `0bd23dde8bd49442350a8ed58853472861fb44cca3a0c5aa9e7add349dd718b4` |
 | challenger | `106c54c1f05029106e0415458657107b8efbed9a7d123a3daf04c6c9985ca32c` | `0d8eebd31d43db0cecb46f3e954f48e4fd501971b91b1a7427f0440d9b787485` |

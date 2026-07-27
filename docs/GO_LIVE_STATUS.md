@@ -32,7 +32,7 @@ test-harness APK's final emulator/tablet suite and the independent repository re
 - The icon, feature graphic, and all ten screenshots are current for the same app candidate.
   Phone images came from the API-36 emulator and tablet images from the physical API-33 tablet;
   exact provenance, transforms, dimensions, and hashes are recorded under `play/store-assets/`.
-- The 104-file sampled-audio gate passes decoding, format, duration, silence/clipping,
+- The 101-file sampled-audio gate passes decoding, format, duration, silence/clipping,
   uniqueness, hash, and source-provenance checks.
 - Host verification passes: 37 JavaScript tests and 223 Kotlin tests. Compose, Android,
   native-source, patch-integrity, license-structure, and release lint gates pass. Lint reports

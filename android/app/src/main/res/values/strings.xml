@@ -13,6 +13,7 @@
     <string name="action_dismiss">Dismiss</string>
     <string name="action_try_again">Try again</string>
     <string name="action_home">Home</string>
+    <string name="action_quick_play">Quick Play</string>
     <string name="action_rematch">Rematch</string>
     <string name="action_keep_playing">Keep playing</string>
     <string name="action_theme">Theme</string>
@@ -118,6 +119,10 @@
     <string name="opponent_lucian_epithet">Courteous grandmaster</string>
     <string name="opponent_lucian_name">Lucian</string>
     <string name="opponent_lucian_personality">Sparse with words, generous in victory, and focused from the first move.</string>
+    <string name="opponent_vesper_name">Vesper</string>
+    <string name="opponent_vesper_epithet">Your Nemesis</string>
+    <string name="opponent_vesper_personality">Vesper watches, remembers, and always returns prepared.</string>
+    <string name="difficulty_adaptive">Adaptive</string>
     <string name="difficulty_learner">Learner</string>
     <string name="difficulty_casual">Casual</string>
     <string name="difficulty_challenger">Challenger</string>
@@ -132,6 +137,9 @@
     <string name="difficulty_description_expert">Sharp, accurate play for experienced players.</string>
     <string name="difficulty_description_master">A demanding strategic challenge.</string>
     <string name="difficulty_description_grandmaster">The strongest available opponent.</string>
+    <string name="difficulty_description_adaptive">Matches your current strength and evolves after each unassisted game.</string>
+    <string name="adaptive_status_provisional">Finding your level · near %1$d · %2$d/10 games</string>
+    <string name="adaptive_status_matched">Matched near %1$d</string>
 
     <!-- Themes -->
     <string name="theme_choose">Choose a theme</string>

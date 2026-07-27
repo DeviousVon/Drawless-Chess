@@ -69,13 +69,18 @@ rg -q 'object SampledSoundCatalog' \
 rg -Fq 'soundPlayer.playMove(latestSan)' \
   "$root/android/app/src/main/kotlin/com/drawlesschess/ui/GameScreen.kt"
 sample_count=$(find "$root/android/app/src/main/res/raw" -maxdepth 1 -type f -name 'chess_*.ogg' | wc -l)
-[[ $sample_count -eq 104 ]] || {
-  echo "Expected 104 sampled audio resources, found $sample_count" >&2
+[[ $sample_count -eq 101 ]] || {
+  echo "Expected 101 sampled audio resources, found $sample_count" >&2
   exit 1
 }
-# The deterministic renderer is retained as reference/test material, not production playback.
+# The deterministic renderer supplies immediate move/capture/check fallback while sampled
+# resources are loading or unavailable, and continues to render completion-effect cues.
 rg -q 'SOUND_SAMPLE_RATE = 44_100' \
   "$root/android/app/src/main/kotlin/com/drawlesschess/ui/ProceduralGameAudio.kt"
+rg -q 'FallbackCue.CAPTURE -> renderCaptureCrushSound()' \
+  "$root/android/app/src/main/kotlin/com/drawlesschess/ui/GameSoundPlayer.kt"
+rg -q 'FallbackCue.CHECK -> renderCheckMechanicalSound()' \
+  "$root/android/app/src/main/kotlin/com/drawlesschess/ui/GameSoundPlayer.kt"
 rg -q 'renderCompletionCue' \
   "$root/android/app/src/main/kotlin/com/drawlesschess/ui/ProceduralGameAudio.kt"
 rg -Fq 'testTag("post_game_feedback")' "$root/android/app/src/main/kotlin/com/drawlesschess/ui/GameScreen.kt"

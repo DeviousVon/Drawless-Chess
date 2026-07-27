@@ -9,9 +9,9 @@ import kotlin.math.roundToInt
 import kotlin.math.sin
 
 /**
- * Retained deterministic physical-model reference renderer. Production playback uses the
- * audited sampled library in [SampledSoundCatalog]; these functions remain for regression
- * comparisons and host-side diagnostics only.
+ * Deterministic physical-model renderer. Production playback prefers the audited sampled
+ * library in [SampledSoundCatalog]; move, capture, and check renderers also provide an immediate
+ * fallback while a sample is unavailable or still loading.
  *
  * The renderer deliberately uses broadband excitation, filtered friction, and clusters of
  * inharmonic resonances instead of note-like alert tones. Nothing here is sampled or derived
@@ -20,31 +20,24 @@ import kotlin.math.sin
 internal const val SOUND_SAMPLE_RATE = 44_100
 
 internal fun renderMoveSound(capture: Boolean): ShortArray {
-    val duration = if (capture) 0.58 else 0.48
+    if (capture) return renderCaptureCrushSound()
+
+    val duration = 0.48
     val mixed = FloatArray(sampleCount(duration))
 
     // A subtle lift, continuous base/felt movement, then the piece settling on wood.
-    addWoodContact(mixed, startSeconds = 0.0, strength = if (capture) 0.24 else 0.19, seed = 0x7183)
+    addWoodContact(mixed, startSeconds = 0.0, strength = 0.19, seed = 0x7183)
     addSurfaceScrape(
         mixed,
         startSeconds = 0.055,
-        durationSeconds = if (capture) 0.35 else 0.31,
-        strength = if (capture) 0.16 else 0.19,
-        seed = if (capture) 0xCA7812 else 0x4D0B5,
+        durationSeconds = 0.31,
+        strength = 0.19,
+        seed = 0x4D0B5,
     )
+    addWoodContact(mixed, startSeconds = 0.382, strength = 0.86, seed = 0xB04D)
+    addWoodContact(mixed, startSeconds = 0.414, strength = 0.14, seed = 0xB04E)
 
-    if (capture) {
-        // The moving piece strikes and displaces the captured piece before settling.
-        addHeavyPieceImpact(mixed, startSeconds = 0.285, strength = 0.82, seed = 0xC4A7E)
-        addWoodContact(mixed, startSeconds = 0.326, strength = 0.43, seed = 0xC0111)
-        addWoodContact(mixed, startSeconds = 0.438, strength = 0.72, seed = 0x51A9)
-        addWoodContact(mixed, startSeconds = 0.473, strength = 0.17, seed = 0x51AA)
-    } else {
-        addWoodContact(mixed, startSeconds = 0.382, strength = 0.86, seed = 0xB04D)
-        addWoodContact(mixed, startSeconds = 0.414, strength = 0.14, seed = 0xB04E)
-    }
-
-    return masterPcm(mixed, targetPeak = if (capture) 0.80f else 0.72f)
+    return masterPcm(mixed, targetPeak = 0.72f)
 }
 
 /** A compact wood-crush gesture, deliberately unlike the normal lift-and-place recordings. */
@@ -66,11 +59,10 @@ internal fun renderCaptureCrushSound(): ShortArray {
     return masterPcm(mixed, targetPeak = 0.82f, attackMillis = 0.35)
 }
 
-/** Two spaced mechanical ticks; the initial gap keeps the cue clear of the move impact. */
-internal fun renderCheckTickSound(): ShortArray {
-    val mixed = FloatArray(sampleCount(0.48))
-    addClockTick(mixed, startSeconds = 0.070, strength = 0.82, seed = 0x71C01)
-    addClockTick(mixed, startSeconds = 0.255, strength = 1.00, seed = 0x71C02)
+/** One continuous mechanical action with a firm latch and a longer textured travel. */
+internal fun renderCheckMechanicalSound(): ShortArray {
+    val mixed = FloatArray(sampleCount(0.72))
+    addMechanicalCycle(mixed, strength = 1.0, seed = 0x71C01)
     return masterPcm(mixed, targetPeak = 0.76f, attackMillis = 0.20)
 }
 
@@ -102,28 +94,31 @@ private fun addCrushBurst(
     }
 }
 
-private fun addClockTick(
+private fun addMechanicalCycle(
     destination: FloatArray,
-    startSeconds: Double,
     strength: Double,
     seed: Int,
 ) {
-    val start = sampleCount(startSeconds)
-    val length = sampleCount(0.072)
+    val length = sampleCount(0.65)
     val noise = DeterministicNoise(seed)
-    val lowReference = OnePoleLowPass(2_250.0)
-    val body = DampedSine(1_180.0 + (seed and 31), 54.0, 0.24)
-    val edge = DampedSine(2_060.0 + (seed and 63), 79.0, 1.18)
+    val broad = OnePoleLowPass(4_200.0)
+    val dull = OnePoleLowPass(430.0)
+    val lowBody = DampedSine(186.0, 8.5, 0.24)
+    val midBody = DampedSine(517.0, 12.0, 1.18)
     for (localIndex in 0 until length) {
-        val destinationIndex = start + localIndex
-        if (destinationIndex !in destination.indices) break
         val time = localIndex.toDouble() / SOUND_SAMPLE_RATE
+        val progress = localIndex.toDouble() / (length - 1).coerceAtLeast(1)
         val raw = noise.next()
-        val click = (raw - lowReference.next(raw)) * exp(-165.0 * time)
-        val mechanism = 0.44 * body.next() + 0.22 * edge.next()
-        val attack = (time / 0.00025).coerceIn(0.0, 1.0)
-        destination[destinationIndex] +=
-            (strength * attack * (0.62 * click + mechanism)).toFloat()
+        val textured = broad.next(raw)
+        val grit = textured - dull.next(textured)
+        val latch = (raw - textured) * exp(-115.0 * time)
+        val ratchet = 0.46 + 0.54 * abs(sin(2.0 * PI * 18.0 * time))
+        val travel = sin(PI * progress).coerceAtLeast(0.0).pow(0.62)
+        val body = lowBody.next() * 0.30 + midBody.next() * 0.19
+        val release = exp(-2.2 * time)
+        destination[localIndex] += (
+            strength * release * (0.55 * latch + travel * ratchet * 0.34 * grit + 0.11 * body)
+        ).toFloat()
     }
 }
 

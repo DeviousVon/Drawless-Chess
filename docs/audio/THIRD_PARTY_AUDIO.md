@@ -2,7 +2,7 @@
 
 ## CC0 chess recordings
 
-Move, capture, and castling families use two recording sets published under Creative Commons
+Move and castling families use two recording sets published under Creative Commons
 Zero 1.0. CC0 permits copying, modification, commercial use, and redistribution without an
 attribution condition. Attribution remains here for auditability.
 
@@ -19,6 +19,14 @@ attribution condition. Attribution remains here for auditability.
 
 The previously imported el_boss “Piece Slide.mp3” was rejected after listening review and is no
 longer retained or referenced by any runtime asset.
+
+## CC0 stone capture recording
+
+Capture cues use **“stonehit1.wav”** by aerror:
+<https://freesound.org/people/aerror/sounds/350750/>. Freesound describes it as a recording of a
+stone hitting rocks and publishes it under CC0. The retained input is the public HQ stereo MP3
+preview selected by the product owner; the exact CDN URL, SHA-256, original WAV identity, source
+metadata, and processing recipe are pinned in `audio_manifest.json`.
 
 ## CC0 firework recordings
 
@@ -52,12 +60,14 @@ repeated in root `THIRD_PARTY_NOTICES.md`, which is bundled inside release APKs 
 
 ## Processing and runtime
 
-`scripts/audio/rebuild_lossless_audio.ps1` documents the exact move, capture, castling, firework,
+`scripts/audio/rebuild_lossless_audio.ps1` documents the exact move, stone-crush capture, castling, firework,
 glass, and UI-cue recipes. Runtime variations use trimming, fades, gain staging, restrained
 filtering, micro-offset physical layering, and preserved stereo where the retained source is
-stereo. They use no slide/sweep, pitch shift, procedural oscillator/noise renderer, or household
+stereo. Runtime captures are short cuts of the recorded stone event and contain no normal-move
+contact layer. The sampled pack uses no procedural oscillator/noise renderer or household
 firework substitute.
 
-`GameSoundPlayer` preloads the compact library with Android `SoundPool`, expires stale requests,
+`GameSoundPlayer` preloads the compact library with Android `SoundPool`, uses deterministic
+physical-model move/capture/check fallbacks until those ordinary samples are ready, expires stale requests,
 honors the persisted mute setting, cancels result cues on lifecycle exit, and keeps all three
 glass layers from the same numbered variant.

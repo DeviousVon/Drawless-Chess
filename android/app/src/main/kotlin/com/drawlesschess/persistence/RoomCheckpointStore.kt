@@ -125,9 +125,7 @@ internal abstract class ActiveGameCheckpointDao {
             // checkpoint create history that was not accepted as the active authority.
             completedGame?.let { candidate ->
                 loadCompletedGame(candidate.gameId)?.let { existing ->
-                    if (!existing.hasSameImmutableFactsAs(candidate)) {
-                        throw CompletedGameConflictException(candidate.gameId)
-                    }
+                    requireSameCompletedGame(existing, candidate)
                 }
             }
             return
@@ -144,19 +142,35 @@ internal abstract class ActiveGameCheckpointDao {
     private fun appendCompletedGameLocked(candidate: CompletedGameEntity) {
         val existing = loadCompletedGame(candidate.gameId)
         if (existing != null) {
-            if (!existing.hasSameImmutableFactsAs(candidate)) {
-                throw CompletedGameConflictException(candidate.gameId)
-            }
+            requireSameCompletedGame(existing, candidate)
             return
         }
         require(candidate.completionSequence == UNASSIGNED_COMPLETION_SEQUENCE) {
             "Completion sequence is assigned only by the local database"
         }
+        val completedGames = loadCompletedGames(candidate.localProfileId)
+        val candidateWithRating = AdaptiveRatingHistory.withCurrentSnapshot(
+            candidate = candidate,
+            current = AdaptiveRatingHistory.current(completedGames),
+        )
         insertCompletedGameOrThrow(
-            candidate.copy(
+            candidateWithRating.copy(
                 completionSequence = nextCompletionSequence(candidate.localProfileId),
             ),
         )
+    }
+
+    private fun requireSameCompletedGame(
+        existing: CompletedGameEntity,
+        candidate: CompletedGameEntity,
+    ) {
+        // The rating columns are database-derived. Restore the durable snapshot before comparing
+        // the checkpoint-derived facts, otherwise an exact retry after a rating change appears
+        // divergent simply because its factory saw the already-advanced rating.
+        val comparable = AdaptiveRatingHistory.withStoredSnapshot(candidate, existing)
+        if (!existing.hasSameImmutableFactsAs(comparable)) {
+            throw CompletedGameConflictException(candidate.gameId)
+        }
     }
 }
 

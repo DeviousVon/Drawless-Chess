@@ -61,6 +61,11 @@ internal fun SetupSelection.resolveForNewGame(randomBoolean: () -> Boolean): Res
     )
 }
 
+internal fun quickPlaySetup(botLevel: NamedBotLevel): SetupSelection = SetupSelection(
+    startingColor = StartingColor.RANDOM,
+    botLevel = botLevel,
+)
+
 internal class DrawlessAppViewModel(
     applicationContext: Context,
     private val checkpointStore: RoomCheckpointStore,
@@ -84,6 +89,9 @@ internal class DrawlessAppViewModel(
 
     var playerStatsState: PlayerStatsState by mutableStateOf(PlayerStatsState.Loading)
         private set
+    private var lastAdaptiveRating: Int = BotDifficultyCatalog.ADAPTIVE_STARTING_ELO
+    private var adaptiveLaunchPending = false
+    private var launchRequestGeneration = 0L
 
     var runtime: GameRuntime? by mutableStateOf(null)
         private set
@@ -123,7 +131,7 @@ internal class DrawlessAppViewModel(
     }
 
     fun startQuickPlay() {
-        startNewGame(SetupSelection(botLevel = quickPlayOpponentLevel))
+        startNewGame(quickPlaySelection())
     }
 
     fun showOptions() {
@@ -180,6 +188,7 @@ internal class DrawlessAppViewModel(
     }
 
     fun leaveSetup() {
+        cancelPendingAdaptiveLaunch()
         route = AppRoute.HOME
     }
 
@@ -223,8 +232,9 @@ internal class DrawlessAppViewModel(
                         forfeitConfirmation = null
                         resumeState = ResumeState.Empty
                         playerStatsState = PlayerStatsState.Loading
-                        refreshPlayerStats()
-                        launchNewGame(pending.selection)
+                        refreshPlayerStats(
+                            afterSuccess = { launchNewGameResolved(pending.selection) },
+                        )
                     }
                 },
                 onFailure = { error ->
@@ -238,6 +248,31 @@ internal class DrawlessAppViewModel(
     }
 
     private fun launchNewGame(selection: SetupSelection) {
+        if (selection.botLevel.id == BotDifficultyCatalog.ADAPTIVE_LEVEL_ID) {
+            if (adaptiveLaunchPending) return
+            adaptiveLaunchPending = true
+            val requestGeneration = ++launchRequestGeneration
+            playerStatsState = PlayerStatsState.Loading
+            // The FIFO store reads after any already-enqueued terminal write, so even an
+            // immediate rematch freezes Vesper at the newly committed rating.
+            refreshPlayerStats(
+                afterSuccess = {
+                    if (requestGeneration != launchRequestGeneration) return@refreshPlayerStats
+                    adaptiveLaunchPending = false
+                    launchNewGameResolved(selection)
+                },
+                afterFailure = {
+                    if (requestGeneration == launchRequestGeneration) adaptiveLaunchPending = false
+                },
+            )
+            return
+        }
+        launchRequestGeneration++
+        adaptiveLaunchPending = false
+        launchNewGameResolved(selection)
+    }
+
+    private fun launchNewGameResolved(selection: SetupSelection) {
         val casualSelection = selection.copy(mode = GameMode.CASUAL)
         val resolvedSetup = casualSelection.resolveForNewGame(randomBoolean)
         replaceRuntime {
@@ -248,23 +283,38 @@ internal class DrawlessAppViewModel(
                 initialTheme = selectedTheme,
                 resolvedHumanSide = resolvedSetup.humanSide,
                 threatIndicationEnabled = gamePreferences.threatIndicationEnabled,
+                adaptiveElo = currentAdaptiveRating(),
             )
                 .also { activeSelection = resolvedSetup.rematchSelection }
         }
     }
 
     private fun rememberQuickPlayOpponent(level: NamedBotLevel) {
-        val supported = BotDifficultyCatalog.namedOrNull(level.id) ?: return
+        val supported = when (level.id) {
+            BotDifficultyCatalog.ADAPTIVE_LEVEL_ID -> BotDifficultyCatalog.adaptiveLevel()
+            else -> BotDifficultyCatalog.namedOrNull(level.id) ?: return
+        }
         if (quickPlayOpponentLevel == supported) return
         quickPlayOpponentLevel = supported
         quickPlayPreferences.save(supported)
     }
+
+    private fun currentAdaptiveRating(): Int =
+        lastAdaptiveRating
 
     fun rematchGame() {
         // Rematch is offered only after the active runtime has already persisted a terminal
         // result, so it does not pass through the unfinished-game replacement flow.
         launchNewGame(activeSelection ?: SetupSelection())
     }
+
+    fun postGameQuickPlay() {
+        // Like rematch, this action is offered only for a completed game and launches directly.
+        // Starting from a fresh RANDOM selection deliberately draws the player's side again.
+        launchNewGame(quickPlaySelection())
+    }
+
+    private fun quickPlaySelection(): SetupSelection = quickPlaySetup(quickPlayOpponentLevel)
 
     fun resumeGame() {
         if (resumeState !is ResumeState.Ready) return
@@ -292,6 +342,7 @@ internal class DrawlessAppViewModel(
     }
 
     fun exitGame() {
+        cancelPendingAdaptiveLaunch()
         val previous = runtime
         runtime = null
         previous?.close()
@@ -313,8 +364,14 @@ internal class DrawlessAppViewModel(
     }
 
     override fun onCleared() {
+        cancelPendingAdaptiveLaunch()
         runtime?.close()
         runtime = null
+    }
+
+    private fun cancelPendingAdaptiveLaunch() {
+        launchRequestGeneration++
+        adaptiveLaunchPending = false
     }
 
     private fun refreshResume() {
@@ -329,13 +386,21 @@ internal class DrawlessAppViewModel(
         }
     }
 
-    private fun refreshPlayerStats() {
+    private fun refreshPlayerStats(
+        afterSuccess: () -> Unit = {},
+        afterFailure: () -> Unit = {},
+    ) {
         checkpointStore.loadPlayerStats { result ->
-            playerStatsState = result.fold(
-                onSuccess = PlayerStatsState::Ready,
+            result.fold(
+                onSuccess = { statistics ->
+                    lastAdaptiveRating = statistics.adaptiveRating
+                    playerStatsState = PlayerStatsState.Ready(statistics)
+                    afterSuccess()
+                },
                 onFailure = { error ->
                     Log.e(LOG_TAG, "Could not load player statistics", error)
-                    PlayerStatsState.Failed(uiText(R.string.error_stats_not_loaded))
+                    playerStatsState = PlayerStatsState.Failed(uiText(R.string.error_stats_not_loaded))
+                    afterFailure()
                 },
             )
         }
@@ -378,7 +443,14 @@ internal class DrawlessAppViewModel(
 }
 
 internal fun GameConfig.toSetupSelection(): SetupSelection {
-    val botLevel = BotDifficultyCatalog.displayLevel(opponentLevelId, engineStrength)
+    val botLevel = if (opponentLevelId == BotDifficultyCatalog.ADAPTIVE_LEVEL_ID) {
+        BotDifficultyCatalog.adaptiveLevel(
+            (engineStrength as? EngineStrength.ApproximateElo)?.elo
+                ?: BotDifficultyCatalog.ADAPTIVE_STARTING_ELO,
+        )
+    } else {
+        BotDifficultyCatalog.displayLevel(opponentLevelId, engineStrength)
+    }
     return SetupSelection(
         preset = rules.preset,
         deadPosition = rules.deadPosition,

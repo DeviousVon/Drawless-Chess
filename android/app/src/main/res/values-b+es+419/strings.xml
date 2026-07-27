@@ -12,6 +12,7 @@
     <string name="action_dismiss">Cerrar</string>
     <string name="action_try_again">Intentar de nuevo</string>
     <string name="action_home">Inicio</string>
+    <string name="action_quick_play">Partida rápida</string>
     <string name="action_rematch">Revancha</string>
     <string name="action_keep_playing">Seguir jugando</string>
     <string name="action_theme">Tema</string>
@@ -116,6 +117,10 @@
     <string name="opponent_lucian_epithet">Gran maestro cortés</string>
     <string name="opponent_lucian_name">Lucian</string>
     <string name="opponent_lucian_personality">De pocas palabras, generoso en la victoria y concentrado desde el primer movimiento.</string>
+    <string name="opponent_vesper_name">Vesper</string>
+    <string name="opponent_vesper_epithet">Tu némesis</string>
+    <string name="opponent_vesper_personality">Vesper te observa, recuerda cada detalle y siempre regresa con un plan.</string>
+    <string name="difficulty_adaptive">Adaptativo</string>
     <string name="difficulty_learner">Aprendiz</string>
     <string name="difficulty_casual">Casual</string>
     <string name="difficulty_challenger">Retador</string>
@@ -130,6 +135,9 @@
     <string name="difficulty_description_expert">Juego preciso y agudo para jugadores experimentados.</string>
     <string name="difficulty_description_master">Un desafío estratégico exigente.</string>
     <string name="difficulty_description_grandmaster">El oponente más fuerte disponible.</string>
+    <string name="difficulty_description_adaptive">Se ajusta a tu nivel actual y evoluciona después de cada partida sin ayudas.</string>
+    <string name="adaptive_status_provisional">Buscando tu nivel · cerca de %1$d · %2$d/10 partidas</string>
+    <string name="adaptive_status_matched">Adaptado a cerca de %1$d</string>
 
     <!-- Temas -->
     <string name="theme_choose">Elige un tema</string>

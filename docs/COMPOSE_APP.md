@@ -149,7 +149,7 @@ The suite verifies:
   setup with Escape kept under Advanced Rules;
 - a completed-game Rematch flow; and
 - deterministic two-second-plus finish timing and cue ordering; and
-- all 104 sampled resources, Android decoding/SoundPool loading, non-repeating shuffle cycles,
+- all 101 sampled resources, Android decoding/SoundPool loading, non-repeating shuffle cycles,
   and mute/stop/close safety.
 
 A separate host-driven physical-phone acceptance run has also covered force-stop,

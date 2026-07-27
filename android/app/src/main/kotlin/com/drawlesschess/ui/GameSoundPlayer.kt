@@ -8,6 +8,7 @@ import android.media.SoundPool
 import android.os.SystemClock
 import android.util.Log
 import java.util.ArrayDeque
+import java.util.EnumMap
 import kotlin.random.Random
 
 /**
@@ -16,6 +17,7 @@ import kotlin.random.Random
  */
 internal class GameSoundPlayer(context: Context) : AutoCloseable {
     private enum class CompletionKind { VICTORY, DEFEAT }
+    private enum class FallbackCue { MOVE, CAPTURE, CHECK }
 
     private data class CompletionSession(
         val kind: CompletionKind,
@@ -52,6 +54,7 @@ internal class GameSoundPlayer(context: Context) : AutoCloseable {
     private val failedSamples = HashSet<Int>()
     private val pendingSamples = HashMap<Int, PendingSample>()
     private val activeStreams = ArrayDeque<ActiveStream>()
+    private val fallbackTracks = EnumMap<FallbackCue, AudioTrack>(FallbackCue::class.java)
     private val moves = SoundShuffleBag(SampledSoundCatalog.moves)
     private val captures = SoundShuffleBag(SampledSoundCatalog.captures)
     private val castles = SoundShuffleBag(SampledSoundCatalog.castles)
@@ -61,7 +64,6 @@ internal class GameSoundPlayer(context: Context) : AutoCloseable {
     private val glassVariants = SoundShuffleBag(
         IntArray(SampledSoundCatalog.glassImpact.size) { index -> index },
     )
-    private val checks = SoundShuffleBag(SampledSoundCatalog.checkAccents)
     private val promotions = SoundShuffleBag(SampledSoundCatalog.promotions)
     private val hints = SoundShuffleBag(SampledSoundCatalog.hints)
     private val lowTime = SoundShuffleBag(SampledSoundCatalog.lowTime)
@@ -125,21 +127,33 @@ internal class GameSoundPlayer(context: Context) : AutoCloseable {
     fun playMove(capture: Boolean) {
         synchronized(lock) {
             if (closed || !enabled) return
-            playBagLocked(if (capture) captures else moves, if (capture) CAPTURE_VOLUME else MOVE_VOLUME)
+            playBagLocked(
+                if (capture) captures else moves,
+                if (capture) CAPTURE_VOLUME else MOVE_VOLUME,
+                fallbackCue = if (capture) FallbackCue.CAPTURE else FallbackCue.MOVE,
+            )
         }
     }
 
-    /** SAN distinguishes the two-piece castling cue without coupling audio to engine internals. */
+    /** SAN selects exactly one move cue without coupling audio to engine internals. */
     fun playMove(san: String) {
         synchronized(lock) {
             if (closed || !enabled) return
-            val plan = moveSoundPlan(san)
-            when (plan.primary) {
-                PrimaryMoveSound.MOVE -> playBagLocked(moves, MOVE_VOLUME)
-                PrimaryMoveSound.CAPTURE -> playBagLocked(captures, CAPTURE_VOLUME)
-                PrimaryMoveSound.CASTLE -> playBagLocked(castles, CASTLE_VOLUME)
+            when (moveSoundCue(san)) {
+                MoveSoundCue.MOVE ->
+                    playBagLocked(moves, MOVE_VOLUME, fallbackCue = FallbackCue.MOVE)
+                MoveSoundCue.CAPTURE ->
+                    playBagLocked(captures, CAPTURE_VOLUME, fallbackCue = FallbackCue.CAPTURE)
+                MoveSoundCue.CASTLE ->
+                    playBagLocked(castles, CASTLE_VOLUME, fallbackCue = FallbackCue.MOVE)
+                MoveSoundCue.CHECK ->
+                    playResourceLocked(
+                        SampledSoundCatalog.check,
+                        CHECK_VOLUME,
+                        token = null,
+                        fallbackCue = FallbackCue.CHECK,
+                    )
             }
-            if (plan.checkTick) playBagLocked(checks, CHECK_VOLUME)
         }
     }
 
@@ -163,6 +177,13 @@ internal class GameSoundPlayer(context: Context) : AutoCloseable {
                     pool.setVolume(stream.id, volume, volume)
                 } catch (_: RuntimeException) {
                     // A short sample may have completed while its persisted level changed.
+                }
+            }
+            fallbackTracks.forEach { (cue, track) ->
+                try {
+                    track.setVolume(effectiveVolume(fallbackVolume(cue)))
+                } catch (_: RuntimeException) {
+                    // The device can remove an AudioTrack while the app is backgrounded.
                 }
             }
         }
@@ -205,7 +226,12 @@ internal class GameSoundPlayer(context: Context) : AutoCloseable {
     fun playCheck() {
         synchronized(lock) {
             if (closed || !enabled) return
-            playBagLocked(checks, CHECK_VOLUME)
+            playResourceLocked(
+                SampledSoundCatalog.check,
+                CHECK_VOLUME,
+                token = null,
+                fallbackCue = FallbackCue.CHECK,
+            )
         }
     }
     fun playPromotion() = playOptional(promotions, PROMOTION_VOLUME)
@@ -222,7 +248,7 @@ internal class GameSoundPlayer(context: Context) : AutoCloseable {
     }
 
     override fun close() {
-        val release = synchronized(lock) {
+        val fallbackToRelease = synchronized(lock) {
             if (closed) return
             closed = true
             stopAllLocked()
@@ -230,15 +256,14 @@ internal class GameSoundPlayer(context: Context) : AutoCloseable {
             sampleToResource.clear()
             loadedSamples.clear()
             failedSamples.clear()
-            true
+            fallbackTracks.values.toList().also { fallbackTracks.clear() }
         }
-        if (release) {
-            try {
-                pool.release()
-            } catch (_: RuntimeException) {
-                // A vendor implementation may already have torn down its audio service.
-            }
+        try {
+            pool.release()
+        } catch (_: RuntimeException) {
+            // A vendor implementation may already have torn down its audio service.
         }
+        fallbackToRelease.forEach(::releaseAudioTrack)
     }
 
     private fun playOptional(bag: SoundShuffleBag, volume: Float) {
@@ -288,6 +313,7 @@ internal class GameSoundPlayer(context: Context) : AutoCloseable {
         bag: SoundShuffleBag,
         volume: Float,
         completionToken: Any? = null,
+        fallbackCue: FallbackCue? = null,
     ) {
         discardUnavailableResourcesLocked(bag)
         val loadedResource = bag.peekMatchingOrNull { resource ->
@@ -296,7 +322,17 @@ internal class GameSoundPlayer(context: Context) : AutoCloseable {
         if (loadedResource != null) {
             if (completionToken == null) clearOrdinaryPendingLocked()
             val sampleId = checkNotNull(resourceToSample[loadedResource])
-            if (playSampleLocked(sampleId, volume)) bag.markPlayed(loadedResource)
+            if (playSampleLocked(sampleId, volume)) {
+                bag.markPlayed(loadedResource)
+            } else if (fallbackCue != null) {
+                playFallbackLocked(fallbackCue, volume)
+            }
+            return
+        }
+
+        if (completionToken == null && fallbackCue != null) {
+            clearOrdinaryPendingLocked()
+            playFallbackLocked(fallbackCue, volume)
             return
         }
 
@@ -341,7 +377,6 @@ internal class GameSoundPlayer(context: Context) : AutoCloseable {
             fireworkLow,
             fireworkMid,
             fireworkHigh,
-            checks,
             promotions,
             hints,
             lowTime,
@@ -368,14 +403,26 @@ internal class GameSoundPlayer(context: Context) : AutoCloseable {
         volume: Float,
         token: Any?,
         bag: SoundShuffleBag? = null,
+        fallbackCue: FallbackCue? = null,
     ) {
         val sampleId = resourceToSample[resource] ?: run {
             Log.w(AUDIO_LOG_TAG, "No SoundPool id for sample resource=$resource")
+            if (fallbackCue != null) playFallbackLocked(fallbackCue, volume)
             return
         }
         if (sampleId in loadedSamples) {
             if (token == null) clearOrdinaryPendingLocked()
-            if (playSampleLocked(sampleId, volume)) bag?.markPlayed(resource)
+            if (playSampleLocked(sampleId, volume)) {
+                bag?.markPlayed(resource)
+            } else if (fallbackCue != null) {
+                playFallbackLocked(fallbackCue, volume)
+            }
+            return
+        }
+
+        if (token == null && fallbackCue != null) {
+            clearOrdinaryPendingLocked()
+            playFallbackLocked(fallbackCue, volume)
             return
         }
 
@@ -420,6 +467,31 @@ internal class GameSoundPlayer(context: Context) : AutoCloseable {
     private fun effectiveVolume(baseVolume: Float): Float =
         (baseVolume * volumeMultiplier).coerceIn(0f, 1f)
 
+    private fun playFallbackLocked(cue: FallbackCue, volume: Float) {
+        val track = fallbackTracks[cue] ?: createStaticAudioTrack(
+            when (cue) {
+                FallbackCue.MOVE -> renderMoveSound(capture = false)
+                FallbackCue.CAPTURE -> renderCaptureCrushSound()
+                FallbackCue.CHECK -> renderCheckMechanicalSound()
+            },
+        )?.also { fallbackTracks[cue] = it } ?: return
+        try {
+            track.setVolume(effectiveVolume(volume))
+            if (track.playState == AudioTrack.PLAYSTATE_PLAYING) track.pause()
+            val rewound = track.setPlaybackHeadPosition(0) == AudioTrack.SUCCESS ||
+                track.reloadStaticData() == AudioTrack.SUCCESS
+            if (rewound) track.play()
+        } catch (exception: RuntimeException) {
+            Log.w(AUDIO_LOG_TAG, "Fallback audio playback failed for $cue", exception)
+        }
+    }
+
+    private fun fallbackVolume(cue: FallbackCue): Float = when (cue) {
+        FallbackCue.MOVE -> MOVE_VOLUME
+        FallbackCue.CAPTURE -> CAPTURE_VOLUME
+        FallbackCue.CHECK -> CHECK_VOLUME
+    }
+
     private fun clearOrdinaryPendingLocked() {
         pendingSamples.entries.removeAll { entry -> entry.value.completionToken == null }
     }
@@ -446,6 +518,17 @@ internal class GameSoundPlayer(context: Context) : AutoCloseable {
                 // Already stopped or released by the platform.
             }
         }
+        fallbackTracks.values.forEach(::stopFallbackTrackLocked)
+    }
+
+    private fun stopFallbackTrackLocked(track: AudioTrack) {
+        try {
+            if (track.state != AudioTrack.STATE_INITIALIZED) return
+            if (track.playState == AudioTrack.PLAYSTATE_PLAYING) track.pause()
+            if (track.setPlaybackHeadPosition(0) != AudioTrack.SUCCESS) track.reloadStaticData()
+        } catch (_: RuntimeException) {
+            // Already stopped, released by the platform, or removed with the audio device.
+        }
     }
 
     private fun cancelCompletionLocked() {
@@ -454,21 +537,14 @@ internal class GameSoundPlayer(context: Context) : AutoCloseable {
     }
 }
 
-internal enum class PrimaryMoveSound { MOVE, CAPTURE, CASTLE }
+internal enum class MoveSoundCue { MOVE, CAPTURE, CASTLE, CHECK }
 
-internal data class MoveSoundPlan(
-    val primary: PrimaryMoveSound,
-    val checkTick: Boolean,
-)
-
-internal fun moveSoundPlan(san: String): MoveSoundPlan = MoveSoundPlan(
-    primary = when {
-        san.startsWith("O-O") -> PrimaryMoveSound.CASTLE
-        'x' in san -> PrimaryMoveSound.CAPTURE
-        else -> PrimaryMoveSound.MOVE
-    },
-    checkTick = san.endsWith("+") || san.endsWith("#"),
-)
+internal fun moveSoundCue(san: String): MoveSoundCue = when {
+    san.endsWith("+") || san.endsWith("#") -> MoveSoundCue.CHECK
+    san.startsWith("O-O") -> MoveSoundCue.CASTLE
+    'x' in san -> MoveSoundCue.CAPTURE
+    else -> MoveSoundCue.MOVE
+}
 
 /** Shuffle bag with cycle-boundary repeat prevention; callers provide their own synchronization. */
 internal class SoundShuffleBag(

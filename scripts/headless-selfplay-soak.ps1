@@ -106,7 +106,7 @@ $adjacentConfigPath = Resolve-RepositoryFile -Path $AdjacentConfig -Description 
 $statePath = Join-Path $runRoot 'state.json'
 $ledgerPath = Join-Path $runRoot 'ledger.jsonl'
 $stopRequestPath = Join-Path $runRoot 'stop.request'
-$lockPath = Join-Path $runsRoot 'selfplay-soak.lock'
+$lockPath = Join-Path $runRoot 'supervisor.lock'
 
 $lockStream = $null
 $ownsSupervisorLock = $false
