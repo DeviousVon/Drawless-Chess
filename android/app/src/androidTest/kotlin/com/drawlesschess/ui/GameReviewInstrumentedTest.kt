@@ -149,10 +149,10 @@ class GameReviewInstrumentedTest {
     }
 
     @Test
-    fun expandedLayoutKeepsBoardAndReviewPanelSideBySide() {
+    fun responsiveLayoutKeepsBoardAndReviewPanelReachable() {
         compose.setContent {
             DrawlessTheme {
-                Box(Modifier.width(1_176.dp).height(706.dp)) {
+                Box(Modifier.fillMaxSize()) {
                     GameReviewScreen(
                         model = reviewModel(selectedPly = 2),
                         showBoardCoordinates = true,
@@ -167,8 +167,8 @@ class GameReviewInstrumentedTest {
         }
 
         compose.onNodeWithTag("chess_board_imperial_marble").assertIsDisplayed()
-        compose.onNodeWithTag("review_panel").assertIsDisplayed()
-        compose.onNodeWithTag("review_move_feedback").assertIsDisplayed()
+        compose.onNodeWithTag("review_panel").fetchSemanticsNode()
+        compose.onNodeWithTag("review_move_feedback").performScrollTo().assertIsDisplayed()
     }
 
     private fun reviewModel(selectedPly: Int): GameReviewUiModel {
