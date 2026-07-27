@@ -256,7 +256,14 @@
     <string name="review_progress">%1$d de %2$d jugadas analizadas</string>
     <string name="review_progress_accessibility">Análisis de la partida completado al %1$d%%</string>
     <string name="review_complete">Análisis completo</string>
-    <string name="review_complete_body">Jugadas analizadas: %1$d.</string>
+    <string name="review_complete_body">Jugadas de la partida: %1$d. Jugadas calificadas: %2$d.</string>
+    <string name="review_summary_title">Resumen del análisis</string>
+    <string name="review_summary_player_side">Tú (%1$s)</string>
+    <string name="review_summary_opponent_side">Rival (%1$s)</string>
+    <string name="review_summary_graded">Jugadas calificadas: %1$d</string>
+    <string name="review_summary_grade_count">%1$s: %2$d</string>
+    <string name="review_summary_grade_badge">%1$s %2$d</string>
+    <string name="review_my_mistakes">Revisar mis errores</string>
     <string name="review_failed">Análisis no disponible</string>
     <string name="review_failed_body">El motor no pudo terminar este análisis.</string>
     <string name="review_cancelled">Análisis detenido</string>

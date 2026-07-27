@@ -1,6 +1,8 @@
 package com.drawlesschess.core.engine
 
 import com.drawlesschess.core.*
+import com.drawlesschess.core.chess.ChessAdapter
+import com.drawlesschess.core.chess.ChessRules
 
 fun interface UciTransport {
     fun send(command: String)
@@ -343,6 +345,13 @@ class FairyUciEngine(
                 (request.purpose != EnginePurpose.BOT_MOVE).toString(),
             )
         }
+        option("UCI_ShowWDL")?.let {
+            require(it.type == UciOptionType.CHECK)
+            commands += UciCommands.setOption(
+                "UCI_ShowWDL",
+                (request.purpose == EnginePurpose.REVIEW).toString(),
+            )
+        }
         option("Syzygy50MoveRule")?.let {
             require(it.type == UciOptionType.CHECK)
             commands += UciCommands.setOption("Syzygy50MoveRule", "false")
@@ -448,17 +457,18 @@ class FairyUciEngine(
     }
 
     private class AnalysisAccumulator {
-        private val variations = linkedMapOf<Int, UciInfo>()
-        private var maximumDepth = 0
-        private var maximumNodes = 0L
+        /** Complete rank sets are selected from one depth; ranks are never mixed across depths. */
+        private val variationsByDepth = linkedMapOf<Int, MutableMap<Int, UciInfo>>()
 
         fun accept(info: UciInfo) {
-            maximumDepth = maxOf(maximumDepth, info.depth ?: 0)
-            maximumNodes = maxOf(maximumNodes, info.nodes ?: 0)
             if (info.score == null || info.principalVariation.isEmpty()) return
+            val depth = info.depth ?: return
             val rank = info.multiPv ?: 1
-            val previous = variations[rank]
-            if (previous == null || (info.depth ?: 0) >= (previous.depth ?: 0)) variations[rank] = info
+            val ranks = variationsByDepth.getOrPut(depth) { linkedMapOf() }
+            // A repeated primary at the same depth starts a new UCI reporting cycle. Keeping
+            // older secondary ranks here would manufacture a snapshot that never existed.
+            if (rank == 1 && ranks.containsKey(1)) ranks.clear()
+            ranks[rank] = info
         }
 
         fun response(
@@ -467,10 +477,19 @@ class FairyUciEngine(
             identity: EngineIdentity,
         ): EngineResponse {
             val bestMove = best.move ?: throw UciEngineStateException("Engine returned no move for a live position")
-            val converted = variations.entries
-                .sortedBy { it.key }
-                .take(request.limits.multiPv)
-                .map { (rank, info) ->
+            val position = ChessAdapter.replay(request.initialFen, request.moves)
+            val expectedRanks = minOf(request.limits.multiPv, ChessRules.legalUciMoves(position).size)
+            val snapshot = variationsByDepth.entries
+                .sortedByDescending { it.key }
+                .firstOrNull { (_, ranks) ->
+                    expectedRanks > 0 && (1..expectedRanks).all(ranks::containsKey) &&
+                        ranks.getValue(1).principalVariation.first() == bestMove
+                }
+            val converted = snapshot?.value
+                ?.toSortedMap()
+                ?.entries
+                ?.take(expectedRanks)
+                ?.map { (rank, info) ->
                     when (val score = info.score!!) {
                         is UciScore.Centipawns -> PrincipalVariation(
                             scoreCentipawns = score.value,
@@ -478,6 +497,8 @@ class FairyUciEngine(
                             moves = info.principalVariation,
                             rank = rank,
                             bound = score.bound,
+                            wdl = info.wdl?.let { EngineWdl(it.wins, it.draws, it.losses) },
+                            depth = info.depth,
                         )
                         is UciScore.Mate -> PrincipalVariation(
                             scoreCentipawns = null,
@@ -485,18 +506,28 @@ class FairyUciEngine(
                             moves = info.principalVariation,
                             rank = rank,
                             bound = score.bound,
+                            wdl = info.wdl?.let { EngineWdl(it.wins, it.draws, it.losses) },
+                            depth = info.depth,
                         )
                     }
                 }
-                .ifEmpty { listOf(PrincipalVariation(0, null, listOf(bestMove))) }
+                .orEmpty()
+                .ifEmpty {
+                    listOf(PrincipalVariation(
+                        scoreCentipawns = 0,
+                        mateIn = null,
+                        moves = listOf(bestMove),
+                        evidenceAvailable = false,
+                    ))
+                }
             return EngineResponse(
                 requestId = request.requestId,
                 gameId = request.gameId,
                 positionId = request.positionId,
                 bestMove = bestMove,
                 ponderMove = best.ponder,
-                depth = maximumDepth,
-                nodes = maximumNodes,
+                depth = snapshot?.key ?: 0,
+                nodes = snapshot?.value?.values?.maxOfOrNull { it.nodes ?: 0L } ?: 0L,
                 variations = converted,
                 engine = identity,
             )

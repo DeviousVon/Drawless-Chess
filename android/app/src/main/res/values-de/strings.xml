@@ -245,7 +245,14 @@
     <string name="review_progress">%1$d von %2$d Zügen analysiert</string>
     <string name="review_progress_accessibility">Spielanalyse zu %1$d%% abgeschlossen</string>
     <string name="review_complete">Analyse abgeschlossen</string>
-    <string name="review_complete_body">Analysierte Züge: %1$d.</string>
+    <string name="review_complete_body">Züge in der Partie: %1$d. Bewertete Züge: %2$d.</string>
+    <string name="review_summary_title">Zusammenfassung</string>
+    <string name="review_summary_player_side">Du (%1$s)</string>
+    <string name="review_summary_opponent_side">Gegner (%1$s)</string>
+    <string name="review_summary_graded">Bewertete Züge: %1$d</string>
+    <string name="review_summary_grade_count">%1$s: %2$d</string>
+    <string name="review_summary_grade_badge">%1$s %2$d</string>
+    <string name="review_my_mistakes">Meine Fehler ansehen</string>
     <string name="review_failed">Analyse nicht verfügbar</string>
     <string name="review_failed_body">Die Engine konnte diese Analyse nicht abschließen.</string>
     <string name="review_cancelled">Analyse gestoppt</string>

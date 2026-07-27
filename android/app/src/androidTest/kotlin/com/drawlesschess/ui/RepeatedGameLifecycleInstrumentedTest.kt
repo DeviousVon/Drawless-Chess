@@ -18,6 +18,10 @@ import androidx.test.core.app.ApplicationProvider
 import com.drawlesschess.DrawlessApplication
 import com.drawlesschess.MainActivity
 import com.drawlesschess.R
+import com.drawlesschess.core.engine.REVIEW_ANALYSIS_VERSION
+import com.drawlesschess.core.engine.REVIEW_EVIDENCE_SCHEMA_VERSION
+import com.drawlesschess.core.engine.ReviewGradingPolicy
+import com.drawlesschess.core.engine.ReviewScoreSource
 import com.drawlesschess.core.presentation.BoardThemes
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -211,9 +215,58 @@ class RepeatedGameLifecycleInstrumentedTest {
 
         compose.onNodeWithTag("post_game_review").performClick()
         waitForText("Game review")
+        val runtimeBeforeRecreation = requireNotNull(
+            ViewModelProvider(compose.activity)[DrawlessAppViewModel::class.java].runtime,
+        )
+        compose.waitUntil(timeoutMillis = 30_000L) {
+            when (val state = runtimeBeforeRecreation.gameReviewState().value) {
+                is RuntimeGameReviewState.Analyzing ->
+                    (state.progress?.completedPositions ?: 0) >= 1
+                is RuntimeGameReviewState.Complete -> true
+                else -> false
+            }
+        }
+        val stateBeforeRecreation = runtimeBeforeRecreation.gameReviewState().value
+        val completedBeforeRecreation =
+            (stateBeforeRecreation as? RuntimeGameReviewState.Analyzing)
+                ?.progress?.completedPositions ?: 0
+
+        compose.activityRule.scenario.recreate()
+        waitForText("Game review")
+        val runtimeAfterRecreation = requireNotNull(
+            ViewModelProvider(compose.activity)[DrawlessAppViewModel::class.java].runtime,
+        )
+        assertTrue(
+            "Activity recreation replaced the runtime that owns the active review",
+            runtimeBeforeRecreation === runtimeAfterRecreation,
+        )
+        compose.waitUntil(timeoutMillis = 30_000L) {
+            when (val state = runtimeAfterRecreation.gameReviewState().value) {
+                is RuntimeGameReviewState.Analyzing ->
+                    stateBeforeRecreation is RuntimeGameReviewState.Analyzing &&
+                        (state.progress?.completedPositions ?: 0) >= completedBeforeRecreation
+                is RuntimeGameReviewState.Complete -> true
+                else -> false
+            }
+        }
         compose.waitUntil(timeoutMillis = 30_000L) {
             compose.onAllNodesWithText("Review complete").fetchSemanticsNodes().isNotEmpty()
         }
+        val completedReview = runtimeAfterRecreation.gameReviewState().value
+            as? RuntimeGameReviewState.Complete
+            ?: error("Native review did not publish its completed evidence")
+        assertEquals(REVIEW_EVIDENCE_SCHEMA_VERSION, completedReview.result.evidenceSchemaVersion)
+        assertEquals(REVIEW_ANALYSIS_VERSION, completedReview.result.analysisVersion)
+        assertEquals(ReviewGradingPolicy.CURRENT.version, completedReview.result.gradingPolicyVersion)
+        assertTrue(
+            "Native review did not retain all three MultiPV candidates",
+            completedReview.result.moves.all { move -> move.evidence?.lines?.size == 3 },
+        )
+        assertTrue(
+            "Native review did not retain depth-tagged WDL evidence",
+            completedReview.result.moves.flatMap { move -> move.evidence?.lines.orEmpty() }
+                .any { line -> line.source == ReviewScoreSource.WDL && line.depth != null },
+        )
         compose.onNodeWithTag("review_move_1").fetchSemanticsNode()
         compose.onNodeWithTag("review_move_2").fetchSemanticsNode()
 

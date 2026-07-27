@@ -146,12 +146,30 @@ or runtime close cancels it, and tagged results are discarded if the position ch
 Hint failures return to the human turn without poisoning bot UI state. The app presents
 the engine-ranked best move in SAN and, when available, up to two lower-ranked MultiPV
 alternatives. Game review builds one full-strength request for every position in which a
-move was chosen and first validates the complete history. UCI scores are from the root
-side-to-move perspective; review code inverts comparisons on alternating plies. The runner
-submits one 350 ms search at a time, appends a final live-position search for resignation or
-timeout, assigns Best/Good/Inaccuracy/Mistake/Blunder from expected-point loss, and supports
-cancellation, safe retry identities, progress, and a cached completed result. Natural terminal
-moves use the authoritative app outcome instead of attempting to search a terminal position.
+move was chosen and first validates the complete history. Each review search requests three
+candidate lines and enables UCI WDL output when the engine advertises it. The preliminary
+in-memory evidence schema (schema 1) preserves line rank, score bound, depth, WDL-derived expected
+points, explicit best/played-line origin, separate analysis and grading-policy identities, and
+partial-rule fidelity. It is a foundation for the planned Review Evidence V2 contract, not that
+contract itself. A played move found in the same root MultiPV is compared there; otherwise review
+falls back to the following position and normalizes that score to the mover. Missing, bounded,
+contradictory, or unsafe line evidence is not given a confident grade.
+
+Review retains one coherent MultiPV snapshot: every selected rank comes from the same completed
+depth/reporting cycle and its primary move must match `bestmove`. Every retained PV is replayed
+from its exact app position and history through `ChessRules` and `GameSession`; an illegal move or
+a continuation beyond an app-authoritative terminal result fails the review instead of becoming a
+recommendation. Effective best and played lines retain whether they came from root MultiPV,
+adjacent-position normalization, an authoritative terminal fact, or a sole legal move.
+
+The runner submits one 350 ms search at a time, appends a final live-position search for
+resignation or timeout, assigns Best/Good/Inaccuracy/Mistake/Blunder from expected-point loss,
+and supports cancellation, safe retry identities, progress, and a cached completed result.
+Natural terminal moves use the authoritative app outcome instead of attempting to search a
+terminal position. Per-side grade summaries are derived from the completed versioned result;
+the app intentionally does not display an accuracy percentage until a separate formula is
+calibrated and versioned. `GameRuntime` owns active review state, so activity recreation detaches
+and reattaches without cancelling or duplicating the engine work.
 
 This first review is deliberately labeled Beta. Fairy currently receives the Drawless/Escape
 preset but not every app-side adjudication detail (notably bare-king and configurable
@@ -174,7 +192,7 @@ should calibrate the labels before public release.
 
 ## Verification boundary
 
-At this checkpoint, `npm run test:kotlin` passes 223 JVM/core-and-endpoint tests. Of those,
+At this checkpoint, `npm run test:kotlin` passes 268 JVM/core-and-endpoint tests. Of those,
 25 native bridge tests cover split UTF-8/CRLF framing, malformed and oversized input, bounded FIFO
 writes, synchronous and asynchronous completions, backpressure, stdout/stderr separation,
 consumer isolation, open/write/close failures, duplicate completion, explicit and

@@ -260,7 +260,14 @@
     <string name="review_progress">%1$d of %2$d moves analyzed</string>
     <string name="review_progress_accessibility">Game review analysis, %1$d%% complete</string>
     <string name="review_complete">Review complete</string>
-    <string name="review_complete_body">Moves analyzed: %1$d.</string>
+    <string name="review_complete_body">Moves in game: %1$d. Moves graded: %2$d.</string>
+    <string name="review_summary_title">Review summary</string>
+    <string name="review_summary_player_side">You (%1$s)</string>
+    <string name="review_summary_opponent_side">Opponent (%1$s)</string>
+    <string name="review_summary_graded">Moves graded: %1$d</string>
+    <string name="review_summary_grade_count">%1$s: %2$d</string>
+    <string name="review_summary_grade_badge">%1$s %2$d</string>
+    <string name="review_my_mistakes">Review my mistakes</string>
     <string name="review_failed">Review unavailable</string>
     <string name="review_failed_body">The engine couldn’t finish this review.</string>
     <string name="review_cancelled">Analysis stopped</string>

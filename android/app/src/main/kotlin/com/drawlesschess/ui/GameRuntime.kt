@@ -21,6 +21,9 @@ import java.util.UUID
 import java.util.concurrent.CopyOnWriteArraySet
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 data class SetupSelection(
     val preset: RulesContractV1.Preset = RulesContractV1.Preset.DRAWLESS,
@@ -35,6 +38,17 @@ data class SetupSelection(
         RulesContractV1.Preset.DRAWLESS -> RulesContractV1.drawless(deadPosition, fiftyMove)
         RulesContractV1.Preset.ESCAPE -> RulesContractV1.escape(deadPosition, fiftyMove)
     }
+}
+
+/**
+ * Runtime-owned review state. Keeping the engine job here lets the UI detach during an
+ * activity recreation without throwing away analysis that has already completed.
+ */
+internal sealed interface RuntimeGameReviewState {
+    data class Analyzing(val progress: GameReviewProgress? = null) : RuntimeGameReviewState
+    data class Complete(val result: GameReviewResult) : RuntimeGameReviewState
+    data class Cancelled(val progress: GameReviewProgress? = null) : RuntimeGameReviewState
+    data class Failed(val error: Throwable) : RuntimeGameReviewState
 }
 
 class GameRuntime private constructor(
@@ -61,7 +75,7 @@ class GameRuntime private constructor(
     private val reviewRunner = GameReviewRunner(engine)
     private var reviewGeneration = 0L
     private var activeReviewCancellation: EngineCancellation? = null
-    private var cachedReviewResult: GameReviewResult? = null
+    private val reviewState = MutableStateFlow<RuntimeGameReviewState?>(null)
     internal val opponentLevel: NamedBotLevel = if (
         config.opponentLevelId == BotDifficultyCatalog.ADAPTIVE_LEVEL_ID
     ) {
@@ -194,76 +208,98 @@ class GameRuntime private constructor(
         require(it.outcome != null) { "Game review is available only after a completed game" }
     }
 
-    internal fun startGameReview(
-        onProgress: (GameReviewProgress) -> Unit,
-        onResult: (Result<GameReviewResult>) -> Unit,
-    ): EngineCancellation {
+    internal fun gameReviewState(): StateFlow<RuntimeGameReviewState?> {
         check(!closed.get()) { "Game runtime is closed" }
         val checkpoint = reviewCheckpoint()
-        val generation: Long
-        val previous: EngineCancellation?
-        val cached: GameReviewResult?
+        var generationToStart: Long? = null
         synchronized(reviewLock) {
+            check(!closed.get()) { "Game runtime is closed" }
+            if (reviewState.value == null) {
+                reviewState.value = RuntimeGameReviewState.Analyzing()
+                generationToStart = ++reviewGeneration
+            }
+        }
+        generationToStart?.let { generation -> startGameReview(checkpoint, generation) }
+        return reviewState.asStateFlow()
+    }
+
+    internal fun cancelGameReview() {
+        val cancellation: EngineCancellation?
+        synchronized(reviewLock) {
+            val current = reviewState.value as? RuntimeGameReviewState.Analyzing ?: return
+            reviewGeneration++
+            cancellation = activeReviewCancellation
+            activeReviewCancellation = null
+            reviewState.value = RuntimeGameReviewState.Cancelled(current.progress)
+        }
+        runCatching { cancellation?.cancel() }
+    }
+
+    internal fun restartGameReview() {
+        check(!closed.get()) { "Game runtime is closed" }
+        val checkpoint = reviewCheckpoint()
+        val previous: EngineCancellation?
+        val generation: Long
+        synchronized(reviewLock) {
+            check(!closed.get()) { "Game runtime is closed" }
             generation = ++reviewGeneration
             previous = activeReviewCancellation
             activeReviewCancellation = null
-            cached = cachedReviewResult
+            reviewState.value = RuntimeGameReviewState.Analyzing()
         }
-        previous?.cancel()
-        if (cached != null) {
-            onProgress(GameReviewProgress(cached.moves.size, cached.moves.size))
-            onResult(Result.success(cached))
-            return EngineCancellation {}
-        }
+        runCatching { previous?.cancel() }
+        startGameReview(checkpoint, generation)
+    }
 
+    private fun startGameReview(checkpoint: CoordinatorCheckpoint, generation: Long) {
         val completedSynchronously = AtomicBoolean(false)
-        val cancellation = reviewRunner.review(
-            gameId = checkpoint.config.gameId,
-            initialFen = checkpoint.config.initialFen,
-            moves = checkpoint.moves,
-            rules = checkpoint.config.rules,
-            outcome = requireNotNull(checkpoint.outcome),
-            onProgress = { progress ->
-                val deliver = synchronized(reviewLock) {
-                    !closed.get() && generation == reviewGeneration
-                }
-                if (deliver) onProgress(progress)
-            },
-            onResult = { result ->
-                completedSynchronously.set(true)
-                val deliver = synchronized(reviewLock) {
-                    if (closed.get() || generation != reviewGeneration) {
-                        false
-                    } else {
-                        activeReviewCancellation = null
-                        result.getOrNull()?.let { cachedReviewResult = it }
-                        true
-                    }
-                }
-                if (deliver) onResult(result)
-            },
-        )
-        var cancelImmediately = false
+        var cancelImmediately: EngineCancellation? = null
         synchronized(reviewLock) {
-            if (closed.get() || generation != reviewGeneration) {
-                cancelImmediately = true
-            } else if (!completedSynchronously.get()) {
+            if (closed.get() || generation != reviewGeneration) return
+            val cancellation = try {
+                reviewRunner.review(
+                    gameId = checkpoint.config.gameId,
+                    initialFen = checkpoint.config.initialFen,
+                    moves = checkpoint.moves,
+                    rules = checkpoint.config.rules,
+                    outcome = requireNotNull(checkpoint.outcome),
+                    onProgress = { progress ->
+                        synchronized(reviewLock) {
+                            if (!closed.get() && generation == reviewGeneration) {
+                                reviewState.value = RuntimeGameReviewState.Analyzing(progress)
+                            }
+                        }
+                    },
+                    onResult = { result ->
+                        completedSynchronously.set(true)
+                        synchronized(reviewLock) {
+                            if (!closed.get() && generation == reviewGeneration) {
+                                activeReviewCancellation = null
+                                reviewState.value = result.fold(
+                                    onSuccess = { RuntimeGameReviewState.Complete(it) },
+                                    onFailure = { error ->
+                                        Log.e(REVIEW_LOG_TAG, "Game review failed", error)
+                                        RuntimeGameReviewState.Failed(error)
+                                    },
+                                )
+                            }
+                        }
+                    },
+                )
+            } catch (error: Throwable) {
+                completedSynchronously.set(true)
+                activeReviewCancellation = null
+                Log.e(REVIEW_LOG_TAG, "Game review could not start", error)
+                reviewState.value = RuntimeGameReviewState.Failed(error)
+                return
+            }
+            if (closed.get() || generation != reviewGeneration || completedSynchronously.get()) {
+                cancelImmediately = cancellation
+            } else {
                 activeReviewCancellation = cancellation
             }
         }
-        if (cancelImmediately) cancellation.cancel()
-
-        return EngineCancellation {
-            val active = synchronized(reviewLock) {
-                if (generation != reviewGeneration) {
-                    null
-                } else {
-                    reviewGeneration++
-                    activeReviewCancellation.also { activeReviewCancellation = null }
-                }
-            }
-            active?.cancel()
-        }
+        cancelImmediately?.cancel()
     }
 
     /**
@@ -315,6 +351,7 @@ class GameRuntime private constructor(
     private companion object {
         const val ENGINE_LOG_TAG = "DrawlessChessEngine"
         const val HINT_LOG_TAG = "DrawlessChessHint"
+        const val REVIEW_LOG_TAG = "DrawlessChessReview"
     }
 }
 

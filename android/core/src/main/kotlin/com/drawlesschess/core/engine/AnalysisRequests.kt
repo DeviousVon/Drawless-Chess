@@ -65,7 +65,7 @@ object GameReviewPlanner {
                 moves = prefix,
                 rules = rules,
                 strength = EngineStrength.SkillLevel(20),
-                limits = EngineLimits(moveTimeMillis, 1),
+                limits = EngineLimits(moveTimeMillis, REVIEW_MULTI_PV),
                 purpose = EnginePurpose.REVIEW,
             )
         }
@@ -73,4 +73,6 @@ object GameReviewPlanner {
         ChessAdapter.replay(initialFen, moves)
         return GameReviewPlan(gameId, requests)
     }
+
+    private const val REVIEW_MULTI_PV = 3
 }

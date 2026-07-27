@@ -11,25 +11,34 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsSelected
-import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.assertWidthIsAtLeast
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.hasContentDescription
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import com.drawlesschess.core.Side
 import com.drawlesschess.core.UciMove
 import com.drawlesschess.core.chess.ChessPosition
-import com.drawlesschess.core.engine.ReviewEvaluation
 import com.drawlesschess.core.engine.GameReviewProgress
+import com.drawlesschess.core.engine.GameReviewSummary
+import com.drawlesschess.core.engine.ReviewEvaluation
+import com.drawlesschess.core.engine.ReviewMoveQuality
+import com.drawlesschess.core.engine.ReviewSideSummary
 import com.drawlesschess.core.presentation.BoardPresenter
 import com.drawlesschess.core.presentation.BoardThemes
 import org.junit.Assert.assertEquals
@@ -69,26 +78,145 @@ class GameReviewInstrumentedTest {
         compose.onNodeWithTag("review_move_1")
             .assertIsSelected()
             .assert(hasContentDescription("Best", substring = true))
+        compose.onNodeWithTag("review_move_feedback")
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.LiveRegion, LiveRegionMode.Polite))
+            .assert(
+                SemanticsMatcher.expectValue(
+                    SemanticsProperties.StateDescription,
+                    "1. e4. Best. Selected.",
+                ),
+            )
         compose.onNodeWithTag("review_previous").assertIsEnabled()
-        compose.onNodeWithTag("review_next").assertIsEnabled().performClick()
+        compose.onNodeWithTag("review_next")
+            .performScrollTo()
+            .assertIsDisplayed()
+            .assertIsEnabled()
+            .performClick()
+        compose.runOnIdle { assertEquals(2, selectedPly) }
 
-        compose.onNodeWithText("1… e5").assertIsDisplayed()
-        compose.onNodeWithText("Better was Nc6.").assertIsDisplayed()
-        compose.onNodeWithText("Suggested line: Nc6 Nf3").assertIsDisplayed()
+        compose.onNodeWithText("1… e5").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Better was Nc6.").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Suggested line: Nc6 Nf3").performScrollTo().assertIsDisplayed()
         compose.onNodeWithTag("review_move_2")
             .assertIsSelected()
             .assert(hasContentDescription("Mistake", substring = true))
+        compose.onNodeWithTag("review_move_feedback")
+            .assert(
+                SemanticsMatcher.expectValue(
+                    SemanticsProperties.StateDescription,
+                    "1… e5. Mistake. Selected.",
+                ),
+            )
+    }
+
+    @Test
+    fun completedReviewShowsPerSideSummaryWithoutInventingAccuracy() {
+        compose.setContent {
+            DrawlessTheme {
+                GameReviewScreen(
+                    model = reviewModel(selectedPly = 2),
+                    showBoardCoordinates = true,
+                    onBack = {},
+                    onFlip = {},
+                    onCancel = {},
+                    onRetry = {},
+                    onSelectPly = {},
+                )
+            }
+        }
+
+        compose.onNodeWithTag("review_summary").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Review summary").assertIsDisplayed()
+        compose.onNodeWithText("You (White)").assertIsDisplayed()
+        compose.onNodeWithText("Opponent (Black)").assertIsDisplayed()
+        compose.onAllNodesWithText("Moves graded: 2").assertCountEquals(2)
+        compose.onNodeWithTag("review_summary_player_best")
+            .assert(hasContentDescription("Best: 1"))
+        compose.onNodeWithTag("review_summary_player_good")
+            .assert(hasContentDescription("Good: 1"))
+        compose.onNodeWithTag("review_summary_opponent_inaccuracy")
+            .assert(hasContentDescription("Inaccuracy: 1"))
+        compose.onNodeWithTag("review_summary_opponent_mistake")
+            .assert(hasContentDescription("Mistake: 1"))
+        compose.onNodeWithTag("review_summary_player_blunder")
+            .assert(hasContentDescription("Blunder: 0"))
+        compose.onAllNodesWithText("Accuracy", substring = true).assertCountEquals(0)
+    }
+
+    @Test
+    fun reviewMyMistakesSelectsFirstIssueForThePlayerSide() {
+        var selectedPly by mutableIntStateOf(4)
+        compose.setContent {
+            DrawlessTheme {
+                GameReviewScreen(
+                    model = reviewModel(selectedPly, playerSide = Side.BLACK),
+                    showBoardCoordinates = true,
+                    onBack = {},
+                    onFlip = {},
+                    onCancel = {},
+                    onRetry = {},
+                    onSelectPly = { selectedPly = it },
+                )
+            }
+        }
+
+        compose.onNodeWithText("You (Black)").assertIsDisplayed()
+        compose.onNodeWithTag("review_my_mistakes")
+            .performScrollTo()
+            .assertIsDisplayed()
+            .performClick()
         compose.runOnIdle { assertEquals(2, selectedPly) }
+        compose.onNodeWithTag("review_move_2").assertIsSelected()
+    }
+
+    @Test
+    fun summaryIsHiddenUntilReviewCompletes() {
+        compose.setContent {
+            DrawlessTheme {
+                GameReviewScreen(
+                    model = reviewModel(selectedPly = 1).copy(
+                        completedMoves = 1,
+                        status = ReviewAnalysisUiStatus.ANALYZING,
+                    ),
+                    showBoardCoordinates = false,
+                    onBack = {},
+                    onFlip = {},
+                    onCancel = {},
+                    onRetry = {},
+                    onSelectPly = {},
+                )
+            }
+        }
+
+        compose.onAllNodesWithTag("review_summary").assertCountEquals(0)
+        compose.onNodeWithTag("review_progress").assertIsDisplayed()
     }
 
     @Test
     fun compactDoubleFontKeepsReviewContentReachable() {
+        val largeCounts = ReviewMoveQuality.entries.associateWith { 100 }
+        val largeSummary = GameReviewSummary(
+            white = ReviewSideSummary(
+                side = Side.WHITE,
+                gradedMoves = 500,
+                movesWithExpectedPointLoss = 0,
+                meanExpectedPointLoss = null,
+                qualityCounts = largeCounts,
+            ),
+            black = ReviewSideSummary(
+                side = Side.BLACK,
+                gradedMoves = 500,
+                movesWithExpectedPointLoss = 0,
+                meanExpectedPointLoss = null,
+                qualityCounts = largeCounts,
+            ),
+        )
         compose.setContent {
             CompositionLocalProvider(LocalDensity provides Density(density = 1f, fontScale = 2f)) {
                 DrawlessTheme {
                     Box(Modifier.width(320.dp).height(640.dp)) {
                         GameReviewScreen(
-                            model = reviewModel(selectedPly = 2),
+                            model = reviewModel(selectedPly = 2).copy(summary = largeSummary),
                             showBoardCoordinates = true,
                             onBack = {},
                             onFlip = {},
@@ -103,6 +231,14 @@ class GameReviewInstrumentedTest {
 
         compose.onNodeWithTag("review_back").assertIsDisplayed()
         compose.onNodeWithTag("chess_board_imperial_marble").assertIsDisplayed()
+        compose.onNodeWithTag("review_summary").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithTag("review_summary_player_blunder")
+            .assertWidthIsAtLeast(96.dp)
+            .performScrollTo()
+            .assertIsDisplayed()
+        compose.onNodeWithTag("review_summary_player_blunder_label", useUnmergedTree = true)
+            .assert(hasText("?? 100"))
+            .assertIsDisplayed()
         compose.onNodeWithTag("review_move_feedback").performScrollTo().assertIsDisplayed()
         compose.onNodeWithTag("review_navigator").performScrollTo().assertIsDisplayed()
         compose.onNodeWithTag("review_move_list").performScrollTo().assertIsDisplayed()
@@ -149,6 +285,46 @@ class GameReviewInstrumentedTest {
     }
 
     @Test
+    fun stoppedOrFailedReviewMarksUnscoredMoveNotAnalyzed() {
+        var status by mutableStateOf(ReviewAnalysisUiStatus.CANCELLED)
+        compose.setContent {
+            DrawlessTheme {
+                GameReviewScreen(
+                    model = reviewModel(selectedPly = 1).copy(
+                        moves = reviewModel(selectedPly = 1).moves.map { it.copy(grade = null) },
+                        status = status,
+                        summary = null,
+                    ),
+                    showBoardCoordinates = false,
+                    onBack = {},
+                    onFlip = {},
+                    onCancel = {},
+                    onRetry = {},
+                    onSelectPly = {},
+                )
+            }
+        }
+
+        compose.onNodeWithTag("review_move_feedback")
+            .assert(
+                SemanticsMatcher.expectValue(
+                    SemanticsProperties.StateDescription,
+                    "1. e4. Not analyzed. Selected.",
+                ),
+            )
+        compose.onAllNodesWithText("Waiting for analysis…").assertCountEquals(0)
+        compose.runOnIdle { status = ReviewAnalysisUiStatus.FAILED }
+        compose.onNodeWithTag("review_move_feedback")
+            .assert(
+                SemanticsMatcher.expectValue(
+                    SemanticsProperties.StateDescription,
+                    "1. e4. Not analyzed. Selected.",
+                ),
+            )
+        compose.onAllNodesWithText("Waiting for analysis…").assertCountEquals(0)
+    }
+
+    @Test
     fun responsiveLayoutKeepsBoardAndReviewPanelReachable() {
         compose.setContent {
             DrawlessTheme {
@@ -171,7 +347,10 @@ class GameReviewInstrumentedTest {
         compose.onNodeWithTag("review_move_feedback").performScrollTo().assertIsDisplayed()
     }
 
-    private fun reviewModel(selectedPly: Int): GameReviewUiModel {
+    private fun reviewModel(
+        selectedPly: Int,
+        playerSide: Side = Side.WHITE,
+    ): GameReviewUiModel {
         val moves = listOf(
             UciMove("e2e4"),
             UciMove("e7e5"),
@@ -221,13 +400,39 @@ class GameReviewInstrumentedTest {
             board = BoardPresenter.presentReview(
                 initialFen = ChessPosition.START_FEN,
                 moves = moves.take(selectedPly),
-                humanSide = Side.WHITE,
+                humanSide = playerSide,
                 theme = BoardThemes.DEFAULT,
             ),
             moves = reviewed,
             selectedPly = selectedPly,
             completedMoves = reviewed.size,
             status = ReviewAnalysisUiStatus.COMPLETE,
+            playerSide = playerSide,
+            summary = GameReviewSummary(
+                white = sideSummary(
+                    Side.WHITE,
+                    ReviewMoveQuality.BEST,
+                    ReviewMoveQuality.GOOD,
+                ),
+                black = sideSummary(
+                    Side.BLACK,
+                    ReviewMoveQuality.MISTAKE,
+                    ReviewMoveQuality.INACCURACY,
+                ),
+            ),
         )
     }
+
+    private fun sideSummary(
+        side: Side,
+        vararg qualities: ReviewMoveQuality,
+    ): ReviewSideSummary = ReviewSideSummary(
+        side = side,
+        gradedMoves = qualities.size,
+        movesWithExpectedPointLoss = 0,
+        meanExpectedPointLoss = null,
+        qualityCounts = ReviewMoveQuality.entries.associateWith { quality ->
+            qualities.count { it == quality }
+        },
+    )
 }

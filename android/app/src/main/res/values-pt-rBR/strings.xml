@@ -256,7 +256,14 @@
     <string name="review_progress">%1$d de %2$d lances analisados</string>
     <string name="review_progress_accessibility">Análise da partida %1$d%% concluída</string>
     <string name="review_complete">Análise concluída</string>
-    <string name="review_complete_body">Lances analisados: %1$d.</string>
+    <string name="review_complete_body">Lances na partida: %1$d. Lances avaliados: %2$d.</string>
+    <string name="review_summary_title">Resumo da análise</string>
+    <string name="review_summary_player_side">Você (%1$s)</string>
+    <string name="review_summary_opponent_side">Adversário (%1$s)</string>
+    <string name="review_summary_graded">Lances avaliados: %1$d</string>
+    <string name="review_summary_grade_count">%1$s: %2$d</string>
+    <string name="review_summary_grade_badge">%1$s %2$d</string>
+    <string name="review_my_mistakes">Revisar meus erros</string>
     <string name="review_failed">Análise indisponível</string>
     <string name="review_failed_body">O motor não conseguiu concluir esta análise.</string>
     <string name="review_cancelled">Análise interrompida</string>

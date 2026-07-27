@@ -45,7 +45,7 @@ private fun uciFixture(requiredPatch: Int = 1, actualPatch: Int = 1): UciFixture
     return UciFixture(engine, transport, timers)
 }
 
-private fun completeHandshake(fixture: UciFixture) {
+private fun completeHandshake(fixture: UciFixture, advertiseShowWdl: Boolean = true) {
     fixture.engine.onLine("id name Fairy-Stockfish test")
     fixture.engine.onLine("id author Test Author")
     fixture.engine.onLine("option name UCI_Variant type combo default chess var chess var drawless var escape")
@@ -54,6 +54,9 @@ private fun completeHandshake(fixture: UciFixture) {
     fixture.engine.onLine("option name UCI_LimitStrength type check default false")
     fixture.engine.onLine("option name UCI_Elo type spin default 1350 min 500 max 2850")
     fixture.engine.onLine("option name UCI_AnalyseMode type check default false")
+    if (advertiseShowWdl) {
+        fixture.engine.onLine("option name UCI_ShowWDL type check default false")
+    }
     fixture.engine.onLine("option name Syzygy50MoveRule type check default true")
     fixture.engine.onLine("option name Drawless Patch Version type spin default 1 min 1 max 1")
     fixture.engine.onLine("uciok")
@@ -115,14 +118,29 @@ private class FakeReviewEngine : ChessEngine {
         return EngineCancellation { pending.cancelled = true }
     }
 
-    fun respond(bestMove: String, centipawns: Int? = 0, mateIn: Int? = null) {
-        val pending = requests.first { !it.responded }
-        pending.responded = true
+    fun respond(
+        bestMove: String,
+        centipawns: Int? = 0,
+        mateIn: Int? = null,
+        bound: EngineScoreBound = EngineScoreBound.EXACT,
+        wdl: EngineWdl? = null,
+        evidenceAvailable: Boolean = true,
+    ) {
         val evaluation = PrincipalVariation(
             scoreCentipawns = if (mateIn == null) requireNotNull(centipawns) else null,
             mateIn = mateIn,
             moves = listOf(UciMove(bestMove)),
+            bound = bound,
+            wdl = wdl,
+            depth = 12,
+            evidenceAvailable = evidenceAvailable,
         )
+        respondWithVariations(bestMove, listOf(evaluation))
+    }
+
+    fun respondWithVariations(bestMove: String, variations: List<PrincipalVariation>) {
+        val pending = requests.first { !it.responded }
+        pending.responded = true
         pending.callback(Result.success(EngineResponse(
             requestId = pending.request.requestId,
             gameId = pending.request.gameId,
@@ -131,11 +149,31 @@ private class FakeReviewEngine : ChessEngine {
             ponderMove = null,
             depth = 12,
             nodes = 1_000,
-            variations = listOf(evaluation),
+            variations = variations,
             engine = EngineIdentity("review-test", "1", 1),
         )))
     }
 }
+
+private fun reviewVariation(
+    move: String,
+    centipawns: Int? = 0,
+    mateIn: Int? = null,
+    rank: Int = 1,
+    bound: EngineScoreBound = EngineScoreBound.EXACT,
+    wdl: EngineWdl? = null,
+    evidenceAvailable: Boolean = true,
+    continuation: List<String> = emptyList(),
+): PrincipalVariation = PrincipalVariation(
+    scoreCentipawns = if (mateIn == null) requireNotNull(centipawns) else null,
+    mateIn = mateIn,
+    moves = (listOf(move) + continuation).map(::UciMove),
+    rank = rank,
+    bound = bound,
+    wdl = wdl,
+    depth = 12,
+    evidenceAvailable = evidenceAvailable,
+)
 
 internal fun registerEngineLayerTests(suite: TestSuite) {
     suite.test("bot move pacing adds the requested delay after successful analysis") {
@@ -306,6 +344,7 @@ internal fun registerEngineLayerTests(suite: TestSuite) {
         assertThat(fixture.engine.state == UciSessionState.PREPARING)
         assertThat("setoption name UCI_Variant value drawless" in fixture.transport.commands)
         assertThat("setoption name UCI_Elo value 1500" in fixture.transport.commands)
+        assertThat("setoption name UCI_ShowWDL value false" in fixture.transport.commands)
         fixture.engine.onLine("readyok")
         assertThat(fixture.transport.commands.takeLast(2) == listOf("position startpos", "go movetime 100"))
         fixture.engine.onLine("info depth 8 multipv 1 score cp 24 nodes 500 pv e2e4 e7e5")
@@ -319,17 +358,30 @@ internal fun registerEngineLayerTests(suite: TestSuite) {
         fixture.engine.start()
         completeHandshake(fixture)
         var response: EngineResponse? = null
-        fixture.engine.analyze(productionRequest(purpose = EnginePurpose.HINT, multiPv = 2)) {
+        fixture.engine.analyze(productionRequest(purpose = EnginePurpose.REVIEW, multiPv = 2)) {
             response = it.getOrThrow()
         }
         fixture.engine.onLine("readyok")
-        fixture.engine.onLine("info depth 9 multipv 1 score mate 3 nodes 700 pv d1h5 b8c6")
-        fixture.engine.onLine("info depth 9 multipv 2 score cp 40 nodes 700 pv e2e4 e7e5")
+        fixture.engine.onLine("info depth 9 multipv 1 score mate 3 wdl 998 2 0 nodes 700 pv d1h5 b8c6")
+        fixture.engine.onLine("info depth 9 multipv 2 score cp 40 wdl 580 300 120 nodes 710 pv e2e4 e7e5")
         fixture.engine.onLine("bestmove d1h5")
         val completed = requireNotNull(response)
         assertThat(completed.variations.size == 2)
         assertThat(completed.variations[0].mateIn == 3 && completed.variations[1].rank == 2)
+        assertThat(completed.variations[0].wdl == EngineWdl(998, 2, 0))
+        assertThat(completed.depth == 9 && completed.nodes == 710L)
+        assertThat(completed.variations.all { it.depth == 9 })
         assertThat("setoption name UCI_AnalyseMode value true" in fixture.transport.commands)
+        assertThat("setoption name UCI_ShowWDL value true" in fixture.transport.commands)
+    }
+    suite.test("UCI review tolerates an engine that does not advertise WDL output") {
+        val fixture = uciFixture()
+        fixture.engine.start()
+        completeHandshake(fixture, advertiseShowWdl = false)
+        fixture.engine.analyze(productionRequest(purpose = EnginePurpose.REVIEW)) {}
+
+        assertThat(fixture.transport.commands.none { it.contains("UCI_ShowWDL") })
+        fixture.engine.close()
     }
     suite.test("UCI engine ignores shallower replacement PV") {
         val fixture = uciFixture()
@@ -342,7 +394,95 @@ internal fun registerEngineLayerTests(suite: TestSuite) {
         fixture.engine.onLine("bestmove e2e4")
         val completed = requireNotNull(response)
         assertThat(completed.variations.single().moves.first() == UciMove("e2e4"))
-        assertThat(completed.nodes == 700L)
+        assertThat(completed.depth == 8 && completed.nodes == 600L)
+    }
+    suite.test("UCI engine selects one deepest complete same-depth MultiPV snapshot") {
+        val fixture = uciFixture()
+        fixture.engine.start(); completeHandshake(fixture)
+        var response: EngineResponse? = null
+        fixture.engine.analyze(productionRequest(purpose = EnginePurpose.REVIEW, multiPv = 2)) {
+            response = it.getOrThrow()
+        }
+        fixture.engine.onLine("readyok")
+        fixture.engine.onLine("info depth 8 multipv 1 score cp 30 nodes 800 pv e2e4 e7e5")
+        fixture.engine.onLine("info depth 8 multipv 2 score cp 20 nodes 810 pv d2d4 d7d5")
+        fixture.engine.onLine("info depth 9 multipv 1 score cp 35 nodes 900 pv e2e4 e7e5")
+        fixture.engine.onLine("bestmove e2e4")
+
+        val completed = requireNotNull(response)
+        assertThat(completed.depth == 8 && completed.nodes == 810L)
+        assertThat(completed.variations.map { it.rank } == listOf(1, 2))
+        assertThat(completed.variations.map { it.moves.first().value } == listOf("e2e4", "d2d4"))
+        assertThat(completed.variations.all { it.depth == 8 && it.evidenceAvailable })
+    }
+    suite.test("UCI engine marks incoherent MultiPV evidence unavailable") {
+        val fixture = uciFixture()
+        fixture.engine.start(); completeHandshake(fixture)
+        var response: EngineResponse? = null
+        fixture.engine.analyze(productionRequest(purpose = EnginePurpose.REVIEW, multiPv = 2)) {
+            response = it.getOrThrow()
+        }
+        fixture.engine.onLine("readyok")
+        fixture.engine.onLine("info depth 9 multipv 1 score cp 35 nodes 900 pv e2e4")
+        fixture.engine.onLine("info depth 8 multipv 2 score cp 20 nodes 810 pv d2d4")
+        fixture.engine.onLine("bestmove e2e4")
+
+        val completed = requireNotNull(response)
+        assertThat(completed.depth == 0 && completed.nodes == 0L)
+        assertThat(completed.variations.single().moves == listOf(UciMove("e2e4")))
+        assertThat(!completed.variations.single().evidenceAvailable)
+    }
+    suite.test("UCI engine aligns a coherent MultiPV snapshot with bestmove") {
+        val fixture = uciFixture()
+        fixture.engine.start(); completeHandshake(fixture)
+        var response: EngineResponse? = null
+        fixture.engine.analyze(productionRequest(purpose = EnginePurpose.REVIEW, multiPv = 2)) {
+            response = it.getOrThrow()
+        }
+        fixture.engine.onLine("readyok")
+        fixture.engine.onLine("info depth 8 multipv 1 score cp 30 nodes 800 pv e2e4")
+        fixture.engine.onLine("info depth 8 multipv 2 score cp 20 nodes 810 pv d2d4")
+        fixture.engine.onLine("info depth 9 multipv 1 score cp 40 nodes 900 pv d2d4")
+        fixture.engine.onLine("info depth 9 multipv 2 score cp 35 nodes 910 pv e2e4")
+        fixture.engine.onLine("bestmove e2e4")
+
+        val completed = requireNotNull(response)
+        assertThat(completed.depth == 8)
+        assertThat(completed.variations.map { it.moves.first().value } == listOf("e2e4", "d2d4"))
+    }
+    suite.test("UCI engine does not treat no-depth MultiPV lines as coherent evidence") {
+        val fixture = uciFixture()
+        fixture.engine.start(); completeHandshake(fixture)
+        var response: EngineResponse? = null
+        fixture.engine.analyze(productionRequest(purpose = EnginePurpose.REVIEW, multiPv = 2)) {
+            response = it.getOrThrow()
+        }
+        fixture.engine.onLine("readyok")
+        fixture.engine.onLine("info multipv 1 score cp 30 nodes 800 pv e2e4")
+        fixture.engine.onLine("info multipv 2 score cp 20 nodes 810 pv d2d4")
+        fixture.engine.onLine("bestmove e2e4")
+
+        val completed = requireNotNull(response)
+        assertThat(completed.depth == 0 && completed.nodes == 0L)
+        assertThat(!completed.variations.single().evidenceAvailable)
+    }
+    suite.test("UCI engine does not mix repeated same-depth MultiPV reporting cycles") {
+        val fixture = uciFixture()
+        fixture.engine.start(); completeHandshake(fixture)
+        var response: EngineResponse? = null
+        fixture.engine.analyze(productionRequest(purpose = EnginePurpose.REVIEW, multiPv = 2)) {
+            response = it.getOrThrow()
+        }
+        fixture.engine.onLine("readyok")
+        fixture.engine.onLine("info depth 8 multipv 1 score cp 30 nodes 800 pv e2e4")
+        fixture.engine.onLine("info depth 8 multipv 2 score cp 20 nodes 810 pv d2d4")
+        fixture.engine.onLine("info depth 8 multipv 1 score cp 35 nodes 820 pv c2c4")
+        fixture.engine.onLine("bestmove c2c4")
+
+        val completed = requireNotNull(response)
+        assertThat(completed.depth == 0 && completed.nodes == 0L)
+        assertThat(completed.variations.single().moves == listOf(UciMove("c2c4")))
+        assertThat(!completed.variations.single().evidenceAvailable)
     }
     suite.test("UCI engine drains a cancelled search before queued work") {
         val fixture = uciFixture()
@@ -411,6 +551,20 @@ internal fun registerEngineLayerTests(suite: TestSuite) {
         fixture.engine.onLine("bestmove (none)")
         assertThat(error is UciEngineStateException)
         assertThat(fixture.engine.state == UciSessionState.IDLE)
+    }
+    suite.test("UCI engine marks a scoreless bestmove fallback as missing evidence") {
+        val fixture = uciFixture()
+        fixture.engine.start(); completeHandshake(fixture)
+        var response: EngineResponse? = null
+        fixture.engine.analyze(productionRequest(purpose = EnginePurpose.REVIEW)) {
+            response = it.getOrThrow()
+        }
+        fixture.engine.onLine("readyok")
+        fixture.engine.onLine("bestmove e2e4")
+
+        val fallback = requireNotNull(response).variations.single()
+        assertThat(!fallback.evidenceAvailable)
+        assertThat(fallback.wdl == null && fallback.depth == null)
     }
     suite.test("named bot ladder matches the approved beginner progression") {
         val levels = BotDifficultyCatalog.namedLevels
@@ -531,6 +685,7 @@ internal fun registerEngineLayerTests(suite: TestSuite) {
         assertThat(plan.requests.size == moves.size)
         assertThat(plan.requests.map { it.moves.size } == listOf(0, 1, 2))
         assertThat(plan.requests.all { it.purpose == EnginePurpose.REVIEW })
+        assertThat(plan.requests.all { it.limits.multiPv == 3 })
     }
     suite.test("review planner rejects illegal histories") {
         assertThrows<IllegalArgumentException> {
@@ -539,6 +694,181 @@ internal fun registerEngineLayerTests(suite: TestSuite) {
                 listOf(UciMove("e2e5")), RulesContractV1.drawless(),
             )
         }
+    }
+    suite.test("review runner prefers same-root MultiPV and WDL evidence for the played move") {
+        val engine = FakeReviewEngine()
+        var completed: GameReviewResult? = null
+
+        GameReviewRunner(engine).review(
+            gameId = "review-same-root",
+            initialFen = ChessPosition.START_FEN,
+            moves = listOf(UciMove("e2e4")),
+            rules = RulesContractV1.drawless(),
+            outcome = GameOutcome(Side.BLACK, reason = EndReason.RESIGNATION),
+            onResult = { completed = it.getOrThrow() },
+        )
+        engine.respondWithVariations(
+            bestMove = "d2d4",
+            variations = listOf(
+                reviewVariation("d2d4", centipawns = 1_000, rank = 1, wdl = EngineWdl(600, 0, 400)),
+                reviewVariation("e2e4", centipawns = -1_000, rank = 2, wdl = EngineWdl(590, 0, 410)),
+            ),
+        )
+        // External completions still validate the final live-position response, but it must not
+        // replace the same-root score for a played move already present in MultiPV.
+        engine.respond(bestMove = "e7e5", centipawns = 2_000)
+
+        val reviewed = requireNotNull(completed).moves.single()
+        assertThat(reviewed.quality == ReviewMoveQuality.BEST)
+        assertThat(reviewed.playedEvaluation == ReviewEvaluation.Centipawns(-1_000))
+        assertThat(reviewed.expectedPointLoss?.let { kotlin.math.abs(it - 0.01) < 0.000_001 } == true)
+        assertThat(reviewed.evidence?.playedLineRank == 2)
+        assertThat(reviewed.evidence?.usedAdjacentFallback == false)
+        assertThat(reviewed.evidence?.lines?.all { it.source == ReviewScoreSource.WDL } == true)
+        assertThat(reviewed.evidence?.bestLine?.move == UciMove("d2d4"))
+        assertThat(reviewed.evidence?.bestLine?.origin == ReviewLineOrigin.ROOT_MULTIPV)
+        assertThat(reviewed.evidence?.playedLine?.move == UciMove("e2e4"))
+        assertThat(reviewed.evidence?.playedLine?.origin == ReviewLineOrigin.ROOT_MULTIPV)
+    }
+    suite.test("review runner leaves non-exact and missing evidence ungraded") {
+        val boundedEngine = FakeReviewEngine()
+        var boundedResult: GameReviewResult? = null
+        GameReviewRunner(boundedEngine).review(
+            gameId = "review-bounded",
+            initialFen = ChessPosition.START_FEN,
+            moves = listOf(UciMove("e2e4")),
+            rules = RulesContractV1.drawless(),
+            outcome = GameOutcome(Side.BLACK, reason = EndReason.TIMEOUT),
+            onResult = { boundedResult = it.getOrThrow() },
+        )
+        boundedEngine.respond("e2e4", centipawns = 30, bound = EngineScoreBound.LOWER)
+        boundedEngine.respond("e7e5", centipawns = 0)
+
+        val bounded = requireNotNull(boundedResult).moves.single()
+        assertThat(bounded.quality == null && bounded.expectedPointLoss == null)
+        assertThat(bounded.evidence?.lines?.single()?.expectedPoints == null)
+
+        val missingEngine = FakeReviewEngine()
+        var missingResult: GameReviewResult? = null
+        GameReviewRunner(missingEngine).review(
+            gameId = "review-missing",
+            initialFen = ChessPosition.START_FEN,
+            moves = listOf(UciMove("e2e4")),
+            rules = RulesContractV1.drawless(),
+            outcome = GameOutcome(Side.BLACK, reason = EndReason.RESIGNATION),
+            onResult = { missingResult = it.getOrThrow() },
+        )
+        missingEngine.respond("e2e4", centipawns = 0, evidenceAvailable = false)
+        missingEngine.respond("e7e5", centipawns = 0)
+
+        val missing = requireNotNull(missingResult).moves.single()
+        assertThat(missing.bestEvaluation == null && missing.playedEvaluation == null)
+        assertThat(missing.quality == null && missing.expectedPointLoss == null)
+    }
+    suite.test("a forced nonterminal move is Best without exact engine evidence") {
+        val initialFen = "r7/7p/8/8/8/2k5/7P/K7 w - - 0 1"
+        listOf(
+            Triple("forced-bounded", EngineScoreBound.LOWER, true),
+            Triple("forced-missing", EngineScoreBound.EXACT, false),
+        ).forEach { (gameId, bound, evidenceAvailable) ->
+            val engine = FakeReviewEngine()
+            var completed: GameReviewResult? = null
+            GameReviewRunner(engine).review(
+                gameId = gameId,
+                initialFen = initialFen,
+                moves = listOf(UciMove("a1b1")),
+                rules = RulesContractV1.drawless(),
+                outcome = GameOutcome(Side.BLACK, reason = EndReason.TIMEOUT),
+                onResult = { completed = it.getOrThrow() },
+            )
+            engine.respond(
+                bestMove = "a1b1",
+                centipawns = 0,
+                bound = bound,
+                evidenceAvailable = evidenceAvailable,
+            )
+            engine.respond(bestMove = "h7h6", centipawns = 0)
+
+            val reviewed = requireNotNull(completed).moves.single()
+            assertThat(reviewed.quality == ReviewMoveQuality.BEST)
+            assertThat(reviewed.expectedPointLoss == 0.0)
+            assertThat(reviewed.evidence?.forced == true)
+            assertThat(reviewed.evidence?.bestLine?.origin == ReviewLineOrigin.FORCED_LEGAL_MOVE)
+            assertThat(reviewed.evidence?.playedLine?.origin == ReviewLineOrigin.FORCED_LEGAL_MOVE)
+        }
+    }
+    suite.test("review runner rejects a primary PV that disagrees with bestmove") {
+        val engine = FakeReviewEngine()
+        var completed: Result<GameReviewResult>? = null
+        GameReviewRunner(engine).review(
+            gameId = "review-primary-mismatch",
+            initialFen = ChessPosition.START_FEN,
+            moves = listOf(UciMove("e2e4")),
+            rules = RulesContractV1.drawless(),
+            outcome = GameOutcome(Side.BLACK, reason = EndReason.RESIGNATION),
+            onResult = { completed = it },
+        )
+        engine.respondWithVariations(
+            bestMove = "d2d4",
+            variations = listOf(reviewVariation("e2e4", centipawns = 20)),
+        )
+        engine.respond(bestMove = "e7e5", centipawns = 0)
+
+        val error = requireNotNull(completed).exceptionOrNull()
+        assertThat(error is IllegalArgumentException)
+        assertThat(error?.message?.contains("does not match best move") == true)
+    }
+    suite.test("review runner rejects an illegal continuation in any PV rank") {
+        val engine = FakeReviewEngine()
+        var completed: Result<GameReviewResult>? = null
+        GameReviewRunner(engine).review(
+            gameId = "review-illegal-pv-continuation",
+            initialFen = ChessPosition.START_FEN,
+            moves = listOf(UciMove("e2e4")),
+            rules = RulesContractV1.drawless(),
+            outcome = GameOutcome(Side.BLACK, reason = EndReason.RESIGNATION),
+            onResult = { completed = it },
+        )
+        engine.respondWithVariations(
+            bestMove = "e2e4",
+            variations = listOf(
+                reviewVariation("e2e4", rank = 1, continuation = listOf("e7e5")),
+                reviewVariation("d2d4", rank = 2, continuation = listOf("d7d5", "d4d5")),
+            ),
+        )
+        engine.respond(bestMove = "e7e5", centipawns = 0)
+
+        val message = requireNotNull(completed).exceptionOrNull()?.message.orEmpty()
+        assertThat(message.contains("rank 2"))
+        assertThat(message.contains("PV ply 3"))
+        assertThat(message.contains("game ply 3"))
+        assertThat(message.contains("d4d5"))
+    }
+    suite.test("review runner rejects an orthodox-legal PV continuation after app adjudication") {
+        val engine = FakeReviewEngine()
+        var completed: Result<GameReviewResult>? = null
+        GameReviewRunner(engine).review(
+            gameId = "review-pv-after-terminal",
+            initialFen = "7k/8/8/8/8/8/r6P/1K6 b - - 0 1",
+            moves = listOf(UciMove("a2a8")),
+            rules = RulesContractV1.drawless(),
+            outcome = GameOutcome(Side.WHITE, reason = EndReason.RESIGNATION),
+            onResult = { completed = it },
+        )
+        engine.respondWithVariations(
+            bestMove = "a2h2",
+            variations = listOf(reviewVariation(
+                move = "a2h2",
+                continuation = listOf("b1a1"),
+            )),
+        )
+        engine.respond(bestMove = "b1c1", centipawns = 0)
+
+        val message = requireNotNull(completed).exceptionOrNull()?.message.orEmpty()
+        assertThat(message.contains("rank 1"))
+        assertThat(message.contains("continues after app terminal"))
+        assertThat(message.contains("PV ply 2"))
+        assertThat(message.contains("game ply 2"))
     }
     suite.test("review runner analyzes sequentially and inverts the adjacent root score") {
         val engine = FakeReviewEngine()
@@ -567,6 +897,10 @@ internal fun registerEngineLayerTests(suite: TestSuite) {
         assertThat(reviewed.bestEvaluation == ReviewEvaluation.Centipawns(200))
         assertThat(reviewed.playedEvaluation == ReviewEvaluation.Centipawns(-200))
         assertThat(reviewed.quality == ReviewMoveQuality.BLUNDER)
+        assertThat(reviewed.evidence?.bestLine?.move == UciMove("d2d4"))
+        assertThat(reviewed.evidence?.playedLine?.move == UciMove("e2e4"))
+        assertThat(reviewed.evidence?.playedLine?.moves == listOf(UciMove("e2e4"), UciMove("e7e5")))
+        assertThat(reviewed.evidence?.playedLine?.origin == ReviewLineOrigin.ADJACENT_POSITION)
         assertThat(progress.map { it.completedPositions } == listOf(0, 1, 2))
         assertThat(engine.requests.map { it.request.requestId }.distinct().size == 2)
         val firstRunIds = engine.requests.map { it.request.requestId }.toSet()
@@ -582,6 +916,26 @@ internal fun registerEngineLayerTests(suite: TestSuite) {
         )
         assertThat(engine.requests.last().request.requestId !in firstRunIds)
         retry.cancel()
+    }
+    suite.test("adjacent played evidence swaps lower and upper score bounds") {
+        val engine = FakeReviewEngine()
+        var completed: GameReviewResult? = null
+        GameReviewRunner(engine).review(
+            gameId = "review-adjacent-bound",
+            initialFen = ChessPosition.START_FEN,
+            moves = listOf(UciMove("e2e4")),
+            rules = RulesContractV1.drawless(),
+            outcome = GameOutcome(Side.BLACK, reason = EndReason.TIMEOUT),
+            onResult = { completed = it.getOrThrow() },
+        )
+        engine.respond(bestMove = "d2d4", centipawns = 50)
+        engine.respond(bestMove = "e7e5", centipawns = 25, bound = EngineScoreBound.LOWER)
+
+        val playedLine = requireNotNull(completed).moves.single().evidence?.playedLine
+        assertThat(playedLine?.bound == EngineScoreBound.UPPER)
+        assertThat(playedLine?.source == ReviewScoreSource.CENTIPAWNS)
+        assertThat(playedLine?.expectedPoints == null)
+        assertThat(playedLine?.origin == ReviewLineOrigin.ADJACENT_POSITION)
     }
     suite.test("review runner inverts mate scores from the following position") {
         val engine = FakeReviewEngine()
@@ -621,6 +975,61 @@ internal fun registerEngineLayerTests(suite: TestSuite) {
         val reviewed = requireNotNull(completed).moves.single()
         assertThat(reviewed.quality == ReviewMoveQuality.BEST)
         assertThat(reviewed.expectedPointLoss == 0.0)
+    }
+    suite.test("review result versions evidence and summarizes each side independently") {
+        val engine = FakeReviewEngine()
+        var completed: GameReviewResult? = null
+        GameReviewRunner(engine).review(
+            gameId = "review-summary",
+            initialFen = ChessPosition.START_FEN,
+            moves = listOf(UciMove("e2e4"), UciMove("e7e5")),
+            rules = RulesContractV1.drawless(),
+            outcome = GameOutcome(Side.WHITE, reason = EndReason.RESIGNATION),
+            onResult = { completed = it.getOrThrow() },
+        )
+        engine.respond(bestMove = "e2e4", centipawns = 20)
+        engine.respondWithVariations(
+            bestMove = "c7c5",
+            variations = listOf(
+                reviewVariation("c7c5", centipawns = 300, rank = 1),
+                reviewVariation("e7e5", centipawns = -300, rank = 2),
+            ),
+        )
+        engine.respond(bestMove = "g1f3", centipawns = 0)
+
+        val result = requireNotNull(completed)
+        assertThat(result.evidenceSchemaVersion == REVIEW_EVIDENCE_SCHEMA_VERSION)
+        assertThat(result.analysisVersion == REVIEW_ANALYSIS_VERSION)
+        assertThat(result.gradingPolicyVersion == ReviewGradingPolicy.CURRENT.version)
+        assertThat(
+            result.ruleFidelity ==
+                ReviewRuleFidelity.PARTIAL_ENGINE_RULES_WITH_AUTHORITATIVE_TERMINAL_OVERLAY,
+        )
+        assertThat(result.summary.white.gradedMoves == 1)
+        assertThat(result.summary.white.qualityCounts.getValue(ReviewMoveQuality.BEST) == 1)
+        assertThat(result.summary.white.meanExpectedPointLoss == 0.0)
+        assertThat(result.summary.black.gradedMoves == 1)
+        assertThat(result.summary.black.qualityCounts.getValue(ReviewMoveQuality.BLUNDER) == 1)
+        assertThat(result.summary.black.meanExpectedPointLoss?.let { it > 0.22 } == true)
+        assertThat(result.moves.all { move ->
+            requireNotNull(move.evidence).let { evidence ->
+                evidence.evidenceSchemaVersion == REVIEW_EVIDENCE_SCHEMA_VERSION &&
+                    evidence.analysisVersion == REVIEW_ANALYSIS_VERSION &&
+                    evidence.gradingPolicyVersion == ReviewGradingPolicy.CURRENT.version
+            }
+        })
+        assertThrows<IllegalArgumentException> {
+            result.copy(evidenceSchemaVersion = REVIEW_EVIDENCE_SCHEMA_VERSION + 1)
+        }
+        assertThrows<IllegalArgumentException> {
+            result.copy(summary = GameReviewSummary.from(emptyList()))
+        }
+        val inconsistentEvidence = requireNotNull(result.moves.first().evidence).copy(
+            analysisVersion = REVIEW_ANALYSIS_VERSION + 1,
+        )
+        assertThrows<IllegalArgumentException> {
+            result.copy(moves = listOf(result.moves.first().copy(evidence = inconsistentEvidence)) + result.moves.drop(1))
+        }
     }
     suite.test("review runner uses the authoritative avoidable repetition result without analyzing terminal") {
         val engine = FakeReviewEngine()
@@ -680,6 +1089,33 @@ internal fun registerEngineLayerTests(suite: TestSuite) {
         assertThat(finalMove.quality == ReviewMoveQuality.BEST)
         assertThat(finalMove.bestMove == finalMove.playedMove)
         assertThat(finalMove.expectedPointLoss == 0.0)
+    }
+    suite.test("large negative centipawn score does not prove an avoidable terminal loss was forced") {
+        val engine = FakeReviewEngine()
+        val moves = listOf(
+            "g1f3", "g8f6", "f3g1", "f6g8",
+            "g1f3", "g8f6", "f3g1", "f6g8",
+        ).map(::UciMove)
+        var completed: GameReviewResult? = null
+
+        GameReviewRunner(engine).review(
+            gameId = "review-cp-is-not-proof",
+            initialFen = ChessPosition.START_FEN,
+            moves = moves,
+            rules = RulesContractV1.drawless(),
+            outcome = GameOutcome(Side.WHITE, reason = EndReason.REPETITION),
+            onResult = { completed = it.getOrThrow() },
+        )
+        moves.forEachIndexed { index, move ->
+            engine.respond(
+                bestMove = if (index == moves.lastIndex) "f6h5" else move.value,
+                centipawns = if (index == moves.lastIndex) -100_000 else 0,
+            )
+        }
+
+        val finalMove = requireNotNull(completed).moves.last()
+        assertThat(finalMove.quality == ReviewMoveQuality.BLUNDER)
+        assertThat(finalMove.bestMove == UciMove("f6h5"))
     }
     suite.test("review retries use fresh request identities") {
         val engine = FakeReviewEngine()
