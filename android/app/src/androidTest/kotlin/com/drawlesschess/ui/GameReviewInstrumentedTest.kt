@@ -74,7 +74,7 @@ class GameReviewInstrumentedTest {
             }
         }
 
-        compose.onNodeWithText("Best").assertIsDisplayed()
+        compose.onNodeWithText("Best").performScrollTo().assertIsDisplayed()
         compose.onNodeWithTag("review_move_1")
             .assertIsSelected()
             .assert(hasContentDescription("Best", substring = true))
