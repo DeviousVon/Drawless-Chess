@@ -30,6 +30,7 @@ mapfile -t engine_sources < <(find "$root/android/engine/src/main/kotlin" -name 
   "$root/scripts/stubs/android/util/Log.kt" \
   "$root/scripts/stubs/com/drawlesschess/BuildConfig.kt" \
   "$root/scripts/stubs/com/drawlesschess/R.kt" \
+  "$root/scripts/stubs/kotlinx/coroutines/flow/StateFlow.kt" \
   "$root/android/app/src/main/kotlin/com/drawlesschess/ui/GamePacing.kt" \
   "$root/android/app/src/main/kotlin/com/drawlesschess/ui/StartingColor.kt" \
   "$root/android/app/src/main/kotlin/com/drawlesschess/ui/GameRuntime.kt" \
@@ -50,6 +51,17 @@ fi
 
 rg -q 'fun DrawlessApp\(' "$root/android/app/src/main/kotlin"
 rg -q 'fun GameRoute\(' "$root/android/app/src/main/kotlin"
+review_screen="$root/android/app/src/main/kotlin/com/drawlesschess/ui/GameReviewScreen.kt"
+rg -Fq 'enum class ReviewMoveRole' "$review_screen"
+rg -Fq 'ReviewMoveRole.OPPONENT_CONTEXT' "$review_screen"
+rg -Fq 'ReviewBetterMoveArrow(best.from, best.to)' "$review_screen"
+rg -Fq 'testTag("review_better_move_arrow")' "$review_screen"
+rg -Fq 'reviewResult?.moves?.associateBy' "$review_screen"
+rg -Fq 'partialMoves = reviewedByPly' "$review_screen"
+if rg -n 'roleTag = "opponent"|review_summary_opponent' "$review_screen"; then
+  echo "Game review must not present opponent grades or an opponent summary" >&2
+  exit 1
+fi
 rg -q 'fun CompletionEffectOverlay\(' "$root/android/app/src/main/kotlin"
 rg -q 'drawVictoryFireworks' "$root/android/app/src/main/kotlin/com/drawlesschess/ui/CompletionEffectOverlay.kt"
 rg -q 'drawDefeatCracks' "$root/android/app/src/main/kotlin/com/drawlesschess/ui/CompletionEffectOverlay.kt"

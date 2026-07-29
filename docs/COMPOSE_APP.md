@@ -60,9 +60,11 @@ The game screen renders:
 - Device-local player statistics derived from immutable, idempotent completed-game records:
   completed games, wins/losses, win percentage, average game score, current/best win streak,
   unassisted wins, and opponent-level breakdowns. Game score remains separate from Elo.
-- A non-interactive review board with starting/previous/next controls, selectable SAN move
-  rows, text-and-symbol grades that do not rely on color, and responsive phone/tablet layouts.
-  The review remains usable at 200% font scale and announces progress in 25% milestones.
+- A non-interactive review board with starting/previous/next controls, selectable SAN move rows,
+  player-only text-and-symbol grades that do not rely on color, neutral opponent context, and a
+  translucent, orientation-aware better-move arrow. Streamed player results merge into the full
+  timeline without moving the selection. The review remains usable at 200% font scale and
+  announces player-only progress in 25% milestones.
 
 Medium portrait tablets keep the board stacked above the controls so the 600 dp breakpoint
 does not collapse the board. Landscape/expanded layouts use a side panel only when at least a
@@ -82,7 +84,7 @@ does not collapse the board. Landscape/expanded layouts use a side panel only wh
   structure.
 - The structure gate requires `:app` to depend on `:engine`, verifies the factory API,
   and rejects a release configuration that can select the development bot.
-- `npm run test:kotlin` passes 223 tests at this checkpoint. This includes the core,
+- `npm run test:kotlin` passes 301 tests at this checkpoint. This includes the core,
   native transport, and fake-native JNI-port lifecycle suites; it is not an Android
   binary or device test.
 

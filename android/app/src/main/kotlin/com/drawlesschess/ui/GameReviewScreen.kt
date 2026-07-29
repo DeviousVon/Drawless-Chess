@@ -2,6 +2,7 @@
 
 package com.drawlesschess.ui
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -45,13 +46,17 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
@@ -63,13 +68,14 @@ import androidx.compose.ui.unit.dp
 import com.drawlesschess.R
 import com.drawlesschess.core.Side
 import com.drawlesschess.core.UciMove
+import com.drawlesschess.core.chess.ChessMove
 import com.drawlesschess.core.chess.ChessPosition
 import com.drawlesschess.core.chess.ChessRules
 import com.drawlesschess.core.chess.SanNotation
+import com.drawlesschess.core.chess.Square
 import com.drawlesschess.core.coordinator.CoordinatorCheckpoint
 import com.drawlesschess.core.engine.GameReviewProgress
 import com.drawlesschess.core.engine.GameReviewResult
-import com.drawlesschess.core.engine.GameReviewSummary
 import com.drawlesschess.core.engine.ReviewEvaluation
 import com.drawlesschess.core.engine.ReviewMoveQuality
 import com.drawlesschess.core.engine.ReviewSideSummary
@@ -84,6 +90,7 @@ import java.text.NumberFormat
 import kotlinx.coroutines.flow.collect
 import kotlin.math.abs
 import kotlin.math.roundToInt
+import kotlin.math.sqrt
 
 internal enum class ReviewAnalysisUiStatus {
     ANALYZING,
@@ -100,31 +107,62 @@ internal enum class ReviewGradeUi {
     BLUNDER,
 }
 
+internal enum class ReviewMoveRole {
+    PLAYER_DECISION,
+    OPPONENT_CONTEXT,
+}
+
+internal data class ReviewBetterMoveArrow(
+    val from: Square,
+    val to: Square,
+) {
+    init {
+        require(from != to) { "A review arrow must connect two different squares" }
+    }
+}
+
 internal data class ReviewMoveUi(
     /** One-based half-move index. This remains unambiguous for nonstandard starting FENs. */
     val ply: Int,
     val moveNumber: Int,
     val mover: Side,
+    val role: ReviewMoveRole,
     val san: String,
     val grade: ReviewGradeUi? = null,
     val bestMoveSan: String? = null,
     val suggestedLine: List<String> = emptyList(),
     val evaluation: ReviewEvaluation? = null,
     val evaluationSide: Side = Side.WHITE,
+    val betterMoveArrow: ReviewBetterMoveArrow? = null,
 )
 
 internal data class GameReviewUiModel(
     val board: BoardScreenState,
     val moves: List<ReviewMoveUi>,
     val selectedPly: Int,
-    val completedMoves: Int,
+    val completedPlayerMoves: Int,
     val status: ReviewAnalysisUiStatus,
     val playerSide: Side,
-    val summary: GameReviewSummary? = null,
+    val playerSummary: ReviewSideSummary? = null,
     val errorMessage: String? = null,
 ) {
+    init {
+        require(moves.all { move ->
+            (move.role == ReviewMoveRole.PLAYER_DECISION) == (move.mover == playerSide)
+        }) { "Review move roles must match the player side" }
+        require(completedPlayerMoves in 0..moves.count {
+            it.role == ReviewMoveRole.PLAYER_DECISION
+        }) { "Completed player moves must fit the player timeline" }
+        require(playerSummary == null || playerSummary.side == playerSide) {
+            "The review summary must describe the player side"
+        }
+    }
+
     val selectedMove: ReviewMoveUi?
         get() = moves.firstOrNull { it.ply == selectedPly }
+
+    val totalPlayerMoves: Int
+        get() = moves.count { it.role == ReviewMoveRole.PLAYER_DECISION }
 }
 
 /**
@@ -152,14 +190,20 @@ private fun RuntimeGameReviewRoute(
     val checkpoint = remember(runtime) { runtime.reviewCheckpoint() }
     val finalGameModel = remember(runtime) { runtime.controller.model() }
     val placeholderMoves = remember(checkpoint) { reviewMovePlaceholders(checkpoint) }
+    val defaultSelectedPly = remember(placeholderMoves) {
+        placeholderMoves.lastOrNull { it.role == ReviewMoveRole.PLAYER_DECISION }?.ply ?: 0
+    }
     var orientationOrdinal by rememberSaveable(runtime.gameId) {
         mutableIntStateOf(BoardOrientation.forSide(checkpoint.config.humanSide).ordinal)
     }
     val orientation = BoardOrientation.entries[orientationOrdinal]
-    var selectedPly by rememberSaveable(runtime.gameId) { mutableIntStateOf(checkpoint.moves.size) }
-    var completedMoves by remember(runtime) { mutableIntStateOf(0) }
+    var selectedPly by rememberSaveable(runtime.gameId) { mutableIntStateOf(defaultSelectedPly) }
+    var completedPlayerMoves by remember(runtime) { mutableIntStateOf(0) }
     var status by remember(runtime) { mutableStateOf(ReviewAnalysisUiStatus.ANALYZING) }
     var reviewResult by remember(runtime) { mutableStateOf<GameReviewResult?>(null) }
+    var partialReviewedMoves by remember(runtime) {
+        mutableStateOf<Map<Int, ReviewedMove>>(emptyMap())
+    }
     var errorMessage by remember(runtime) { mutableStateOf<String?>(null) }
 
     LaunchedEffect(runtime) {
@@ -168,26 +212,45 @@ private fun RuntimeGameReviewRoute(
                 null -> Unit
                 is RuntimeGameReviewState.Analyzing -> {
                     reviewResult = null
-                    completedMoves = state.progress?.let { progress ->
-                        reviewCompletedMoveCount(progress, placeholderMoves.size)
+                    partialReviewedMoves = state.partialMoves
+                    val completedByProgress = state.progress?.let { progress ->
+                        reviewCompletedPlayerMoveCount(progress, placeholderMoves)
                     } ?: 0
+                    completedPlayerMoves = maxOf(
+                        completedByProgress,
+                        state.partialMoves.values.count { it.mover == checkpoint.config.humanSide },
+                    )
                     errorMessage = null
                     status = ReviewAnalysisUiStatus.ANALYZING
                 }
                 is RuntimeGameReviewState.Complete -> {
                     reviewResult = state.result
-                    completedMoves = state.result.moves.size
+                    partialReviewedMoves = state.result.moves.associateBy { it.ply }
+                    completedPlayerMoves = placeholderMoves.count {
+                        it.role == ReviewMoveRole.PLAYER_DECISION
+                    }
                     errorMessage = null
                     status = ReviewAnalysisUiStatus.COMPLETE
                 }
                 is RuntimeGameReviewState.Cancelled -> {
-                    completedMoves = state.progress?.let { progress ->
-                        reviewCompletedMoveCount(progress, placeholderMoves.size)
+                    reviewResult = null
+                    partialReviewedMoves = state.partialMoves
+                    val completedByProgress = state.progress?.let { progress ->
+                        reviewCompletedPlayerMoveCount(progress, placeholderMoves)
                     } ?: 0
+                    completedPlayerMoves = maxOf(
+                        completedByProgress,
+                        state.partialMoves.values.count { it.mover == checkpoint.config.humanSide },
+                    )
                     errorMessage = null
                     status = ReviewAnalysisUiStatus.CANCELLED
                 }
                 is RuntimeGameReviewState.Failed -> {
+                    reviewResult = null
+                    partialReviewedMoves = state.partialMoves
+                    completedPlayerMoves = state.partialMoves.values.count {
+                        it.mover == checkpoint.config.humanSide
+                    }
                     errorMessage = null
                     status = ReviewAnalysisUiStatus.FAILED
                 }
@@ -195,8 +258,19 @@ private fun RuntimeGameReviewRoute(
         }
     }
 
-    val reviewedMoves = remember(reviewResult, placeholderMoves) {
-        reviewResult?.moves?.map(::reviewMoveUi) ?: placeholderMoves
+    val reviewedMoves = remember(
+        reviewResult,
+        partialReviewedMoves,
+        placeholderMoves,
+        checkpoint.config.humanSide,
+    ) {
+        val reviewedByPly = reviewResult?.moves?.associateBy { move -> move.ply }
+            ?: partialReviewedMoves
+        reviewMovesWithPartials(
+            placeholders = placeholderMoves,
+            partialMoves = reviewedByPly,
+            playerSide = checkpoint.config.humanSide,
+        )
     }
     val board = remember(
         checkpoint,
@@ -220,10 +294,12 @@ private fun RuntimeGameReviewRoute(
             board = board,
             moves = reviewedMoves,
             selectedPly = selectedPly,
-            completedMoves = completedMoves,
+            completedPlayerMoves = completedPlayerMoves,
             status = status,
             playerSide = checkpoint.config.humanSide,
-            summary = reviewResult?.summary,
+            playerSummary = reviewResult?.summary?.let { summary ->
+                if (checkpoint.config.humanSide == Side.WHITE) summary.white else summary.black
+            },
             errorMessage = errorMessage,
         ),
         showBoardCoordinates = preferences.boardCoordinatesEnabled,
@@ -235,11 +311,12 @@ private fun RuntimeGameReviewRoute(
     )
 }
 
-internal fun reviewCompletedMoveCount(progress: GameReviewProgress, totalMoves: Int): Int {
-    require(totalMoves >= 0)
-    // A played move generally needs the following position's evaluation before it can be
-    // graded. The final onResult callback promotes the count to all moves at completion.
-    return (progress.completedPositions - 1).coerceIn(0, totalMoves)
+internal fun reviewCompletedPlayerMoveCount(
+    progress: GameReviewProgress,
+    moves: List<ReviewMoveUi>,
+): Int {
+    val totalPlayerMoves = moves.count { move -> move.role == ReviewMoveRole.PLAYER_DECISION }
+    return progress.completedMoves.coerceIn(0, totalPlayerMoves)
 }
 
 @Composable
@@ -308,12 +385,11 @@ internal fun GameReviewScreen(
                     outerPadding = layout.outerPaddingDp.dp,
                     modifier = Modifier.fillMaxSize(),
                 ) {
-                    ChessBoard(
+                    ReviewChessBoard(
                         model = model.board,
                         boardSizeDp = layout.boardSizeDp,
-                        onEvent = {},
                         showCoordinates = showBoardCoordinates,
-                        onMoveAnimationFinished = {},
+                        arrow = model.selectedMove.reviewArrowOrNull(),
                     )
                     ReviewPanel(
                         model = model,
@@ -336,12 +412,11 @@ internal fun GameReviewScreen(
                         Alignment.CenterHorizontally,
                     ),
                 ) {
-                    ChessBoard(
+                    ReviewChessBoard(
                         model = model.board,
                         boardSizeDp = layout.boardSizeDp,
-                        onEvent = {},
                         showCoordinates = showBoardCoordinates,
-                        onMoveAnimationFinished = {},
+                        arrow = model.selectedMove.reviewArrowOrNull(),
                     )
                     GameSidePanelContainer(
                         panelWidthDp = layout.panelWidthDp,
@@ -362,6 +437,114 @@ internal fun GameReviewScreen(
     }
 }
 
+private fun ReviewMoveUi?.reviewArrowOrNull(): ReviewBetterMoveArrow? = this
+    ?.takeIf { move ->
+        move.role == ReviewMoveRole.PLAYER_DECISION &&
+            move.grade != null &&
+            move.grade != ReviewGradeUi.BEST &&
+            move.bestMoveSan != null
+    }
+    ?.betterMoveArrow
+
+@Composable
+private fun ReviewChessBoard(
+    model: BoardScreenState,
+    boardSizeDp: Int,
+    showCoordinates: Boolean,
+    arrow: ReviewBetterMoveArrow?,
+) {
+    Box(Modifier.size(boardSizeDp.dp)) {
+        ChessBoard(
+            model = model,
+            boardSizeDp = boardSizeDp,
+            onEvent = {},
+            showCoordinates = showCoordinates,
+            onMoveAnimationFinished = {},
+        )
+        arrow?.let { BetterMoveArrowOverlay(model, it) }
+    }
+}
+
+@Composable
+private fun BetterMoveArrowOverlay(
+    board: BoardScreenState,
+    arrow: ReviewBetterMoveArrow,
+) {
+    val (fromCell, toCell) = reviewArrowDisplayCells(board, arrow)
+    val arrowColor = MaterialTheme.colorScheme.primary
+    val outlineColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.78f)
+    val description = stringResource(
+        R.string.review_better_move_arrow_accessibility,
+        arrow.from.algebraic,
+        arrow.to.algebraic,
+    )
+    Canvas(
+        Modifier
+            .fillMaxSize()
+            .testTag("review_better_move_arrow")
+            .clearAndSetSemantics { contentDescription = description },
+    ) {
+        val squarePixels = size.width / 8f
+        fun center(row: Int, column: Int): Offset = Offset(
+            (column + 0.5f) * squarePixels,
+            (row + 0.5f) * squarePixels,
+        )
+
+        val from = center(fromCell.displayRow, fromCell.displayColumn)
+        val destination = center(toCell.displayRow, toCell.displayColumn)
+        val dx = destination.x - from.x
+        val dy = destination.y - from.y
+        val length = sqrt(dx * dx + dy * dy)
+        if (length <= 0f) return@Canvas
+
+        val unitX = dx / length
+        val unitY = dy / length
+        val start = Offset(
+            from.x + unitX * squarePixels * 0.13f,
+            from.y + unitY * squarePixels * 0.13f,
+        )
+        val end = Offset(
+            destination.x - unitX * squarePixels * 0.24f,
+            destination.y - unitY * squarePixels * 0.24f,
+        )
+        val headLength = squarePixels * 0.24f
+        val headHalfWidth = squarePixels * 0.16f
+        val headBase = Offset(
+            end.x - unitX * headLength,
+            end.y - unitY * headLength,
+        )
+        val headOne = Offset(
+            headBase.x - unitY * headHalfWidth,
+            headBase.y + unitX * headHalfWidth,
+        )
+        val headTwo = Offset(
+            headBase.x + unitY * headHalfWidth,
+            headBase.y - unitX * headHalfWidth,
+        )
+        val outlineWidth = squarePixels * 0.12f
+        val arrowWidth = squarePixels * 0.075f
+
+        drawLine(outlineColor, start, end, outlineWidth, cap = StrokeCap.Round)
+        drawLine(outlineColor, end, headOne, outlineWidth, cap = StrokeCap.Round)
+        drawLine(outlineColor, end, headTwo, outlineWidth, cap = StrokeCap.Round)
+        drawLine(arrowColor.copy(alpha = 0.72f), start, end, arrowWidth, cap = StrokeCap.Round)
+        drawLine(arrowColor.copy(alpha = 0.72f), end, headOne, arrowWidth, cap = StrokeCap.Round)
+        drawLine(arrowColor.copy(alpha = 0.72f), end, headTwo, arrowWidth, cap = StrokeCap.Round)
+        drawCircle(
+            color = arrowColor.copy(alpha = 0.72f),
+            radius = squarePixels * 0.10f,
+            center = from,
+            style = Stroke(width = arrowWidth * 0.65f),
+        )
+    }
+}
+
+internal fun reviewArrowDisplayCells(
+    board: BoardScreenState,
+    arrow: ReviewBetterMoveArrow,
+) = board.cells.single { it.square == arrow.from } to
+    board.cells.single { it.square == arrow.to }
+
 @Composable
 private fun ReviewPanel(
     model: GameReviewUiModel,
@@ -377,10 +560,9 @@ private fun ReviewPanel(
     ) {
         ReviewAnalysisCard(model, onCancel, onRetry)
         if (model.status == ReviewAnalysisUiStatus.COMPLETE) {
-            model.summary?.let { summary ->
+            model.playerSummary?.let { summary ->
                 ReviewSummaryCard(
                     summary = summary,
-                    playerSide = model.playerSide,
                     moves = model.moves,
                     onSelectPly = onSelectPly,
                 )
@@ -391,6 +573,7 @@ private fun ReviewPanel(
         ReviewMoveList(
             moves = model.moves,
             selectedPly = model.selectedPly,
+            analysisStatus = model.status,
             onSelectPly = onSelectPly,
             modifier = Modifier
                 .fillMaxWidth()
@@ -405,11 +588,16 @@ private fun ReviewAnalysisCard(
     onCancel: () -> Unit,
     onRetry: () -> Unit,
 ) {
-    val total = model.moves.size.coerceAtLeast(1)
-    val completed = model.completedMoves.coerceIn(0, total)
+    val totalPlayerMoves = model.totalPlayerMoves
+    val progressDenominator = totalPlayerMoves.coerceAtLeast(1)
+    val completed = model.completedPlayerMoves.coerceIn(0, totalPlayerMoves)
     val milestonePercent = when (model.status) {
         ReviewAnalysisUiStatus.COMPLETE -> 100
-        ReviewAnalysisUiStatus.ANALYZING -> ((completed * 4 / total) * 25).coerceIn(0, 100)
+        ReviewAnalysisUiStatus.ANALYZING -> if (totalPlayerMoves == 0) {
+            100
+        } else {
+            ((completed * 4 / progressDenominator) * 25).coerceIn(0, 100)
+        }
         ReviewAnalysisUiStatus.CANCELLED,
         ReviewAnalysisUiStatus.FAILED -> null
     }
@@ -439,13 +627,16 @@ private fun ReviewAnalysisCard(
                         fontWeight = FontWeight.SemiBold,
                     )
                     LinearProgressIndicator(
-                        progress = { completed.toFloat() / total.toFloat() },
+                        progress = {
+                            if (totalPlayerMoves == 0) 1f
+                            else completed.toFloat() / totalPlayerMoves.toFloat()
+                        },
                         modifier = Modifier
                             .fillMaxWidth()
                             .testTag("review_progress"),
                     )
                     Text(
-                        stringResource(R.string.review_progress, completed, model.moves.size),
+                        stringResource(R.string.review_progress, completed, totalPlayerMoves),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     TextButton(
@@ -466,8 +657,8 @@ private fun ReviewAnalysisCard(
                     Text(
                         stringResource(
                             R.string.review_complete_body,
-                            model.completedMoves,
-                            model.summary?.let { it.white.gradedMoves + it.black.gradedMoves } ?: 0,
+                            totalPlayerMoves,
+                            model.playerSummary?.gradedMoves ?: 0,
                         ),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -511,15 +702,12 @@ private fun ReviewAnalysisCard(
 
 @Composable
 private fun ReviewSummaryCard(
-    summary: GameReviewSummary,
-    playerSide: Side,
+    summary: ReviewSideSummary,
     moves: List<ReviewMoveUi>,
     onSelectPly: (Int) -> Unit,
 ) {
-    val playerSummary = if (playerSide == Side.WHITE) summary.white else summary.black
-    val opponentSummary = if (playerSide == Side.WHITE) summary.black else summary.white
     val firstPlayerIssue = moves.firstOrNull { move ->
-        move.mover == playerSide && move.grade?.isReviewIssue() == true
+        move.role == ReviewMoveRole.PLAYER_DECISION && move.grade?.isReviewIssue() == true
     }
 
     ElevatedCard(
@@ -539,15 +727,8 @@ private fun ReviewSummaryCard(
                 fontWeight = FontWeight.SemiBold,
             )
             ReviewSummarySide(
-                summary = playerSummary,
-                player = true,
+                summary = summary,
                 roleTag = "player",
-            )
-            HorizontalDivider()
-            ReviewSummarySide(
-                summary = opponentSummary,
-                player = false,
-                roleTag = "opponent",
             )
             firstPlayerIssue?.let { issue ->
                 FilledTonalButton(
@@ -567,7 +748,6 @@ private fun ReviewSummaryCard(
 @Composable
 private fun ReviewSummarySide(
     summary: ReviewSideSummary,
-    player: Boolean,
     roleTag: String,
 ) {
     Column(
@@ -583,8 +763,7 @@ private fun ReviewSummarySide(
         ) {
             Text(
                 stringResource(
-                    if (player) R.string.review_summary_player_side
-                    else R.string.review_summary_opponent_side,
+                    R.string.review_summary_player_side,
                     sideNameForReview(summary.side),
                 ),
                 modifier = Modifier.weight(1f),
@@ -676,6 +855,13 @@ private fun ReviewMoveFeedback(
 ) {
     val feedbackStateDescription = if (move == null) {
         stringResource(R.string.review_starting_position)
+    } else if (move.role == ReviewMoveRole.OPPONENT_CONTEXT) {
+        stringResource(
+            R.string.review_move_accessibility,
+            reviewMoveTitle(move),
+            stringResource(R.string.review_opponent_context_label),
+            stringResource(R.string.label_selected),
+        )
     } else {
         val gradeDescription = move.grade?.let { reviewGradeName(it) }
             ?: stringResource(
@@ -715,6 +901,33 @@ private fun ReviewMoveFeedback(
                 )
                 Text(
                     stringResource(R.string.review_choose_move),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            return@ElevatedCard
+        }
+
+        if (move.role == ReviewMoveRole.OPPONENT_CONTEXT) {
+            Column(
+                modifier = Modifier
+                    .padding(16.dp)
+                    .testTag("review_opponent_context"),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text(
+                    reviewMoveTitle(move),
+                    modifier = Modifier.semantics { heading() },
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    stringResource(R.string.review_opponent_context_label),
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    stringResource(R.string.review_opponent_context_body),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
@@ -856,6 +1069,7 @@ private data class ReviewMoveRow(
 private fun ReviewMoveList(
     moves: List<ReviewMoveUi>,
     selectedPly: Int,
+    analysisStatus: ReviewAnalysisUiStatus,
     onSelectPly: (Int) -> Unit,
     modifier: Modifier,
 ) {
@@ -919,12 +1133,14 @@ private fun ReviewMoveList(
                         ReviewMoveCell(
                             move = row.white,
                             selected = row.white?.ply == selectedPly,
+                            analysisStatus = analysisStatus,
                             onSelectPly = onSelectPly,
                             modifier = Modifier.weight(1f),
                         )
                         ReviewMoveCell(
                             move = row.black,
                             selected = row.black?.ply == selectedPly,
+                            analysisStatus = analysisStatus,
                             onSelectPly = onSelectPly,
                             modifier = Modifier.weight(1f),
                         )
@@ -939,6 +1155,7 @@ private fun ReviewMoveList(
 private fun ReviewMoveCell(
     move: ReviewMoveUi?,
     selected: Boolean,
+    analysisStatus: ReviewAnalysisUiStatus,
     onSelectPly: (Int) -> Unit,
     modifier: Modifier,
 ) {
@@ -946,8 +1163,18 @@ private fun ReviewMoveCell(
         Spacer(modifier)
         return
     }
-    val gradeName = move.grade?.let { reviewGradeName(it) }
-        ?: stringResource(R.string.review_grade_unreviewed)
+    val gradeName = if (move.role == ReviewMoveRole.OPPONENT_CONTEXT) {
+        stringResource(R.string.review_opponent_context_label)
+    } else {
+        move.grade?.let { reviewGradeName(it) }
+            ?: stringResource(
+                if (analysisStatus == ReviewAnalysisUiStatus.ANALYZING) {
+                    R.string.review_waiting
+                } else {
+                    R.string.review_grade_unreviewed
+                },
+            )
+    }
     val description = stringResource(
         R.string.review_move_accessibility,
         reviewMoveTitle(move),
@@ -955,7 +1182,9 @@ private fun ReviewMoveCell(
         if (selected) stringResource(R.string.label_selected)
         else stringResource(R.string.label_not_selected),
     )
-    val palette = move.grade?.let { reviewGradePalette(it) }
+    val palette = move.grade
+        ?.takeIf { move.role == ReviewMoveRole.PLAYER_DECISION }
+        ?.let { reviewGradePalette(it) }
 
     Surface(
         modifier = modifier
@@ -979,7 +1208,7 @@ private fun ReviewMoveCell(
             horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            if (move.grade != null && palette != null) {
+            if (move.role == ReviewMoveRole.PLAYER_DECISION && move.grade != null && palette != null) {
                 Box(
                     modifier = Modifier
                         .size(28.dp)
@@ -1013,6 +1242,11 @@ private fun reviewMovePlaceholders(checkpoint: CoordinatorCheckpoint): List<Revi
             ply = index + 1,
             moveNumber = position.fullmoveNumber,
             mover = position.sideToMove,
+            role = if (position.sideToMove == checkpoint.config.humanSide) {
+                ReviewMoveRole.PLAYER_DECISION
+            } else {
+                ReviewMoveRole.OPPONENT_CONTEXT
+            },
             san = SanNotation.format(position, move),
         )
         position = ChessRules.apply(position, move)
@@ -1020,18 +1254,57 @@ private fun reviewMovePlaceholders(checkpoint: CoordinatorCheckpoint): List<Revi
     }
 }
 
-private fun reviewMoveUi(move: ReviewedMove): ReviewMoveUi {
+internal fun reviewMovesWithPartials(
+    placeholders: List<ReviewMoveUi>,
+    partialMoves: Map<Int, ReviewedMove>,
+    playerSide: Side,
+): List<ReviewMoveUi> {
+    if (partialMoves.isEmpty()) return placeholders
+    val playerPartials = partialMoves.values
+        .asSequence()
+        .filter { move -> move.mover == playerSide }
+        .associate { move -> move.ply to reviewMoveUi(move, playerSide) }
+    return placeholders.map { placeholder -> playerPartials[placeholder.ply] ?: placeholder }
+}
+
+private fun reviewMoveUi(move: ReviewedMove, playerSide: Side): ReviewMoveUi {
     val position = ChessPosition.fromFen(move.fenBefore)
+    val role = if (move.mover == playerSide) {
+        ReviewMoveRole.PLAYER_DECISION
+    } else {
+        ReviewMoveRole.OPPONENT_CONTEXT
+    }
+    val best = ChessMove.fromUci(move.bestMove)
+    val bestMoveSan = runCatching { SanNotation.format(position, move.bestMove) }.getOrNull()
+    val playerGrade = move.quality?.toUiGrade().takeIf {
+        role == ReviewMoveRole.PLAYER_DECISION
+    }
     return ReviewMoveUi(
         ply = move.ply,
         moveNumber = position.fullmoveNumber,
         mover = move.mover,
+        role = role,
         san = SanNotation.format(position, move.playedMove),
-        grade = move.quality?.toUiGrade(),
-        bestMoveSan = runCatching { SanNotation.format(position, move.bestMove) }.getOrNull(),
-        suggestedLine = suggestedLineSan(move.fenBefore, move.suggestedLine),
-        evaluation = move.playedEvaluation,
-        evaluationSide = move.mover,
+        grade = playerGrade,
+        bestMoveSan = bestMoveSan.takeIf { role == ReviewMoveRole.PLAYER_DECISION },
+        suggestedLine = if (role == ReviewMoveRole.PLAYER_DECISION) {
+            suggestedLineSan(move.fenBefore, move.suggestedLine)
+        } else {
+            emptyList()
+        },
+        evaluation = move.playedEvaluation.takeIf { role == ReviewMoveRole.PLAYER_DECISION },
+        evaluationSide = playerSide,
+        betterMoveArrow = if (
+            role == ReviewMoveRole.PLAYER_DECISION &&
+            playerGrade != null &&
+            playerGrade != ReviewGradeUi.BEST &&
+            move.bestMove != move.playedMove &&
+            bestMoveSan != null
+        ) {
+            ReviewBetterMoveArrow(best.from, best.to)
+        } else {
+            null
+        },
     )
 }
 

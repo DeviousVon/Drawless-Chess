@@ -12,9 +12,11 @@ import com.drawlesschess.core.presentation.*
 import com.drawlesschess.core.engine.BotDifficultyCatalog
 import com.drawlesschess.core.engine.BotMovePacingEngine
 import com.drawlesschess.core.engine.GameReviewProgress
+import com.drawlesschess.core.engine.GameReviewPlanner
 import com.drawlesschess.core.engine.GameReviewResult
 import com.drawlesschess.core.engine.GameReviewRunner
 import com.drawlesschess.core.engine.NamedBotLevel
+import com.drawlesschess.core.engine.ReviewedMove
 import com.drawlesschess.engine.AndroidFairyEngineFactory
 import com.drawlesschess.engine.AndroidUciTimeoutScheduler
 import java.util.UUID
@@ -45,10 +47,19 @@ data class SetupSelection(
  * activity recreation without throwing away analysis that has already completed.
  */
 internal sealed interface RuntimeGameReviewState {
-    data class Analyzing(val progress: GameReviewProgress? = null) : RuntimeGameReviewState
+    data class Analyzing(
+        val progress: GameReviewProgress? = null,
+        val partialMoves: Map<Int, ReviewedMove> = emptyMap(),
+    ) : RuntimeGameReviewState
     data class Complete(val result: GameReviewResult) : RuntimeGameReviewState
-    data class Cancelled(val progress: GameReviewProgress? = null) : RuntimeGameReviewState
-    data class Failed(val error: Throwable) : RuntimeGameReviewState
+    data class Cancelled(
+        val progress: GameReviewProgress? = null,
+        val partialMoves: Map<Int, ReviewedMove> = emptyMap(),
+    ) : RuntimeGameReviewState
+    data class Failed(
+        val error: Throwable,
+        val partialMoves: Map<Int, ReviewedMove> = emptyMap(),
+    ) : RuntimeGameReviewState
 }
 
 class GameRuntime private constructor(
@@ -72,6 +83,7 @@ class GameRuntime private constructor(
         delayMillis = GamePacing.OPPONENT_MOVE_DELAY_MILLIS,
     )
     private val reviewLock = Any()
+    private val reviewInvocationLock = Any()
     private val reviewRunner = GameReviewRunner(engine)
     private var reviewGeneration = 0L
     private var activeReviewCancellation: EngineCancellation? = null
@@ -198,6 +210,7 @@ class GameRuntime private constructor(
                 activeReviewCancellation.also { activeReviewCancellation = null }
             }
             runCatching { reviewCancellation?.cancel() }
+            synchronized(reviewInvocationLock) { /* Wait for an in-flight review launch to drain. */ }
             runCatching { coordinator.close() }
             runCatching { engineProvision.engine.close() }
             runCatching { movePacingScheduler.close() }
@@ -206,6 +219,12 @@ class GameRuntime private constructor(
 
     internal fun reviewCheckpoint(): CoordinatorCheckpoint = coordinator.checkpoint().also {
         require(it.outcome != null) { "Game review is available only after a completed game" }
+    }
+
+    /** Keeps speculative review work aligned with the visible game lifecycle. */
+    internal fun setGameForeground(foreground: Boolean) {
+        if (closed.get()) return
+        coordinator.setReviewPrefetchEnabled(foreground)
     }
 
     internal fun gameReviewState(): StateFlow<RuntimeGameReviewState?> {
@@ -230,9 +249,13 @@ class GameRuntime private constructor(
             reviewGeneration++
             cancellation = activeReviewCancellation
             activeReviewCancellation = null
-            reviewState.value = RuntimeGameReviewState.Cancelled(current.progress)
+            reviewState.value = RuntimeGameReviewState.Cancelled(
+                progress = current.progress,
+                partialMoves = current.partialMoves,
+            )
         }
         runCatching { cancellation?.cancel() }
+        synchronized(reviewInvocationLock) { /* Do not return while a stale launch is publishing. */ }
     }
 
     internal fun restartGameReview() {
@@ -248,25 +271,53 @@ class GameRuntime private constructor(
             reviewState.value = RuntimeGameReviewState.Analyzing()
         }
         runCatching { previous?.cancel() }
+        synchronized(reviewInvocationLock) { /* Serialize retry after cancellation publication. */ }
         startGameReview(checkpoint, generation)
     }
 
     private fun startGameReview(checkpoint: CoordinatorCheckpoint, generation: Long) {
+        val prefetchedByKey = coordinator.completedReviewPrefetchRoots().associateBy { it.key }
+        val compatibleSeeds = GameReviewPlanner.playerPlan(
+            gameId = checkpoint.config.gameId,
+            initialFen = checkpoint.config.initialFen,
+            moves = checkpoint.moves,
+            rules = checkpoint.config.rules,
+            playerSide = checkpoint.config.humanSide,
+        ).roots.mapNotNull { root ->
+            prefetchedByKey[root.key]
+        }
         val completedSynchronously = AtomicBoolean(false)
-        var cancelImmediately: EngineCancellation? = null
-        synchronized(reviewLock) {
-            if (closed.get() || generation != reviewGeneration) return
+        synchronized(reviewInvocationLock) reviewLaunch@{
+            val shouldStart = synchronized(reviewLock) {
+                !closed.get() && generation == reviewGeneration &&
+                    reviewState.value is RuntimeGameReviewState.Analyzing
+            }
+            if (!shouldStart) return@reviewLaunch
             val cancellation = try {
-                reviewRunner.review(
+                reviewRunner.reviewPlayerMoves(
                     gameId = checkpoint.config.gameId,
                     initialFen = checkpoint.config.initialFen,
                     moves = checkpoint.moves,
                     rules = checkpoint.config.rules,
                     outcome = requireNotNull(checkpoint.outcome),
+                    playerSide = checkpoint.config.humanSide,
+                    seededRoots = compatibleSeeds,
+                    onMoveReviewed = { completedMove ->
+                        synchronized(reviewLock) {
+                            val current = reviewState.value as? RuntimeGameReviewState.Analyzing
+                            if (!closed.get() && generation == reviewGeneration && current != null) {
+                                reviewState.value = current.copy(
+                                    partialMoves = current.partialMoves +
+                                        (completedMove.move.ply to completedMove.move),
+                                )
+                            }
+                        }
+                    },
                     onProgress = { progress ->
                         synchronized(reviewLock) {
-                            if (!closed.get() && generation == reviewGeneration) {
-                                reviewState.value = RuntimeGameReviewState.Analyzing(progress)
+                            val current = reviewState.value as? RuntimeGameReviewState.Analyzing
+                            if (!closed.get() && generation == reviewGeneration && current != null) {
+                                reviewState.value = current.copy(progress = progress)
                             }
                         }
                     },
@@ -279,7 +330,12 @@ class GameRuntime private constructor(
                                     onSuccess = { RuntimeGameReviewState.Complete(it) },
                                     onFailure = { error ->
                                         Log.e(REVIEW_LOG_TAG, "Game review failed", error)
-                                        RuntimeGameReviewState.Failed(error)
+                                        RuntimeGameReviewState.Failed(
+                                            error = error,
+                                            partialMoves = (
+                                                reviewState.value as? RuntimeGameReviewState.Analyzing
+                                            )?.partialMoves.orEmpty(),
+                                        )
                                     },
                                 )
                             }
@@ -288,18 +344,32 @@ class GameRuntime private constructor(
                 )
             } catch (error: Throwable) {
                 completedSynchronously.set(true)
-                activeReviewCancellation = null
-                Log.e(REVIEW_LOG_TAG, "Game review could not start", error)
-                reviewState.value = RuntimeGameReviewState.Failed(error)
-                return
+                synchronized(reviewLock) {
+                    if (!closed.get() && generation == reviewGeneration) {
+                        activeReviewCancellation = null
+                        Log.e(REVIEW_LOG_TAG, "Game review could not start", error)
+                        reviewState.value = RuntimeGameReviewState.Failed(
+                            error = error,
+                            partialMoves = (
+                                reviewState.value as? RuntimeGameReviewState.Analyzing
+                            )?.partialMoves.orEmpty(),
+                        )
+                    }
+                }
+                return@reviewLaunch
             }
-            if (closed.get() || generation != reviewGeneration || completedSynchronously.get()) {
-                cancelImmediately = cancellation
-            } else {
-                activeReviewCancellation = cancellation
+            val cancelImmediately = synchronized(reviewLock) {
+                if (closed.get() || generation != reviewGeneration || completedSynchronously.get() ||
+                    reviewState.value !is RuntimeGameReviewState.Analyzing
+                ) {
+                    true
+                } else {
+                    activeReviewCancellation = cancellation
+                    false
+                }
             }
+            if (cancelImmediately) cancellation.cancel()
         }
-        cancelImmediately?.cancel()
     }
 
     /**

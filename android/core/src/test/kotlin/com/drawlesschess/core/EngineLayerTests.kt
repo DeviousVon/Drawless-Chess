@@ -141,19 +141,26 @@ private class FakeReviewEngine : ChessEngine {
     fun respondWithVariations(bestMove: String, variations: List<PrincipalVariation>) {
         val pending = requests.first { !it.responded }
         pending.responded = true
-        pending.callback(Result.success(EngineResponse(
-            requestId = pending.request.requestId,
-            gameId = pending.request.gameId,
-            positionId = pending.request.positionId,
-            bestMove = UciMove(bestMove),
-            ponderMove = null,
-            depth = 12,
-            nodes = 1_000,
-            variations = variations,
-            engine = EngineIdentity("review-test", "1", 1),
-        )))
+        pending.callback(Result.success(reviewResponseFor(pending.request, bestMove, variations)))
     }
 }
+
+private fun reviewResponseFor(
+    request: EngineRequest,
+    bestMove: String,
+    variations: List<PrincipalVariation> = listOf(reviewVariation(bestMove)),
+    engine: EngineIdentity = EngineIdentity("review-test", "1", 1),
+): EngineResponse = EngineResponse(
+    requestId = request.requestId,
+    gameId = request.gameId,
+    positionId = request.positionId,
+    bestMove = UciMove(bestMove),
+    ponderMove = null,
+    depth = 12,
+    nodes = 1_000,
+    variations = variations,
+    engine = engine,
+)
 
 private fun reviewVariation(
     move: String,
@@ -351,6 +358,43 @@ internal fun registerEngineLayerTests(suite: TestSuite) {
         fixture.engine.onLine("bestmove e2e4 ponder e7e5")
         assertThat(result?.getOrThrow()?.bestMove == UciMove("e2e4"))
         assertThat(result?.getOrThrow()?.engine?.drawlessPatch == 1)
+        assertThat(fixture.engine.state == UciSessionState.IDLE)
+    }
+    suite.test("UCI result callback can start the next analysis reentrantly") {
+        val fixture = uciFixture()
+        fixture.engine.start()
+        completeHandshake(fixture)
+        var firstDelivered = false
+        var secondDelivered = false
+        val nextRequest = productionRequest(
+            id = "reentrant-review-prefetch",
+            purpose = EnginePurpose.REVIEW,
+            multiPv = 3,
+        )
+
+        fixture.engine.analyze(productionRequest(id = "completed-bot-move")) { result ->
+            firstDelivered = result.isSuccess
+            fixture.engine.analyze(nextRequest) { nextResult ->
+                secondDelivered = nextResult.isSuccess
+            }
+        }
+        fixture.engine.onLine("readyok")
+        fixture.engine.onLine("info depth 8 score cp 24 nodes 500 pv e2e4 e7e5")
+        fixture.engine.onLine("bestmove e2e4")
+
+        // onBestMove clears the completed work before delivery. beginQueuedIfAny must leave the
+        // new active request installed by the callback instead of dropping or replacing it.
+        assertThat(firstDelivered)
+        assertThat(fixture.engine.state == UciSessionState.PREPARING)
+        assertThat(fixture.transport.commands.last() == "isready")
+        fixture.engine.onLine("readyok")
+        assertThat(fixture.transport.commands.takeLast(2) == listOf("position startpos", "go movetime 100"))
+        fixture.engine.onLine("info depth 8 multipv 1 score cp 20 nodes 500 pv d2d4 d7d5")
+        fixture.engine.onLine("info depth 8 multipv 2 score cp 18 nodes 510 pv e2e4 e7e5")
+        fixture.engine.onLine("info depth 8 multipv 3 score cp 15 nodes 520 pv c2c4 e7e5")
+        fixture.engine.onLine("bestmove d2d4")
+
+        assertThat(secondDelivered)
         assertThat(fixture.engine.state == UciSessionState.IDLE)
     }
     suite.test("UCI engine converts mate and MultiPV analysis") {
@@ -694,6 +738,546 @@ internal fun registerEngineLayerTests(suite: TestSuite) {
                 listOf(UciMove("e2e5")), RulesContractV1.drawless(),
             )
         }
+    }
+    suite.test("player review analyzes only the selected side and retains canonical context") {
+        val moves = listOf("e2e4", "e7e5", "g1f3").map(::UciMove)
+        listOf(
+            Side.WHITE to listOf(1, 3),
+            Side.BLACK to listOf(2),
+        ).forEach { (playerSide, expectedPlies) ->
+            val engine = FakeReviewEngine()
+            val streamed = mutableListOf<GameReviewMoveResult>()
+            var completed: GameReviewResult? = null
+            GameReviewRunner(engine).reviewPlayerMoves(
+                gameId = "player-scope-${playerSide.name.lowercase()}",
+                initialFen = ChessPosition.START_FEN,
+                moves = moves,
+                rules = RulesContractV1.drawless(),
+                outcome = GameOutcome(Side.BLACK, reason = EndReason.RESIGNATION),
+                playerSide = playerSide,
+                onMoveReviewed = { streamed += it },
+                onResult = { completed = it.getOrThrow() },
+            )
+
+            expectedPlies.forEach { ply -> engine.respond(moves[ply - 1].value) }
+
+            val result = requireNotNull(completed)
+            assertThat(result.scope == GameReviewScope.PlayerMoves(playerSide))
+            assertThat(result.gameMoves == moves)
+            assertThat(result.moves.map { it.ply } == expectedPlies)
+            assertThat(result.moves.all { it.mover == playerSide })
+            assertThat(streamed.map { it.move.ply } == expectedPlies)
+            assertThat(engine.requests.map { it.request.moves.size } == expectedPlies.map { it - 1 })
+            val oppositeSummary = if (playerSide == Side.WHITE) result.summary.black else result.summary.white
+            assertThat(oppositeSummary.gradedMoves == 0)
+            assertThrows<IllegalArgumentException> { result.copy(scope = GameReviewScope.AllMoves) }
+        }
+    }
+    suite.test("player review with no selected decisions completes without engine work") {
+        val engine = FakeReviewEngine()
+        val moves = listOf(UciMove("e2e4"))
+        val progress = mutableListOf<GameReviewProgress>()
+        val streamed = mutableListOf<GameReviewMoveResult>()
+        var completed: GameReviewResult? = null
+
+        GameReviewRunner(engine).reviewPlayerMoves(
+            gameId = "player-scope-empty",
+            initialFen = ChessPosition.START_FEN,
+            moves = moves,
+            rules = RulesContractV1.drawless(),
+            outcome = GameOutcome(Side.BLACK, reason = EndReason.RESIGNATION),
+            playerSide = Side.BLACK,
+            onMoveReviewed = { streamed += it },
+            onProgress = { progress += it },
+            onResult = { completed = it.getOrThrow() },
+        )
+
+        val result = requireNotNull(completed)
+        assertThat(engine.requests.isEmpty() && streamed.isEmpty())
+        assertThat(result.gameMoves == moves && result.moves.isEmpty() && result.engine == null)
+        assertThat(result.scope == GameReviewScope.PlayerMoves(Side.BLACK))
+        assertThat(progress.single() == GameReviewProgress(0, 0, 0, 0))
+    }
+    suite.test("player review streams a natural terminal move without an adjacent helper") {
+        val engine = FakeReviewEngine()
+        val moves = listOf("f2f3", "e7e5", "g2g4", "d8h4").map(::UciMove)
+        val streamed = mutableListOf<GameReviewMoveResult>()
+        val progress = mutableListOf<GameReviewProgress>()
+        var completed: GameReviewResult? = null
+
+        GameReviewRunner(engine).reviewPlayerMoves(
+            gameId = "player-terminal",
+            initialFen = ChessPosition.START_FEN,
+            moves = moves,
+            rules = RulesContractV1.drawless(),
+            outcome = GameOutcome(Side.BLACK, reason = EndReason.CHECKMATE),
+            playerSide = Side.BLACK,
+            onMoveReviewed = { streamed += it },
+            onProgress = { progress += it },
+            onResult = { completed = it.getOrThrow() },
+        )
+        engine.respond("e7e5")
+        engine.respond("b8c6")
+
+        val finalMove = requireNotNull(completed).moves.last()
+        assertThat(engine.requests.size == 2)
+        assertThat(streamed.map { it.move.ply } == listOf(2, 4))
+        assertThat(finalMove.playedMove == UciMove("d8h4") && finalMove.bestMove == UciMove("d8h4"))
+        assertThat(finalMove.quality == ReviewMoveQuality.BEST && finalMove.expectedPointLoss == 0.0)
+        assertThat(finalMove.evidence?.playedLine?.origin == ReviewLineOrigin.AUTHORITATIVE_TERMINAL)
+        assertThat(progress.map { it.completedWorkUnits to it.completedMoves } == listOf(0 to 0, 1 to 1, 2 to 2))
+        assertThat(progress.all { it.totalWorkUnits == 2 && it.totalMoves == 2 })
+        assertThrows<IllegalArgumentException> {
+            requireNotNull(completed).copy(outcome = GameOutcome(Side.WHITE, reason = EndReason.CHECKMATE))
+        }
+    }
+    suite.test("player review adds one adjacent helper for an external final move") {
+        listOf(EndReason.RESIGNATION, EndReason.TIMEOUT).forEach { reason ->
+            val engine = FakeReviewEngine()
+            val progress = mutableListOf<GameReviewProgress>()
+            val streamed = mutableListOf<GameReviewMoveResult>()
+            var completed: GameReviewResult? = null
+            GameReviewRunner(engine).reviewPlayerMoves(
+                gameId = "player-helper-${reason.name.lowercase()}",
+                initialFen = ChessPosition.START_FEN,
+                moves = listOf(UciMove("e2e4")),
+                rules = RulesContractV1.drawless(),
+                outcome = GameOutcome(Side.BLACK, reason = reason),
+                playerSide = Side.WHITE,
+                onMoveReviewed = { streamed += it },
+                onProgress = { progress += it },
+                onResult = { completed = it.getOrThrow() },
+            )
+            engine.respond("d2d4", centipawns = 200)
+            assertThat(engine.requests.size == 2 && streamed.isEmpty())
+            val helper = engine.requests[1].request
+            assertThat(helper.moves == listOf(UciMove("e2e4")))
+            assertThat(helper.purpose == EnginePurpose.REVIEW && helper.limits.multiPv == GAME_REVIEW_MULTI_PV)
+            engine.respond("e7e5", centipawns = 200)
+
+            val reviewed = requireNotNull(completed).moves.single()
+            assertThat(streamed.map { it.move.ply } == listOf(1))
+            assertThat(reviewed.playedEvaluation == ReviewEvaluation.Centipawns(-200))
+            assertThat(reviewed.quality == ReviewMoveQuality.BLUNDER)
+            assertThat(reviewed.evidence?.usedAdjacentFallback == true)
+            assertThat(reviewed.evidence?.playedLine?.origin == ReviewLineOrigin.ADJACENT_POSITION)
+            assertThat(
+                progress.map {
+                    listOf(it.completedWorkUnits, it.totalWorkUnits, it.completedMoves, it.totalMoves)
+                } == listOf(listOf(0, 1, 0, 1), listOf(1, 2, 0, 1), listOf(2, 2, 1, 1)),
+            )
+        }
+    }
+    suite.test("player review grades a forced move without a helper or exact score") {
+        val engine = FakeReviewEngine()
+        val progress = mutableListOf<GameReviewProgress>()
+        val streamed = mutableListOf<GameReviewMoveResult>()
+        var completed: GameReviewResult? = null
+        GameReviewRunner(engine).reviewPlayerMoves(
+            gameId = "player-forced",
+            initialFen = "r7/7p/8/8/8/2k5/7P/K7 w - - 0 1",
+            moves = listOf(UciMove("a1b1")),
+            rules = RulesContractV1.drawless(),
+            outcome = GameOutcome(Side.BLACK, reason = EndReason.TIMEOUT),
+            playerSide = Side.WHITE,
+            onMoveReviewed = { streamed += it },
+            onProgress = { progress += it },
+            onResult = { completed = it.getOrThrow() },
+        )
+        engine.respond("a1b1", evidenceAvailable = false)
+
+        val reviewed = requireNotNull(completed).moves.single()
+        assertThat(engine.requests.size == 1 && streamed.size == 1)
+        assertThat(reviewed.quality == ReviewMoveQuality.BEST && reviewed.expectedPointLoss == 0.0)
+        assertThat(reviewed.evidence?.forced == true)
+        assertThat(reviewed.evidence?.bestLine?.origin == ReviewLineOrigin.FORCED_LEGAL_MOVE)
+        assertThat(progress.map { it.completedWorkUnits to it.completedMoves } == listOf(0 to 0, 1 to 1))
+    }
+    suite.test("player review streams each move only after all of its dynamic work completes") {
+        val engine = FakeReviewEngine()
+        val moves = listOf("e2e4", "e7e5", "g1f3").map(::UciMove)
+        val streamed = mutableListOf<GameReviewMoveResult>()
+        val progress = mutableListOf<GameReviewProgress>()
+        var completed: GameReviewResult? = null
+        GameReviewRunner(engine).reviewPlayerMoves(
+            gameId = "player-streaming",
+            initialFen = ChessPosition.START_FEN,
+            moves = moves,
+            rules = RulesContractV1.drawless(),
+            outcome = GameOutcome(Side.BLACK, reason = EndReason.RESIGNATION),
+            playerSide = Side.WHITE,
+            onMoveReviewed = { streamed += it },
+            onProgress = { progress += it },
+            onResult = { completed = it.getOrThrow() },
+        )
+        engine.respond("e2e4")
+        assertThat(streamed.map { it.move.ply } == listOf(1))
+        engine.respond("d2d4", centipawns = 200)
+        assertThat(streamed.map { it.move.ply } == listOf(1))
+        engine.respond("b8c6", centipawns = 200)
+
+        assertThat(requireNotNull(completed).moves.map { it.ply } == listOf(1, 3))
+        assertThat(streamed.map { it.move.ply } == listOf(1, 3))
+        assertThat(engine.requests.map { it.request.moves.size } == listOf(0, 2, 3))
+        assertThat(
+            progress.map {
+                listOf(it.completedWorkUnits, it.totalWorkUnits, it.completedMoves, it.totalMoves)
+            } == listOf(
+                listOf(0, 2, 0, 2),
+                listOf(1, 2, 1, 2),
+                listOf(2, 3, 1, 2),
+                listOf(3, 3, 2, 2),
+            ),
+        )
+        assertThat(progress.zipWithNext().all { (before, after) -> before.fraction <= after.fraction })
+    }
+    suite.test("player review cancellation and stale callbacks cannot publish duplicate evidence") {
+        val cancelledEngine = FakeReviewEngine()
+        val cancelledProgress = mutableListOf<GameReviewProgress>()
+        var cancelledStreams = 0
+        var cancelledResult = false
+        val cancellation = GameReviewRunner(cancelledEngine).reviewPlayerMoves(
+            gameId = "player-cancel-helper",
+            initialFen = ChessPosition.START_FEN,
+            moves = listOf(UciMove("e2e4")),
+            rules = RulesContractV1.drawless(),
+            outcome = GameOutcome(Side.BLACK, reason = EndReason.RESIGNATION),
+            playerSide = Side.WHITE,
+            onMoveReviewed = { cancelledStreams++ },
+            onProgress = { cancelledProgress += it },
+            onResult = { cancelledResult = true },
+        )
+        cancelledEngine.respond("d2d4")
+        val cancelledHelper = cancelledEngine.requests[1]
+        cancellation.cancel()
+        assertThat(cancelledHelper.cancelled)
+        cancelledHelper.callback(Result.success(reviewResponseFor(cancelledHelper.request, "e7e5")))
+        assertThat(cancelledStreams == 0 && !cancelledResult)
+        assertThat(cancelledProgress.size == 2)
+
+        val staleEngine = FakeReviewEngine()
+        val staleProgress = mutableListOf<GameReviewProgress>()
+        var staleStreams = 0
+        var staleResult = false
+        GameReviewRunner(staleEngine).reviewPlayerMoves(
+            gameId = "player-stale-root",
+            initialFen = ChessPosition.START_FEN,
+            moves = listOf(UciMove("e2e4")),
+            rules = RulesContractV1.drawless(),
+            outcome = GameOutcome(Side.BLACK, reason = EndReason.TIMEOUT),
+            playerSide = Side.WHITE,
+            onMoveReviewed = { staleStreams++ },
+            onProgress = { staleProgress += it },
+            onResult = { staleResult = it.isSuccess },
+        )
+        staleEngine.respond("d2d4")
+        val staleRoot = staleEngine.requests[0]
+        val progressBeforeStale = staleProgress.toList()
+        staleRoot.callback(Result.success(reviewResponseFor(staleRoot.request, "d2d4")))
+        assertThat(staleEngine.requests.size == 2 && staleProgress == progressBeforeStale)
+        staleEngine.respond("e7e5")
+        assertThat(staleStreams == 1 && staleResult)
+    }
+    suite.test("player review consumes only exact typed seeded roots") {
+        val moves = listOf("e2e4", "e7e5", "g1f3").map(::UciMove)
+        val rules = RulesContractV1.drawless()
+        val seededRoot = GameReviewPlanner.playerRoot(
+            requestId = "foreground-player-root",
+            gameId = "player-seeded",
+            initialFen = ChessPosition.START_FEN,
+            moves = emptyList(),
+            rules = rules,
+        )
+        val sameRootWithFreshRequestId = GameReviewPlanner.playerRoot(
+            requestId = "foreground-player-root-retry",
+            gameId = "player-seeded",
+            initialFen = ChessPosition.START_FEN,
+            moves = emptyList(),
+            rules = rules,
+        )
+        assertThat(seededRoot.key == sameRootWithFreshRequestId.key)
+        assertThrows<IllegalArgumentException> {
+            seededRoot.seed(
+                reviewResponseFor(seededRoot.request, "e2e4").copy(requestId = "wrong-seed-request"),
+            )
+        }
+        val seed = seededRoot.seed(reviewResponseFor(seededRoot.request, "e2e4"))
+        val engine = FakeReviewEngine()
+        val streamed = mutableListOf<GameReviewMoveResult>()
+        val progress = mutableListOf<GameReviewProgress>()
+        var completed: GameReviewResult? = null
+        GameReviewRunner(engine).reviewPlayerMoves(
+            gameId = "player-seeded",
+            initialFen = ChessPosition.START_FEN,
+            moves = moves,
+            rules = rules,
+            outcome = GameOutcome(Side.BLACK, reason = EndReason.RESIGNATION),
+            playerSide = Side.WHITE,
+            seededRoots = listOf(seed),
+            onMoveReviewed = { streamed += it },
+            onProgress = { progress += it },
+            onResult = { completed = it.getOrThrow() },
+        )
+        assertThat(streamed.map { it.move.ply } == listOf(1))
+        assertThat(engine.requests.single().request.moves.size == 2)
+        engine.respond("d2d4")
+        engine.respond("b8c6")
+
+        val result = requireNotNull(completed)
+        assertThat(result.moves.map { it.ply } == listOf(1, 3))
+        assertThat(result.engine == seed.response.engine)
+        assertThat(engine.requests.map { it.request.moves.size } == listOf(2, 3))
+        assertThat(streamed.first().rootKey == seededRoot.key)
+        val differentPositionRoot = GameReviewPlanner.playerRoot(
+            requestId = "different-position",
+            gameId = "player-seeded",
+            initialFen = ChessPosition.START_FEN.replace(" 0 1", " 5 3"),
+            moves = emptyList(),
+            rules = rules,
+        )
+        assertThrows<IllegalArgumentException> {
+            streamed.first().copy(rootKey = differentPositionRoot.key)
+        }
+        assertThat(
+            progress.map {
+                listOf(it.completedWorkUnits, it.totalWorkUnits, it.completedMoves, it.totalMoves)
+            } == listOf(
+                listOf(0, 2, 0, 2),
+                listOf(1, 2, 1, 2),
+                listOf(2, 3, 1, 2),
+                listOf(3, 3, 2, 2),
+            ),
+        )
+
+        val incompatibleRoot = GameReviewPlanner.playerRoot(
+            requestId = "wrong-profile",
+            gameId = "player-seeded",
+            initialFen = ChessPosition.START_FEN,
+            moves = emptyList(),
+            rules = rules,
+            moveTimeMillis = DEFAULT_GAME_REVIEW_MOVE_TIME_MILLIS + 1,
+        )
+        val incompatibleSeed = incompatibleRoot.seed(reviewResponseFor(incompatibleRoot.request, "e2e4"))
+        assertThrows<IllegalArgumentException> {
+            GameReviewRunner(FakeReviewEngine()).reviewPlayerMoves(
+                gameId = "player-seeded",
+                initialFen = ChessPosition.START_FEN,
+                moves = moves,
+                rules = rules,
+                outcome = GameOutcome(Side.BLACK, reason = EndReason.RESIGNATION),
+                playerSide = Side.WHITE,
+                seededRoots = listOf(incompatibleSeed),
+                onResult = {},
+            )
+        }
+    }
+    suite.test("player review rejects engine identity drift between seeded and live roots") {
+        val moves = listOf("e2e4", "e7e5", "g1f3").map(::UciMove)
+        val rules = RulesContractV1.drawless()
+        val seededRoot = GameReviewPlanner.playerRoot(
+            requestId = "seeded-engine-root",
+            gameId = "player-engine-drift",
+            initialFen = ChessPosition.START_FEN,
+            moves = emptyList(),
+            rules = rules,
+        )
+        val seededEngine = EngineIdentity("seeded-review-engine", "1", 1)
+        val seed = seededRoot.seed(
+            reviewResponseFor(seededRoot.request, "e2e4", engine = seededEngine),
+        )
+        val engine = FakeReviewEngine()
+        val streamed = mutableListOf<GameReviewMoveResult>()
+        val progress = mutableListOf<GameReviewProgress>()
+        var completion: Result<GameReviewResult>? = null
+
+        GameReviewRunner(engine).reviewPlayerMoves(
+            gameId = "player-engine-drift",
+            initialFen = ChessPosition.START_FEN,
+            moves = moves,
+            rules = rules,
+            outcome = GameOutcome(Side.BLACK, reason = EndReason.RESIGNATION),
+            playerSide = Side.WHITE,
+            seededRoots = listOf(seed),
+            onMoveReviewed = { streamed += it },
+            onProgress = { progress += it },
+            onResult = { completion = it },
+        )
+
+        assertThat(streamed.map { it.move.ply } == listOf(1))
+        val liveRoot = engine.requests.single()
+        liveRoot.responded = true
+        liveRoot.callback(
+            Result.success(
+                reviewResponseFor(
+                    liveRoot.request,
+                    "g1f3",
+                    engine = EngineIdentity("live-review-engine", "2", 1),
+                ),
+            ),
+        )
+
+        val failure = requireNotNull(completion).exceptionOrNull()
+        assertThat(failure is IllegalArgumentException)
+        assertThat(failure?.message?.contains("different engine builds") == true)
+        assertThat(streamed.map { it.move.ply } == listOf(1))
+        assertThat(progress.map { it.completedWorkUnits } == listOf(0, 1))
+    }
+    suite.test("a cancelled player review cannot interfere with a retry") {
+        val engine = FakeReviewEngine()
+        val runner = GameReviewRunner(engine)
+        val rules = RulesContractV1.drawless()
+        val moves = listOf(UciMove("e2e4"))
+        var firstCompleted = false
+        val first = runner.reviewPlayerMoves(
+            gameId = "player-cancel-retry",
+            initialFen = ChessPosition.START_FEN,
+            moves = moves,
+            rules = rules,
+            outcome = GameOutcome(Side.BLACK, reason = EndReason.TIMEOUT),
+            playerSide = Side.WHITE,
+            onResult = { firstCompleted = true },
+        )
+        val staleRoot = engine.requests.single()
+        first.cancel()
+        assertThat(staleRoot.cancelled)
+
+        val retryProgress = mutableListOf<GameReviewProgress>()
+        val retryStreams = mutableListOf<GameReviewMoveResult>()
+        var retryResult: Result<GameReviewResult>? = null
+        runner.reviewPlayerMoves(
+            gameId = "player-cancel-retry",
+            initialFen = ChessPosition.START_FEN,
+            moves = moves,
+            rules = rules,
+            outcome = GameOutcome(Side.BLACK, reason = EndReason.TIMEOUT),
+            playerSide = Side.WHITE,
+            onMoveReviewed = { retryStreams += it },
+            onProgress = { retryProgress += it },
+            onResult = { retryResult = it },
+        )
+        val retryRoot = engine.requests.last()
+        assertThat(staleRoot.request.requestId != retryRoot.request.requestId)
+        val progressBeforeStale = retryProgress.toList()
+
+        staleRoot.responded = true
+        staleRoot.callback(Result.success(reviewResponseFor(staleRoot.request, "e2e4")))
+        assertThat(!firstCompleted && retryResult == null)
+        assertThat(engine.requests.size == 2 && !retryRoot.responded && !retryRoot.cancelled)
+        assertThat(retryStreams.isEmpty() && retryProgress == progressBeforeStale)
+
+        retryRoot.responded = true
+        retryRoot.callback(Result.success(reviewResponseFor(retryRoot.request, "e2e4")))
+        assertThat(requireNotNull(retryResult).isSuccess)
+        assertThat(retryStreams.map { it.move.ply } == listOf(1))
+        assertThat(retryProgress.last() == GameReviewProgress(1, 1, 1, 1))
+    }
+    suite.test("seeded player roots can complete without engine requests or request recursion") {
+        val moves = listOf("e2e4", "e7e5", "g1f3").map(::UciMove)
+        val rules = RulesContractV1.drawless()
+        val plan = GameReviewPlanner.playerPlan(
+            gameId = "player-all-seeded",
+            initialFen = ChessPosition.START_FEN,
+            moves = moves,
+            rules = rules,
+            playerSide = Side.WHITE,
+        )
+        val seeds = plan.roots.map { root ->
+            root.seed(reviewResponseFor(root.request, moves[root.ply - 1].value))
+        }
+        val engine = FakeReviewEngine()
+        val streamed = mutableListOf<GameReviewMoveResult>()
+        var completed: GameReviewResult? = null
+        GameReviewRunner(engine).reviewPlayerMoves(
+            gameId = "player-all-seeded",
+            initialFen = ChessPosition.START_FEN,
+            moves = moves,
+            rules = rules,
+            outcome = GameOutcome(Side.BLACK, reason = EndReason.RESIGNATION),
+            playerSide = Side.WHITE,
+            seededRoots = seeds,
+            onMoveReviewed = { streamed += it },
+            onResult = { completed = it.getOrThrow() },
+        )
+
+        assertThat(engine.requests.isEmpty())
+        assertThat(streamed.map { it.move.ply } == listOf(1, 3))
+        assertThat(requireNotNull(completed).engine == seeds.first().response.engine)
+    }
+    suite.test("a seeded root still schedules its required adjacent helper") {
+        val rules = RulesContractV1.drawless()
+        val root = GameReviewPlanner.playerRoot(
+            requestId = "seed-needs-helper",
+            gameId = "player-seed-helper",
+            initialFen = ChessPosition.START_FEN,
+            moves = emptyList(),
+            rules = rules,
+        )
+        val seed = root.seed(reviewResponseFor(root.request, "d2d4"))
+        val engine = FakeReviewEngine()
+        var streams = 0
+        var completed: GameReviewResult? = null
+        GameReviewRunner(engine).reviewPlayerMoves(
+            gameId = "player-seed-helper",
+            initialFen = ChessPosition.START_FEN,
+            moves = listOf(UciMove("e2e4")),
+            rules = rules,
+            outcome = GameOutcome(Side.BLACK, reason = EndReason.TIMEOUT),
+            playerSide = Side.WHITE,
+            seededRoots = listOf(seed),
+            onMoveReviewed = { streams++ },
+            onResult = { completed = it.getOrThrow() },
+        )
+        assertThat(engine.requests.single().request.moves == listOf(UciMove("e2e4")))
+        assertThat(streams == 0)
+        engine.respond("e7e5")
+        assertThat(streams == 1 && requireNotNull(completed).moves.single().evidence?.usedAdjacentFallback == true)
+    }
+    suite.test("player review safely trampolines a synchronously completing engine") {
+        val requests = mutableListOf<EngineRequest>()
+        val synchronousEngine = object : ChessEngine {
+            override fun analyze(
+                request: EngineRequest,
+                onResult: (Result<EngineResponse>) -> Unit,
+            ): EngineCancellation {
+                requests += request
+                val bestMove = if (request.moves.isEmpty()) "d2d4" else "e7e5"
+                onResult(Result.success(reviewResponseFor(request, bestMove)))
+                return EngineCancellation {}
+            }
+        }
+        val progress = mutableListOf<GameReviewProgress>()
+        var completed: GameReviewResult? = null
+        GameReviewRunner(synchronousEngine).reviewPlayerMoves(
+            gameId = "player-synchronous",
+            initialFen = ChessPosition.START_FEN,
+            moves = listOf(UciMove("e2e4")),
+            rules = RulesContractV1.drawless(),
+            outcome = GameOutcome(Side.BLACK, reason = EndReason.RESIGNATION),
+            playerSide = Side.WHITE,
+            onProgress = { progress += it },
+            onResult = { completed = it.getOrThrow() },
+        )
+
+        assertThat(requests.map { it.moves.size } == listOf(0, 1))
+        assertThat(requireNotNull(completed).moves.single().evidence?.usedAdjacentFallback == true)
+        assertThat(progress.last() == GameReviewProgress(2, 2, 1, 1))
+    }
+    suite.test("player side selection follows a nonstandard FEN side to move") {
+        val engine = FakeReviewEngine()
+        var completed: GameReviewResult? = null
+        GameReviewRunner(engine).reviewPlayerMoves(
+            gameId = "player-black-first",
+            initialFen = "7k/8/8/8/8/8/r6P/1K6 b - - 0 1",
+            moves = listOf(UciMove("a2a8")),
+            rules = RulesContractV1.drawless(),
+            outcome = GameOutcome(Side.WHITE, reason = EndReason.RESIGNATION),
+            playerSide = Side.BLACK,
+            onResult = { completed = it.getOrThrow() },
+        )
+        engine.respond("a2a8")
+
+        assertThat(engine.requests.single().request.moves.isEmpty())
+        assertThat(requireNotNull(completed).moves.single().mover == Side.BLACK)
     }
     suite.test("review runner prefers same-root MultiPV and WDL evidence for the played move") {
         val engine = FakeReviewEngine()

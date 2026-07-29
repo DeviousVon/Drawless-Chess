@@ -145,9 +145,12 @@ process. While a hint runs the board enters `HINT_THINKING`; pause, undo, resign
 or runtime close cancels it, and tagged results are discarded if the position changed.
 Hint failures return to the human turn without poisoning bot UI state. The app presents
 the engine-ranked best move in SAN and, when available, up to two lower-ranked MultiPV
-alternatives. Game review builds one full-strength request for every position in which a
-move was chosen and first validates the complete history. Each review search requests three
-candidate lines and enables UCI WDL output when the engine advertises it. The preliminary
+alternatives. Game review first validates the complete history, then builds full-strength roots
+only for decisions made by the player. Opponent plies remain canonical, selectable board context
+but are not graded or summarized. Each player-root search requests three candidate lines and
+enables UCI WDL output when the engine advertises it. If the played move is outside those three
+lines, the runner dynamically adds one adjacent-position helper rather than analyzing every
+opponent decision. The preliminary
 in-memory evidence schema (schema 1) preserves line rank, score bound, depth, WDL-derived expected
 points, explicit best/played-line origin, separate analysis and grading-policy identities, and
 partial-rule fidelity. It is a foundation for the planned Review Evidence V2 contract, not that
@@ -162,14 +165,18 @@ a continuation beyond an app-authoritative terminal result fails the review inst
 recommendation. Effective best and played lines retain whether they came from root MultiPV,
 adjacent-position normalization, an authoritative terminal fact, or a sole legal move.
 
-The runner submits one 350 ms search at a time, appends a final live-position search for
-resignation or timeout, assigns Best/Good/Inaccuracy/Mistake/Blunder from expected-point loss,
-and supports cancellation, safe retry identities, progress, and a cached completed result.
-Natural terminal moves use the authoritative app outcome instead of attempting to search a
-terminal position. Per-side grade summaries are derived from the completed versioned result;
-the app intentionally does not display an accuracy percentage until a separate formula is
-calibrated and versioned. `GameRuntime` owns active review state, so activity recreation detaches
-and reattaches without cancelling or duplicating the engine work.
+The runner submits one 350 ms search at a time, assigns
+Best/Good/Inaccuracy/Mistake/Blunder from expected-point loss, streams completed player decisions,
+and supports cancellation, safe retry identities, exact seeded-root reuse, progressive results,
+and a cached completed result. Natural terminal moves use the authoritative app outcome instead
+of attempting to search a terminal position. A coordinator-owned prefetch warms the current
+player root while the visible game is idle on the player's turn. Bot moves and hints have strict
+priority; moving, pausing, undoing, resigning, timing out, backgrounding the app, or closing the
+runtime cancels speculative work. Reuse requires the exact game history, rules, engine-analysis
+profile, and position identity. Only the player's grade summary is derived for presentation; the
+app intentionally does not display an accuracy percentage until a separate formula is calibrated
+and versioned. `GameRuntime` owns active and partial review state, so activity recreation detaches
+and reattaches without cancelling or duplicating post-game engine work.
 
 This first review is deliberately labeled Beta. Fairy currently receives the Drawless/Escape
 preset but not every app-side adjudication detail (notably bare-king and configurable
@@ -192,7 +199,7 @@ should calibrate the labels before public release.
 
 ## Verification boundary
 
-At this checkpoint, `npm run test:kotlin` passes 268 JVM/core-and-endpoint tests. Of those,
+At this checkpoint, the Kotlin core harness passes 301 JVM/core-and-endpoint tests. Of those,
 25 native bridge tests cover split UTF-8/CRLF framing, malformed and oversized input, bounded FIFO
 writes, synchronous and asynchronous completions, backpressure, stdout/stderr separation,
 consumer isolation, open/write/close failures, duplicate completion, explicit and

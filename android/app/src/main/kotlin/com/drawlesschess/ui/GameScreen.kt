@@ -128,12 +128,21 @@ internal fun GameRoute(
         mutableStateOf(lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED))
     }
 
-    DisposableEffect(lifecycleOwner) {
+    DisposableEffect(lifecycleOwner, runtime) {
+        fun synchronizeForegroundState() {
+            val started = lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
+            lifecycleStarted = started
+            runtime.setGameForeground(started)
+        }
         val observer = LifecycleEventObserver { _, _ ->
-            lifecycleStarted = lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
+            synchronizeForegroundState()
         }
         lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+        synchronizeForegroundState()
+        onDispose {
+            runtime.setGameForeground(false)
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
     }
     DisposableEffect(soundPlayer) {
         onDispose(soundPlayer::stopAll)

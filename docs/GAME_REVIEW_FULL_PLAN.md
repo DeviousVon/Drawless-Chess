@@ -2,9 +2,10 @@
 
 **Status:** active implementation plan
 
-**Baseline:** the Android beta analyzes a completed live game, grades individual moves, shows a
-short suggested line and per-side grade summary, and keeps one completed result in `GameRuntime`
-memory.
+**Baseline:** the Android beta analyzes only the player's decisions from a completed live game,
+streams finished move grades, shows a short suggested line and better-move arrow, keeps opponent
+moves as neutral board context, and retains one completed result in `GameRuntime` memory. Exact
+player roots completed during safe foreground thinking time are reused after the game.
 
 **Target:** a trustworthy, useful, offline review that survives normal Android lifecycle events,
 can be reopened from game history, and is explicit about the limits of its accuracy score.
@@ -26,8 +27,12 @@ The first preparation slice now supplies:
   post-terminal engine lines;
 - a fix preventing an avoidable terminal loss from being labeled Best solely because the engine
   returned a very negative centipawn score;
-- per-side raw grade summaries and a localized **Review my mistakes** action, without presenting an
+- a player-only raw grade summary, localized **Review my mistakes** action, neutral opponent
+  context, and a translucent orientation-aware better-move arrow, without presenting an
   uncalibrated accuracy percentage;
+- sparse player-only work planning, dynamic adjacent helpers, immutable per-move streaming, exact
+  seeded-root reuse, and coordinator-owned foreground pre-analysis that always yields to bot and
+  hint work;
 - runtime-owned `StateFlow` analysis state, saved board orientation/selected ply, and lifecycle
   coverage so activity recreation does not cancel or restart an active review; and
 - polite TalkBack announcements when move selection changes.
@@ -47,7 +52,7 @@ availability.
 | --- | --- | ---: | --- |
 | 0 | Evidence V2 | 2-4 days | Every graded move has validated, versioned best-move and played-move evidence. |
 | 1 | Full app-rule parity | 5-10 days | Search ranks lines under the exact stored rules contract, not a preset approximation. |
-| 2 | Complete in-session experience | 2-4 days | Summary, per-side statistics, useful navigation, and deterministic explanations work on phone and tablet. |
+| 2 | Complete in-session experience | 2-4 days | Player summary, useful full-game context/navigation, and deterministic explanations work on phone and tablet. |
 | 3 | Rotation-safe ownership | 1-2 days | Rotation does not cancel, duplicate, or restart analysis, and UI position is restored. |
 | 4 | Complete-result persistence and history | 3-6 days | A finished review reopens after a new game or process restart; schema migration preserves existing data. |
 | 5 | Beta exit verification | 2-4 days | Gates 0-4 and the full acceptance matrix pass on the exact candidate. |
@@ -71,9 +76,14 @@ Gate 6 is not required for the initial full release.
   `StateFlow`, so configuration recreation can detach and reattach without restarting analysis.
   It still holds only one in-memory result; Home, Quick Play, Rematch, or process death loses that
   cache.
-- `android/app/src/main/kotlin/com/drawlesschess/ui/GameReviewScreen.kt` now shows per-side grade
-  counts and mistake navigation. It still publishes move evidence only after the complete run and
-  deliberately shows no uncalibrated accuracy value.
+- `android/app/src/main/kotlin/com/drawlesschess/ui/GameReviewScreen.kt` shows player-only grade
+  counts and mistake navigation, keeps opponent moves selectable without exposing their grades or
+  evaluations, merges streamed player results into the full timeline, and draws the suggested
+  move on the board. It deliberately shows no uncalibrated accuracy value.
+- `GameCoordinator` may pre-analyze the current player root only while the game is visible and on
+  the player's turn. Bot/hint work preempts it, every lifecycle/game mutation cancels it, and
+  `GameRuntime` reuses a result only through the exact versioned root key. This is foreground idle
+  work, not WorkManager or unrestricted background execution.
 - Room schema 2 already stores canonical completed-game inputs in `CompletedGameEntity`: initial
   FEN, ordered UCI moves, the exact rules snapshot, outcome, player side, and opponent identity.
   There is no public history/review repository or persisted review row.
@@ -183,15 +193,15 @@ Build derived review models from Evidence V2 in a new
 `android/core/src/main/kotlin/com/drawlesschess/core/engine/GameReviewSummary.kt`:
 
 - `GameReviewSummary` and `SideReviewSummary`;
-- accuracy and Best/Good/Inaccuracy/Mistake/Blunder counts per side;
+- player accuracy and Best/Good/Inaccuracy/Mistake/Blunder counts;
 - issue plies, strongest move, worst move, and scored/unscored counts;
-- a stable White or Player evaluation perspective, never an unexplained alternating sign;
+- a stable Player evaluation perspective, never an unexplained alternating sign;
 - deterministic `ReviewExplanationFacts` for immediate win/loss, mate/check, material change,
   capture, forced/only move, and every Drawless-specific terminal reason.
 
 Update `android/app/src/main/kotlin/com/drawlesschess/ui/GameReviewScreen.kt` to provide:
 
-- a summary showing result, Player and opponent names/sides, both accuracies, and grade counts;
+- a summary showing result, player side, player accuracy, and player grade counts;
 - a clear **Review my mistakes** action that jumps to the first applicable player issue;
 - Summary and Moves destinations, first/last move, adjacent move, previous/next issue, and a
   player-moves filter;
@@ -222,7 +232,7 @@ The app may claim that the score:
 
 - is Drawless Chess's local Game Review accuracy for this game and review version;
 - summarizes expected-point loss under the identified offline engine, rules, and analysis profile;
-- can compare the two sides within the same completed review.
+- is presented only for the player; opponent analysis is not a product output.
 
 The app must not claim that the score:
 

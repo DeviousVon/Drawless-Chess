@@ -10,6 +10,7 @@ import com.drawlesschess.core.EngineResponse
 import com.drawlesschess.core.EngineScoreBound
 import com.drawlesschess.core.EngineStrength
 import com.drawlesschess.core.EngineWdl
+import com.drawlesschess.core.EndReason
 import com.drawlesschess.core.GameOutcome
 import com.drawlesschess.core.GameSession
 import com.drawlesschess.core.RulesContractV1
@@ -24,6 +25,23 @@ import kotlin.math.pow
 
 const val REVIEW_EVIDENCE_SCHEMA_VERSION = 1
 const val REVIEW_ANALYSIS_VERSION = 1
+
+/**
+ * Schema and analysis remain version 1 because player coverage is an explicit aggregate scope;
+ * each retained move still uses the identical root/adjacent evidence contract. Replacing that
+ * contract with constrained-root played searches requires a new analysis version.
+ */
+sealed interface GameReviewScope {
+    fun includes(side: Side): Boolean
+
+    data object AllMoves : GameReviewScope {
+        override fun includes(side: Side): Boolean = true
+    }
+
+    data class PlayerMoves(val side: Side) : GameReviewScope {
+        override fun includes(side: Side): Boolean = this.side == side
+    }
+}
 
 enum class ReviewMoveQuality {
     BEST,
@@ -242,6 +260,9 @@ data class GameReviewResult(
     val outcome: GameOutcome,
     val moves: List<ReviewedMove>,
     val engine: EngineIdentity?,
+    val scope: GameReviewScope = GameReviewScope.AllMoves,
+    /** Canonical game history; [moves] contains only plies selected by [scope]. */
+    val gameMoves: List<UciMove> = moves.map { it.playedMove },
     val evidenceSchemaVersion: Int = REVIEW_EVIDENCE_SCHEMA_VERSION,
     val analysisVersion: Int = REVIEW_ANALYSIS_VERSION,
     val gradingPolicyVersion: Int = ReviewGradingPolicy.CURRENT.version,
@@ -252,7 +273,37 @@ data class GameReviewResult(
     init {
         require(gameId.isNotBlank() && initialFen.isNotBlank())
         require(evidenceSchemaVersion > 0 && analysisVersion > 0 && gradingPolicyVersion > 0)
-        require(moves.map { it.ply } == (1..moves.size).toList())
+        require(moves.map { it.ply } == moves.map { it.ply }.sorted())
+        require(moves.map { it.ply }.distinct().size == moves.size)
+        var position = ChessPosition.fromFen(initialFen)
+        var session = GameSession.newGame(gameId, rules, RepetitionKey.of(position), position.sideToMove)
+        val expectedPlies = mutableListOf<Int>()
+        gameMoves.forEachIndexed { index, playedMove ->
+            val ply = index + 1
+            require(session.outcome == null) { "Canonical review history continues after ply ${ply - 1}" }
+            val mover = position.sideToMove
+            val beforeFen = position.fen()
+            val reviewed = moves.firstOrNull { it.ply == ply }
+            if (scope.includes(mover)) expectedPlies += ply
+            reviewed?.let {
+                require(it.mover == mover && it.playedMove == playedMove)
+                require(it.fenBefore == beforeFen)
+            }
+            val transition = ChessAdapter.transition(position, playedMove)
+            position = ChessRules.apply(position, playedMove)
+            session = session.apply(transition)
+            reviewed?.let { require(it.fenAfter == position.fen()) }
+        }
+        if (session.outcome != null) {
+            require(session.outcome == outcome) { "Review outcome does not match canonical app replay" }
+        } else {
+            require(outcome.reason in setOf(EndReason.RESIGNATION, EndReason.TIMEOUT)) {
+                "Nonterminal canonical review history requires an external outcome"
+            }
+        }
+        require(moves.map { it.ply } == expectedPlies) {
+            "Review evidence coverage does not match its declared scope"
+        }
         require(moves.all { it.evidence != null })
         require(moves.all { move ->
             move.evidence?.let {
@@ -267,17 +318,45 @@ data class GameReviewResult(
     }
 }
 
-data class GameReviewProgress(
-    val completedPositions: Int,
-    val totalPositions: Int,
+/** One complete, immutable player-ply result suitable for incremental presentation or caching. */
+data class GameReviewMoveResult(
+    val gameId: String,
+    val scope: GameReviewScope.PlayerMoves,
+    val rootKey: GameReviewRootKey,
+    val move: ReviewedMove,
+    val engine: EngineIdentity,
 ) {
     init {
-        require(totalPositions >= 0)
-        require(completedPositions in 0..totalPositions)
+        require(gameId.isNotBlank() && rootKey.gameId == gameId)
+        require(rootKey.ply == move.ply && scope.includes(move.mover))
+        val evidence = requireNotNull(move.evidence)
+        require(evidence.evidenceSchemaVersion == rootKey.evidenceSchemaVersion)
+        require(evidence.analysisVersion == rootKey.analysisVersion)
+        val positionBefore = ChessAdapter.replay(rootKey.normalizedInitialFen, rootKey.movesBefore)
+        require(positionBefore.sideToMove == move.mover)
+        require(positionBefore.fen() == move.fenBefore)
+        require(ChessRules.apply(positionBefore, move.playedMove).fen() == move.fenAfter)
+    }
+}
+
+data class GameReviewProgress(
+    val completedWorkUnits: Int,
+    val totalWorkUnits: Int,
+    val completedMoves: Int = completedWorkUnits,
+    val totalMoves: Int = totalWorkUnits,
+) {
+    init {
+        require(totalWorkUnits >= 0 && totalMoves >= 0)
+        require(completedWorkUnits in 0..totalWorkUnits)
+        require(completedMoves in 0..totalMoves)
     }
 
+    /** Compatibility aliases for the current app route; new integrations should use work units. */
+    val completedPositions: Int get() = completedWorkUnits
+    val totalPositions: Int get() = totalWorkUnits
+
     val fraction: Float
-        get() = if (totalPositions == 0) 1f else completedPositions.toFloat() / totalPositions
+        get() = if (totalWorkUnits == 0) 1f else completedWorkUnits.toFloat() / totalWorkUnits
 }
 
 object GameReviewClassifier {
@@ -346,6 +425,320 @@ class GameReviewRunner(private val engine: ChessEngine) {
             onProgress = onProgress,
             onResult = onResult,
         ).also(Operation::start)
+    }
+
+    /**
+     * Reviews only decisions made by [playerSide]. Opponent plies remain in
+     * [GameReviewResult.gameMoves] as canonical context and are never graded. A dynamic adjacent
+     * helper is submitted only when the played move is absent from the player's root MultiPV.
+     */
+    fun reviewPlayerMoves(
+        gameId: String,
+        initialFen: String,
+        moves: List<UciMove>,
+        rules: RulesContractV1,
+        outcome: GameOutcome,
+        playerSide: Side,
+        seededRoots: Collection<SeededGameReviewRoot> = emptyList(),
+        moveTimeMillis: Long = DEFAULT_GAME_REVIEW_MOVE_TIME_MILLIS,
+        onMoveReviewed: (GameReviewMoveResult) -> Unit = {},
+        onProgress: (GameReviewProgress) -> Unit = {},
+        onResult: (Result<GameReviewResult>) -> Unit,
+    ): EngineCancellation {
+        val decisions = replay(gameId, initialFen, moves, rules, outcome)
+        val plan = GameReviewPlanner.playerPlan(
+            gameId = gameId,
+            initialFen = initialFen,
+            moves = moves,
+            rules = rules,
+            playerSide = playerSide,
+            moveTimeMillis = moveTimeMillis,
+        )
+        require(plan.roots.all { root -> decisions[root.ply - 1].mover == playerSide })
+        val seedsByPly = seededRoots.associateBy { it.key.ply }
+        require(seedsByPly.size == seededRoots.size) { "Player review contains duplicate seeded roots" }
+        val plannedByPly = plan.roots.associateBy { it.ply }
+        seedsByPly.forEach { (ply, seed) ->
+            val planned = requireNotNull(plannedByPly[ply]) {
+                "Seeded review root ply $ply is outside player coverage"
+            }
+            require(seed.key == planned.key) {
+                "Seeded review root ply $ply does not match the exact game, rules, or analysis profile"
+            }
+        }
+        require(seededRoots.map { it.response.engine }.distinct().size <= 1) {
+            "Seeded review roots came from different engine builds"
+        }
+
+        val runId = REVIEW_RUN_SEQUENCE.incrementAndGet()
+        val roots = plan.roots.map { root ->
+            root.copy(request = root.request.copy(requestId = "${root.request.requestId}-run-$runId"))
+        }
+        return PlayerOperation(
+            engine = engine,
+            roots = roots,
+            decisions = decisions,
+            gameMoves = plan.gameMoves,
+            seedsByPly = seedsByPly,
+            gameId = gameId,
+            initialFen = initialFen,
+            rules = rules,
+            outcome = outcome,
+            playerSide = playerSide,
+            onMoveReviewed = onMoveReviewed,
+            onProgress = onProgress,
+            onResult = onResult,
+        ).also(PlayerOperation::start)
+    }
+
+    private class PlayerOperation(
+        private val engine: ChessEngine,
+        private val roots: List<GameReviewRoot>,
+        private val decisions: List<Decision>,
+        private val gameMoves: List<UciMove>,
+        private val seedsByPly: Map<Int, SeededGameReviewRoot>,
+        private val gameId: String,
+        private val initialFen: String,
+        private val rules: RulesContractV1,
+        private val outcome: GameOutcome,
+        private val playerSide: Side,
+        private val onMoveReviewed: (GameReviewMoveResult) -> Unit,
+        private val onProgress: (GameReviewProgress) -> Unit,
+        private val onResult: (Result<GameReviewResult>) -> Unit,
+    ) : EngineCancellation {
+        private enum class WorkKind { ROOT, ADJACENT_HELPER }
+
+        private class Submission(
+            val rootIndex: Int,
+            val kind: WorkKind,
+            val request: EngineRequest,
+        ) {
+            var cancellation: EngineCancellation? = null
+            var completed = false
+        }
+
+        private val lock = Any()
+        private val reviewed = mutableListOf<ReviewedMove>()
+        private val identities = linkedSetOf<EngineIdentity>()
+        private var active: Submission? = null
+        private var queuedSubmission: Submission? = null
+        private var dispatching = false
+        private var cursor = 0
+        private var pendingRootResponse: EngineResponse? = null
+        private var completedWorkUnits = 0
+        private var totalWorkUnits = roots.size
+        private var cancelled = false
+        private var finished = false
+
+        fun start() {
+            runCatching { onProgress(progress()) }
+            if (roots.isEmpty()) {
+                finish(Result.success(buildResult()))
+            } else {
+                queueRoot()
+            }
+        }
+
+        override fun cancel() {
+            val cancellation = synchronized(lock) {
+                if (cancelled || finished) return
+                cancelled = true
+                finished = true
+                active?.cancellation.also { active = null }
+            }
+            cancellation?.cancel()
+        }
+
+        private fun queueRoot() {
+            val index = synchronized(lock) {
+                if (cancelled || finished || active != null || cursor !in roots.indices) return
+                cursor
+            }
+            val root = roots[index]
+            enqueue(Submission(index, WorkKind.ROOT, root.request))
+        }
+
+        private fun queueHelper(rootIndex: Int, request: EngineRequest) {
+            enqueue(Submission(rootIndex, WorkKind.ADJACENT_HELPER, request))
+        }
+
+        private fun enqueue(submission: Submission) {
+            val shouldDrain = synchronized(lock) {
+                if (cancelled || finished || active != null || submission.rootIndex != cursor) return
+                check(queuedSubmission == null) { "Player review attempted to queue concurrent work" }
+                queuedSubmission = submission
+                if (dispatching) false else {
+                    dispatching = true
+                    true
+                }
+            }
+            if (shouldDrain) drainSubmissions()
+        }
+
+        /** Trampolines seeded and synchronously-completing engines without recursive submission. */
+        private fun drainSubmissions() {
+            while (true) {
+                val submission = synchronized(lock) {
+                    if (cancelled || finished) {
+                        queuedSubmission = null
+                        dispatching = false
+                        return
+                    }
+                    queuedSubmission?.also { queuedSubmission = null } ?: run {
+                        dispatching = false
+                        return
+                    }
+                }
+                submitNow(submission)
+            }
+        }
+
+        private fun submitNow(submission: Submission) {
+            synchronized(lock) {
+                if (cancelled || finished || active != null || submission.rootIndex != cursor) return
+                active = submission
+            }
+            if (submission.kind == WorkKind.ROOT) {
+                val seed = seedsByPly[roots[submission.rootIndex].ply]
+                if (seed != null) {
+                    // The exact root key was validated before the attempt started. Only now may
+                    // the old request identity be normalized to this fresh run identity.
+                    complete(
+                        submission,
+                        Result.success(seed.response.copy(requestId = submission.request.requestId)),
+                    )
+                    return
+                }
+            }
+            val cancellation = try {
+                engine.analyze(submission.request) { result -> complete(submission, result) }
+            } catch (error: Throwable) {
+                complete(submission, Result.failure(error))
+                return
+            }
+            var cancelImmediately = false
+            synchronized(lock) {
+                if (active === submission && !submission.completed && !cancelled && !finished) {
+                    submission.cancellation = cancellation
+                } else if (cancelled && !submission.completed) {
+                    cancelImmediately = true
+                }
+            }
+            if (cancelImmediately) cancellation.cancel()
+        }
+
+        private fun complete(submission: Submission, result: Result<EngineResponse>) {
+            var stream: GameReviewMoveResult? = null
+            var progress: GameReviewProgress? = null
+            var completion: Result<GameReviewResult>? = null
+            var helper: Pair<Int, EngineRequest>? = null
+            var submitNextRoot = false
+            synchronized(lock) {
+                if (submission.completed || cancelled || finished || active !== submission) return
+                submission.completed = true
+                active = null
+                val response = result.getOrElse { error ->
+                    finished = true
+                    completion = Result.failure(error)
+                    return@synchronized
+                }
+                if (!response.matches(submission.request)) {
+                    finished = true
+                    completion = Result.failure(
+                        IllegalStateException(
+                            "Player review response identity does not match request ${submission.request.requestId}",
+                        ),
+                    )
+                    return@synchronized
+                }
+                try {
+                    identities += response.engine
+                    require(identities.size <= 1) { "Player review responses came from different engine builds" }
+                    completedWorkUnits++
+                    val root = roots[submission.rootIndex]
+                    val decision = decisions[root.ply - 1]
+                    when (submission.kind) {
+                        WorkKind.ROOT -> {
+                            if (requiresAdjacentEvidence(decision, response)) {
+                                pendingRootResponse = response
+                                totalWorkUnits++
+                                helper = submission.rootIndex to adjacentRequest(root, decision)
+                            } else {
+                                val completedMove = reviewedMove(decision, response, adjacentResponse = null)
+                                reviewed += completedMove
+                                cursor++
+                                stream = streamed(root, completedMove)
+                                submitNextRoot = cursor in roots.indices
+                            }
+                        }
+                        WorkKind.ADJACENT_HELPER -> {
+                            val rootResponse = requireNotNull(pendingRootResponse) {
+                                "Adjacent player evidence has no matching root response"
+                            }
+                            val completedMove = reviewedMove(decision, rootResponse, response)
+                            pendingRootResponse = null
+                            reviewed += completedMove
+                            cursor++
+                            stream = streamed(root, completedMove)
+                            submitNextRoot = cursor in roots.indices
+                        }
+                    }
+                    progress = progress()
+                    if (cursor == roots.size && helper == null) {
+                        finished = true
+                        completion = Result.success(buildResult())
+                        submitNextRoot = false
+                    }
+                } catch (error: Throwable) {
+                    finished = true
+                    completion = Result.failure(error)
+                    helper = null
+                    submitNextRoot = false
+                }
+            }
+            stream?.let { value -> runCatching { onMoveReviewed(value) } }
+            progress?.let { value -> runCatching { onProgress(value) } }
+            completion?.let { value -> runCatching { onResult(value) } }
+            helper?.let { (index, request) -> queueHelper(index, request) }
+            if (submitNextRoot) queueRoot()
+        }
+
+        private fun streamed(root: GameReviewRoot, move: ReviewedMove): GameReviewMoveResult =
+            GameReviewMoveResult(
+                gameId = gameId,
+                scope = GameReviewScope.PlayerMoves(playerSide),
+                rootKey = root.key,
+                move = move,
+                engine = identities.single(),
+            )
+
+        private fun progress(): GameReviewProgress = GameReviewProgress(
+            completedWorkUnits = completedWorkUnits,
+            totalWorkUnits = totalWorkUnits,
+            completedMoves = reviewed.size,
+            totalMoves = roots.size,
+        )
+
+        private fun buildResult(): GameReviewResult = GameReviewResult(
+            gameId = gameId,
+            initialFen = initialFen,
+            rules = rules,
+            outcome = outcome,
+            moves = reviewed.toList(),
+            engine = identities.singleOrNull(),
+            scope = GameReviewScope.PlayerMoves(playerSide),
+            gameMoves = gameMoves,
+        )
+
+        private fun finish(result: Result<GameReviewResult>) {
+            val deliver = synchronized(lock) {
+                if (cancelled || finished) false else {
+                    finished = true
+                    true
+                }
+            }
+            if (deliver) runCatching { onResult(result) }
+        }
     }
 
     private class Operation(
@@ -538,8 +931,17 @@ class GameReviewRunner(private val engine: ChessEngine) {
             index: Int,
             decision: Decision,
             responses: List<EngineResponse>,
+        ): ReviewedMove = reviewedMove(
+            decision = decision,
+            response = responses[index],
+            adjacentResponse = responses.getOrNull(index + 1),
+        )
+
+        fun reviewedMove(
+            decision: Decision,
+            response: EngineResponse,
+            adjacentResponse: EngineResponse?,
         ): ReviewedMove {
-            val response = responses[index]
             val lines = response.reviewLines(
                 position = decision.positionBefore,
                 session = decision.sessionBefore,
@@ -632,7 +1034,7 @@ class GameReviewRunner(private val engine: ChessEngine) {
                 expectedLoss = 0.0
             } else {
                 bestLine = primary
-                playedLine = playedRootLine ?: requireNotNull(responses.getOrNull(index + 1)) {
+                playedLine = playedRootLine ?: requireNotNull(adjacentResponse) {
                     "Review is missing adjacent evidence after ply ${decision.ply}"
                 }.reviewLines(
                     position = decision.positionAfter,
@@ -669,6 +1071,29 @@ class GameReviewRunner(private val engine: ChessEngine) {
                 ),
             )
         }
+
+        fun requiresAdjacentEvidence(decision: Decision, response: EngineResponse): Boolean {
+            if (decision.outcomeAfter != null) return false
+            if (ChessRules.legalUciMoves(decision.positionBefore).size == 1) return false
+            return response.reviewLines(
+                position = decision.positionBefore,
+                session = decision.sessionBefore,
+                firstGamePly = decision.ply,
+            ).none { it.move == decision.playedMove }
+        }
+
+        fun adjacentRequest(root: GameReviewRoot, decision: Decision): EngineRequest = EngineRequest(
+            requestId = "${root.request.requestId}-adjacent-${decision.ply}",
+            gameId = root.request.gameId,
+            positionId =
+                "${root.request.gameId}:review:${decision.ply}:${RepetitionKey.of(decision.positionAfter).value}",
+            initialFen = root.request.initialFen,
+            moves = root.request.moves + decision.playedMove,
+            rules = root.request.rules,
+            strength = root.request.strength,
+            limits = root.request.limits,
+            purpose = EnginePurpose.REVIEW,
+        )
 
         fun EngineResponse.reviewLines(
             position: ChessPosition,

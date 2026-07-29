@@ -1,6 +1,12 @@
 package com.drawlesschess.core
 
 import java.time.Instant
+import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
 import com.drawlesschess.core.chess.ChessAdapter
 import com.drawlesschess.core.chess.ChessPosition
 import com.drawlesschess.core.chess.ChessRules
@@ -721,6 +727,536 @@ fun main() {
                 FakeCoordinatorIds(),
                 initialAssistance = AssistanceCounts(threatIndication = true),
             )
+        }
+    }
+    suite.test("foreground review prefetch warms the exact player root without changing phase") {
+        val fixture = coordinatorFixture()
+        fixture.coordinator.setReviewPrefetchEnabled(true)
+
+        val pending = fixture.engine.requests.single()
+        assertThat(pending.request.purpose == EnginePurpose.REVIEW)
+        assertThat(pending.request.moves.isEmpty())
+        assertThat(pending.request.strength == EngineStrength.SkillLevel(20))
+        assertThat(pending.request.limits == EngineLimits(350, 3))
+        assertThat(fixture.coordinator.snapshot().phase == CoordinatorPhase.HUMAN_TURN)
+        fixture.engine.respond(pending, "e2e4")
+        assertThat(fixture.coordinator.completedReviewPrefetchRoots().single().key.ply == 1)
+        assertThat(fixture.coordinator.snapshot().phase == CoordinatorPhase.HUMAN_TURN)
+        assertThat(fixture.coordinator.snapshot().engineError == null)
+    }
+    suite.test("human move preempts review prefetch and bot then starts the next player root") {
+        val fixture = coordinatorFixture()
+        fixture.coordinator.setReviewPrefetchEnabled(true)
+        val stale = fixture.engine.requests.single()
+
+        fixture.coordinator.playHuman(UciMove("e2e4"))
+
+        assertThat(stale.cancelled)
+        val bot = fixture.engine.requests.last()
+        assertThat(bot.request.purpose == EnginePurpose.BOT_MOVE)
+        stale.callback(Result.success(engineResponse(stale.request, "e2e4")))
+        assertThat(fixture.coordinator.completedReviewPrefetchRoots().isEmpty())
+
+        fixture.engine.respond(bot, "e7e5")
+        val nextRoot = fixture.engine.requests.last()
+        assertThat(nextRoot.request.purpose == EnginePurpose.REVIEW)
+        assertThat(nextRoot.request.moves.map { it.value } == listOf("e2e4", "e7e5"))
+        assertThat(fixture.coordinator.snapshot().phase == CoordinatorPhase.HUMAN_TURN)
+    }
+    suite.test("hint preempts review prefetch and review resumes after the hint") {
+        val fixture = coordinatorFixture()
+        fixture.coordinator.setReviewPrefetchEnabled(true)
+        val prefetch = fixture.engine.requests.single()
+        var hintDelivered = false
+
+        fixture.coordinator.requestHint(fixture.coordinator.snapshot().session.positionId) {
+            hintDelivered = it.isSuccess
+        }
+
+        assertThat(prefetch.cancelled)
+        val hint = fixture.engine.requests.last()
+        assertThat(hint.request.purpose == EnginePurpose.HINT)
+        fixture.engine.respond(hint, "e2e4")
+        assertThat(hintDelivered)
+        assertThat(fixture.engine.requests.last().request.purpose == EnginePurpose.REVIEW)
+        assertThat(fixture.engine.requests.last().request.requestId != prefetch.request.requestId)
+    }
+    suite.test("black player review prefetch waits for the opening bot move") {
+        val fixture = coordinatorFixture(coordinatorConfig(humanSide = Side.BLACK))
+        val openingBot = fixture.engine.requests.single()
+        fixture.coordinator.setReviewPrefetchEnabled(true)
+        assertThat(fixture.engine.requests.size == 1)
+
+        fixture.engine.respond(openingBot, "e2e4")
+
+        val playerRoot = fixture.engine.requests.last()
+        assertThat(playerRoot.request.purpose == EnginePurpose.REVIEW)
+        assertThat(playerRoot.request.moves.map { it.value } == listOf("e2e4"))
+        assertThat(fixture.coordinator.snapshot().phase == CoordinatorPhase.HUMAN_TURN)
+    }
+    suite.test("backgrounding cancels a prefetch and foregrounding retries with a fresh identity") {
+        val fixture = coordinatorFixture()
+        fixture.coordinator.setReviewPrefetchEnabled(true)
+        val first = fixture.engine.requests.single()
+
+        fixture.coordinator.setReviewPrefetchEnabled(false)
+        assertThat(first.cancelled)
+        first.callback(Result.success(engineResponse(first.request, "e2e4")))
+
+        fixture.coordinator.setReviewPrefetchEnabled(true)
+        val retry = fixture.engine.requests.last()
+        assertThat(retry.request.requestId != first.request.requestId)
+        fixture.engine.respond(retry, "e2e4")
+        assertThat(fixture.coordinator.completedReviewPrefetchRoots().size == 1)
+    }
+    suite.test("concurrent disable then enable retries after the in-flight prefetch gate drains") {
+        val firstAnalyzeEntered = CountDownLatch(1)
+        val releaseFirstAnalyze = CountDownLatch(1)
+        val firstCancelled = AtomicBoolean(false)
+        val calls = CopyOnWriteArrayList<EngineRequest>()
+        val failures = CopyOnWriteArrayList<Throwable>()
+        val engine = object : ChessEngine {
+            override fun analyze(
+                request: EngineRequest,
+                onResult: (Result<EngineResponse>) -> Unit,
+            ): EngineCancellation {
+                calls += request
+                if (calls.size == 1) {
+                    firstAnalyzeEntered.countDown()
+                    check(releaseFirstAnalyze.await(5, TimeUnit.SECONDS)) {
+                        "Timed out waiting to release the first toggle prefetch"
+                    }
+                }
+                return EngineCancellation {
+                    if (calls.firstOrNull() == request) firstCancelled.set(true)
+                }
+            }
+        }
+        val coordinator = GameCoordinator.newGame(
+            coordinatorConfig(), engine, FakeCheckpointSink(),
+            FakeCoordinatorTime(), FakeCoordinatorIds(),
+        )
+        coordinator.start()
+        val firstLaunch = Thread {
+            runCatching { coordinator.setReviewPrefetchEnabled(true) }
+                .exceptionOrNull()?.let { failures += it }
+        }.also { it.isDaemon = true }
+        val disable = Thread {
+            runCatching { coordinator.setReviewPrefetchEnabled(false) }
+                .exceptionOrNull()?.let { failures += it }
+        }.also { it.isDaemon = true }
+        firstLaunch.start()
+        try {
+            assertThat(firstAnalyzeEntered.await(5, TimeUnit.SECONDS))
+            disable.start()
+            val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)
+            while (disable.state != Thread.State.WAITING && System.nanoTime() < deadline) {
+                Thread.yield()
+            }
+            assertThat(disable.state == Thread.State.WAITING)
+
+            // The enable sees the final desired state but deliberately drops its speculative
+            // tryLock while disable is queued. Disable's post-drain recheck must restore it.
+            coordinator.setReviewPrefetchEnabled(true)
+            assertThat(calls.size == 1)
+            releaseFirstAnalyze.countDown()
+            firstLaunch.join(5_000)
+            disable.join(5_000)
+
+            assertThat(!firstLaunch.isAlive && !disable.isAlive)
+            failures.firstOrNull()?.let { throw it }
+            assertThat(calls.size == 2)
+            assertThat(calls.all { it.purpose == EnginePurpose.REVIEW })
+            assertThat(calls[0].requestId != calls[1].requestId)
+            assertThat(firstCancelled.get())
+            assertThat(coordinator.snapshot().phase == CoordinatorPhase.HUMAN_TURN)
+        } finally {
+            releaseFirstAnalyze.countDown()
+            if (!firstLaunch.isAlive && !disable.isAlive) coordinator.close()
+        }
+    }
+    suite.test("review prefetch failure stays invisible and can retry") {
+        val fixture = coordinatorFixture()
+        fixture.coordinator.setReviewPrefetchEnabled(true)
+        fixture.engine.fail(message = "speculative failure")
+        assertThat(fixture.coordinator.snapshot().phase == CoordinatorPhase.HUMAN_TURN)
+        assertThat(fixture.coordinator.snapshot().engineError == null)
+
+        fixture.coordinator.setReviewPrefetchEnabled(false)
+        fixture.coordinator.setReviewPrefetchEnabled(true)
+        assertThat(fixture.engine.requests.size == 2)
+    }
+    suite.test("pause cancels review prefetch and resume retries the same root") {
+        val fixture = coordinatorFixture(
+            coordinatorConfig(timeControl = TimeControl.Clock(10_000)),
+        )
+        fixture.coordinator.setReviewPrefetchEnabled(true)
+        val first = fixture.engine.requests.single()
+
+        fixture.coordinator.pause()
+        assertThat(first.cancelled)
+        assertThat(fixture.coordinator.snapshot().phase == CoordinatorPhase.PAUSED)
+        fixture.coordinator.resume()
+
+        assertThat(fixture.engine.requests.size == 2)
+        assertThat(fixture.engine.requests.last().request.purpose == EnginePurpose.REVIEW)
+    }
+    suite.test("timeout cancels review prefetch and rejects its stale result") {
+        val fixture = coordinatorFixture(
+            coordinatorConfig(timeControl = TimeControl.Clock(1_000)),
+        )
+        fixture.coordinator.setReviewPrefetchEnabled(true)
+        val stale = fixture.engine.requests.single()
+        fixture.time.advance(1_000)
+
+        fixture.coordinator.tick()
+        stale.callback(Result.success(engineResponse(stale.request, "e2e4")))
+
+        assertThat(stale.cancelled)
+        assertThat(fixture.coordinator.completedReviewPrefetchRoots().isEmpty())
+        assertThat(fixture.coordinator.snapshot().session.outcome?.reason == EndReason.TIMEOUT)
+        assertThat(fixture.coordinator.snapshot().phase == CoordinatorPhase.COMPLETED)
+    }
+    suite.test("resigning and closing both cancel active review prefetch") {
+        val resigned = coordinatorFixture()
+        resigned.coordinator.setReviewPrefetchEnabled(true)
+        val resignedRequest = resigned.engine.requests.single()
+        resigned.coordinator.resignHuman()
+        assertThat(resignedRequest.cancelled)
+        assertThat(resigned.coordinator.snapshot().phase == CoordinatorPhase.COMPLETED)
+
+        val closed = coordinatorFixture()
+        closed.coordinator.setReviewPrefetchEnabled(true)
+        val closedRequest = closed.engine.requests.single()
+        closed.coordinator.close()
+        assertThat(closedRequest.cancelled)
+    }
+    suite.test("synchronous review prefetch publishes once without leaking engine work") {
+        var cancellationCalled = false
+        val immediate = object : ChessEngine {
+            override fun analyze(
+                request: EngineRequest,
+                onResult: (Result<EngineResponse>) -> Unit,
+            ): EngineCancellation {
+                onResult(Result.success(engineResponse(request, "e2e4")))
+                return EngineCancellation { cancellationCalled = true }
+            }
+        }
+        val coordinator = GameCoordinator.newGame(
+            coordinatorConfig(), immediate, FakeCheckpointSink(),
+            FakeCoordinatorTime(), FakeCoordinatorIds(),
+        )
+        coordinator.start()
+        coordinator.setReviewPrefetchEnabled(true)
+        assertThat(coordinator.completedReviewPrefetchRoots().size == 1)
+        assertThat(cancellationCalled)
+        assertThat(coordinator.snapshot().phase == CoordinatorPhase.HUMAN_TURN)
+    }
+    suite.test("enabling review prefetch before coordinator start launches after start") {
+        val engine = FakeChessEngine()
+        val coordinator = GameCoordinator.newGame(
+            coordinatorConfig(), engine, FakeCheckpointSink(),
+            FakeCoordinatorTime(), FakeCoordinatorIds(),
+        )
+
+        coordinator.setReviewPrefetchEnabled(true)
+        assertThat(engine.requests.isEmpty())
+        coordinator.start()
+
+        assertThat(engine.requests.single().request.purpose == EnginePurpose.REVIEW)
+    }
+    suite.test("an illegal human move leaves the active review prefetch attached") {
+        val fixture = coordinatorFixture()
+        fixture.coordinator.setReviewPrefetchEnabled(true)
+        val prefetch = fixture.engine.requests.single()
+
+        assertThrows<IllegalArgumentException> {
+            fixture.coordinator.playHuman(UciMove("e2e5"))
+        }
+
+        assertThat(!prefetch.cancelled)
+        assertThat(fixture.engine.requests.size == 1)
+        assertThat(fixture.coordinator.snapshot().phase == CoordinatorPhase.HUMAN_TURN)
+        fixture.engine.respond(prefetch, "e2e4")
+        assertThat(fixture.coordinator.completedReviewPrefetchRoots().size == 1)
+    }
+    suite.test("marking hint use replaces review prefetch without accepting its stale result") {
+        val fixture = coordinatorFixture()
+        fixture.coordinator.setReviewPrefetchEnabled(true)
+        val stale = fixture.engine.requests.single()
+
+        fixture.coordinator.markHintUsed()
+
+        val replacement = fixture.engine.requests.last()
+        assertThat(stale.cancelled)
+        assertThat(replacement.request.purpose == EnginePurpose.REVIEW)
+        assertThat(replacement.request.requestId != stale.request.requestId)
+        assertThat(fixture.coordinator.snapshot().assistance.hints == 1)
+        stale.callback(Result.success(engineResponse(stale.request, "e2e4")))
+        assertThat(fixture.coordinator.completedReviewPrefetchRoots().isEmpty())
+        fixture.engine.respond(replacement, "e2e4")
+        assertThat(fixture.coordinator.completedReviewPrefetchRoots().size == 1)
+    }
+    suite.test("a throwing prefetch cancellation cannot strand a bot move or hint") {
+        class ThrowingReviewCancellationEngine : ChessEngine {
+            val purposes = mutableListOf<EnginePurpose>()
+            val cancelAttempts = mutableListOf<EnginePurpose>()
+
+            override fun analyze(
+                request: EngineRequest,
+                onResult: (Result<EngineResponse>) -> Unit,
+            ): EngineCancellation {
+                purposes += request.purpose
+                return EngineCancellation {
+                    cancelAttempts += request.purpose
+                    if (request.purpose == EnginePurpose.REVIEW) {
+                        throw IllegalStateException("speculative cancellation failed")
+                    }
+                }
+            }
+        }
+
+        val moveEngine = ThrowingReviewCancellationEngine()
+        val moveCoordinator = GameCoordinator.newGame(
+            coordinatorConfig(), moveEngine, FakeCheckpointSink(),
+            FakeCoordinatorTime(), FakeCoordinatorIds(),
+        )
+        moveCoordinator.start()
+        moveCoordinator.setReviewPrefetchEnabled(true)
+        moveCoordinator.playHuman(UciMove("e2e4"))
+        assertThat(moveEngine.cancelAttempts == listOf(EnginePurpose.REVIEW))
+        assertThat(moveEngine.purposes == listOf(EnginePurpose.REVIEW, EnginePurpose.BOT_MOVE))
+        assertThat(moveCoordinator.snapshot().phase == CoordinatorPhase.BOT_THINKING)
+        moveCoordinator.close()
+
+        val hintEngine = ThrowingReviewCancellationEngine()
+        val hintCoordinator = GameCoordinator.newGame(
+            coordinatorConfig(), hintEngine, FakeCheckpointSink(),
+            FakeCoordinatorTime(), FakeCoordinatorIds(),
+        )
+        hintCoordinator.start()
+        hintCoordinator.setReviewPrefetchEnabled(true)
+        hintCoordinator.requestHint(hintCoordinator.snapshot().session.positionId) {}
+        assertThat(hintEngine.cancelAttempts == listOf(EnginePurpose.REVIEW))
+        assertThat(hintEngine.purposes == listOf(EnginePurpose.REVIEW, EnginePurpose.HINT))
+        assertThat(hintCoordinator.snapshot().phase == CoordinatorPhase.HINT_THINKING)
+        hintCoordinator.close()
+    }
+    suite.test("bot launch waits for a preempted review analyze call to publish cancellation") {
+        data class Call(
+            val request: EngineRequest,
+            val cancelled: AtomicBoolean = AtomicBoolean(false),
+        )
+
+        val firstAnalyzeEntered = CountDownLatch(1)
+        val releaseFirstAnalyze = CountDownLatch(1)
+        val movePersisted = CountDownLatch(1)
+        val analyzeCount = AtomicInteger(0)
+        val calls = CopyOnWriteArrayList<Call>()
+        val failure = AtomicReference<Throwable?>(null)
+        val engine = object : ChessEngine {
+            override fun analyze(
+                request: EngineRequest,
+                onResult: (Result<EngineResponse>) -> Unit,
+            ): EngineCancellation {
+                val call = Call(request)
+                calls += call
+                if (analyzeCount.incrementAndGet() == 1) {
+                    firstAnalyzeEntered.countDown()
+                    check(releaseFirstAnalyze.await(5, TimeUnit.SECONDS)) {
+                        "Timed out waiting to release the first analyze call"
+                    }
+                }
+                return EngineCancellation { call.cancelled.set(true) }
+            }
+        }
+        val sink = CheckpointSink { checkpoint ->
+            if (checkpoint.moves.size == 1) movePersisted.countDown()
+        }
+        val coordinator = GameCoordinator.newGame(
+            coordinatorConfig(), engine, sink, FakeCoordinatorTime(), FakeCoordinatorIds(),
+        )
+        coordinator.start()
+        val prefetchThread = Thread {
+            runCatching { coordinator.setReviewPrefetchEnabled(true) }
+                .exceptionOrNull()?.let(failure::set)
+        }
+        prefetchThread.start()
+        try {
+            assertThat(firstAnalyzeEntered.await(5, TimeUnit.SECONDS))
+            val moveThread = Thread {
+                runCatching { coordinator.playHuman(UciMove("e2e4")) }
+                    .exceptionOrNull()?.let(failure::set)
+            }
+            moveThread.start()
+            assertThat(movePersisted.await(5, TimeUnit.SECONDS))
+
+            assertThat(analyzeCount.get() == 1, "Bot analysis overlapped review startup")
+            releaseFirstAnalyze.countDown()
+            prefetchThread.join(5_000)
+            moveThread.join(5_000)
+            assertThat(!prefetchThread.isAlive && !moveThread.isAlive)
+            failure.get()?.let { throw it }
+            assertThat(analyzeCount.get() == 2)
+            assertThat(calls.map { it.request.purpose } == listOf(EnginePurpose.REVIEW, EnginePurpose.BOT_MOVE))
+            assertThat(calls.first().cancelled.get())
+        } finally {
+            releaseFirstAnalyze.countDown()
+            coordinator.close()
+        }
+    }
+    suite.test("terminal human move drains an unpublished prefetch before postgame handoff") {
+        val firstAnalyzeEntered = CountDownLatch(1)
+        val releaseFirstAnalyze = CountDownLatch(1)
+        val outcomePersisted = CountDownLatch(1)
+        val firstCancelled = AtomicBoolean(false)
+        val failure = AtomicReference<Throwable?>(null)
+        val engine = object : ChessEngine {
+            override fun analyze(
+                request: EngineRequest,
+                onResult: (Result<EngineResponse>) -> Unit,
+            ): EngineCancellation {
+                firstAnalyzeEntered.countDown()
+                check(releaseFirstAnalyze.await(5, TimeUnit.SECONDS)) {
+                    "Timed out waiting to release terminal-position prefetch"
+                }
+                return EngineCancellation { firstCancelled.set(true) }
+            }
+        }
+        val sink = CheckpointSink { checkpoint ->
+            if (checkpoint.outcome != null) outcomePersisted.countDown()
+        }
+        val coordinator = GameCoordinator.newGame(
+            coordinatorConfig(
+                initialFen = "7k/p4Q2/6K1/8/8/8/8/8 w - - 0 1",
+            ),
+            engine,
+            sink,
+            FakeCoordinatorTime(),
+            FakeCoordinatorIds(),
+        )
+        coordinator.start()
+        val prefetchThread = Thread {
+            runCatching { coordinator.setReviewPrefetchEnabled(true) }
+                .exceptionOrNull()?.let(failure::set)
+        }
+        prefetchThread.start()
+        try {
+            assertThat(firstAnalyzeEntered.await(5, TimeUnit.SECONDS))
+            val moveThread = Thread {
+                runCatching { coordinator.playHuman(UciMove("f7f8")) }
+                    .exceptionOrNull()?.let(failure::set)
+            }
+            moveThread.start()
+            assertThat(outcomePersisted.await(5, TimeUnit.SECONDS))
+            assertThat(moveThread.isAlive, "Terminal move returned before prefetch launch drained")
+
+            releaseFirstAnalyze.countDown()
+            prefetchThread.join(5_000)
+            moveThread.join(5_000)
+            assertThat(!prefetchThread.isAlive && !moveThread.isAlive)
+            failure.get()?.let { throw it }
+            assertThat(firstCancelled.get())
+            assertThat(coordinator.snapshot().phase == CoordinatorPhase.COMPLETED)
+            assertThat(coordinator.snapshot().session.outcome?.winner == Side.WHITE)
+        } finally {
+            releaseFirstAnalyze.countDown()
+            coordinator.close()
+        }
+    }
+    suite.test("callback prefetch never deadlocks with a concurrent foreground hint launch") {
+        data class Pending(
+            val request: EngineRequest,
+            val callback: (Result<EngineResponse>) -> Unit,
+        )
+
+        val engineMonitor = Any()
+        val botPersisted = CountDownLatch(1)
+        val hintThreadStarted = CountDownLatch(1)
+        val hintAnalyzeEntered = CountDownLatch(1)
+        val failures = CopyOnWriteArrayList<Throwable>()
+        val purposes = CopyOnWriteArrayList<EnginePurpose>()
+        val botPending = AtomicReference<Pending?>(null)
+        val expectedPositionId = ChessRules.apply(
+            ChessPosition.starting(),
+            UciMove("e2e4"),
+        ).let { after ->
+            "coordinator-game:1:${RepetitionKey.of(after).value}"
+        }
+        lateinit var hintThread: Thread
+        val engine = object : ChessEngine {
+            override fun analyze(
+                request: EngineRequest,
+                onResult: (Result<EngineResponse>) -> Unit,
+            ): EngineCancellation {
+                if (request.purpose == EnginePurpose.HINT) hintAnalyzeEntered.countDown()
+                synchronized(engineMonitor) {
+                    purposes += request.purpose
+                    if (request.purpose == EnginePurpose.BOT_MOVE) {
+                        botPending.set(Pending(request, onResult))
+                    }
+                }
+                return EngineCancellation {}
+            }
+        }
+        val sink = CheckpointSink { checkpoint ->
+            if (checkpoint.moves.size == 1) {
+                botPersisted.countDown()
+                check(hintThreadStarted.await(5, TimeUnit.SECONDS)) {
+                    "Hint thread did not start during bot completion"
+                }
+                val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)
+                while (hintThread.state != Thread.State.BLOCKED && System.nanoTime() < deadline) {
+                    Thread.yield()
+                }
+                check(hintThread.state == Thread.State.BLOCKED) {
+                    "Hint did not acquire the foreground engine gate before callback prefetch"
+                }
+            }
+        }
+        val coordinator = GameCoordinator.newGame(
+            coordinatorConfig(humanSide = Side.BLACK),
+            engine,
+            sink,
+            FakeCoordinatorTime(),
+            FakeCoordinatorIds(),
+        )
+        coordinator.start()
+        coordinator.setReviewPrefetchEnabled(true)
+        hintThread = Thread {
+            try {
+                check(botPersisted.await(5, TimeUnit.SECONDS))
+                hintThreadStarted.countDown()
+                coordinator.requestHint(expectedPositionId) {}
+            } catch (error: Throwable) {
+                failures += error
+            }
+        }
+        val botThread = Thread {
+            try {
+                val pending = requireNotNull(botPending.get())
+                synchronized(engineMonitor) {
+                    pending.callback(Result.success(engineResponse(pending.request, "e2e4")))
+                }
+            } catch (error: Throwable) {
+                failures += error
+            }
+        }
+        hintThread.isDaemon = true
+        botThread.isDaemon = true
+
+        hintThread.start()
+        botThread.start()
+        botThread.join(5_000)
+        hintThread.join(5_000)
+        try {
+            assertThat(!botThread.isAlive && !hintThread.isAlive, "Foreground/prefetch lock inversion deadlocked")
+            failures.firstOrNull()?.let { throw it }
+            assertThat(hintAnalyzeEntered.count == 0L)
+            assertThat(purposes == listOf(EnginePurpose.BOT_MOVE, EnginePurpose.HINT))
+            assertThat(coordinator.snapshot().phase == CoordinatorPhase.HINT_THINKING)
+        } finally {
+            if (!botThread.isAlive && !hintThread.isAlive) coordinator.close()
         }
     }
     suite.test("human move launches a position-tagged bot request") {
