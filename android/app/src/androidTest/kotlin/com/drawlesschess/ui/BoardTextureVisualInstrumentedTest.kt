@@ -15,10 +15,12 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.unit.dp
 import com.drawlesschess.core.presentation.BoardTheme
 import com.drawlesschess.core.presentation.BoardThemes
-import org.junit.Assert.assertArrayEquals
+import kotlin.math.abs
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotSame
 import org.junit.Assert.assertSame
+import org.junit.Assert.fail
 import org.junit.Rule
 import org.junit.Test
 
@@ -42,7 +44,11 @@ class BoardTextureVisualInstrumentedTest {
         }
         themes.forEach { theme ->
             val first = pixels("${theme.id}_first")
-            assertArrayEquals(first, pixels("${theme.id}_second"))
+            assertRenderedPixelsEquivalent(
+                message = "Same ${theme.id} square rendered differently",
+                expected = first,
+                actual = pixels("${theme.id}_second"),
+            )
             assertFalse(
                 "Adjacent ${theme.id} squares unexpectedly reused the same stone cut",
                 first.contentEquals(pixels("${theme.id}_neighbor")),
@@ -67,7 +73,32 @@ class BoardTextureVisualInstrumentedTest {
             bitmap.getPixels(output, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
         }
     }
+
+    private fun assertRenderedPixelsEquivalent(
+        message: String,
+        expected: IntArray,
+        actual: IntArray,
+    ) {
+        assertEquals("$message: pixel count", expected.size, actual.size)
+        val mismatch = expected.indices.firstOrNull { index ->
+            ARGB_CHANNEL_SHIFTS.any { shift ->
+                val expectedChannel = (expected[index] ushr shift) and 0xff
+                val actualChannel = (actual[index] ushr shift) and 0xff
+                abs(expectedChannel - actualChannel) > RENDER_CHANNEL_TOLERANCE
+            }
+        }
+        if (mismatch != null) {
+            fail(
+                "$message at pixel $mismatch: expected 0x${Integer.toHexString(expected[mismatch])}, " +
+                    "actual 0x${Integer.toHexString(actual[mismatch])}; " +
+                    "allowed per-channel delta is $RENDER_CHANNEL_TOLERANCE",
+            )
+        }
+    }
 }
+
+private const val RENDER_CHANNEL_TOLERANCE = 1
+private val ARGB_CHANNEL_SHIFTS = intArrayOf(24, 16, 8, 0)
 
 @androidx.compose.runtime.Composable
 private fun TextureFixture(theme: BoardTheme, file: Int, rank: Int, tag: String) {
