@@ -52,7 +52,8 @@ data class GameReviewPlan(
  * deliberately excluded: a foreground pre-analysis request receives a different attempt ID when
  * it is consumed later, but every evaluation-affecting input must still match this key exactly.
  */
-data class GameReviewRootKey(
+@ConsistentCopyVisibility
+data class GameReviewRootKey internal constructor(
     val evidenceSchemaVersion: Int,
     val analysisVersion: Int,
     val gameId: String,
@@ -61,6 +62,7 @@ data class GameReviewRootKey(
     val movesBefore: List<UciMove>,
     val rules: RulesContractV1,
     val positionId: String,
+    val positionFen: String,
     val strength: EngineStrength,
     val limits: EngineLimits,
     val purpose: EnginePurpose,
@@ -71,53 +73,50 @@ data class GameReviewRootKey(
         require(purpose == EnginePurpose.REVIEW)
         require(strength == EngineStrength.SkillLevel(20))
         require(limits.multiPv == GAME_REVIEW_MULTI_PV)
-        var position = ChessPosition.fromFen(normalizedInitialFen)
-        require(position.fen() == normalizedInitialFen) { "Review root initial FEN is not canonical" }
-        var session = GameSession.newGame(gameId, rules, RepetitionKey.of(position), position.sideToMove)
-        movesBefore.forEachIndexed { index, move ->
-            require(session.outcome == null) { "Review root history continues after ply $index" }
-            val transition = ChessAdapter.transition(position, move)
-            position = ChessRules.apply(position, move)
-            session = session.apply(transition)
+        require(ChessPosition.fromFen(normalizedInitialFen).fen() == normalizedInitialFen) {
+            "Review root initial FEN is not canonical"
         }
-        require(session.outcome == null) { "A review decision root cannot already be terminal" }
+        val position = ChessPosition.fromFen(positionFen)
+        require(position.fen() == positionFen) { "Review root position FEN is not canonical" }
         require(positionId == "$gameId:review:${ply - 1}:${RepetitionKey.of(position).value}") {
-            "Review root key position identity is not canonical for its history"
+            "Review root key position identity does not match its canonical position"
         }
     }
 }
 
-data class GameReviewRoot(
+/**
+ * A root can be created only by [GameReviewPlanner], which validates its history while advancing
+ * one shared position cursor. Keeping construction structural is important: review startup copies
+ * roots with fresh attempt IDs, and replaying every prefix in each constructor made that path
+ * quadratic before the first engine request could start.
+ */
+@ConsistentCopyVisibility
+data class GameReviewRoot internal constructor(
     val ply: Int,
     val request: EngineRequest,
+    val key: GameReviewRootKey,
 ) {
     init {
         require(ply >= 1 && request.moves.size == ply - 1)
         require(request.purpose == EnginePurpose.REVIEW)
-        val position = ChessAdapter.replay(request.initialFen, request.moves)
         require(
-            request.positionId ==
-                "${request.gameId}:review:${ply - 1}:${RepetitionKey.of(position).value}",
-        ) { "Review root position identity is not canonical for its history" }
+            request.positionId.startsWith("${request.gameId}:review:${ply - 1}:") &&
+                request.positionId.last() != ':',
+        ) { "Review root position identity is malformed" }
+        require(key.gameId == request.gameId && key.ply == ply)
+        require(key.normalizedInitialFen == ChessPosition.fromFen(request.initialFen).fen())
+        require(key.movesBefore == request.moves && key.rules == request.rules)
+        require(key.positionId == request.positionId)
+        require(key.strength == request.strength && key.limits == request.limits)
+        require(key.purpose == request.purpose)
     }
-
-    val key: GameReviewRootKey = GameReviewRootKey(
-        evidenceSchemaVersion = REVIEW_EVIDENCE_SCHEMA_VERSION,
-        analysisVersion = REVIEW_ANALYSIS_VERSION,
-        gameId = request.gameId,
-        ply = ply,
-        normalizedInitialFen = ChessPosition.fromFen(request.initialFen).fen(),
-        movesBefore = request.moves.toList(),
-        rules = request.rules,
-        positionId = request.positionId,
-        strength = request.strength,
-        limits = request.limits,
-        purpose = request.purpose,
-    )
 
     fun seed(response: EngineResponse): SeededGameReviewRoot {
         require(response.matches(request)) {
             "Seeded review response identity does not match its canonical root request"
+        }
+        require(response.engine.drawlessPatch == REVIEW_REQUIRED_DRAWLESS_PATCH_VERSION) {
+            "Seeded Game Review evidence requires Drawless patch $REVIEW_REQUIRED_DRAWLESS_PATCH_VERSION"
         }
         return SeededGameReviewRoot(key, response)
     }
@@ -129,7 +128,65 @@ class SeededGameReviewRoot internal constructor(
     val response: EngineResponse,
 )
 
-data class PlayerGameReviewPlan(
+/**
+ * Stable identity for the fallback search immediately after one played move. The parent root and
+ * played move are both part of the key: an undo can revisit the same root and choose a different
+ * continuation, and evidence for those continuations must never be interchanged.
+ */
+@ConsistentCopyVisibility
+data class GameReviewAdjacentKey internal constructor(
+    val rootKey: GameReviewRootKey,
+    val playedMove: UciMove,
+    val positionId: String,
+    val positionFen: String,
+) {
+    init {
+        val before = ChessPosition.fromFen(rootKey.positionFen)
+        val after = ChessRules.apply(before, playedMove)
+        require(after.fen() == positionFen) { "Adjacent review position FEN is not canonical" }
+        require(
+            positionId ==
+                "${rootKey.gameId}:review:${rootKey.ply}:${RepetitionKey.of(after).value}",
+        ) { "Adjacent review position identity does not match its parent root and played move" }
+    }
+}
+
+/** One exact fallback request which can be completed speculatively during a later player turn. */
+@ConsistentCopyVisibility
+data class GameReviewAdjacentRoot internal constructor(
+    val request: EngineRequest,
+    val key: GameReviewAdjacentKey,
+) {
+    init {
+        val rootKey = key.rootKey
+        require(request.gameId == rootKey.gameId)
+        require(request.initialFen == rootKey.normalizedInitialFen)
+        require(request.moves == rootKey.movesBefore + key.playedMove)
+        require(request.rules == rootKey.rules)
+        require(request.positionId == key.positionId)
+        require(request.strength == rootKey.strength && request.limits == rootKey.limits)
+        require(request.purpose == EnginePurpose.REVIEW)
+    }
+
+    fun seed(response: EngineResponse): SeededGameReviewAdjacentRoot {
+        require(response.matches(request)) {
+            "Seeded adjacent response identity does not match its canonical fallback request"
+        }
+        require(response.engine.drawlessPatch == REVIEW_REQUIRED_DRAWLESS_PATCH_VERSION) {
+            "Seeded Game Review evidence requires Drawless patch $REVIEW_REQUIRED_DRAWLESS_PATCH_VERSION"
+        }
+        return SeededGameReviewAdjacentRoot(key, response)
+    }
+}
+
+/** Constructed only through [GameReviewAdjacentRoot.seed] after exact response validation. */
+class SeededGameReviewAdjacentRoot internal constructor(
+    val key: GameReviewAdjacentKey,
+    val response: EngineResponse,
+)
+
+@ConsistentCopyVisibility
+data class PlayerGameReviewPlan internal constructor(
     val gameId: String,
     val playerSide: Side,
     val gameMoves: List<UciMove>,
@@ -140,10 +197,7 @@ data class PlayerGameReviewPlan(
         require(roots.map { it.ply } == roots.map { it.ply }.sorted())
         require(roots.map { it.ply }.distinct().size == roots.size)
         require(roots.all { it.request.gameId == gameId })
-        require(roots.all { root -> root.request.moves == gameMoves.take(root.ply - 1) })
-        require(roots.all { root ->
-            ChessAdapter.replay(root.request.initialFen, root.request.moves).sideToMove == playerSide
-        })
+        require(roots.all { it.ply <= gameMoves.size })
     }
 }
 
@@ -158,24 +212,22 @@ object GameReviewPlanner {
     ): GameReviewPlan {
         require(gameId.isNotBlank() && initialFen.isNotBlank())
         require(moveTimeMillis > 0)
-        val requests = moves.indices.map { ply ->
-            val prefix = moves.take(ply)
-            val position = ChessAdapter.replay(initialFen, prefix)
-            val positionId = "$gameId:review:$ply:${RepetitionKey.of(position).value}"
-            EngineRequest(
-                requestId = "$gameId-review-$ply",
+        var position = ChessPosition.fromFen(initialFen)
+        val prefix = ArrayList<UciMove>(moves.size)
+        val requests = ArrayList<EngineRequest>(moves.size)
+        moves.forEachIndexed { index, move ->
+            requests += reviewRequest(
+                requestId = "$gameId-review-$index",
                 gameId = gameId,
-                positionId = positionId,
                 initialFen = initialFen,
-                moves = prefix,
+                prefix = prefix,
                 rules = rules,
-                strength = EngineStrength.SkillLevel(20),
-                limits = EngineLimits(moveTimeMillis, GAME_REVIEW_MULTI_PV),
-                purpose = EnginePurpose.REVIEW,
+                moveTimeMillis = moveTimeMillis,
+                position = position,
             )
+            position = applyReviewMove(position, move, index)
+            prefix += move
         }
-        // Replay the complete list as a validation gate, including the final move.
-        ChessAdapter.replay(initialFen, moves)
         return GameReviewPlan(gameId, requests)
     }
 
@@ -191,10 +243,28 @@ object GameReviewPlanner {
         playerSide: Side,
         moveTimeMillis: Long = DEFAULT_GAME_REVIEW_MOVE_TIME_MILLIS,
     ): PlayerGameReviewPlan {
-        val all = plan(gameId, initialFen, moves, rules, moveTimeMillis)
-        val roots = all.requests.mapIndexedNotNull { index, request ->
-            val mover = ChessAdapter.replay(initialFen, moves.take(index)).sideToMove
-            request.takeIf { mover == playerSide }?.let { GameReviewRoot(index + 1, it) }
+        require(gameId.isNotBlank() && initialFen.isNotBlank())
+        require(moveTimeMillis > 0)
+        var position = ChessPosition.fromFen(initialFen)
+        val normalizedInitialFen = position.fen()
+        val prefix = ArrayList<UciMove>(moves.size)
+        val roots = ArrayList<GameReviewRoot>((moves.size + 1) / 2)
+        moves.forEachIndexed { index, move ->
+            if (position.sideToMove == playerSide) {
+                roots += reviewRoot(
+                    ply = index + 1,
+                    requestId = "$gameId-review-$index",
+                    gameId = gameId,
+                    initialFen = initialFen,
+                    normalizedInitialFen = normalizedInitialFen,
+                    prefix = prefix,
+                    rules = rules,
+                    moveTimeMillis = moveTimeMillis,
+                    position = position,
+                )
+            }
+            position = applyReviewMove(position, move, index)
+            prefix += move
         }
         return PlayerGameReviewPlan(gameId, playerSide, moves.toList(), roots)
     }
@@ -210,19 +280,120 @@ object GameReviewPlanner {
         require(requestId.isNotBlank() && gameId.isNotBlank() && initialFen.isNotBlank() && moveTimeMillis > 0)
         val position = ChessAdapter.replay(initialFen, moves)
         val ply = moves.size + 1
-        return GameReviewRoot(
+        return reviewRoot(
             ply = ply,
+            requestId = requestId,
+            gameId = gameId,
+            initialFen = initialFen,
+            normalizedInitialFen = ChessPosition.fromFen(initialFen).fen(),
+            prefix = moves,
+            rules = rules,
+            moveTimeMillis = moveTimeMillis,
+            position = position,
+        )
+    }
+
+    fun adjacentRoot(
+        requestId: String,
+        root: GameReviewRoot,
+        playedMove: UciMove,
+    ): GameReviewAdjacentRoot {
+        require(requestId.isNotBlank())
+        val before = ChessPosition.fromFen(root.key.positionFen)
+        val after = ChessRules.apply(before, playedMove)
+        val positionId =
+            "${root.request.gameId}:review:${root.ply}:${RepetitionKey.of(after).value}"
+        return GameReviewAdjacentRoot(
             request = EngineRequest(
                 requestId = requestId,
-                gameId = gameId,
-                positionId = "$gameId:review:${ply - 1}:${RepetitionKey.of(position).value}",
-                initialFen = initialFen,
-                moves = moves.toList(),
-                rules = rules,
-                strength = EngineStrength.SkillLevel(20),
-                limits = EngineLimits(moveTimeMillis, GAME_REVIEW_MULTI_PV),
+                gameId = root.request.gameId,
+                positionId = positionId,
+                initialFen = root.key.normalizedInitialFen,
+                moves = root.request.moves + playedMove,
+                rules = root.request.rules,
+                strength = root.request.strength,
+                limits = root.request.limits,
                 purpose = EnginePurpose.REVIEW,
             ),
+            key = GameReviewAdjacentKey(
+                rootKey = root.key,
+                playedMove = playedMove,
+                positionId = positionId,
+                positionFen = after.fen(),
+            ),
+        )
+    }
+
+    private fun reviewRoot(
+        ply: Int,
+        requestId: String,
+        gameId: String,
+        initialFen: String,
+        normalizedInitialFen: String,
+        prefix: List<UciMove>,
+        rules: RulesContractV1,
+        moveTimeMillis: Long,
+        position: ChessPosition,
+    ): GameReviewRoot {
+        val request = reviewRequest(
+            requestId = requestId,
+            gameId = gameId,
+            initialFen = initialFen,
+            prefix = prefix,
+            rules = rules,
+            moveTimeMillis = moveTimeMillis,
+            position = position,
+        )
+        return GameReviewRoot(
+            ply = ply,
+            request = request,
+            key = GameReviewRootKey(
+                evidenceSchemaVersion = REVIEW_EVIDENCE_SCHEMA_VERSION,
+                analysisVersion = REVIEW_ANALYSIS_VERSION,
+                gameId = gameId,
+                ply = ply,
+                normalizedInitialFen = normalizedInitialFen,
+                movesBefore = request.moves,
+                rules = rules,
+                positionId = request.positionId,
+                positionFen = position.fen(),
+                strength = request.strength,
+                limits = request.limits,
+                purpose = request.purpose,
+            ),
+        )
+    }
+
+    private fun reviewRequest(
+        requestId: String,
+        gameId: String,
+        initialFen: String,
+        prefix: List<UciMove>,
+        rules: RulesContractV1,
+        moveTimeMillis: Long,
+        position: ChessPosition,
+    ) = EngineRequest(
+        requestId = requestId,
+        gameId = gameId,
+        positionId = "$gameId:review:${prefix.size}:${RepetitionKey.of(position).value}",
+        initialFen = initialFen,
+        moves = prefix.toList(),
+        rules = rules,
+        strength = EngineStrength.SkillLevel(20),
+        limits = EngineLimits(moveTimeMillis, GAME_REVIEW_MULTI_PV),
+        purpose = EnginePurpose.REVIEW,
+    )
+
+    private fun applyReviewMove(
+        position: ChessPosition,
+        move: UciMove,
+        zeroBasedPly: Int,
+    ): ChessPosition = try {
+        ChessRules.apply(position, move)
+    } catch (error: IllegalArgumentException) {
+        throw IllegalArgumentException(
+            "Illegal replay move at ply ${zeroBasedPly + 1}: ${move.value}",
+            error,
         )
     }
 }

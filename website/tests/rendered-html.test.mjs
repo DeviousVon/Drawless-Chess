@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFile, stat } from "node:fs/promises";
+import { readFile, readdir, stat } from "node:fs/promises";
 import test from "node:test";
 
 const releaseRoot = new URL("../release/", import.meta.url);
@@ -33,6 +33,9 @@ test("renders the final product story with accurate pre-release claims", async (
 
   assert.match(html, /<html[^>]+lang="en"/i);
   assert.match(html, /Every game has a winner\./);
+  assert.match(html, /Drawless-tuned Fairy-Stockfish engine on your device/i);
+  assert.match(html, /id="review"/i);
+  assert.match(html, /The game ends\. The learning starts\./);
   assert.match(html, /Familiar chess\. Decisive endings\./);
   assert.match(html, /Bare king loses/);
   assert.match(html, /After 50 moves without a pawn move or capture, material points decide the winner\./);
@@ -49,6 +52,34 @@ test("renders the final product story with accurate pre-release claims", async (
   assert.match(html, /No internet permission/);
   assert.doesNotMatch(html, /Download now|Get it on Google Play|Available now/i);
   assert.doesNotMatch(html, /Codex is working|starter loading skeleton/i);
+});
+
+test("explains the rules-aware, private Game Review beta without overclaiming", async () => {
+  const html = await releaseFile("index.html");
+  const openSource = await releaseFile("open-source/index.html");
+
+  for (const claim of [
+    "Game Review Beta",
+    "Drawless-tuned Fairy-Stockfish",
+    "Grades focused on your choices",
+    "Best",
+    "Good",
+    "Inaccuracy",
+    "Mistake",
+    "Blunder",
+    "Better moves, with context",
+    "Replay the turning points",
+    "exact rules you played",
+    "there is no game upload or cloud analysis",
+    "Reviews are not saved as a review history",
+    "Game Review remains in beta",
+  ]) {
+    assert.match(html, new RegExp(claim, "i"));
+  }
+
+  assert.match(html, /href="\/#review"[^>]*>Game review/i);
+  assert.match(openSource, /modified Fairy-Stockfish engine, derived from Stockfish/i);
+  assert.doesNotMatch(html, /accuracy (?:score|percentage)|reviews? every move/i);
 });
 
 test("publishes the temporary closed-beta access flow in the right order", async () => {
@@ -101,7 +132,7 @@ test("gives the proof and privacy selling points a stronger visual hierarchy", a
     "Checkmate still wins",
     "Five board themes",
     "Eight opponents",
-    "Games save locally",
+    "On-device Game Review",
     "Private by design",
     "No account",
     "No ads",
@@ -155,6 +186,7 @@ test("ships accessible metadata and no browser-side runtime", async () => {
 
   assert.match(pages[0], /property="og:image"[^>]+content="https:\/\/drawlesschess\.com\/og\.png"/i);
   assert.match(pages[0], /name="twitter:card"[^>]+content="summary_large_image"/i);
+  assert.match(pages[0], /name="twitter:description"[^>]+content="[^"]*Game Review Beta[^"]*"/i);
   assert.match(pages[0], /rel="manifest"[^>]+href="\/site\.webmanifest"/i);
 });
 
@@ -203,8 +235,40 @@ test("keeps pricing and release claims out until launch", async () => {
   assert.doesNotMatch(sourcePage, /free and open-source/i);
   assert.match(sourcePage, /public Android release is still in preparation/i);
   assert.match(privacyPage, /Android’s system backup may include/i);
+  assert.match(privacyPage, /Updated:<\/strong> July 30, 2026/i);
   for (const page of [homePage, privacyPage, supportPage]) {
     assert.match(page, /support@drawlesschess\.com/);
     assert.doesNotMatch(page, /realitymaster@protonmail\.ch/);
+  }
+});
+
+test("does not publish local paths, development hosts, or common secret material", async () => {
+  const pages = await Promise.all([
+    releaseFile("index.html"),
+    releaseFile("privacy/index.html"),
+    releaseFile("support/index.html"),
+    releaseFile("open-source/index.html"),
+    releaseFile("404.html"),
+  ]);
+  const assetNames = await readdir(new URL("assets/", releaseRoot));
+  const stylesheets = await Promise.all(
+    assetNames
+      .filter((name) => name.endsWith(".css"))
+      .map((name) => releaseFile(`assets/${name}`)),
+  );
+  assert.ok(stylesheets.length > 0, "published stylesheet exists");
+  const publishedText = [...pages, ...stylesheets].join("\n");
+
+  for (const forbidden of [
+    /[A-Z]:\\(?:Users|src|tmp)\\/i,
+    /\/(?:Users|home)\/[^/<\s]+/i,
+    /https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?/i,
+    /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/i,
+    /\bAIza[0-9A-Za-z_-]{30,}\b/,
+    /\bgh[opsu]_[0-9A-Za-z]{30,}\b/,
+    /\bsk-[0-9A-Za-z_-]{24,}\b/,
+    /\b(?:storePassword|keyPassword|client_secret)\s*[=:]/i,
+  ]) {
+    assert.doesNotMatch(publishedText, forbidden);
   }
 });

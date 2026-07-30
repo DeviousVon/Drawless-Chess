@@ -41,6 +41,21 @@ previews heard during product review; exact CDN hashes, source metadata, and ori
 identities are pinned in `audio_manifest.json`. Runtime assets isolate natural onsets/tails and
 never substitute household snaps, corks, cans, or camera sounds.
 
+## CC0 en-passant and checkmate recordings
+
+The dedicated en-passant and checkmate cues use two original lossless WAV recordings by
+discofield:
+
+- **“Brick crash”**: <https://freesound.org/people/discofield/sounds/711656/>
+- **“Stone crash”**: <https://freesound.org/people/discofield/sounds/711657/>
+
+Both Freesound pages designate the recordings CC0. The repository retains the exact original
+44.1 kHz, 16-bit stereo WAVs downloaded by the product owner, rather than lossy web previews.
+Their source-page and original-download URLs, SHA-256 hashes, metadata, and deterministic
+processing recipes are pinned in `audio_manifest.json`. Runtime processing preserves each full
+audible event, removes only trailing silence, and applies short boundary fades plus loudness and
+true-peak mastering.
+
 The complete CC0 1.0 legal text is in `licenses/CC0-1.0.txt`.
 
 ## ion.sound physical recordings
@@ -60,14 +75,15 @@ repeated in root `THIRD_PARTY_NOTICES.md`, which is bundled inside release APKs 
 
 ## Processing and runtime
 
-`scripts/audio/rebuild_lossless_audio.ps1` documents the exact move, stone-crush capture, castling, firework,
-glass, and UI-cue recipes. Runtime variations use trimming, fades, gain staging, restrained
-filtering, micro-offset physical layering, and preserved stereo where the retained source is
+`scripts/audio/rebuild_lossless_audio.ps1` documents the exact move, stone-crush capture,
+en-passant, castling, checkmate, firework, glass, and UI-cue recipes. Runtime variations use
+trimming, fades, gain staging, restrained filtering, micro-offset physical layering, and
+preserved stereo where the retained source is
 stereo. Runtime captures are short cuts of the recorded stone event and contain no normal-move
 contact layer. The sampled pack uses no procedural oscillator/noise renderer or household
 firework substitute.
 
 `GameSoundPlayer` preloads the compact library with Android `SoundPool`, uses deterministic
-physical-model move/capture/check fallbacks until those ordinary samples are ready, expires stale requests,
+physical-model move/capture/check fallbacks until those samples are ready, expires stale requests,
 honors the persisted mute setting, cancels result cues on lifecycle exit, and keeps all three
 glass layers from the same numbered variant.

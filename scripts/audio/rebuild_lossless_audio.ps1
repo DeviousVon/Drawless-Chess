@@ -104,7 +104,10 @@ Get-ChildItem -LiteralPath $sourceRoot -Recurse -File | ForEach-Object {
 
 $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
 $assets = @($manifest.assets)
-if ($assets.Count -ne 101) { throw "Expected 101 manifest assets, found $($assets.Count)" }
+$expectedAssetCount = 103
+if ($assets.Count -ne $expectedAssetCount) {
+    throw "Expected $expectedAssetCount manifest assets, found $($assets.Count)"
+}
 
 $rebuilt = [Collections.Generic.List[object]]::new()
 for ($assetIndex = 0; $assetIndex -lt $assets.Count; $assetIndex += 1) {
@@ -236,6 +239,20 @@ for ($assetIndex = 0; $assetIndex -lt $assets.Count; $assetIndex += 1) {
                 "afade=t=out:st=$(Format-Decimal $fadeStart):d=0.08,$master[out]"
             $processing = 'High-quality 48 kHz stereo Vorbis q8 check cue cut from a genuine CC0 pump-action shotgun cycle recorded losslessly at 24-bit/96 kHz stereo; action only, with no gunshot.'
         }
+        'en_passant' {
+            $master = Get-MasterFilter -IntegratedLoudness -16
+            $filter = '[0:a]atrim=start=0:end=1.52,asetpts=PTS-STARTPTS,aresample=48000,' +
+                'aformat=sample_fmts=fltp:channel_layouts=stereo,highpass=f=40,lowpass=f=19000,' +
+                "afade=t=in:st=0:d=0.003,afade=t=out:st=1.38:d=0.14,$master[out]"
+            $processing = 'High-quality 48 kHz stereo Vorbis q8 en-passant cue preserving the complete audible CC0 brick-crash event while removing its trailing silence; source stereo is retained with restrained filtering, short boundary fades, and loudness/true-peak mastering.'
+        }
+        'checkmate' {
+            $master = Get-MasterFilter -IntegratedLoudness -14
+            $filter = '[0:a]atrim=start=0:end=1.82,asetpts=PTS-STARTPTS,aresample=48000,' +
+                'aformat=sample_fmts=fltp:channel_layouts=stereo,highpass=f=35,lowpass=f=19000,' +
+                "afade=t=in:st=0:d=0.003,afade=t=out:st=1.64:d=0.18,$master[out]"
+            $processing = 'High-quality 48 kHz stereo Vorbis q8 checkmate cue preserving the complete audible CC0 stone-crash event while removing its trailing silence; source stereo and impact tail are retained with restrained filtering, short boundary fades, and loudness/true-peak mastering.'
+        }
         'promotion' {
             $second = [Math]::Min(1, $inputs.Count - 1)
             $third = [Math]::Min(2, $inputs.Count - 1)
@@ -302,8 +319,9 @@ for ($assetIndex = 0; $assetIndex -lt $assets.Count; $assetIndex += 1) {
     })
 }
 
-if ($rebuilt.Count -ne 101 -or (Get-ChildItem -LiteralPath $stagingRoot -Filter '*.ogg' -File).Count -ne 101) {
-    throw 'Stereo Vorbis build did not create exactly 101 OGG resources'
+if ($rebuilt.Count -ne $expectedAssetCount -or
+    (Get-ChildItem -LiteralPath $stagingRoot -Filter '*.ogg' -File).Count -ne $expectedAssetCount) {
+    throw "Stereo Vorbis build did not create exactly $expectedAssetCount OGG resources"
 }
 
 # Generation is complete before the runtime set changes. Exact roots are resolved above and are
@@ -334,4 +352,4 @@ $json = $manifest | ConvertTo-Json -Depth 20
 [IO.File]::WriteAllText($manifestPath, "$json`n", [Text.UTF8Encoding]::new($false))
 Remove-Item -LiteralPath $stagingRoot -Force
 
-Write-Host 'Audio rebuild complete: 101 high-quality stereo 48 kHz Vorbis q8 resources.'
+Write-Host "Audio rebuild complete: $expectedAssetCount high-quality stereo 48 kHz Vorbis q8 resources."

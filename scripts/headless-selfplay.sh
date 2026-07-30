@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 IFS=$'\n\t'
+export LC_ALL=C
 
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)"
 cd -- "$ROOT"
@@ -161,7 +162,7 @@ done
   || die 'runner changed before snapshot creation'
 
 declare -a fixture_keys=() fixture_sources=() fixture_hashes=()
-for key in openingsPath ladderLevelsPath adjacentMatchupsPath; do
+for key in openingsPath ladderLevelsPath adjacentMatchupsPath releasePositionsPath; do
   if value="$(optional_property "$key")"; then
     source_path="$(absolute_path "$value")"
     [[ -f "$source_path" ]] || die "$key is not a file: $source_path"
@@ -253,6 +254,10 @@ awk \
       print "adjacentMatchupsPath=" adjacent
       next
     }
+    /^[[:space:]]*releasePositionsPath[[:space:]]*=/ && release_positions != "" {
+      print "releasePositionsPath=" release_positions
+      next
+    }
     { print }
     END {
       if (engine_count != 1 || variants_count != 1 || output_count != 1) exit 42
@@ -261,6 +266,7 @@ awk \
   openings="${active_fixture_paths[openingsPath]-}" \
   ladder="${active_fixture_paths[ladderLevelsPath]-}" \
   adjacent="${active_fixture_paths[adjacentMatchupsPath]-}" \
+  release_positions="${active_fixture_paths[releasePositionsPath]-}" \
   "$CONFIG" > "$runtime_tmp" \
   || {
     rm -f -- "$runtime_tmp"

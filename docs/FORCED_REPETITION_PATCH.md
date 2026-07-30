@@ -1,7 +1,8 @@
 # Drawless forced-repetition patch v1
 
-Status: implemented and verified in pinned native host builds and packaged Android JNI
-runs on x86-64 and ARM64
+Status: historical interface-v1 design record, implemented and verified in its pinned native host
+and Android builds. Production now uses the superseding patch-v2 series documented in
+`engine/patches/README.md`; identities below intentionally describe the earlier checkpoint.
 
 ## Rule
 
@@ -29,7 +30,7 @@ The reproducible patch set is under `engine/patches/`:
 - Patch commit recorded in the mail-format artifact:
   `b83e5c04029fb1c47ec277da585778c46fd19e51`
 - Intermediate tree after this rule patch: `090d26be47498b99a23fdb1b9ff7587740b95664`
-- Current ordered patch-set tree (including low-Elo rounding correction):
+- Historical interface-v1 ordered patch-set tree (including low-Elo rounding correction):
   `80208e5f35549b88505df983e4bc0f7621083fd4`
 
 `engine/patches/manifest.json` is the machine-readable authority and `series` is the
@@ -123,9 +124,10 @@ the test checks winner polarity rather than merely move legality.
   proves that a forced result does not leak.
 - Exercises `ucinewgame`, UCI `stop`, and a following search to prove request isolation.
 
-The host build uses the upstream Linux x86-64 make target with classical evaluation. The
-separate Android gate now establishes NDK compilation, JNI loading, ABI packaging, and
-forced-search behavior in the app's engine package on an API-36 x86-64 emulator and API-33
-ARM64 tablet. The Android build deliberately uses classical evaluation (`NNUE_EMBEDDING_OFF`),
-so no NNUE asset claim is made. Sustained device performance and low-memory/native-crash
-resilience remain release gates.
+The host build used the upstream Linux x86-64 make target with classical evaluation. The retained
+interface-v1 Android gate established NDK compilation, JNI loading, ABI packaging, and
+forced-search behavior in the app's engine package on an API-36 x86-64 emulator and API-33 ARM64
+tablet. Those runs are not evidence for patch v2 or its
+`0004-preserve-drawless-deeper-search-boundaries.patch`. The Android build used classical
+evaluation (`NNUE_EMBEDDING_OFF`), so no NNUE asset claim is made. Sustained device performance and
+low-memory/native-crash resilience remain release gates.

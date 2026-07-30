@@ -9,7 +9,7 @@ export const metadata: Metadata = {
     template: "%s · Drawless Chess",
   },
   description:
-    "Offline chess with decisive no-draw rules, eight illustrated opponents, and no ads.",
+    "Offline chess with decisive no-draw rules, eight opponents, and Drawless-tuned on-device Game Review Beta.",
   applicationName: "Drawless Chess",
   authors: [{ name: "BB_Games" }],
   creator: "BB_Games",
@@ -19,13 +19,13 @@ export const metadata: Metadata = {
     siteName: "Drawless Chess",
     title: "Drawless Chess — Every game has a winner",
     description:
-      "Offline chess with decisive no-draw rules, eight illustrated opponents, and no ads.",
+      "Offline chess with decisive no-draw rules and Drawless-tuned on-device Game Review Beta.",
     images: [SOCIAL_IMAGE],
   },
   twitter: {
     card: "summary_large_image",
     title: "Drawless Chess — Every game has a winner",
-    description: "Offline chess. Decisive by design.",
+    description: "Offline chess. Decisive by design. Game Review Beta runs on-device.",
     images: ["/og.png"],
   },
 };

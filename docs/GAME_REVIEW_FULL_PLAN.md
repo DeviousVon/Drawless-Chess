@@ -5,7 +5,9 @@
 **Baseline:** the Android beta analyzes only the player's decisions from a completed live game,
 streams finished move grades, shows a short suggested line and better-move arrow, keeps opponent
 moves as neutral board context, and retains one completed result in `GameRuntime` memory. Exact
-player roots completed during safe foreground thinking time are reused after the game.
+player roots and played-position fallbacks completed during safe foreground thinking time are
+reused after the game, and any remainder begins behind the result presentation. Native patch v2
+now receives and searches the exact stored `RulesContractV1` policy surface.
 
 **Target:** a trustworthy, useful, offline review that survives normal Android lifecycle events,
 can be reopened from game history, and is explicit about the limits of its accuracy score.
@@ -19,7 +21,7 @@ stronger claim than the evidence supports.
 The first preparation slice now supplies:
 
 - a preliminary, versioned in-memory evidence schema (schema 1), separate analysis and
-  grading-policy identities, explicit partial-rule fidelity, coherent same-depth MultiPV 3
+  grading-policy identities, explicit full contract-v1 native-rule fidelity, coherent same-depth MultiPV 3
   candidates, optional WDL/depth evidence, same-root played-line grading, and conservative
   handling of missing or bounded scores;
 - explicit effective best/played lines with their evidence origins, full principal-variation
@@ -31,16 +33,21 @@ The first preparation slice now supplies:
   context, and a translucent orientation-aware better-move arrow, without presenting an
   uncalibrated accuracy percentage;
 - sparse player-only work planning, dynamic adjacent helpers, immutable per-move streaming, exact
-  seeded-root reuse, and coordinator-owned foreground pre-analysis that always yields to bot and
-  hint work;
+  seeded root/fallback reuse, coordinator-owned foreground pre-analysis that always yields to bot
+  and hint work, and result-screen finalization before the Review action;
 - runtime-owned `StateFlow` analysis state, saved board orientation/selected ply, and lifecycle
-  coverage so activity recreation does not cancel or restart an active review; and
-- polite TalkBack announcements when move selection changes.
+  coverage so activity recreation does not cancel or restart an active review;
+- polite TalkBack announcements when move selection changes; and
+- a versioned patch-v2 Kotlin/UCI bridge plus native searched-node implementations for every
+  selectable contract-v1 policy, fixed invariant validation, and the documented terminal order.
+  Review analysis version 2 requires the exact native patch-v2 identity and full-rule fidelity on
+  every response and seeded root; identity, build, request, or replay drift fails the review closed.
 
 This is foundation work toward Review Evidence V2, not completion of Gate 0 or permission to
 remove Beta. Constrained-root played evidence, the final fingerprinted and serializable evidence
-contract, exact app-rule search parity, calibrated accuracy, durable storage/history, and the
-remaining acceptance fixtures are still required below.
+contract, calibrated accuracy, durable storage/history, and the remaining acceptance fixtures are
+still required below. Clean native proof now passes; exact designated-device proof will close Gate
+1 only. Gates 0 and 2-5 remain open, so the Game Review UI remains Beta.
 
 ## Delivery order and effort
 
@@ -48,19 +55,20 @@ Estimates are engineering days for one developer starting from the current beta.
 focused automated tests but exclude release-branch stabilization and waiting for physical-device
 availability.
 
-| Gate | Deliverable | Estimate | Hard exit condition |
-| --- | --- | ---: | --- |
+| Gate | Deliverable | Estimate/status | Hard exit condition |
+| --- | --- | --- | --- |
 | 0 | Evidence V2 | 2-4 days | Every graded move has validated, versioned best-move and played-move evidence. |
-| 1 | Full app-rule parity | 5-10 days | Search ranks lines under the exact stored rules contract, not a preset approximation. |
+| 1 | Full app-rule parity | Host verified; device proof active | Search ranks lines under the exact stored rules contract, not a preset approximation. |
 | 2 | Complete in-session experience | 2-4 days | Player summary, useful full-game context/navigation, and deterministic explanations work on phone and tablet. |
 | 3 | Rotation-safe ownership | 1-2 days | Rotation does not cancel, duplicate, or restart analysis, and UI position is restored. |
 | 4 | Complete-result persistence and history | 3-6 days | A finished review reopens after a new game or process restart; schema migration preserves existing data. |
 | 5 | Beta exit verification | 2-4 days | Gates 0-4 and the full acceptance matrix pass on the exact candidate. |
 | 6 | Optional background partial resume | 4-8 days | Interrupted partial work resumes safely without weakening cache or engine-session invariants. |
 
-The first visible polish can be delivered in a few days, but a defensible non-Beta review is
-roughly 15-30 engineering days because native rule parity is a correctness project of its own.
-Gate 6 is not required for the initial full release.
+The native rule-parity implementation removes the largest search-correctness uncertainty from the
+original estimate. A defensible non-Beta review still requires the independent evidence,
+experience, persistence, and final-verification work below. Gate 6 is not required for the
+initial full release.
 
 ## Current constraints
 
@@ -69,9 +77,10 @@ Gate 6 is not required for the initial full release.
   retained line is replayed through the matching `GameSession`. Evidence and grading are
   versioned, but played moves outside MultiPV still need constrained-root evidence and accuracy
   has not been calibrated or versioned.
-- `android/core/src/main/kotlin/com/drawlesschess/core/engine/FairyUciEngine.kt` selects only the
-  Drawless or Escape `UCI_Variant`. The engine does not receive every field in
-  `RulesContractV1`.
+- `android/core/src/main/kotlin/com/drawlesschess/core/engine/FairyUciEngine.kt` requires patch v2,
+  selects the Drawless or Escape preset, and sends dead-position, 50-move, and bare-king values on
+  every request. The v1 contract fixes repetition at three, completing-player loss, the forced
+  exception, and standard 1/3/3/5/9 material values; unsupported invariants fail before search.
 - `android/app/src/main/kotlin/com/drawlesschess/ui/GameRuntime.kt` owns active review state in a
   `StateFlow`, so configuration recreation can detach and reattach without restarting analysis.
   It still holds only one in-memory result; Home, Quick Play, Rematch, or process death loses that
@@ -81,9 +90,12 @@ Gate 6 is not required for the initial full release.
   evaluations, merges streamed player results into the full timeline, and draws the suggested
   move on the board. It deliberately shows no uncalibrated accuracy value.
 - `GameCoordinator` may pre-analyze the current player root only while the game is visible and on
-  the player's turn. Bot/hint work preempts it, every lifecycle/game mutation cancels it, and
-  `GameRuntime` reuses a result only through the exact versioned root key. This is foreground idle
-  work, not WorkManager or unrestricted background execution.
+  the player's turn. After that root completes, remaining idle time may warm exact adjacent
+  fallback evidence for an earlier off-MultiPV player move. Bot/hint work preempts it, every
+  lifecycle/game mutation cancels it, and `GameRuntime` reuses evidence only through exact
+  versioned root plus played-move/resulting-position keys. Foreground terminal games start any
+  remainder during result presentation. This is foreground work, not WorkManager or unrestricted
+  background execution.
 - Room schema 2 already stores canonical completed-game inputs in `CompletedGameEntity`: initial
   FEN, ordered UCI moves, the exact rules snapshot, outcome, player side, and opponent identity.
   There is no public history/review repository or persisted review row.
@@ -144,25 +156,37 @@ where UCI syntax is involved, `NativeBridgeTests.kt`:
 
 ## Gate 1: full app-rule parity
 
-The Beta label must remain while search can recommend or score a line under rules different from
-the recorded game. Correcting only the final played move after search is insufficient because an
-earlier best line can cross the same boundary.
+**Status:** patch-v2 implementation and clean native verification complete; Gate 1 remains open
+until the exact Android engine candidate passes on the designated Pixel phone and R6 tablet.
+
+The Beta label had to remain while search could recommend or score a line under rules different
+from the recorded game. Patch v2 corrects that inside searched nodes rather than changing only the
+final played move after search.
 
 Search must evaluate the full immutable `RulesContractV1`, including:
 
 - Drawless versus Escape stalemate;
 - third-occurrence loss and its forced-move exception;
 - `bareKing` continue versus loss;
-- both dead-position policies;
+- both dead-position policies, including terminal-mover victory for a quiet bishop/knight
+  underpromotion that creates a known-dead position;
 - every configured 50-move policy, material comparison, last-capturing-side tie break, and
   forced-move exception;
-- custom material values and the documented outcome precedence.
+- fixed contract-v1 material values and the documented outcome precedence.
 
-The preferred implementation is a new, explicitly versioned native Drawless patch/variant
-interface that receives the exact contract and history required by search. An adapter that merely
-rejects a policy-blind PV after the engine ranks it does not pass this gate. If the native route is
-proven infeasible, the alternative search layer must still apply `GameSession` law at every
-relevant search node, not only after the chosen line returns.
+The implemented interface requires native Drawless patch v2, complete move history, the exact
+Drawless/Escape preset, and explicit dead-position, 50-move, and bare-king options. It models the
+known-dead detector, full-legal-set forced exceptions, material and last-capturer tie breakers, and
+the `GameSession` terminal order at searched nodes. The Kotlin bridge rejects a schema or fixed
+invariant the native interface cannot represent; it never falls back to preset-only search.
+
+The ordered `0004-preserve-drawless-deeper-search-boundaries.patch` closes the selective-search
+holes below that interface. It preserves last-piece captures, quiet bishop/knight underpromotion,
+50-move boundary moves, mixed immediate terminal sets, and quiet stalemates beyond the sparse
+material frontier across main-search and quiescence pruning. It also keeps synthetic null moves
+out of Drawless clocks/last-capturer history, keys en-passant only when legally capturable, keeps
+speculative probes node-neutral, suppresses ponder extraction after a terminal child, and keeps
+Syzygy root ranking out of custom variants.
 
 ### Primary implementation files
 
@@ -184,8 +208,12 @@ relevant search node, not only after the chosen line returns.
 - Best and played PVs are replayed through core chess and app adjudication without divergence.
 - Hash/transposition sizes, stopped-search follow-up, and repeated runs do not reuse a score from a
   different history or rules fingerprint.
-- The production ARM64 and x86-64 binaries advertise and enforce the new patch identity, and the
-  exact source/patch verification gate passes.
+- A direct native-state harness proves null-history ownership and legal-only en-passant keys;
+  deeper UCI fixtures cover main/quiescence pruning, mixed terminal intersections, and both-color
+  quiet bishop/knight underpromotion.
+- The clean source/patch verifier passes, both production ABI artifacts advertise the new identity,
+  and the exact candidate is installed, launched, and engine-verified on the designated Pixel
+  phone and R6 tablet.
 
 ## Gate 2: complete in-session experience
 

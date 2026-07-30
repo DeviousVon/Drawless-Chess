@@ -274,6 +274,30 @@ class PostGameFeedbackInstrumentedTest {
         assertTrue(CompletionEffectTimeline.Victory.durationMillis >= 2_000)
         assertTrue(CompletionEffectTimeline.Defeat.durationMillis >= 2_000)
 
+        val checkmateCueStartedAt = 10_000L
+        val firstCompletionCueTarget =
+            checkmateCueStartedAt + CHECKMATE_COMPLETION_FOLLOWUP_MILLIS
+        listOf(CompletionEffectTimeline.Victory, CompletionEffectTimeline.Defeat).forEach { spec ->
+            val overlayDelay = completionOverlayDelayMillis(
+                firstCueNotBeforeUptimeMillis = firstCompletionCueTarget,
+                nowUptimeMillis = checkmateCueStartedAt,
+                spec = spec,
+            )
+            assertEquals(
+                CHECKMATE_COMPLETION_FOLLOWUP_MILLIS,
+                overlayDelay + spec.firstCueOffsetMillis(),
+            )
+            // A final opponent move animation can already have consumed the complete gap.
+            assertEquals(
+                0L,
+                completionOverlayDelayMillis(
+                    firstCueNotBeforeUptimeMillis = firstCompletionCueTarget,
+                    nowUptimeMillis = firstCompletionCueTarget,
+                    spec = spec,
+                ),
+            )
+        }
+
         val victoryCursor = CompletionCueCursor(CompletionEffectTimeline.Victory.cues)
         assertTrue(victoryCursor.advanceTo(0.07f).isEmpty())
         assertEquals(listOf(CompletionEffectCue.FIREWORK_LOW), victoryCursor.advanceTo(0.08f))

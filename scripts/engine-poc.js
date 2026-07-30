@@ -84,7 +84,7 @@ async function main() {
       }
       console.log(`PASSED engine parity fixture: ${fixture.id}`);
     }
-    console.log("SKIPPED forced-repetition fixtures in this unpatched WASM lane (covered by the native patch-v1 verifier)");
+    console.log("SKIPPED forced-repetition fixtures in this unpatched WASM lane (covered by the native patch verifier)");
   } finally {
     e.send("quit");
     e.child.stdin.end();

@@ -4,6 +4,8 @@ package com.drawlesschess.ui
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -30,7 +32,7 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedIconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -42,6 +44,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -63,6 +66,7 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.drawlesschess.R
@@ -88,6 +92,7 @@ import com.drawlesschess.core.presentation.ControlPlacement
 import com.drawlesschess.core.presentation.ResponsiveBoardLayout
 import java.text.NumberFormat
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlin.math.sqrt
@@ -163,6 +168,48 @@ internal data class GameReviewUiModel(
 
     val totalPlayerMoves: Int
         get() = moves.count { it.role == ReviewMoveRole.PLAYER_DECISION }
+}
+
+internal data class ReviewContentLayout(
+    val controlPlacement: ControlPlacement,
+    val boardSizeDp: Int,
+    val outerPaddingDp: Int,
+    val panelWidthDp: Int,
+    val panelGapDp: Int,
+    val panelMoveHistoryHeightDp: Int,
+)
+
+internal fun calculateReviewContentLayout(widthDp: Int, heightDp: Int): ReviewContentLayout {
+    val base = ResponsiveBoardLayout.calculate(widthDp, heightDp)
+    val shortPhoneLandscape =
+        base.controlPlacement == ControlPlacement.BESIDE_BOARD &&
+            widthDp > heightDp &&
+            heightDp < 480
+    if (!shortPhoneLandscape) {
+        return ReviewContentLayout(
+            controlPlacement = base.controlPlacement,
+            boardSizeDp = base.boardSizeDp,
+            outerPaddingDp = base.outerPaddingDp,
+            panelWidthDp = base.panelWidthDp,
+            panelGapDp = base.outerPaddingDp,
+            panelMoveHistoryHeightDp = base.panelMoveHistoryHeightDp,
+        )
+    }
+
+    // Review moves its app-bar actions into the side panel, so the board can use the
+    // full short edge without changing the shared in-game responsive layout.
+    val panelGapDp = 8
+    return ReviewContentLayout(
+        controlPlacement = base.controlPlacement,
+        boardSizeDp = minOf(
+            heightDp,
+            (widthDp - base.panelWidthDp - panelGapDp).coerceAtLeast(1),
+        ),
+        outerPaddingDp = 0,
+        panelWidthDp = base.panelWidthDp,
+        panelGapDp = panelGapDp,
+        panelMoveHistoryHeightDp = base.panelMoveHistoryHeightDp,
+    )
 }
 
 /**
@@ -329,111 +376,184 @@ internal fun GameReviewScreen(
     onRetry: () -> Unit,
     onSelectPly: (Int) -> Unit,
 ) {
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Column {
-                        Text(
-                            stringResource(R.string.review_title),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        Text(
-                            stringResource(R.string.review_beta),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                },
-                navigationIcon = {
-                    TextButton(
-                        onClick = onBack,
-                        modifier = Modifier
-                            .heightIn(min = 48.dp)
-                            .testTag("review_back"),
-                    ) { Text(stringResource(R.string.action_back)) }
-                },
-                actions = {
-                    TextButton(
-                        onClick = onFlip,
-                        modifier = Modifier
-                            .heightIn(min = 48.dp)
-                            .testTag("review_flip"),
-                    ) { Text(stringResource(R.string.game_flip)) }
-                },
-            )
-        },
-    ) { padding ->
-        BoxWithConstraints(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .testTag("game_review"),
-        ) {
-            val layout = ResponsiveBoardLayout.calculate(
-                maxWidth.value.roundToInt().coerceAtLeast(1),
-                maxHeight.value.roundToInt().coerceAtLeast(1),
-            )
-            val largeFont = LocalDensity.current.fontScale >= 1.5f
-            val moveListHeight = if (largeFont) 300.dp else {
-                layout.panelMoveHistoryHeightDp.coerceAtLeast(200).dp
-            }
+    val stackedScrollState = rememberScrollState()
+    val sideScrollState = rememberScrollState()
+    val coroutineScope = rememberCoroutineScope()
 
-            if (layout.controlPlacement == ControlPlacement.BELOW_BOARD) {
-                GameStackedContentContainer(
-                    outerPadding = layout.outerPaddingDp.dp,
-                    modifier = Modifier.fillMaxSize(),
-                ) {
-                    ReviewChessBoard(
-                        model = model.board,
-                        boardSizeDp = layout.boardSizeDp,
-                        showCoordinates = showBoardCoordinates,
-                        arrow = model.selectedMove.reviewArrowOrNull(),
-                    )
-                    ReviewPanel(
-                        model = model,
-                        moveListHeight = moveListHeight,
-                        onCancel = onCancel,
-                        onRetry = onRetry,
-                        onSelectPly = onSelectPly,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .widthIn(max = 720.dp),
-                    )
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val layout = calculateReviewContentLayout(
+            maxWidth.value.roundToInt().coerceAtLeast(1),
+            maxHeight.value.roundToInt().coerceAtLeast(1),
+        )
+        val headerInSidePanel = layout.controlPlacement == ControlPlacement.BESIDE_BOARD
+        val largeFont = LocalDensity.current.fontScale >= 1.5f
+        val moveListHeight = if (largeFont) 300.dp else {
+            layout.panelMoveHistoryHeightDp.coerceAtLeast(200).dp
+        }
+
+        Scaffold(
+            modifier = Modifier.fillMaxSize(),
+            topBar = {
+                if (!headerInSidePanel) {
+                    ReviewTopBar(onBack = onBack, onFlip = onFlip)
                 }
-            } else {
-                Row(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(layout.outerPaddingDp.dp),
-                    horizontalArrangement = Arrangement.spacedBy(
-                        layout.outerPaddingDp.dp,
-                        Alignment.CenterHorizontally,
-                    ),
-                ) {
-                    ReviewChessBoard(
-                        model = model.board,
-                        boardSizeDp = layout.boardSizeDp,
-                        showCoordinates = showBoardCoordinates,
-                        arrow = model.selectedMove.reviewArrowOrNull(),
-                    )
-                    GameSidePanelContainer(
-                        panelWidthDp = layout.panelWidthDp,
-                        modifier = Modifier.fillMaxHeight(),
+            },
+        ) { padding ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .testTag("game_review"),
+            ) {
+                if (layout.controlPlacement == ControlPlacement.BELOW_BOARD) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .testTag("game_stacked_content")
+                            .verticalScroll(stackedScrollState)
+                            .padding(layout.outerPaddingDp.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
+                        ReviewChessBoard(
+                            model = model.board,
+                            boardSizeDp = layout.boardSizeDp,
+                            showCoordinates = showBoardCoordinates,
+                            arrow = model.selectedMove.reviewArrowOrNull(),
+                        )
                         ReviewPanel(
                             model = model,
                             moveListHeight = moveListHeight,
                             onCancel = onCancel,
                             onRetry = onRetry,
                             onSelectPly = onSelectPly,
-                            modifier = Modifier.fillMaxWidth(),
+                            onReviewIssue = { ply ->
+                                onSelectPly(ply)
+                                coroutineScope.launch { stackedScrollState.scrollTo(0) }
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .widthIn(max = 720.dp),
                         )
+                    }
+                } else {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(layout.outerPaddingDp.dp),
+                        horizontalArrangement = Arrangement.spacedBy(
+                            layout.panelGapDp.dp,
+                            Alignment.CenterHorizontally,
+                        ),
+                    ) {
+                        ReviewChessBoard(
+                            model = model.board,
+                            boardSizeDp = layout.boardSizeDp,
+                            showCoordinates = showBoardCoordinates,
+                            arrow = model.selectedMove.reviewArrowOrNull(),
+                        )
+                        Column(
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .width(layout.panelWidthDp.dp)
+                                .testTag("game_side_panel")
+                                .verticalScroll(sideScrollState),
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            ReviewSideHeader(onBack = onBack, onFlip = onFlip)
+                            ReviewPanel(
+                                model = model,
+                                moveListHeight = moveListHeight,
+                                onCancel = onCancel,
+                                onRetry = onRetry,
+                                onSelectPly = onSelectPly,
+                                onReviewIssue = { ply ->
+                                    onSelectPly(ply)
+                                    coroutineScope.launch { sideScrollState.scrollTo(0) }
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
                     }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun ReviewTopBar(
+    onBack: () -> Unit,
+    onFlip: () -> Unit,
+) {
+    TopAppBar(
+        title = { ReviewHeaderTitle() },
+        navigationIcon = {
+            TextButton(
+                onClick = onBack,
+                modifier = Modifier
+                    .heightIn(min = 48.dp)
+                    .testTag("review_back"),
+            ) { Text(stringResource(R.string.action_back)) }
+        },
+        actions = {
+            TextButton(
+                onClick = onFlip,
+                modifier = Modifier
+                    .heightIn(min = 48.dp)
+                    .testTag("review_flip"),
+            ) { Text(stringResource(R.string.game_flip)) }
+        },
+        modifier = Modifier.testTag("review_top_bar"),
+    )
+}
+
+@Composable
+private fun ReviewSideHeader(
+    onBack: () -> Unit,
+    onFlip: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("review_side_header"),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            TextButton(
+                onClick = onBack,
+                modifier = Modifier
+                    .heightIn(min = 48.dp)
+                    .testTag("review_back"),
+            ) { Text(stringResource(R.string.action_back)) }
+            Spacer(Modifier.weight(1f))
+            TextButton(
+                onClick = onFlip,
+                modifier = Modifier
+                    .heightIn(min = 48.dp)
+                    .testTag("review_flip"),
+            ) { Text(stringResource(R.string.game_flip)) }
+        }
+        ReviewHeaderTitle(Modifier.padding(horizontal = 8.dp))
+    }
+}
+
+@Composable
+private fun ReviewHeaderTitle(modifier: Modifier = Modifier) {
+    Column(modifier) {
+        Text(
+            stringResource(R.string.review_title),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Text(
+            stringResource(R.string.review_beta),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 
@@ -552,24 +672,30 @@ private fun ReviewPanel(
     onCancel: () -> Unit,
     onRetry: () -> Unit,
     onSelectPly: (Int) -> Unit,
+    onReviewIssue: (Int) -> Unit,
     modifier: Modifier,
 ) {
     Column(
         modifier = modifier.testTag("review_panel"),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+        if (model.status == ReviewAnalysisUiStatus.COMPLETE) {
+            ReviewMoveFeedback(model.selectedMove, model.status)
+            ReviewNavigator(model, onSelectPly)
+        }
         ReviewAnalysisCard(model, onCancel, onRetry)
         if (model.status == ReviewAnalysisUiStatus.COMPLETE) {
             model.playerSummary?.let { summary ->
                 ReviewSummaryCard(
                     summary = summary,
                     moves = model.moves,
-                    onSelectPly = onSelectPly,
+                    onSelectPly = onReviewIssue,
                 )
             }
+        } else {
+            ReviewMoveFeedback(model.selectedMove, model.status)
+            ReviewNavigator(model, onSelectPly)
         }
-        ReviewMoveFeedback(model.selectedMove, model.status)
-        ReviewNavigator(model, onSelectPly)
         ReviewMoveList(
             moves = model.moves,
             selectedPly = model.selectedPly,
@@ -1021,21 +1147,23 @@ private fun ReviewNavigator(
         model.selectedPly == 0 || selectedIndex < 0 -> model.moves.firstOrNull()
         else -> model.moves.getOrNull(selectedIndex + 1)
     }
-    Row(
+    val playerIssues = model.moves.filter { move ->
+        move.role == ReviewMoveRole.PLAYER_DECISION && move.grade?.isReviewIssue() == true
+    }
+    val previousIssue = playerIssues
+        .filter { move -> move.ply < model.selectedPly }
+        .maxByOrNull { move -> move.ply }
+    val nextIssue = playerIssues
+        .filter { move -> move.ply > model.selectedPly }
+        .minByOrNull { move -> move.ply }
+
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .testTag("review_navigator"),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically,
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        OutlinedButton(
-            onClick = { previousPly?.let(onSelectPly) },
-            enabled = previousPly != null,
-            modifier = Modifier
-                .weight(1f)
-                .heightIn(min = 48.dp)
-                .testTag("review_previous"),
-        ) { Text(stringResource(R.string.review_previous)) }
         Text(
             text = if (selectedIndex < 0) {
                 stringResource(R.string.review_starting_position)
@@ -1043,19 +1171,72 @@ private fun ReviewNavigator(
                 stringResource(R.string.review_move_position, selectedIndex + 1, model.moves.size)
             },
             modifier = Modifier
-                .weight(1f)
+                .fillMaxWidth()
                 .testTag("review_move_position"),
             style = MaterialTheme.typography.labelLarge,
             maxLines = 2,
+            textAlign = TextAlign.Center,
         )
-        OutlinedButton(
-            onClick = { next?.let { onSelectPly(it.ply) } },
-            enabled = next != null,
-            modifier = Modifier
-                .weight(1f)
-                .heightIn(min = 48.dp)
-                .testTag("review_next"),
-        ) { Text(stringResource(R.string.review_next)) }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            ReviewNavigationButton(
+                symbol = "|<<",
+                contentDescription = stringResource(R.string.review_previous_issue),
+                enabled = previousIssue != null,
+                testTag = "review_previous_issue",
+                onClick = { previousIssue?.let { onSelectPly(it.ply) } },
+            )
+            ReviewNavigationButton(
+                symbol = "<<",
+                contentDescription = stringResource(R.string.review_previous),
+                enabled = previousPly != null,
+                testTag = "review_previous",
+                onClick = { previousPly?.let(onSelectPly) },
+            )
+            ReviewNavigationButton(
+                symbol = ">>",
+                contentDescription = stringResource(R.string.review_next),
+                enabled = next != null,
+                testTag = "review_next",
+                onClick = { next?.let { onSelectPly(it.ply) } },
+            )
+            ReviewNavigationButton(
+                symbol = ">>|",
+                contentDescription = stringResource(R.string.review_next_issue),
+                enabled = nextIssue != null,
+                testTag = "review_next_issue",
+                onClick = { nextIssue?.let { onSelectPly(it.ply) } },
+            )
+        }
+    }
+}
+
+@Composable
+private fun ReviewNavigationButton(
+    symbol: String,
+    contentDescription: String,
+    enabled: Boolean,
+    testTag: String,
+    onClick: () -> Unit,
+) {
+    OutlinedIconButton(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = Modifier
+            .size(48.dp)
+            .testTag(testTag)
+            .semantics { this.contentDescription = contentDescription },
+    ) {
+        Text(
+            text = symbol,
+            modifier = Modifier.clearAndSetSemantics {},
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Black,
+            maxLines = 1,
+        )
     }
 }
 

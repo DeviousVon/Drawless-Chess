@@ -17,9 +17,12 @@ import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.assertHeightIsEqualTo
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.assertWidthIsEqualTo
 import androidx.compose.ui.test.assertWidthIsAtLeast
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
@@ -45,9 +48,12 @@ import com.drawlesschess.core.engine.ReviewedMove
 import com.drawlesschess.core.presentation.BoardOrientation
 import com.drawlesschess.core.presentation.BoardPresenter
 import com.drawlesschess.core.presentation.BoardThemes
+import com.drawlesschess.core.presentation.ControlPlacement
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
+import kotlin.math.abs
 
 class GameReviewInstrumentedTest {
     @get:Rule
@@ -186,6 +192,8 @@ class GameReviewInstrumentedTest {
                 ),
             )
         compose.onNodeWithTag("review_previous").assertIsEnabled()
+        compose.onNodeWithTag("review_previous_issue").assertIsNotEnabled()
+        compose.onNodeWithTag("review_next_issue").assertIsNotEnabled()
         compose.onNodeWithTag("review_next")
             .performScrollTo()
             .assertIsDisplayed()
@@ -218,6 +226,61 @@ class GameReviewInstrumentedTest {
         compose.onNodeWithTag("review_better_move_arrow", useUnmergedTree = true)
             .assertContentDescriptionEquals("Better move arrow from b1 to c3")
             .assertIsDisplayed()
+    }
+
+    @Test
+    fun mediaNavigatorVisitsEveryMoveAndSkipsBetweenPlayerIssues() {
+        var selectedPly by mutableIntStateOf(2)
+        compose.setContent {
+            DrawlessTheme {
+                GameReviewScreen(
+                    model = reviewModel(selectedPly, playerSide = Side.BLACK),
+                    showBoardCoordinates = true,
+                    onBack = {},
+                    onFlip = {},
+                    onCancel = {},
+                    onRetry = {},
+                    onSelectPly = { selectedPly = it },
+                )
+            }
+        }
+
+        compose.onNodeWithTag("review_navigator").performScrollTo().assertIsDisplayed()
+        listOf(
+            "review_previous_issue",
+            "review_previous",
+            "review_next",
+            "review_next_issue",
+        ).forEach { tag ->
+            compose.onNodeWithTag(tag)
+                .assertWidthIsEqualTo(48.dp)
+                .assertHeightIsEqualTo(48.dp)
+        }
+        compose.onNodeWithTag("review_previous_issue")
+            .assertContentDescriptionEquals("Previous mistake")
+            .assertIsNotEnabled()
+        compose.onNodeWithTag("review_previous")
+            .assertContentDescriptionEquals("Previous move")
+            .assertIsEnabled()
+        compose.onNodeWithTag("review_next")
+            .assertContentDescriptionEquals("Next move")
+            .assertIsEnabled()
+        compose.onNodeWithTag("review_next_issue")
+            .assertContentDescriptionEquals("Next mistake")
+            .assertIsEnabled()
+            .performClick()
+        compose.runOnIdle { assertEquals(4, selectedPly) }
+
+        compose.onNodeWithTag("review_next_issue").performScrollTo().assertIsNotEnabled()
+        compose.onNodeWithTag("review_previous_issue")
+            .assertIsEnabled()
+            .performClick()
+        compose.runOnIdle { assertEquals(2, selectedPly) }
+
+        compose.onNodeWithTag("review_next").performScrollTo().performClick()
+        compose.runOnIdle { assertEquals(3, selectedPly) }
+        compose.onNodeWithTag("review_previous").performScrollTo().performClick()
+        compose.runOnIdle { assertEquals(2, selectedPly) }
     }
 
     @Test
@@ -339,7 +402,7 @@ class GameReviewInstrumentedTest {
             }
         }
 
-        compose.onNodeWithText("You (Black)").assertIsDisplayed()
+        compose.onNodeWithText("You (Black)").performScrollTo().assertIsDisplayed()
         compose.onAllNodesWithText("You (White)").assertCountEquals(0)
         compose.onAllNodesWithTag("review_summary_opponent").assertCountEquals(0)
         compose.onNodeWithTag("review_move_1")
@@ -350,6 +413,45 @@ class GameReviewInstrumentedTest {
             .performClick()
         compose.runOnIdle { assertEquals(2, selectedPly) }
         compose.onNodeWithTag("review_move_2").assertIsSelected()
+    }
+
+    @Test
+    fun completedPortraitRevealsSelectedFeedbackDirectlyBelowTheBoard() {
+        var selectedPly by mutableIntStateOf(4)
+        compose.setContent {
+            CompositionLocalProvider(LocalDensity provides Density(density = 1f, fontScale = 1f)) {
+                DrawlessTheme {
+                    Box(Modifier.width(412.dp).height(915.dp)) {
+                        GameReviewScreen(
+                            model = reviewModel(selectedPly, playerSide = Side.BLACK),
+                            showBoardCoordinates = true,
+                            onBack = {},
+                            onFlip = {},
+                            onCancel = {},
+                            onRetry = {},
+                            onSelectPly = { selectedPly = it },
+                        )
+                    }
+                }
+            }
+        }
+
+        compose.onNodeWithTag("review_my_mistakes")
+            .performScrollTo()
+            .assertIsDisplayed()
+            .performClick()
+        compose.runOnIdle { assertEquals(2, selectedPly) }
+
+        val board = compose.onNodeWithTag("chess_board_imperial_marble")
+            .assertIsDisplayed()
+            .fetchSemanticsNode()
+            .boundsInRoot
+        val feedback = compose.onNodeWithTag("review_move_feedback")
+            .assertIsDisplayed()
+            .fetchSemanticsNode()
+            .boundsInRoot
+        assertTrue(feedback.top >= board.bottom)
+        assertTrue(feedback.top - board.bottom <= 11f)
     }
 
     @Test
@@ -551,6 +653,65 @@ class GameReviewInstrumentedTest {
                 ),
             )
         compose.onAllNodesWithText("Waiting for analysis…").assertCountEquals(0)
+    }
+
+    @Test
+    fun shortLandscapeReviewLayoutUsesTheFullContentHeight() {
+        val layout = calculateReviewContentLayout(widthDp = 568, heightDp = 320)
+        val widthLimited = calculateReviewContentLayout(widthDp = 520, heightDp = 320)
+        val portrait = calculateReviewContentLayout(widthDp = 412, heightDp = 915)
+
+        assertEquals(ControlPlacement.BESIDE_BOARD, layout.controlPlacement)
+        assertEquals(320, layout.boardSizeDp)
+        assertEquals(0, layout.outerPaddingDp)
+        assertEquals(8, layout.panelGapDp)
+        assertEquals(200, layout.panelWidthDp)
+        assertEquals(312, widthLimited.boardSizeDp)
+        assertEquals(ControlPlacement.BELOW_BOARD, portrait.controlPlacement)
+        assertEquals(380, portrait.boardSizeDp)
+        assertEquals(16, portrait.outerPaddingDp)
+    }
+
+    @Test
+    fun shortLandscapeRelocatesBackAndFlipBesideAFullHeightBoard() {
+        var backClicks = 0
+        var flipClicks = 0
+        compose.setContent {
+            CompositionLocalProvider(LocalDensity provides Density(density = 1f, fontScale = 1f)) {
+                DrawlessTheme {
+                    Box(Modifier.width(568.dp).height(320.dp)) {
+                        GameReviewScreen(
+                            model = reviewModel(selectedPly = 2),
+                            showBoardCoordinates = true,
+                            onBack = { backClicks += 1 },
+                            onFlip = { flipClicks += 1 },
+                            onCancel = {},
+                            onRetry = {},
+                            onSelectPly = {},
+                        )
+                    }
+                }
+            }
+        }
+
+        compose.onAllNodesWithTag("review_top_bar").assertCountEquals(0)
+        compose.onNodeWithTag("review_side_header").assertIsDisplayed()
+        compose.onNodeWithTag("review_back").assertIsDisplayed().performClick()
+        compose.onNodeWithTag("review_flip").assertIsDisplayed().performClick()
+        compose.runOnIdle {
+            assertEquals(1, backClicks)
+            assertEquals(1, flipClicks)
+        }
+
+        val reviewBounds = compose.onNodeWithTag("game_review")
+            .fetchSemanticsNode()
+            .boundsInRoot
+        val boardBounds = compose.onNodeWithTag("chess_board_imperial_marble")
+            .assertIsDisplayed()
+            .fetchSemanticsNode()
+            .boundsInRoot
+        assertTrue(abs(boardBounds.height - reviewBounds.height) <= 1f)
+        assertTrue(abs(boardBounds.top - reviewBounds.top) <= 1f)
     }
 
     @Test

@@ -15,6 +15,8 @@ param(
     [ValidateRange(10, 720)]
     [int] $ChildTimeoutMinutes = 120,
 
+    [switch] $ReleaseDefaultRules,
+
     [switch] $AllowNonProductionConfig,
 
     [switch] $Resume
@@ -121,6 +123,7 @@ $state = [ordered]@{
     minimumHours = $MinimumHours
     childTimeoutMinutes = $ChildTimeoutMinutes
     productionProfileRequired = -not [bool]$AllowNonProductionConfig
+    releaseDefaultRules = [bool]$ReleaseDefaultRules
     sameLevelConfig = $sameConfigArgument
     adjacentConfig = $adjacentConfigArgument
     supervisorPid = $PID
@@ -410,8 +413,12 @@ function Read-ValidatedReportSummary {
     $header = $headers[0]
     if ($RequireProductionProfile) {
         $expectedConfig = [ordered]@{
-            schemaVersion = '1'
-            runLabel = if ($Matrix -eq 'adjacent') { 'diagnostic-adjacent-matrix' } else { 'diagnostic-same-level-matrix' }
+            schemaVersion = '2'
+            runLabel = if ($ReleaseDefaultRules) {
+                if ($Matrix -eq 'adjacent') { 'release-soak-adjacent' } else { 'release-soak-same-level' }
+            } else {
+                if ($Matrix -eq 'adjacent') { 'diagnostic-adjacent-matrix' } else { 'diagnostic-same-level-matrix' }
+            }
             jobSource = $Matrix
             games = [string]$ExpectedGames
             parallelGames = '4'
@@ -419,7 +426,8 @@ function Read-ValidatedReportSummary {
             maxPlies = '300'
             variant = 'drawless'
             deadPosition = 'material_victory'
-            fiftyMove = 'disabled'
+            fiftyMove = if ($ReleaseDefaultRules) { 'material_victory' } else { 'disabled' }
+            bareKing = 'bare_king_loses'
             pairColors = if ($Matrix -eq 'adjacent') { 'true' } else { 'false' }
             markCappedForContinuation = 'true'
             whiteStrength = 'matrix'
@@ -499,6 +507,9 @@ function Read-ValidatedReportSummary {
     }
 
     $allowedReasons = @('CHECKMATE', 'STALEMATE', 'REPETITION', 'DEAD_POSITION_MATERIAL', 'BARE_KING')
+    if ($ReleaseDefaultRules) {
+        $allowedReasons += 'FIFTY_MOVE_LIMIT'
+    }
     $invalidOutcomeJobs = @()
     $invalidHistoryJobs = @()
     foreach ($game in $games) {
@@ -812,6 +823,7 @@ try {
             [math]::Abs([double]$loadedState.minimumHours - $MinimumHours) -gt 0.0000001 -or
             [int]$loadedState.childTimeoutMinutes -ne $ChildTimeoutMinutes -or
             [bool]$loadedState.productionProfileRequired -ne (-not [bool]$AllowNonProductionConfig) -or
+            [bool]$loadedState.releaseDefaultRules -ne [bool]$ReleaseDefaultRules -or
             [string]$loadedState.sameLevelConfig -cne $sameConfigArgument -or
             [string]$loadedState.adjacentConfig -cne $adjacentConfigArgument
         ) {

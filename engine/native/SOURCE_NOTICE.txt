@@ -11,10 +11,10 @@ Canonical native source identity:
   Upstream: https://github.com/fairy-stockfish/Fairy-Stockfish.git
   Commit: fb78cb561aa01708338e35b3dc3b65a42149a3c4
   Upstream tree: dfe4b96037c10ab60e22613bf634452612fc2b04
-  Patched tree: 80208e5f35549b88505df983e4bc0f7621083fd4
-  Patch-series SHA-256: c44b63516728a3114378b7ee374e12bd8e092f3287b93fe6d2e80a24eac19fe7
-  Drawless variant-config SHA-256: 749b110d8871629174be75c34688379813b74679dedc8c3af271f0c4cb6a1e8d
-  Drawless patch interface: version 1
+  Patched tree: bf58452cf6bb2254050e7aa442d2b23f3664aaec
+  Patch-series SHA-256: 7501f6322ee73b9d737c387e32f1c45cb6de7d0cb3b67648601e0236fca799ed
+  Drawless variant-config SHA-256: 0570d4805f915c2c77228babc31e127c4155413dba4d335ccb527dc2b974d28f
+  Drawless patch interface: version 2
 
 The exact Drawless modifications are recorded by the ordered patch series under
 engine/patches/. Reproduction metadata and Android build files are under

@@ -1,7 +1,7 @@
 # Android machine verification
 
-Status: fail-closed Bash and Windows-native PowerShell gates implemented; real SDK/NDK,
-x86-64 emulator, and ARM64 physical-device runs verified for private testing
+Status: fail-closed Bash and Windows-native PowerShell gates implemented; historical ABI evidence
+retained; exact 1.0.0 two-device candidate proof remains open
 
 ## Locked toolchain
 
@@ -112,8 +112,8 @@ $env:Path = "$env:JAVA_HOME\bin;$env:ANDROID_SDK_ROOT\platform-tools;$env:Path"
 The environment assignments above affect only the current PowerShell process and child
 processes. They do not change the machine-wide environment.
 
-For the first native build, use a short local working path such as
-`C:\src\Drawless-Chess`; avoid a network share or cloud-synchronized folder. Android Studio
+For the first native build, use a short local working path outside any user-profile directory;
+avoid a network share or cloud-synchronized folder. Android Studio
 does not need to remain open for preflight or compilation. It is needed only when using its
 Device Manager to start an emulator.
 
@@ -288,20 +288,21 @@ Gradle Launcher JVM identity. Windows evidence also records and validates the Da
 home when Gradle reports it. This makes use of Android Studio's bundled JBR 21 explicit and
 proves the wrapper launched with the selected Java version.
 
-One emulator or device can never prove both runtime ABIs. The complete version-1 JNI matrix
-requires one passing x86-64 emulator bundle and one passing ARM64 device bundle; both runs
-have now passed for the private-test checkpoint.
+One emulator or device can never prove both runtime ABIs. The historical version-1 JNI matrix
+has passing x86-64 emulator and ARM64 device bundles. Current patch-v2 focused instrumentation
+also passes on the API-36 emulator and R6 ARM64 tablet, but those results do not replace exact
+1.0.0 candidate proof on both designated physical devices.
 
 All generated binaries are private-test artifacts. The manifest records
 `distributionAuthorized: false`; successful compilation does not clear the GPL/release gate.
 
-The accepted 51-test app suite passes twice from fresh processes against the exact clean APK pair
+The historical 51-test app suite passed twice from fresh processes against its exact clean APK pair
 on the API-33 ARM64 tablet, API-36 x86-64 emulator, and Pixel 9 Pro XL. The targeted forfeit
-flow also passes independently on all three. Coverage includes stable opponent identity across
+flow also passed independently on all three. That recorded coverage includes stable opponent identity across
 ladder changes, confirmed-forfeit durability, Room reopen/restore,
 rapid first-game-exit/second-game native behavior, same-session hint then bot analysis, responsive
-layouts/options/history, rematch, deterministic finish timing, and the 101 sampled resources.
+layouts/options/history, rematch, deterministic finish timing, and the 103 sampled resources.
 Separate physical acceptance has covered
 force-stop/relaunch/Resume. Folding the app suite into this immutable machine manifest,
-low-memory/native-crash behavior, sustained performance, and broader UI coverage remain
-later checkpoints.
+low-memory/native-crash behavior, sustained performance, broader UI coverage, and the full 1.0.0
+both-device run remain later checkpoints.

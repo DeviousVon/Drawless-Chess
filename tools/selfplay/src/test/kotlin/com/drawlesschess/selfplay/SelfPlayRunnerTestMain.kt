@@ -163,7 +163,7 @@ fun main() {
     }
     println(
         "PASSED ${fixtures.size} exact rule fixtures " +
-            "($engineSearches bounded engine searches), four campaign derivations, opening gates, " +
+            "($engineSearches bounded engine searches), eight campaign derivations, opening gates, " +
             "JSON/report checks, and $puzzleChecks puzzle-pipeline checks",
     )
 }
@@ -281,6 +281,7 @@ private fun search(
         variant = rules.preset,
         deadPosition = rules.deadPosition,
         fiftyMove = rules.fiftyMove,
+        bareKing = rules.bareKing,
         whiteStrength = UciStrength.Skill(20),
         blackStrength = UciStrength.Skill(20),
         searchLimit = DepthSearchLimit(depth),
@@ -459,6 +460,10 @@ private fun validateCampaignConfigs(root: Path) {
             Triple("same-level-diagnostic.properties", JobSource.SAME_LEVEL, 56),
             Triple("adjacent-canary.properties", JobSource.ADJACENT, 96),
             Triple("adjacent-diagnostic.properties", JobSource.ADJACENT, 96),
+            Triple("release-soak-same-level.properties", JobSource.SAME_LEVEL, 56),
+            Triple("release-soak-adjacent.properties", JobSource.ADJACENT, 96),
+            Triple("release-campaign-canary.properties", JobSource.RELEASE_CAMPAIGN, 912),
+            Triple("release-campaign.properties", JobSource.RELEASE_CAMPAIGN, 10_032),
         )
         val catalog = BotDifficultyCatalog.namedLevels.associateBy { it.id }
         cases.forEachIndexed { index, (name, expectedSource, expectedCount) ->
@@ -474,6 +479,8 @@ private fun validateCampaignConfigs(root: Path) {
                     root.resolve("tools/selfplay/fixtures/ladder-levels.tsv").toString(),
                 "adjacentMatchupsPath" to
                     root.resolve("tools/selfplay/fixtures/adjacent-matchups.tsv").toString(),
+                "releasePositionsPath" to
+                    root.resolve("tools/selfplay/fixtures/release-positions.tsv").toString(),
             )
             val rewritten = Files.readAllLines(source, StandardCharsets.UTF_8).joinToString("\n") { line ->
                 val key = line.substringBefore('=', missingDelimiterValue = "")
@@ -489,8 +496,9 @@ private fun validateCampaignConfigs(root: Path) {
             check(jobs.map(SelfPlayJob::jobId).toSet().size == jobs.size) {
                 "$name derived duplicate job IDs"
             }
-            check(jobs.map(SelfPlayJob::openingId).toSet().size == 8) {
-                "$name did not derive exactly eight openings"
+            val expectedPositions = if (expectedSource == JobSource.RELEASE_CAMPAIGN) 48 else 8
+            check(jobs.map(SelfPlayJob::openingId).toSet().size == expectedPositions) {
+                "$name did not derive exactly $expectedPositions positions"
             }
             val usedLevels = jobs.flatMap { listOfNotNull(it.whiteLevelId, it.blackLevelId) }.toSet()
             check(usedLevels == catalog.keys) {
@@ -503,16 +511,10 @@ private fun validateCampaignConfigs(root: Path) {
                 check(job.whiteStrength == UciStrength.Elo(white.approximateElo))
                 check(job.blackStrength == UciStrength.Elo(black.approximateElo))
             }
-            if (expectedSource == JobSource.SAME_LEVEL) {
-                check(jobs.all { job ->
-                    job.pairId == null && job.pairLeg == null &&
-                        job.whiteCompetitor == job.blackCompetitor &&
-                        job.whiteStrength == job.blackStrength
-                }) { "$name contains a malformed same-level job" }
-            } else {
-                val pairs = jobs.groupBy { checkNotNull(it.pairId) }
-                check(pairs.size == 48 && pairs.values.all { it.size == 2 }) {
-                    "$name did not derive 48 complete paired openings"
+            fun verifyPairs(pairedJobs: List<SelfPlayJob>, expectedPairs: Int) {
+                val pairs = pairedJobs.groupBy { checkNotNull(it.pairId) }
+                check(pairs.size == expectedPairs && pairs.values.all { it.size == 2 }) {
+                    "$name did not derive $expectedPairs complete color pairs"
                 }
                 pairs.forEach { (pairId, legs) ->
                     val lowerWhite = legs.singleOrNull { it.pairLeg == "lower-white" }
@@ -528,6 +530,37 @@ private fun validateCampaignConfigs(root: Path) {
                     check(lowerWhite.whiteLevelId == higherWhite.blackLevelId)
                     check(lowerWhite.blackLevelId == higherWhite.whiteLevelId)
                 }
+            }
+            when (expectedSource) {
+                JobSource.SAME_LEVEL -> check(jobs.all { job ->
+                    job.pairId == null && job.pairLeg == null &&
+                        job.whiteCompetitor == job.blackCompetitor &&
+                        job.whiteStrength == job.blackStrength
+                }) { "$name contains a malformed same-level job" }
+                JobSource.ADJACENT -> verifyPairs(jobs, expectedPairs = 48)
+                JobSource.RELEASE_CAMPAIGN -> {
+                    val passes = expectedCount / 912
+                    val sameLevel = jobs.filter { it.pairId == null }
+                    val paired = jobs.filter { it.pairId != null }
+                    check(sameLevel.size == 336 * passes && paired.size == 576 * passes) {
+                        "$name has an unexpected same/adjacent release split"
+                    }
+                    check(sameLevel.all { job ->
+                        job.pairLeg == null &&
+                            job.whiteCompetitor == job.blackCompetitor &&
+                            job.whiteStrength == job.blackStrength
+                    }) { "$name contains a malformed release same-level job" }
+                    verifyPairs(paired, expectedPairs = 288 * passes)
+                    val ids = jobs.map(SelfPlayJob::openingId).toSet()
+                    check(ids.count { it.startsWith("opening-") } == 24)
+                    check(ids.count { it.startsWith("endgame-") } == 12)
+                    check(ids.count { it.startsWith("edge-") } == 12)
+                    check((1..passes).all { pass ->
+                        val token = "-pass-${pass.toString().padStart(2, '0')}-"
+                        jobs.count { token in it.jobId } == 912
+                    }) { "$name does not contain $passes complete 912-game passes" }
+                }
+                JobSource.SINGLE -> error("single-job config unexpectedly entered campaign validation")
             }
         }
     } finally {
@@ -553,6 +586,7 @@ private fun validateOpeningReplay(root: Path, sourcePath: Path) {
         variant = RulesContractV1.Preset.DRAWLESS,
         deadPosition = DeadPositionPolicy.MATERIAL_VICTORY,
         fiftyMove = FiftyMovePolicy.DISABLED,
+        bareKing = BareKingPolicy.BARE_KING_LOSES,
         whiteStrength = UciStrength.Skill(0),
         blackStrength = UciStrength.Skill(0),
         searchLimit = SearchLimit.Nodes(1),
@@ -603,9 +637,29 @@ private fun validateOpeningReplay(root: Path, sourcePath: Path) {
         candidate = job("initial-checkmate", "7k/6Q1/6K1/8/8/8/8/8 b - - 0 1"),
     )
     expectRejected(
+        "a retro-illegal position where the side that just moved remains in check",
+        candidate = job("opponent-in-check", "k7/p7/P1QK4/8/8/8/8/8 w - - 0 1"),
+    )
+    expectRejected(
         "an initially dead position",
         candidate = job("initial-dead", "4k3/8/8/8/8/8/8/4K3 w - - 0 1"),
     )
+    val oneBareKingFen = "4k3/8/8/8/8/8/8/R3K3 w - - 0 1"
+    expectRejected(
+        "an initial one-bare-king loss",
+        config = baseConfig.copy(bareKing = BareKingPolicy.BARE_KING_LOSES),
+        candidate = job("initial-bare-loss", oneBareKingFen),
+    )
+    val continuingBareKing = baseConfig.copy(bareKing = BareKingPolicy.CONTINUE)
+    val acceptedBareKing = replayOpening(
+        continuingBareKing,
+        job("initial-bare-continue", oneBareKingFen),
+    )
+    check(acceptedBareKing.session.outcome == null)
+    check(acceptedBareKing.session.rules.bareKing == BareKingPolicy.CONTINUE)
+    check(baseConfig.fingerprintFields() != continuingBareKing.fingerprintFields()) {
+        "Bare-king policy must participate in the run fingerprint"
+    }
     expectRejected(
         "an already exhausted enabled 50-move clock",
         config = baseConfig.copy(fiftyMove = FiftyMovePolicy.FORCED_MOVE_EXCEPTION),
@@ -654,6 +708,7 @@ private fun validateJsonlReport(root: Path, sourcePath: Path) {
             variant = RulesContractV1.Preset.DRAWLESS,
             deadPosition = DeadPositionPolicy.MATERIAL_VICTORY,
             fiftyMove = FiftyMovePolicy.DISABLED,
+            bareKing = BareKingPolicy.BARE_KING_LOSES,
             whiteStrength = UciStrength.Skill(0),
             blackStrength = UciStrength.Skill(0),
             searchLimit = SearchLimit.Nodes(1),

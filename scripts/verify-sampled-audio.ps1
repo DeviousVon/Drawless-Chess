@@ -51,7 +51,7 @@ foreach ($required in @(
     if (-not (Test-Path -LiteralPath $required)) { Fail "missing $required" }
 }
 
-$auditedManifestSha256 = '0c7f66a055fc93bfd7d71470777fd6b636f33baeefd5b23eb9fae06486499c9f'
+$auditedManifestSha256 = '6e10b3348d37ebc6995317596c5c7c9731a4d549b1a9ba35fffe8ad023737ec8'
 if ((Get-Sha256 $manifestPath) -ne $auditedManifestSha256) {
     Fail 'audio_manifest.json differs from the independently audited source identities and pins'
 }
@@ -105,6 +105,8 @@ $expectedCounts = [ordered]@{
     glass_fracture = 3
     glass_shards = 3
     check = 1
+    checkmate = 1
+    en_passant = 1
     promotion = 4
     hint = 3
     low_time = 4
@@ -141,7 +143,7 @@ if ($mappedPreviewNames.Count -ne $expectedPreviewNames.Count -or
 
 $declaredSources = @{}
 $manifest.sources.PSObject.Properties | ForEach-Object { $declaredSources[$_.Name] = $_.Value }
-if ($declaredSources.Count -ne 17) { Fail "expected 17 declared sources, found $($declaredSources.Count)" }
+if ($declaredSources.Count -ne 19) { Fail "expected 19 declared sources, found $($declaredSources.Count)" }
 foreach ($entry in $declaredSources.GetEnumerator()) {
     $source = $entry.Value
     if (-not $source.title -or -not $source.author -or -not $source.source) {
@@ -177,6 +179,32 @@ foreach ($entry in @(
         $source.source_preview_sha256 -ne $source.local_sha256 -or
         $source.original_download -notmatch "/sounds/$($entry.sound)/download/") {
         Fail "$($entry.id) omits its exact Freesound page, HQ preview, hash, or original-download identity"
+    }
+}
+foreach ($entry in @(
+    @{
+        id = 'discofield_brick_crash'
+        page = 'https://freesound.org/people/discofield/sounds/711656/'
+        download = 'https://freesound.org/people/discofield/sounds/711656/download/711656__discofield__brick-crash.wav'
+        sha256 = 'd6a90aae61d4d216cc0c2900e6a941230f5ad07bcee3a4b272786447b40ea21f'
+        metadata = 'WAV, 2.041678 seconds, 44100 Hz, 16-bit stereo'
+    },
+    @{
+        id = 'discofield_stone_crash'
+        page = 'https://freesound.org/people/discofield/sounds/711657/'
+        download = 'https://freesound.org/people/discofield/sounds/711657/download/711657__discofield__stone-crash.wav'
+        sha256 = '5a91523c53b04d22c5b38fea41c4f1ba22d3ec64fc4b3ff954a6f378504c1afe'
+        metadata = 'WAV, 2.500000 seconds, 44100 Hz, 16-bit stereo'
+    }
+)) {
+    $source = $declaredSources[$entry.id]
+    if ($source.license -ne 'CC0-1.0' -or
+        $source.source -ne $entry.page -or
+        $source.original_download -ne $entry.download -or
+        $source.local_sha256 -ne $entry.sha256 -or
+        $source.original_metadata -ne $entry.metadata -or
+        $source.retained_representation -notmatch '^Original lossless Freesound WAV') {
+        Fail "$($entry.id) differs from the audited original Freesound WAV identity"
     }
 }
 foreach ($index in 1..5) {
@@ -235,6 +263,14 @@ foreach ($asset in $assets) {
     if ($category -eq 'capture' -and
         ($assetSources.Count -ne 1 -or $assetSources[0] -ne 'aerror_stonehit1')) {
         Fail "$name is not derived solely from the selected CC0 stone-crush recording"
+    }
+    if ($category -eq 'en_passant' -and
+        ($assetSources.Count -ne 1 -or $assetSources[0] -ne 'discofield_brick_crash')) {
+        Fail "$name is not derived solely from the selected original CC0 brick-crash recording"
+    }
+    if ($category -eq 'checkmate' -and
+        ($assetSources.Count -ne 1 -or $assetSources[0] -ne 'discofield_stone_crash')) {
+        Fail "$name is not derived solely from the selected original CC0 stone-crash recording"
     }
     if ($category -in @('firework_low', 'firework_mid') -and
         ($assetSources.Count -ne 1 -or $assetSources[0] -ne 'rudmer_firework_pops')) {
@@ -322,7 +358,9 @@ $notices = Get-Content -LiteralPath $thirdPartyNotices -Raw
 foreach ($requiredText in @(
     'Copyright © 2019 by Denis Ineshin',
     'Permission is hereby granted, free of charge',
-    'Creative Commons Zero 1.0'
+    'Creative Commons Zero 1.0',
+    'https://freesound.org/people/discofield/sounds/711656/',
+    'https://freesound.org/people/discofield/sounds/711657/'
 )) {
     if (-not $notices.Contains($requiredText)) { Fail "root third-party notices omit '$requiredText'" }
 }
@@ -437,6 +475,7 @@ if (($FfmpegPath -and (Test-Path -LiteralPath $FfmpegPath)) -or $useWslFfmpeg) {
             $onsetMillis = [Math]::Floor($onsetSample / 2.0) / 48.0
             if ($asset.category -in @(
                     'move', 'capture', 'castle',
+                    'en_passant', 'checkmate',
                     'firework_low', 'firework_mid', 'firework_high',
                     'glass_impact', 'glass_fracture', 'glass_shards'
                 ) -and $onsetMillis -gt 30.0) {

@@ -1,9 +1,10 @@
 # Data Safety draft
 
-Status: **copy-ready for the inspected build, but re-audit the exact release AAB**
-Inspected package: `com.drawlesschess`
-Inspected version: `0.3.0` (`versionCode` 3)
-Source-candidate re-audit date: July 15, 2026 (repeat against the exact signed release AAB)
+Status: **candidate copy for `1.0.0`; re-audit the exact signed release AAB**
+Package: `com.drawlesschess`
+Candidate version: `1.0.0` (`versionCode` 4)
+Current Play build: `0.3.0` (`versionCode` 3), active in Closed testing — Alpha
+Candidate documentation date: July 30, 2026
 
 ## Recommended Play Console answers
 
@@ -14,7 +15,7 @@ Source-candidate re-audit date: July 15, 2026 (repeat against the exact signed r
 | Data shared | **None** | There are no advertising, analytics, tracking, cloud, account, or developer-server integrations. |
 | Account creation | **No accounts** | The app has no sign-in or account system. |
 | Account/data deletion request | **Not applicable to an account** | Users delete installed-app data through Android Settings or uninstall. Android/cloud backups are managed through the user's device or Google account settings. |
-| Privacy-policy URL | **Required before submission** | Publish `PRIVACY.md` and verify its public URL while signed out. |
+| Privacy-policy URL | **https://drawlesschess.com/privacy/** | Verify that it remains public and accessible while signed out before submitting the candidate. |
 
 If Console hides encryption-in-transit, deletion-request, or security-practice questions
 after answering that no required data is collected or shared, do not invent answers for
@@ -38,6 +39,10 @@ This local processing supports gameplay, Resume, player statistics, and preferen
 not sent to BB_Games and is therefore not declared as collected or shared in the Data Safety
 form.
 
+Game Review Beta runs on-device after a completed game. Its analysis is not uploaded and is
+not stored as a persistent review history; the separate completed-game record and ordinary
+move history listed above remain local.
+
 ## Android system backup nuance
 
 The release manifest currently has `android:allowBackup="true"`. Android or the device's
@@ -51,7 +56,7 @@ by Play Console. If a future app build adds its own backup service, network tran
 account, cloud sync, support upload, analytics, diagnostics reporting, ads, billing, or any
 other SDK that sends data off device, this draft is no longer valid.
 
-## Evidence from the inspected repository/build
+## Evidence from current source; confirm in the exact candidate AAB
 
 - The app source manifest declares no network or sensitive user-data permission.
 - The merged release manifest has no `INTERNET`, location, camera, microphone, contacts,

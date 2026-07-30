@@ -31,8 +31,9 @@ test("equal dead material rewards causing mover", () => assert.equal(outcome(
 test("final-capture rule rewards capturer", () => assert.equal(outcome(
   { mover: Side.WHITE, deadPosition: true, moveWasCapture: true, whiteMaterial: 1, blackMaterial: 9 },
   ruleset({ deadPosition: Dead.FINAL_CAPTURE_VICTORY })).winner, Side.WHITE));
-test("final-capture rule rejects a non-capture transition", () => assert.throws(() => outcome(
-  { deadPosition: true }, ruleset({ deadPosition: Dead.FINAL_CAPTURE_VICTORY }))));
+test("final-capture rule awards a non-capturing dead-position creator", () => assert.equal(outcome(
+  { mover: Side.BLACK, deadPosition: true },
+  ruleset({ deadPosition: Dead.FINAL_CAPTURE_VICTORY })).winner, Side.BLACK));
 test("50-move completion defeats mover", () => assert.equal(outcome(
   { mover: Side.WHITE, halfmoveClock: 100 },
   ruleset({ fiftyMove: Fifty.COMPLETING_PLAYER_LOSES })).winner, Side.BLACK));

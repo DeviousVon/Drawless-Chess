@@ -13,11 +13,15 @@ pids/
 Thumbs.db
 .env
 .env.*
+.claude/
 key.properties
 android/signing.properties
 google-services.json
 *.jks
 *.keystore
+*.key
+*.der
+*.pk8
 *.pem
 *.p12
 *.pfx

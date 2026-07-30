@@ -30,7 +30,7 @@ export default function PrivacyPage() {
           <p>Drawless Chess is an offline, single-player Android game. This policy explains how the app handles information.</p>
           <div className="legal-meta">
             <span><strong>Effective:</strong> July 11, 2026</span>
-            <span><strong>Updated:</strong> July 14, 2026</span>
+            <span><strong>Updated:</strong> July 30, 2026</span>
           </div>
         </PageIntro>
         <article className="prose-shell">

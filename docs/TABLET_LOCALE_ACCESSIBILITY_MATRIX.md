@@ -2,7 +2,7 @@
 
 **Recorded:** July 21, 2026  
 **Device:** TAB R6 Ultra, Android 13 / API 33, ARM64  
-**Application:** `com.drawlesschess.debug`, current `0.3.0-debug` worktree build
+**Application:** `com.drawlesschess.debug`, recorded `0.3.0-debug` worktree build
 
 ## Result
 
@@ -26,7 +26,7 @@ The phone portion of the combined phone/tablet release gate remains outstanding.
   test-only forced-locale resource provider.
 - Fifty retained final PNGs under
   `build/locale-accessibility-matrix/tablet-20260721/`.
-- Complete current instrumentation suite: 72/72 tests passed in 101.742 seconds.
+- Complete recorded instrumentation suite: 72/72 tests passed in 101.742 seconds.
 - TalkBack was temporarily enabled alongside the tablet's pre-existing accessibility service.
   Touch exploration bound successfully, and a fresh-process accessibility tree was retained for
   every locale under `build/locale-accessibility-matrix/tablet-20260721/talkback/`.
@@ -53,4 +53,3 @@ After the TalkBack and locale-switch checks, the tablet was restored to:
 - no Drawless app-specific locale;
 - TalkBack disabled; and
 - the original Bitwarden accessibility service still enabled.
-

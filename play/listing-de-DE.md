@@ -13,9 +13,9 @@ Zeichenanzahl: 14 von 30.
 
 ## Kurzbeschreibung
 
-`Offline-Schach mit klaren Regeln ohne Remis, sieben Stufen und ohne Werbung.`
+`Offline-Schach ohne Remis: acht Gegner und Spielanalyse (Beta).`
 
-Zeichenanzahl: 76 von 80.
+Zeichenanzahl: 63 von 80.
 
 ## Vollständige Beschreibung
 
@@ -31,14 +31,14 @@ Drawless Chess gestaltet vertraute Schachregeln neu und ersetzt übliche Remis-E
 • Nach 50 Zügen ohne Bauernzug oder Schlagzug entscheiden die Materialpunkte.
 
 VOLLSTÄNDIG OFFLINE SPIELEN
-Fordere die integrierte Schach-Engine heraus – ohne Konto, Internetverbindung oder Online-Gegnersuche. Wähle aus sieben klar beschriebenen Gegnerstufen, vom Einsteiger bis zum Großmeister.
+Fordere die für Drawless angepasste Fairy-Stockfish-Engine heraus – vollständig auf deinem Gerät, ohne Konto, Internetverbindung oder Online-Gegnersuche. Wähle aus acht illustrierten Gegnern: sieben festen Spielstärken vom Einsteiger bis zum Großmeister sowie Vesper, der sich im adaptiven Modus deiner aktuellen Spielstärke anpasst und nach jeder Partie ohne Hilfen weiterentwickelt.
 
 GESTALTE DIE PARTIE NACH DEINEN WÜNSCHEN
 Starte sofort per Schnellspiel, das deine Farbe standardmäßig zufällig auswählt, oder passe Farbe, Gegner, Regeln und Bedenkzeit an. Spiele ohne Zeitlimit, mit 3, 5 oder 10 Minuten oder im Modus 15+10. Die optionale Escape-Variante ändert die Wertung eines Patts.
 
 FÜR ECHTE PARTIEN GEMACHT
 • Automatisches lokales Speichern und Fortsetzen
-• Sieben illustrierte Gegner mit unterschiedlichen Spielstärken und Persönlichkeiten
+• Acht illustrierte Gegner, darunter Vesper mit adaptiver Spielstärke
 • Figuren antippen oder ziehen, mit Anzeige legaler Züge
 • Übersicht geschlagener Figuren, Materialwerte und Zugverlauf mit Figurensymbolen
 • Optionale Bedrohungsanzeige, um sicherere Züge zu lernen
@@ -48,6 +48,9 @@ FÜR ECHTE PARTIEN GEMACHT
 • Klare Sieges- und Niederlageneffekte mit synchronisierten Audioaufnahmen
 • Layouts für Smartphones und Tablets
 
+ANALYSIERE DEINE GERADE BEENDETE PARTIE
+Öffne direkt nach einer beendeten Partie die Spielanalyse (Beta). Sie bewertet deine Züge und zeigt bessere Alternativen, kurze Varianten sowie eine Zug-für-Zug-Brettwiedergabe. Die für Drawless angepasste Fairy-Stockfish-Engine analysiert vollständig auf deinem Gerät; keine Partie wird hochgeladen oder in der Cloud analysiert. Analysen werden nicht als Verlauf gespeichert.
+
 FÜNF EIGENSTÄNDIGE DESIGNS
 Wechsle zwischen Imperialem Marmor, Wüsten-Sandstein, Gletscherschiefer, Grünspan-Kupfer und Amethyst-Geode. Deine Auswahl wird auf deinem Gerät gespeichert.
 
@@ -56,20 +59,21 @@ Kein Konto. Keine Werbung. Keine Nutzungsanalyse und kein Tracking. Keine In-App
 
 OPEN-SOURCE-SOFTWARE
 Drawless Chess ist unter der GNU GPL Version 3 oder höher lizenziert. Projektquellcode und Hinweise sind verfügbar unter:
-https://github.com/DeviousVon/Drawless-Chess/releases/tag/v0.3.0
+https://github.com/DeviousVon/Drawless-Chess/releases/tag/v1.0.0
 ```
 
-Zeichenanzahl: 2.370 von 4.000. Vor Veröffentlichung erneut in der Play Console prüfen.
+Zeichenanzahl: 3.050 von 4.000, einschließlich Zeilenumbrüchen. Vor Veröffentlichung
+erneut in der Play Console prüfen.
 
 ## Versionshinweise
 
-Entwurf für Version `0.3.0`:
+Entwurf für Version `1.0.0` (`versionCode` 4):
 
 ```text
-Willkommen bei Drawless Chess. Spiele entscheidende Offline-Partien gegen sieben illustrierte Gegner – im Schnellspiel mit zufälliger Farbe oder mit eigenen Regeln und Bedenkzeiten. Verfolge geschlagene Figuren, Material, Zugverlauf, Serien und Punktzahlen. Nutze Bedrohungsanzeigen, Hinweise, Rücknahmen, fünf Designs, Brettklänge, Revanchen sowie Sieges- und Niederlageneffekte. Kein Konto, keine Werbung, keine Nutzungsanalyse, kein Tracking und keine In-App-Käufe.
+Großes Update: Vesper ist der achte Gegner. Der adaptive Modus passt sich deiner Spielstärke an und entwickelt sich nach jeder Partie ohne Hilfen weiter. Starte direkt nach einer beendeten Partie die Spielanalyse (Beta) mit Bewertungen deiner Züge, besseren Vorschlägen, kurzen Varianten und Brettwiedergabe. Die für Drawless angepasste Fairy-Stockfish-Engine arbeitet vollständig auf deinem Gerät. Analysen werden nicht als Verlauf gespeichert.
 ```
 
-Zeichenanzahl: 468 von 500.
+Zeichenanzahl: 445 von 500.
 
 ## Empfehlungen für Eintragsmetadaten
 
@@ -79,10 +83,8 @@ Zeichenanzahl: 468 von 500.
 - Empfohlene Tags, sofern sie in der aktuellen Play Console angeboten werden:
   **Schach**, **Strategie**, **Einzelspieler** und **Offline**. Nur Tags aus der
   aktuellen Google-Liste auswählen.
-- Support-E-Mail: **realitymaster@protonmail.ch**
-- Website: leer lassen, bis eine gepflegte öffentliche Projekt- oder
-  Entwicklerwebsite feststeht. Das GitHub-Repository kann verwendet werden,
-  sofern die Play Console es akzeptiert.
+- Support-E-Mail: **support@drawlesschess.com**
+- Website: **https://drawlesschess.com**
 - Die Marketingtexte vermeiden bewusst unbelegbare Aussagen zu Ranglisten, Elo,
   „bestem“ Spiel oder Produktionsreife.
 

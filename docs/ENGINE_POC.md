@@ -1,7 +1,7 @@
 # Unpatched Fairy-Stockfish npm/WASM proof of concept
 
-Status: retained as a fast configuration regression lane; not the production patch-v1
-engine
+Status: retained as a historical configuration regression lane; not the production patch-v2
+engine. Its native identities intentionally describe the earlier interface-v1 checkpoint.
 
 ## Goal
 

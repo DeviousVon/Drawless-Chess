@@ -124,6 +124,26 @@
       "retained_representation": "Original lossless Freesound WAV downloaded by the product owner",
       "local_sha256": "1089ff464cecce6185236569767ea624123ae1bfa05351811b8c829e7d1b9434"
     },
+    "discofield_brick_crash": {
+      "title": "Brick crash",
+      "author": "discofield",
+      "license": "CC0-1.0",
+      "source": "https://freesound.org/people/discofield/sounds/711656/",
+      "original_download": "https://freesound.org/people/discofield/sounds/711656/download/711656__discofield__brick-crash.wav",
+      "original_metadata": "WAV, 2.041678 seconds, 44100 Hz, 16-bit stereo",
+      "retained_representation": "Original lossless Freesound WAV downloaded by the product owner",
+      "local_sha256": "d6a90aae61d4d216cc0c2900e6a941230f5ad07bcee3a4b272786447b40ea21f"
+    },
+    "discofield_stone_crash": {
+      "title": "Stone crash",
+      "author": "discofield",
+      "license": "CC0-1.0",
+      "source": "https://freesound.org/people/discofield/sounds/711657/",
+      "original_download": "https://freesound.org/people/discofield/sounds/711657/download/711657__discofield__stone-crash.wav",
+      "original_metadata": "WAV, 2.500000 seconds, 44100 Hz, 16-bit stereo",
+      "retained_representation": "Original lossless Freesound WAV downloaded by the product owner",
+      "local_sha256": "5a91523c53b04d22c5b38fea41c4f1ba22d3ec64fc4b3ff954a6f378504c1afe"
+    },
     "mh2o_alabaster": {
       "title": "chess_move_on_alabaster.wav — Freesound HQ preview",
       "author": "mh2o",
@@ -177,6 +197,8 @@
     "capture": 12,
     "castle": 6,
     "check": 1,
+    "checkmate": 1,
+    "en_passant": 1,
     "firework_high": 2,
     "firework_low": 2,
     "firework_mid": 2,
@@ -1094,6 +1116,26 @@
         "august_shotgun_pump"
       ],
       "processing": "High-quality 48 kHz stereo Vorbis q8 check cue cut from a genuine CC0 pump-action shotgun cycle recorded losslessly at 24-bit/96 kHz stereo; action only, with no gunshot."
+    },
+    {
+      "file": "chess_en_passant_brick_01.ogg",
+      "category": "en_passant",
+      "duration_seconds": 1.52,
+      "sha256": "eff059c13dba6f0e9e3859c79936703d8bfa2322f4688e614b329630e38980e0",
+      "sources": [
+        "discofield_brick_crash"
+      ],
+      "processing": "High-quality 48 kHz stereo Vorbis q8 en-passant cue preserving the complete audible CC0 brick-crash event while removing its trailing silence; source stereo is retained with restrained filtering, short boundary fades, and loudness/true-peak mastering."
+    },
+    {
+      "file": "chess_checkmate_stone_01.ogg",
+      "category": "checkmate",
+      "duration_seconds": 1.82,
+      "sha256": "83970184e3a0bddd6042279331fc4af3a1d40cdc74c4429037bacb674fd77d7a",
+      "sources": [
+        "discofield_stone_crash"
+      ],
+      "processing": "High-quality 48 kHz stereo Vorbis q8 checkmate cue preserving the complete audible CC0 stone-crash event while removing its trailing silence; source stereo and impact tail are retained with restrained filtering, short boundary fades, and loudness/true-peak mastering."
     },
     {
       "file": "chess_promotion_01.ogg",

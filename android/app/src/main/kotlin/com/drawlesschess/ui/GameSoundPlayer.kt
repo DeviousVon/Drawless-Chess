@@ -135,11 +135,11 @@ internal class GameSoundPlayer(context: Context) : AutoCloseable {
         }
     }
 
-    /** SAN selects exactly one move cue without coupling audio to engine internals. */
-    fun playMove(san: String) {
+    /** SAN plus the recorded en-passant fact select exactly one move cue. */
+    fun playMove(san: String, enPassant: Boolean = false) {
         synchronized(lock) {
             if (closed || !enabled) return
-            when (moveSoundCue(san)) {
+            when (moveSoundCue(san, enPassant)) {
                 MoveSoundCue.MOVE ->
                     playBagLocked(moves, MOVE_VOLUME, fallbackCue = FallbackCue.MOVE)
                 MoveSoundCue.CAPTURE ->
@@ -150,6 +150,20 @@ internal class GameSoundPlayer(context: Context) : AutoCloseable {
                     playResourceLocked(
                         SampledSoundCatalog.check,
                         CHECK_VOLUME,
+                        token = null,
+                        fallbackCue = FallbackCue.CHECK,
+                    )
+                MoveSoundCue.EN_PASSANT ->
+                    playResourceLocked(
+                        SampledSoundCatalog.enPassant,
+                        EN_PASSANT_VOLUME,
+                        token = null,
+                        fallbackCue = FallbackCue.CAPTURE,
+                    )
+                MoveSoundCue.CHECKMATE ->
+                    playResourceLocked(
+                        SampledSoundCatalog.checkmate,
+                        CHECKMATE_VOLUME,
                         token = null,
                         fallbackCue = FallbackCue.CHECK,
                     )
@@ -537,10 +551,12 @@ internal class GameSoundPlayer(context: Context) : AutoCloseable {
     }
 }
 
-internal enum class MoveSoundCue { MOVE, CAPTURE, CASTLE, CHECK }
+internal enum class MoveSoundCue { MOVE, CAPTURE, CASTLE, CHECK, EN_PASSANT, CHECKMATE }
 
-internal fun moveSoundCue(san: String): MoveSoundCue = when {
-    san.endsWith("+") || san.endsWith("#") -> MoveSoundCue.CHECK
+internal fun moveSoundCue(san: String, enPassant: Boolean = false): MoveSoundCue = when {
+    san.endsWith("#") -> MoveSoundCue.CHECKMATE
+    enPassant -> MoveSoundCue.EN_PASSANT
+    san.endsWith("+") -> MoveSoundCue.CHECK
     san.startsWith("O-O") -> MoveSoundCue.CASTLE
     'x' in san -> MoveSoundCue.CAPTURE
     else -> MoveSoundCue.MOVE
@@ -676,6 +692,8 @@ private const val MOVE_VOLUME = 0.90f
 private const val CAPTURE_VOLUME = 0.95f
 private const val CASTLE_VOLUME = 0.90f
 private const val CHECK_VOLUME = 0.70f
+private const val EN_PASSANT_VOLUME = 0.85f
+private const val CHECKMATE_VOLUME = 0.85f
 private const val FIREWORK_VOLUME = 1.00f
 private const val GLASS_IMPACT_VOLUME = 0.95f
 private const val GLASS_FRACTURE_VOLUME = 0.85f

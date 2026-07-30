@@ -1,16 +1,16 @@
 # Drawless Chess next-release gates
 
-**Recorded:** July 15, 2026; last audited July 18, 2026
-**Applies to:** the first release after `0.2.0` and every later Play release
+**Recorded:** July 15, 2026; last audited July 30, 2026
+**Applies to:** the `1.0.0` release after Play-delivered `0.3.0` and every later Play release
 **Rule:** do not submit, roll out, or invite international testers until every applicable hard
 gate below has evidence and the owner approves the exact Play Console changes.
 
 ## Current Play state
 
-Read-only inspection on July 15, 2026 showed that **Closed testing - Alpha** targets only the
-United States. Application localization does not change track availability. Expanding the
-countries/regions on the actual testing track is therefore a hard release gate, not an assumed
-side effect of translated resources.
+Read-only inspection on July 30, 2026 showed that **Closed testing - Alpha** serves 56 of 177
+available regions. Application localization does not change track availability. Any further
+country/region expansion on the actual testing track remains an explicit release decision, not an
+assumed side effect of translated resources.
 
 ## Hard gates outside Play Console
 
@@ -30,7 +30,7 @@ side effect of translated resources.
   The physical API-33 tablet locale/layout/200%-font/TalkBack portion passed on July 21, 2026;
   see `docs/TABLET_LOCALE_ACCESSIBILITY_MATRIX.md`. The phone portion and remaining end-to-end
   save/resume flows keep this combined gate open.
-- [ ] Test an upgrade from the Play-delivered `0.2.0` package to the exact next candidate without
+- [ ] Test an upgrade from the Play-delivered `0.3.0` package to the exact `1.0.0` candidate without
   losing saved games, settings, statistics, or engine functionality.
 - [ ] Verify the exact AAB's language splits, both supported ABIs, native library loading, 16 KB
   compatibility, permissions, package identity, and version identity.

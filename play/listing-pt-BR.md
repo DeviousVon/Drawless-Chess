@@ -12,9 +12,9 @@ Contagem de caracteres: 14 de 30.
 
 ## Descrição curta
 
-`Xadrez offline com regras decisivas, sete níveis e sem anúncios.`
+`Xadrez offline decisivo: oito adversários e análise da partida Beta.`
 
-Contagem de caracteres: 64 de 80.
+Contagem de caracteres: 68 de 80.
 
 ## Descrição completa
 
@@ -30,14 +30,14 @@ Drawless Chess adapta regras conhecidas do xadrez para substituir finais comuns 
 • Após 50 lances sem movimento de peão ou captura, os pontos de material decidem o vencedor.
 
 JOGUE TOTALMENTE OFFLINE
-Enfrente o motor de xadrez integrado sem conta, conexão com a internet ou pareamento online. Escolha entre sete níveis descritivos de adversário, de Aprendiz a Grande mestre.
+Enfrente o motor Fairy-Stockfish ajustado para Drawless, que funciona totalmente no seu aparelho, sem conta, conexão com a internet ou pareamento online. Escolha entre oito adversários ilustrados: sete níveis fixos, de Aprendiz a Grande mestre, e Vesper, o adversário Adaptativo que se ajusta ao seu nível atual e evolui após cada partida sem ajuda.
 
 PERSONALIZE A PARTIDA
 Comece na hora com a Partida rápida, que escolhe seu lado aleatoriamente por padrão, ou personalize seu lado, adversário, regras e relógio. Jogue sem relógio, escolha partidas de 3, 5 ou 10 minutos ou use o ritmo 15+10. A variante opcional Escape muda a forma de decidir o afogamento.
 
 FEITO PARA PARTIDAS DE VERDADE
 • Salvamento local automático e opção de retomar
-• Sete adversários ilustrados com forças de jogo e personalidades distintas
+• Oito adversários ilustrados, incluindo Vesper com força Adaptativa
 • Mova as peças tocando ou arrastando, com indicação de lances legais
 • Registro de peças capturadas, pontuação de material e histórico de lances com peças
 • Indicação opcional de ameaças para aprender a jogar com mais segurança
@@ -47,6 +47,9 @@ FEITO PARA PARTIDAS DE VERDADE
 • Efeitos claros de vitória e derrota com sons amostrados sincronizados
 • Layouts para celulares e tablets
 
+ANALISE A PARTIDA QUE VOCÊ ACABOU DE JOGAR
+No resultado de uma partida concluída, abra a Análise da partida (Beta) para ver avaliações dos seus lances, alternativas melhores, variantes curtas e a reprodução do tabuleiro lance a lance. O motor Fairy-Stockfish ajustado para Drawless faz toda a análise no seu aparelho; a partida não é enviada nem analisada na nuvem. As análises não são salvas em um histórico.
+
 CINCO TEMAS DIFERENTES
 Alterne entre Mármore imperial, Arenito do deserto, Ardósia glacial, Cobre com verdete e Geodo de ametista. Sua escolha fica salva no dispositivo.
 
@@ -55,20 +58,20 @@ Sem conta. Sem anúncios. Sem análise de uso ou rastreamento. Sem compras no ap
 
 SOFTWARE DE CÓDIGO ABERTO
 Drawless Chess é licenciado sob a GNU GPL versão 3 ou posterior. O código-fonte e os avisos do projeto estão disponíveis em:
-https://github.com/DeviousVon/Drawless-Chess/releases/tag/v0.3.0
+https://github.com/DeviousVon/Drawless-Chess/releases/tag/v1.0.0
 ```
 
-Contagem de caracteres: 2.386 de 4.000.
+Contagem de caracteres: 3.063 de 4.000, incluindo quebras de linha.
 
 ## Notas da versão
 
-Rascunho para a versão `0.3.0`:
+Rascunho para a versão `1.0.0` (`versionCode` 4):
 
 ```text
-Boas-vindas ao Drawless Chess. Jogue partidas decisivas offline contra sete adversários ilustrados, com Partida rápida de lado aleatório ou regras e relógios personalizados. Acompanhe capturas, material, histórico de lances, sequências e pontuações; use indicação opcional de ameaças, dicas, desfazer, cinco temas, sons realistas do tabuleiro, revanches e efeitos claros de vitória ou derrota. Sem conta, anúncios, análise de uso ou compras no app.
+Grande atualização: Vesper é o oitavo adversário. O modo Adaptativo se ajusta ao seu nível e evolui após cada partida sem ajuda. Ao terminar, abra imediatamente a Análise da partida (Beta) para ver avaliações dos seus lances, alternativas melhores, variantes curtas e o tabuleiro. O motor Fairy-Stockfish ajustado para Drawless analisa tudo no aparelho. As análises não são salvas em um histórico.
 ```
 
-Contagem de caracteres: 448 de 500.
+Contagem de caracteres: 397 de 500.
 
 ## Recomendações de metadados
 
@@ -76,8 +79,8 @@ Contagem de caracteres: 448 de 500.
 - Categoria: **Tabuleiro**
 - Idioma desta página: **Português (Brasil) — pt-BR**
 - Tags sugeridas, se estiverem disponíveis na lista atual do Play Console: **Xadrez**, **Estratégia**, **Um jogador** e **Offline**. Selecione somente tags presentes na lista vigente do Google.
-- E-mail de suporte: **realitymaster@protonmail.ch**
-- Site: deixar em branco até que um site público e mantido do projeto ou do desenvolvedor seja escolhido; o repositório do GitHub pode ser usado se o Play Console aceitar.
+- E-mail de suporte: **support@drawlesschess.com**
+- Site: **https://drawlesschess.com**
 - O texto de marketing evita afirmações não verificáveis sobre classificação, Elo, ser o “melhor” ou estar pronto para produção.
 
 ## Observações para a revisão obrigatória

@@ -4,9 +4,12 @@ set -euo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"
 compiler="$root/node_modules/kotlin-compiler/bin/kotlinc"
 core_jar="$root/build/kotlin-core-tests.jar"
-log="$root/build/compose-structure.log"
-runtime_jar="$root/build/app-runtime-structure.jar"
-engine_jar="$root/build/android-engine-structure.jar"
+work="$(mktemp -d "${TMPDIR:-/tmp}/drawless-compose-structure.XXXXXX")"
+trap 'rm -rf "$work"' EXIT
+log="$work/compose-structure.log"
+runtime_jar="$work/app-runtime-structure.jar"
+engine_jar="$work/android-engine-structure.jar"
+compose_jar="$work/compose-structure.jar"
 
 [[ -x "$compiler" ]] || { echo "Kotlin compiler missing" >&2; exit 1; }
 [[ -f "$core_jar" ]] || { echo "Run npm run test:kotlin first" >&2; exit 1; }
@@ -39,7 +42,7 @@ mapfile -t engine_sources < <(find "$root/android/engine/src/main/kotlin" -name 
 mapfile -t compose_sources < <(printf '%s\n' "${sources[@]}" | rg -v '/(GamePacing|GameRuntime|StartingColor)\.kt$')
 set +e
 "$compiler" -jvm-target 17 -classpath "$core_jar:$engine_jar:$runtime_jar" "${compose_sources[@]}" \
-  -d "$root/build/compose-structure.jar" >"$log" 2>&1
+  -d "$compose_jar" >"$log" 2>&1
 set -e
 
 # Android/Compose symbols are intentionally unresolved in this container. Kotlin still
@@ -78,11 +81,11 @@ rg -q 'PENDING_SAMPLE_MAX_AGE_MS = 250L' \
   "$root/android/app/src/main/kotlin/com/drawlesschess/ui/GameSoundPlayer.kt"
 rg -q 'object SampledSoundCatalog' \
   "$root/android/app/src/main/kotlin/com/drawlesschess/ui/SampledSoundCatalog.kt"
-rg -Fq 'soundPlayer.playMove(latestSan)' \
+rg -Fq 'soundPlayer.playMove(entry.notation, entry.accessibility.enPassant)' \
   "$root/android/app/src/main/kotlin/com/drawlesschess/ui/GameScreen.kt"
 sample_count=$(find "$root/android/app/src/main/res/raw" -maxdepth 1 -type f -name 'chess_*.ogg' | wc -l)
-[[ $sample_count -eq 101 ]] || {
-  echo "Expected 101 sampled audio resources, found $sample_count" >&2
+[[ $sample_count -eq 103 ]] || {
+  echo "Expected 103 sampled audio resources, found $sample_count" >&2
   exit 1
 }
 # The deterministic renderer supplies immediate move/capture/check fallback while sampled

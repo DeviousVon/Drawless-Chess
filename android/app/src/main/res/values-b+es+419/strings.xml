@@ -63,10 +63,10 @@
     <string name="rules_fifty_move">• Después de 50 movimientos sin mover un peón ni hacer una captura, los puntos de material deciden quién gana.</string>
     <string name="action_got_it">Entendido</string>
     <string name="license_title">Software de código abierto</string>
-    <string name="license_body">Drawless Chess se distribuye bajo la licencia GNU GPL versión 3 o posterior. El audio muestreado incluye grabaciones de ajedrez CC0 de JJTaynos y mh2o, fuegos artificiales CC0 de Rudmer_Rotteveel y grabaciones de ion.sound con licencia MIT de Denis Ineshin. El código fuente correspondiente exacto y los avisos de terceros acompañan la versión oficial v%1$s.</string>
+    <string name="license_body">Drawless Chess se distribuye bajo la licencia GNU GPL versión 3 o posterior. Su motor en el dispositivo es una versión modificada de Fairy-Stockfish, derivada de Stockfish y distribuida bajo GPL-3.0-or-later. El audio muestreado incluye grabaciones de ajedrez CC0 de JJTaynos y mh2o, fuegos artificiales CC0 de Rudmer_Rotteveel y grabaciones de ion.sound con licencia MIT de Denis Ineshin. El código fuente correspondiente exacto y los avisos de terceros acompañan la versión oficial v%1$s.</string>
     <string name="license_view_source">Ver código fuente</string>
     <string name="privacy_title">Privacidad</string>
-    <string name="privacy_body">Drawless Chess funciona completamente sin conexión. BB_Games no recopila, transmite, comparte ni vende datos personales. Las partidas guardadas, el historial de partidas terminadas, las estadísticas locales y los ajustes se almacenan en tu dispositivo y pueden incluirse en las copias de seguridad de Android si las activas; BB_Games no puede acceder a esas copias. Consultas sobre privacidad: realitymaster@protonmail.ch</string>
+    <string name="privacy_body">Drawless Chess funciona completamente sin conexión. BB_Games no recopila, transmite, comparte ni vende datos personales. Las partidas guardadas, el historial de partidas terminadas, las estadísticas locales y los ajustes se almacenan en tu dispositivo y pueden incluirse en las copias de seguridad de Android si las activas; BB_Games no puede acceder a esas copias. Consultas sobre privacidad: support@drawlesschess.com</string>
     <string name="privacy_view_policy">Ver política</string>
 
     <!-- Configuración de partida -->
@@ -273,8 +273,10 @@
     <string name="review_cancel_analysis">Detener análisis</string>
     <string name="review_retry">Analizar de nuevo</string>
     <string name="review_move_position">Jugada %1$d de %2$d</string>
-    <string name="review_previous">Anterior</string>
-    <string name="review_next">Siguiente</string>
+    <string name="review_previous_issue">Error anterior</string>
+    <string name="review_previous">Jugada anterior</string>
+    <string name="review_next">Jugada siguiente</string>
+    <string name="review_next_issue">Error siguiente</string>
     <string name="review_moves">Jugadas de la partida</string>
     <string name="review_starting_position">Posición inicial</string>
     <string name="review_choose_move">Elige una jugada para ver su análisis.</string>
@@ -363,7 +365,7 @@
     <string name="result_dead_position_material">El jaque mate se volvió imposible, así que la regla de material decidió al ganador.</string>
     <string name="result_dead_position_material_score">El jaque mate se volvió imposible. Las blancas tenían %1$d puntos de material y las negras %2$d, así que %3$s ganó según la regla de material.</string>
     <string name="result_dead_position_material_tie">El jaque mate se volvió imposible con el material empatado en %1$d puntos por lado. Según la regla de material, ganó quien hizo el movimiento final: %2$s.</string>
-    <string name="result_dead_position_final_capture">La captura final volvió imposible el jaque mate. Según la regla Final Capture, ganó el jugador que hizo esa captura.</string>
+    <string name="result_dead_position_final_capture">Esa jugada volvió imposible el jaque mate. Según la regla Final Capture, ganó el jugador que hizo esa jugada.</string>
     <string name="result_bare_king">A %1$s solo le quedaba el rey, así que ganó %2$s.</string>
     <string name="result_timeout">Se agotó el tiempo.</string>
     <string name="result_resignation">La partida terminó por rendición.</string>

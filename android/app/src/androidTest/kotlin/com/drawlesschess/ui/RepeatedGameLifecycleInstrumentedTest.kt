@@ -1,5 +1,6 @@
 package com.drawlesschess.ui
 
+import android.os.SystemClock
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertIsDisplayed
@@ -275,6 +276,62 @@ class RepeatedGameLifecycleInstrumentedTest {
     }
 
     @Test
+    fun idleAnalysisMakesAnOffMultiPvReviewReadyBeforeTheReviewTap() {
+        assertFalse(
+            "Native review latency test must not use the development engine",
+            com.drawlesschess.BuildConfig.USE_DEVELOPMENT_ENGINE,
+        )
+        dismissRulesGuideIfShown()
+        waitForText("Quick Play")
+        startWhiteCustomGame()
+        val runtime = requireNotNull(
+            ViewModelProvider(compose.activity)[DrawlessAppViewModel::class.java].runtime,
+        )
+
+        compose.waitUntil(timeoutMillis = 20_000L) {
+            runtime.reviewPrefetchDiagnostics().rootCandidateMovesByPly[1]?.isNotEmpty() == true
+        }
+        val candidates = requireNotNull(
+            runtime.reviewPrefetchDiagnostics().rootCandidateMovesByPly[1],
+        )
+        val played = listOf("a2a3", "h2h3", "b2b3", "g2g3", "a2a4", "h2h4")
+            .map { value -> com.drawlesschess.core.UciMove(value) }
+            .first { it !in candidates }
+        compose.onNodeWithTag("board_square_${played.value.substring(0, 2)}").performClick()
+        compose.onNodeWithTag("board_square_${played.value.substring(2, 4)}").performClick()
+        waitForStatus(R.string.status_your_turn, timeoutMillis = 20_000L)
+
+        compose.waitUntil(timeoutMillis = 20_000L) {
+            1 in runtime.reviewPrefetchDiagnostics().adjacentFallbackPlies
+        }
+        val finalReviewSubmissionsBeforeGameEnd = runtime.reviewEngineSubmissionCount()
+        compose.onNodeWithTag("resign_button").performClick()
+        waitForText("Resign this game?")
+        compose.onNodeWithText("Resign game").performClick()
+        waitForText("Defeat")
+
+        // GameRoute must have started and completed the fully seeded review before navigation.
+        compose.waitUntil(timeoutMillis = 5_000L) {
+            runtime.currentGameReviewState() is RuntimeGameReviewState.Complete
+        }
+        val complete = runtime.currentGameReviewState() as RuntimeGameReviewState.Complete
+        assertEquals(
+            "Final review submitted new engine work instead of consuming the in-game cache",
+            finalReviewSubmissionsBeforeGameEnd,
+            runtime.reviewEngineSubmissionCount(),
+        )
+        assertTrue(complete.result.moves.single().evidence?.usedAdjacentFallback == true)
+
+        val openStarted = SystemClock.elapsedRealtime()
+        compose.onNodeWithTag("post_game_review").performClick()
+        waitForText("Game review")
+        waitForText("Review complete")
+        val openMillis = SystemClock.elapsedRealtime() - openStarted
+        println("WARM_REVIEW_OPEN_MILLIS=$openMillis")
+        assertTrue("A fully prepared review took ${openMillis}ms to open", openMillis < 2_000L)
+    }
+
+    @Test
     fun completedResultSurvivesActivityRecreationWithoutReplayingCelebration() {
         dismissRulesGuideIfShown()
         waitForText("Quick Play")
@@ -328,7 +385,7 @@ class RepeatedGameLifecycleInstrumentedTest {
 
         compose.onNodeWithText("Privacy").performScrollTo().performClick()
         waitForText("Drawless Chess works entirely offline", substring = true)
-        waitForText("realitymaster@protonmail.ch", substring = true)
+        waitForText("support@drawlesschess.com", substring = true)
         waitForText("View policy")
 
         compose.onNodeWithText("Close").performClick()

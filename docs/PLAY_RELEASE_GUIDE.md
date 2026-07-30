@@ -94,7 +94,7 @@ never put a password on a command line or in chat:
 
 Enter the keystore password at the prompt. Record the alias that `keytool` displays. The
 certificate SHA-256 must be
-`85:BF:58:0C:42:2F:8F:F4:02:03:E8:4B:C0:F9:FF:66:0F:AA:C8:15:E6:C4:E1:0C:87:B2:8D:58:26:96:AB:A8`.
+`5F:07:3E:D3:F6:BA:C4:E8:E7:CD:0E:35:0F:D2:5C:67:D2:5F:06:43:B9:8C:51:A0:70:C4:95:60:B6:A7:11:00`.
 If it differs, stop; do not build or upload with that key.
 
 For a one-session build, set only the non-secret path and alias directly, prompt for both
@@ -114,7 +114,7 @@ try {
     [Runtime.InteropServices.Marshal]::PtrToStringBSTR($storePointer)
   $env:DRAWLESS_UPLOAD_KEY_PASSWORD = `
     [Runtime.InteropServices.Marshal]::PtrToStringBSTR($keyPointer)
-  Push-Location C:\src\android
+  Push-Location .\android
   $locationPushed = $true
   .\gradlew.bat --no-daemon :app:bundleRelease
   if ($LASTEXITCODE) { throw "bundleRelease failed ($LASTEXITCODE)" }
@@ -129,8 +129,9 @@ try {
 ```
 
 The store and key passwords are often identical, but the build must not assume that. If the
-existing keystore or its password is lost, use Play Console's upload-key reset process; do not
-create an unrelated key and attempt to upload it.
+existing keystore or its password cannot be used, stop. Do not create a replacement key and do
+not request, submit, cancel, or modify an upload-key reset unless Bob explicitly authorizes that
+exact action.
 
 Before building, regenerate the exact dependency evidence, review and commit every release
 source change, and require a clean worktree. Then create the corresponding-source archive;
@@ -138,8 +139,8 @@ the bundler refuses dirty trees and records the full source commit:
 
 ```powershell
 pwsh -NoProfile -File .\scripts\generate-release-sbom.ps1
-& 'C:\Program Files\Git\bin\bash.exe' -lc `
-  'cd /c/src && scripts/source-bundle.sh release/drawless-chess-0.3.0-source.tar.gz'
+& 'C:\Program Files\Git\bin\bash.exe' `
+  .\scripts\source-bundle.sh release/drawless-chess-1.0.0-source.tar.gz
 ```
 
 The final AAB verifier independently regenerates the dependency reports and the complete
@@ -147,7 +148,7 @@ canonical source manifest. It rejects a stale SBOM, a different Git commit, any 
 manifest/hash mismatch, an omitted source file, or any content difference from source
 rebuilt from the clean repository.
 
-With the upload-key configuration present, build from `C:\src\android`:
+With the upload-key configuration present, build from the repository's `android` directory:
 
 ```powershell
 .\gradlew.bat :app:bundleRelease
@@ -157,12 +158,12 @@ Without all four signing values and an external keystore, that command fails ins
 creating a new unsigned Play bundle. Do not upload a stale file merely because one remains in
 the build directory from an earlier diagnostic build.
 
-Verify the signed result from `C:\src` and preserve its public evidence report:
+Verify the signed result from the repository root and preserve its public evidence report:
 
 ```powershell
 pwsh -NoProfile -File .\scripts\verify-play-aab.ps1 `
   -Bundle .\android\app\build\outputs\bundle\release\app-release.aab `
-  -SourceArchive .\release\drawless-chess-0.3.0-source.tar.gz `
+  -SourceArchive .\release\drawless-chess-1.0.0-source.tar.gz `
   -ExpectedUploadCertificateSha256 '<64-HEX-UPLOAD-CERTIFICATE-FINGERPRINT>' `
   -OutputManifest .\build\release-evidence\play-aab.json
 ```
@@ -258,7 +259,7 @@ promo codes.
 
 Public release remains **BLOCKED** until all applicable items are complete:
 
-The release after `0.2.0` must also pass every item in
+The `1.0.0` release after Play-delivered `0.3.0` must also pass every item in
 [`NEXT_RELEASE_GATES.md`](NEXT_RELEASE_GATES.md). In particular, translated application resources
 do not satisfy the separate Play country-targeting gate.
 

@@ -26,7 +26,7 @@ data class UciSessionPolicy(
     val handshakeTimeoutMillis: Long = 5_000,
     val synchronizationTimeoutMillis: Long = 5_000,
     val searchGraceMillis: Long = 2_000,
-    val requiredDrawlessPatchVersion: Int = 1,
+    val requiredDrawlessPatchVersion: Int = DrawlessRulesUciV1.REQUIRED_PATCH_VERSION,
 ) {
     init {
         require(handshakeTimeoutMillis > 0)
@@ -68,6 +68,11 @@ class FairyUciEngine(
     private val policy: UciSessionPolicy = UciSessionPolicy(),
     private val closeTransport: () -> Unit = {},
 ) : ChessEngine, AutoCloseable {
+    private data class RequestConfiguration(
+        val rules: DrawlessRulesUciV1,
+        val commands: List<String>,
+    )
+
     private data class Work(
         val request: EngineRequest,
         val callback: (Result<EngineResponse>) -> Unit,
@@ -82,6 +87,7 @@ class FairyUciEngine(
     private var active: Work? = null
     private var queued: Work? = null
     private var currentGameId: String? = null
+    private var currentRules: DrawlessRulesUciV1? = null
     private var timer: EngineCancellation? = null
     private var timerGeneration = 0L
     private var terminalFailure: Throwable? = null
@@ -271,7 +277,7 @@ class FairyUciEngine(
             active = null
             return
         }
-        val commands = try {
+        val configuration = try {
             configurationCommands(work.request)
         } catch (error: Throwable) {
             active = null
@@ -281,10 +287,11 @@ class FairyUciEngine(
             return
         }
         try {
-            commands.forEach(::send)
-            if (currentGameId != work.request.gameId) {
+            configuration.commands.forEach(::send)
+            if (currentGameId != work.request.gameId || currentRules != configuration.rules) {
                 send("ucinewgame")
                 currentGameId = work.request.gameId
+                currentRules = configuration.rules
             }
             send("isready")
             stateValue = UciSessionState.PREPARING
@@ -313,15 +320,21 @@ class FairyUciEngine(
         }
     }
 
-    private fun configurationCommands(request: EngineRequest): List<String> {
-        if (build.drawlessPatchVersion < policy.requiredDrawlessPatchVersion) {
+    private fun configurationCommands(request: EngineRequest): RequestConfiguration {
+        if (policy.requiredDrawlessPatchVersion > 0 &&
+            build.drawlessPatchVersion != policy.requiredDrawlessPatchVersion) {
+            val relationship = if (build.drawlessPatchVersion < policy.requiredDrawlessPatchVersion) {
+                "older than"
+            } else {
+                "not the supported"
+            }
             throw UciEngineCompatibilityException(
-                "Drawless engine patch ${build.drawlessPatchVersion} is older than required patch " +
+                "Drawless engine patch ${build.drawlessPatchVersion} is $relationship patch " +
                     policy.requiredDrawlessPatchVersion,
             )
         }
         if (policy.requiredDrawlessPatchVersion > 0) {
-            val advertised = option("Drawless Patch Version")
+            val advertised = option(DrawlessRulesUciV1.PATCH_VERSION_OPTION)
                 ?: throw UciEngineCompatibilityException("Engine does not advertise its Drawless patch version")
             val reported = advertised.defaultValue?.toIntOrNull()
             if (advertised.type != UciOptionType.SPIN || reported != build.drawlessPatchVersion ||
@@ -331,11 +344,36 @@ class FairyUciEngine(
                 )
             }
         }
-        val variant = request.rules.preset.name.lowercase()
-        requireComboChoice("UCI_Variant", variant)
+        val rules = try {
+            DrawlessRulesUciV1.from(request.rules)
+        } catch (error: IllegalArgumentException) {
+            throw UciEngineCompatibilityException(error.message ?: "Unsupported Drawless rules contract")
+        }
+        requireComboChoice("UCI_Variant", rules.variant)
+        requireExactCombo(
+            DrawlessRulesUciV1.DEAD_POSITION_OPTION,
+            defaultValue = "material-victory",
+            expectedChoices = DrawlessRulesUciV1.DEAD_POSITION_CHOICES,
+            requestedValue = rules.deadPosition,
+        )
+        requireExactCombo(
+            DrawlessRulesUciV1.FIFTY_MOVE_OPTION,
+            defaultValue = "material-victory",
+            expectedChoices = DrawlessRulesUciV1.FIFTY_MOVE_CHOICES,
+            requestedValue = rules.fiftyMove,
+        )
+        requireExactCombo(
+            DrawlessRulesUciV1.BARE_KING_OPTION,
+            defaultValue = "bare-king-loses",
+            expectedChoices = DrawlessRulesUciV1.BARE_KING_CHOICES,
+            requestedValue = rules.bareKing,
+        )
         requireSpinRange("MultiPV", request.limits.multiPv)
         val commands = mutableListOf(
-            UciCommands.setOption("UCI_Variant", variant),
+            UciCommands.setOption("UCI_Variant", rules.variant),
+            UciCommands.setOption(DrawlessRulesUciV1.DEAD_POSITION_OPTION, rules.deadPosition),
+            UciCommands.setOption(DrawlessRulesUciV1.FIFTY_MOVE_OPTION, rules.fiftyMove),
+            UciCommands.setOption(DrawlessRulesUciV1.BARE_KING_OPTION, rules.bareKing),
             UciCommands.setOption("MultiPV", request.limits.multiPv.toString()),
         )
         option("UCI_AnalyseMode")?.let {
@@ -370,13 +408,31 @@ class FairyUciEngine(
                 commands += UciCommands.setOption("Skill Level", strength.level.toString())
             }
         }
-        return commands
+        return RequestConfiguration(rules, commands)
     }
 
     private fun requireComboChoice(name: String, value: String) {
         val option = option(name) ?: throw UciEngineCompatibilityException("Engine is missing $name")
         if (option.type != UciOptionType.COMBO || value !in option.choices) {
             throw UciEngineCompatibilityException("Engine option $name does not support '$value'")
+        }
+    }
+
+    private fun requireExactCombo(
+        name: String,
+        defaultValue: String,
+        expectedChoices: List<String>,
+        requestedValue: String,
+    ) {
+        val option = option(name) ?: throw UciEngineCompatibilityException("Engine is missing $name")
+        val advertisedChoices = option.choices
+        if (option.type != UciOptionType.COMBO || option.defaultValue != defaultValue ||
+            advertisedChoices.size != expectedChoices.size ||
+            advertisedChoices.toSet() != expectedChoices.toSet()) {
+            throw UciEngineCompatibilityException("Engine option $name does not implement Drawless rules v1")
+        }
+        if (requestedValue !in advertisedChoices) {
+            throw UciEngineCompatibilityException("Engine option $name does not support '$requestedValue'")
         }
     }
 
@@ -457,18 +513,20 @@ class FairyUciEngine(
     }
 
     private class AnalysisAccumulator {
-        /** Complete rank sets are selected from one depth; ranks are never mixed across depths. */
-        private val variationsByDepth = linkedMapOf<Int, MutableMap<Int, UciInfo>>()
+        private data class Snapshot(
+            val depth: Int,
+            val ranks: Map<Int, UciInfo>,
+        )
+
+        /** Every scored rank-1 line starts a UCI MultiPV reporting cycle. */
+        private val reportingCycles = mutableListOf<MutableMap<Int, UciInfo>>()
 
         fun accept(info: UciInfo) {
             if (info.score == null || info.principalVariation.isEmpty()) return
-            val depth = info.depth ?: return
+            if (info.depth == null) return
             val rank = info.multiPv ?: 1
-            val ranks = variationsByDepth.getOrPut(depth) { linkedMapOf() }
-            // A repeated primary at the same depth starts a new UCI reporting cycle. Keeping
-            // older secondary ranks here would manufacture a snapshot that never existed.
-            if (rank == 1 && ranks.containsKey(1)) ranks.clear()
-            ranks[rank] = info
+            if (rank == 1 || reportingCycles.isEmpty()) reportingCycles += linkedMapOf()
+            reportingCycles.last()[rank] = info
         }
 
         fun response(
@@ -479,13 +537,25 @@ class FairyUciEngine(
             val bestMove = best.move ?: throw UciEngineStateException("Engine returned no move for a live position")
             val position = ChessAdapter.replay(request.initialFen, request.moves)
             val expectedRanks = minOf(request.limits.multiPv, ChessRules.legalUciMoves(position).size)
-            val snapshot = variationsByDepth.entries
-                .sortedByDescending { it.key }
-                .firstOrNull { (_, ranks) ->
-                    expectedRanks > 0 && (1..expectedRanks).all(ranks::containsKey) &&
-                        ranks.getValue(1).principalVariation.first() == bestMove
+            val completeSnapshots = reportingCycles.mapNotNull { ranks ->
+                val selected = (1..expectedRanks).mapNotNull(ranks::get)
+                val depths = selected.mapNotNull(UciInfo::depth).distinct()
+                val rootMoves = selected.map { it.principalVariation.first() }
+                if (expectedRanks > 0 && selected.size == expectedRanks && depths.size == 1 &&
+                    rootMoves.distinct().size == expectedRanks) {
+                    Snapshot(depths.single(), ranks)
+                } else {
+                    null
                 }
-            val converted = snapshot?.value
+            }.sortedByDescending(Snapshot::depth)
+            // A timed MultiPV search may stop partway through a newer iteration. In that case
+            // UCI bestmove belongs to the partial iteration and can differ from rank 1 of every
+            // complete same-depth snapshot. Prefer a matching snapshot when one exists; otherwise
+            // return the deepest complete snapshot as one coherent, scored result.
+            val snapshot = completeSnapshots.firstOrNull { candidate ->
+                candidate.ranks.getValue(1).principalVariation.first() == bestMove
+            } ?: completeSnapshots.firstOrNull()
+            val converted = snapshot?.ranks
                 ?.toSortedMap()
                 ?.entries
                 ?.take(expectedRanks)
@@ -520,14 +590,19 @@ class FairyUciEngine(
                         evidenceAvailable = false,
                     ))
                 }
+            val responseBestMove = snapshot?.ranks
+                ?.getValue(1)
+                ?.principalVariation
+                ?.first()
+                ?: bestMove
             return EngineResponse(
                 requestId = request.requestId,
                 gameId = request.gameId,
                 positionId = request.positionId,
-                bestMove = bestMove,
-                ponderMove = best.ponder,
-                depth = snapshot?.key ?: 0,
-                nodes = snapshot?.value?.values?.maxOfOrNull { it.nodes ?: 0L } ?: 0L,
+                bestMove = responseBestMove,
+                ponderMove = best.ponder.takeIf { responseBestMove == bestMove },
+                depth = snapshot?.depth ?: 0,
+                nodes = snapshot?.ranks?.values?.maxOfOrNull { it.nodes ?: 0L } ?: 0L,
                 variations = converted,
                 engine = identity,
             )

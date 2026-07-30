@@ -6,9 +6,12 @@ import com.drawlesschess.core.chess.ChessPosition
 import com.drawlesschess.core.chess.ChessRules
 import com.drawlesschess.core.chess.RepetitionKey
 import com.drawlesschess.core.engine.AnalysisRequests
+import com.drawlesschess.core.engine.GameReviewAdjacentKey
+import com.drawlesschess.core.engine.GameReviewAdjacentRoot
 import com.drawlesschess.core.engine.GameReviewPlanner
 import com.drawlesschess.core.engine.GameReviewRoot
 import com.drawlesschess.core.engine.GameReviewRootKey
+import com.drawlesschess.core.engine.SeededGameReviewAdjacentRoot
 import com.drawlesschess.core.engine.SeededGameReviewRoot
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
@@ -45,9 +48,12 @@ class GameCoordinator private constructor(
     private var activeRequestPurpose: EnginePurpose? = null
     private var activeCancellation: EngineCancellation? = null
     private var activeReviewPrefetchRoot: GameReviewRoot? = null
+    private var activeReviewPrefetchAdjacentRoot: GameReviewAdjacentRoot? = null
     private var activeReviewPrefetchRevision: Long? = null
     private var reviewPrefetchEnabled = false
     private val reviewPrefetchRootsByKey = linkedMapOf<GameReviewRootKey, SeededGameReviewRoot>()
+    private val reviewPrefetchAdjacentRootsByKey =
+        linkedMapOf<GameReviewAdjacentKey, SeededGameReviewAdjacentRoot>()
     private var engineError: String? = null
 
     fun start() {
@@ -113,6 +119,11 @@ class GameCoordinator private constructor(
     /** Immutable exact roots completed during foreground play, for the post-game runner. */
     fun completedReviewPrefetchRoots(): List<SeededGameReviewRoot> = synchronized(lock) {
         reviewPrefetchRootsByKey.values.toList()
+    }
+
+    /** Immutable exact fallback searches completed during otherwise-idle foreground play. */
+    fun completedReviewPrefetchAdjacentRoots(): List<SeededGameReviewAdjacentRoot> = synchronized(lock) {
+        reviewPrefetchAdjacentRootsByKey.values.toList()
     }
 
     fun playHuman(move: UciMove) {
@@ -501,35 +512,39 @@ class GameCoordinator private constructor(
         // doing so could invert the coordinator gate and the engine's own callback monitor.
         if (!engineInvocationLock.tryLock()) return
         try {
-            val rootAndRevision = synchronized(lock) {
+            val workAndRevision = synchronized(lock) {
                 if (!started || closed || !reviewPrefetchEnabled || session.outcome != null ||
                     clock.paused || session.sideToMove != config.humanSide || activeRequestId != null ||
                     engineError != null
                 ) {
                     return
                 }
-                val root = GameReviewPlanner.playerRoot(
+                val currentRoot = GameReviewPlanner.playerRoot(
                     requestId = idSource.nextId(),
                     gameId = config.gameId,
                     initialFen = config.initialFen,
                     moves = session.moves.map { it.move },
                     rules = config.rules,
                 )
-                if (root.key in reviewPrefetchRootsByKey) return
-                activeRequestId = root.request.requestId
+                val root = currentRoot.takeUnless { it.key in reviewPrefetchRootsByKey }
+                val adjacent = if (root == null) nextReviewAdjacentPrefetchLocked() else null
+                val request = root?.request ?: adjacent?.request ?: return
+                activeRequestId = request.requestId
                 activeRequestPurpose = EnginePurpose.REVIEW
                 activeReviewPrefetchRoot = root
+                activeReviewPrefetchAdjacentRoot = adjacent
                 activeReviewPrefetchRevision = revision
-                root to revision
+                Triple(root, adjacent, revision)
             }
-            val (root, expectedRevision) = rootAndRevision
+            val (root, adjacent, expectedRevision) = workAndRevision
+            val request = root?.request ?: requireNotNull(adjacent).request
             val cancellation = try {
-                engine.analyze(root.request) { result ->
-                    handleReviewPrefetchResult(root, expectedRevision, result)
+                engine.analyze(request) { result ->
+                    handleReviewPrefetchResult(root, adjacent, expectedRevision, result)
                 }
             } catch (_: Throwable) {
                 synchronized(lock) {
-                    if (activeRequestId == root.request.requestId &&
+                    if (activeRequestId == request.requestId &&
                         activeRequestPurpose == EnginePurpose.REVIEW
                     ) {
                         clearActiveEngineLocked()
@@ -540,9 +555,9 @@ class GameCoordinator private constructor(
 
             var cancelImmediately = false
             synchronized(lock) {
-                if (activeRequestId == root.request.requestId &&
+                if (activeRequestId == request.requestId &&
                     activeRequestPurpose == EnginePurpose.REVIEW &&
-                    activeReviewPrefetchRoot === root &&
+                    activeReviewPrefetchRoot === root && activeReviewPrefetchAdjacentRoot === adjacent &&
                     activeReviewPrefetchRevision == expectedRevision
                 ) {
                     activeCancellation = cancellation
@@ -557,13 +572,17 @@ class GameCoordinator private constructor(
     }
 
     private fun handleReviewPrefetchResult(
-        root: GameReviewRoot,
+        root: GameReviewRoot?,
+        adjacent: GameReviewAdjacentRoot?,
         expectedRevision: Long,
         result: Result<EngineResponse>,
     ) {
+        var continuePrefetch = false
+        val request = root?.request ?: requireNotNull(adjacent).request
         synchronized(lock) {
             if (activeRequestPurpose != EnginePurpose.REVIEW ||
-                activeRequestId != root.request.requestId || activeReviewPrefetchRoot !== root ||
+                activeRequestId != request.requestId || activeReviewPrefetchRoot !== root ||
+                activeReviewPrefetchAdjacentRoot !== adjacent ||
                 activeReviewPrefetchRevision != expectedRevision
             ) {
                 return
@@ -574,10 +593,53 @@ class GameCoordinator private constructor(
             ) {
                 return
             }
-            result.mapCatching(root::seed).getOrNull()?.let { seeded ->
-                reviewPrefetchRootsByKey[seeded.key] = seeded
+            if (root != null) {
+                result.mapCatching(root::seed).getOrNull()?.let { seeded ->
+                    reviewPrefetchRootsByKey[seeded.key] = seeded
+                    continuePrefetch = true
+                }
+            } else {
+                result.mapCatching(requireNotNull(adjacent)::seed).getOrNull()?.let { seeded ->
+                    reviewPrefetchAdjacentRootsByKey[seeded.key] = seeded
+                    continuePrefetch = true
+                }
             }
         }
+        // A completed current root uses only the first 350 ms of a long think. Continue with any
+        // exact played-position fallback that remains from an earlier player move.
+        if (continuePrefetch) launchReviewPrefetchIfNeeded()
+    }
+
+    /**
+     * Finds the oldest completed player root whose chosen move was outside its retained MultiPV.
+     * Current-root work always runs first; this backlog uses only the remaining idle player time.
+     */
+    private fun nextReviewAdjacentPrefetchLocked(): GameReviewAdjacentRoot? {
+        val playedMoves = session.moves.map { it.move }
+        session.moves.forEach { record ->
+            if (record.mover != config.humanSide) return@forEach
+            val root = GameReviewPlanner.playerRoot(
+                requestId = "${config.gameId}-review-prefetch-candidate-${record.ply}",
+                gameId = config.gameId,
+                initialFen = config.initialFen,
+                moves = playedMoves.take(record.ply - 1),
+                rules = config.rules,
+            )
+            val seededRoot = reviewPrefetchRootsByKey[root.key] ?: return@forEach
+            if (seededRoot.response.variations.any { variation ->
+                    variation.moves.firstOrNull() == record.move
+                }
+            ) {
+                return@forEach
+            }
+            val adjacent = GameReviewPlanner.adjacentRoot(
+                requestId = idSource.nextId(),
+                root = root,
+                playedMove = record.move,
+            )
+            if (adjacent.key !in reviewPrefetchAdjacentRootsByKey) return adjacent
+        }
+        return null
     }
 
     private fun commitMoveLocked(
@@ -648,6 +710,7 @@ class GameCoordinator private constructor(
         activeRequestPurpose = null
         activeCancellation = null
         activeReviewPrefetchRoot = null
+        activeReviewPrefetchAdjacentRoot = null
         activeReviewPrefetchRevision = null
         return cancellation
     }

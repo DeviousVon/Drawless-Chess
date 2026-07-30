@@ -1,5 +1,9 @@
 package com.drawlesschess.ui
 
+import kotlin.math.roundToLong
+
+internal const val CHECKMATE_COMPLETION_FOLLOWUP_MILLIS = 500L
+
 internal enum class CompletionEffectCue {
     FIREWORK_LOW,
     FIREWORK_MID,
@@ -53,6 +57,22 @@ internal object CompletionEffectTimeline {
 internal fun CompletionEffectSpec.progressOf(cue: CompletionEffectCue): Float =
     cues.firstOrNull { it.cue == cue }?.progress
         ?: error("Completion cue $cue is not part of this timeline")
+
+internal fun CompletionEffectSpec.firstCueOffsetMillis(): Long =
+    (durationMillis * cues.first().progress).roundToLong()
+
+/**
+ * Starts the overlay early enough for its first timed cue to land on the requested wall-clock
+ * instant. A final opponent animation can consume the whole gap, in which case no extra wait is
+ * added and the move remains visible through the end of its existing animation.
+ */
+internal fun completionOverlayDelayMillis(
+    firstCueNotBeforeUptimeMillis: Long,
+    nowUptimeMillis: Long,
+    spec: CompletionEffectSpec,
+): Long =
+    (firstCueNotBeforeUptimeMillis - nowUptimeMillis - spec.firstCueOffsetMillis())
+        .coerceAtLeast(0L)
 
 /**
  * The impact marker owns only the central impact ring. Crack rays begin with the fracture cue;

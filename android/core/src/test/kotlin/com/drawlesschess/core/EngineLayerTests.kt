@@ -1,5 +1,6 @@
 package com.drawlesschess.core
 
+import com.drawlesschess.core.chess.ChessAdapter
 import com.drawlesschess.core.chess.ChessPosition
 import com.drawlesschess.core.coordinator.GameConfig
 import com.drawlesschess.core.engine.*
@@ -32,7 +33,7 @@ private data class UciFixture(
     val timers: FakeTimeoutScheduler,
 )
 
-private fun uciFixture(requiredPatch: Int = 1, actualPatch: Int = 1): UciFixture {
+private fun uciFixture(requiredPatch: Int = 2, actualPatch: Int = 2): UciFixture {
     val transport = RecordingTransport()
     val timers = FakeTimeoutScheduler()
     val engine = FairyUciEngine(
@@ -45,7 +46,21 @@ private fun uciFixture(requiredPatch: Int = 1, actualPatch: Int = 1): UciFixture
     return UciFixture(engine, transport, timers)
 }
 
-private fun completeHandshake(fixture: UciFixture, advertiseShowWdl: Boolean = true) {
+private fun drawlessRulesOptionLines() = listOf(
+    "option name Drawless Dead Position type combo default material-victory " +
+        "var material-victory var final-capture-victory",
+    "option name Drawless Fifty Move type combo default material-victory " +
+        "var disabled var completing-player-loses var forced-move-exception var material-victory",
+    "option name Drawless Bare King type combo default bare-king-loses " +
+        "var continue var bare-king-loses",
+)
+
+private fun completeHandshake(
+    fixture: UciFixture,
+    advertiseShowWdl: Boolean = true,
+    patchVersion: Int = 2,
+    rulesOptionLines: List<String> = drawlessRulesOptionLines(),
+) {
     fixture.engine.onLine("id name Fairy-Stockfish test")
     fixture.engine.onLine("id author Test Author")
     fixture.engine.onLine("option name UCI_Variant type combo default chess var chess var drawless var escape")
@@ -58,7 +73,11 @@ private fun completeHandshake(fixture: UciFixture, advertiseShowWdl: Boolean = t
         fixture.engine.onLine("option name UCI_ShowWDL type check default false")
     }
     fixture.engine.onLine("option name Syzygy50MoveRule type check default true")
-    fixture.engine.onLine("option name Drawless Patch Version type spin default 1 min 1 max 1")
+    fixture.engine.onLine(
+        "option name Drawless Patch Version type spin default $patchVersion " +
+            "min $patchVersion max $patchVersion",
+    )
+    rulesOptionLines.forEach(fixture.engine::onLine)
     fixture.engine.onLine("uciok")
     fixture.engine.onLine("readyok")
 }
@@ -69,13 +88,14 @@ private fun productionRequest(
     purpose: EnginePurpose = EnginePurpose.BOT_MOVE,
     multiPv: Int = 1,
     strength: EngineStrength = EngineStrength.ApproximateElo(1_500),
+    rules: RulesContractV1 = RulesContractV1.drawless(),
 ) = EngineRequest(
     requestId = id,
     gameId = gameId,
     positionId = "$gameId:0:start",
     initialFen = ChessPosition.START_FEN,
     moves = emptyList(),
-    rules = RulesContractV1.drawless(),
+    rules = rules,
     strength = strength,
     limits = EngineLimits(100, multiPv),
     purpose = purpose,
@@ -149,7 +169,7 @@ private fun reviewResponseFor(
     request: EngineRequest,
     bestMove: String,
     variations: List<PrincipalVariation> = listOf(reviewVariation(bestMove)),
-    engine: EngineIdentity = EngineIdentity("review-test", "1", 1),
+    engine: EngineIdentity = EngineIdentity("review-test", "1", 2),
 ): EngineResponse = EngineResponse(
     requestId = request.requestId,
     gameId = request.gameId,
@@ -357,7 +377,7 @@ internal fun registerEngineLayerTests(suite: TestSuite) {
         fixture.engine.onLine("info depth 8 multipv 1 score cp 24 nodes 500 pv e2e4 e7e5")
         fixture.engine.onLine("bestmove e2e4 ponder e7e5")
         assertThat(result?.getOrThrow()?.bestMove == UciMove("e2e4"))
-        assertThat(result?.getOrThrow()?.engine?.drawlessPatch == 1)
+        assertThat(result?.getOrThrow()?.engine?.drawlessPatch == 2)
         assertThat(fixture.engine.state == UciSessionState.IDLE)
     }
     suite.test("UCI result callback can start the next analysis reentrantly") {
@@ -459,6 +479,45 @@ internal fun registerEngineLayerTests(suite: TestSuite) {
         assertThat(completed.variations.map { it.moves.first().value } == listOf("e2e4", "d2d4"))
         assertThat(completed.variations.all { it.depth == 8 && it.evidenceAvailable })
     }
+    suite.test("UCI engine preserves a complete cycle when a timed iteration changes bestmove") {
+        val fixture = uciFixture()
+        fixture.engine.start(); completeHandshake(fixture)
+        var response: EngineResponse? = null
+        val request = productionRequest(purpose = EnginePurpose.REVIEW, multiPv = 9).copy(
+            initialFen = "4k3/7p/8/8/8/8/P7/N3K3 w - - 99 1",
+        )
+        fixture.engine.analyze(request) {
+            response = it.getOrThrow()
+        }
+        fixture.engine.onLine("readyok")
+        listOf(
+            "e1f2", "a2a4", "a1c2", "a1b3", "e1d2", "e1f1", "e1e2", "e1d1", "a2a3",
+        ).forEachIndexed { index, move ->
+            fixture.engine.onLine(
+                "info depth 26 multipv ${index + 1} score cp ${30 - index} nodes 800 pv $move",
+            )
+        }
+        // Fairy-Stockfish's final report can contain the searched ranks from depth 27 followed
+        // by still-valid depth-26 ranks from the interrupted iteration. It is one mixed-depth
+        // reporting cycle and must not overwrite the prior complete depth-26 cycle.
+        fixture.engine.onLine("info depth 27 multipv 1 score cp 35 nodes 900 pv a2a4")
+        fixture.engine.onLine("info depth 27 multipv 2 score cp 34 nodes 900 pv e1f2")
+        listOf("e1f1", "a1c2", "e1d2", "e1e2", "a2a3", "e1d1", "a1b3")
+            .forEachIndexed { index, move ->
+                fixture.engine.onLine(
+                    "info depth 26 multipv ${index + 3} score cp ${33 - index} nodes 900 pv $move",
+                )
+            }
+        fixture.engine.onLine("bestmove a2a4 ponder h7h5")
+
+        val completed = requireNotNull(response)
+        assertThat(completed.bestMove == UciMove("e1f2"))
+        assertThat(completed.ponderMove == null)
+        assertThat(completed.depth == 26 && completed.nodes == 800L)
+        assertThat(completed.variations.size == 9)
+        assertThat(completed.variations[3].moves.first() == UciMove("a1b3"))
+        assertThat(completed.variations.all { it.depth == 26 && it.evidenceAvailable })
+    }
     suite.test("UCI engine marks incoherent MultiPV evidence unavailable") {
         val fixture = uciFixture()
         fixture.engine.start(); completeHandshake(fixture)
@@ -524,9 +583,10 @@ internal fun registerEngineLayerTests(suite: TestSuite) {
         fixture.engine.onLine("bestmove c2c4")
 
         val completed = requireNotNull(response)
-        assertThat(completed.depth == 0 && completed.nodes == 0L)
-        assertThat(completed.variations.single().moves == listOf(UciMove("c2c4")))
-        assertThat(!completed.variations.single().evidenceAvailable)
+        assertThat(completed.depth == 8 && completed.nodes == 810L)
+        assertThat(completed.bestMove == UciMove("e2e4"))
+        assertThat(completed.variations.map { it.moves.first().value } == listOf("e2e4", "d2d4"))
+        assertThat(completed.variations.all { it.evidenceAvailable })
     }
     suite.test("UCI engine drains a cancelled search before queued work") {
         val fixture = uciFixture()
@@ -570,21 +630,146 @@ internal fun registerEngineLayerTests(suite: TestSuite) {
         assertThat(thrown?.cause === startupFailure)
         assertThat(fixture.engine.state == UciSessionState.FAILED && fixture.transport.closed)
     }
-    suite.test("UCI engine rejects an unpatched production build") {
-        val fixture = uciFixture(actualPatch = 0)
+    suite.test("UCI engine rejects a legacy patch that cannot configure the full rules contract") {
+        val fixture = uciFixture(actualPatch = 1)
         var error: Throwable? = null
         fixture.engine.analyze(productionRequest()) { error = it.exceptionOrNull() }
-        completeHandshake(fixture)
+        completeHandshake(fixture, patchVersion = 1, rulesOptionLines = emptyList())
         assertThat(error is UciEngineCompatibilityException)
         assertThat(fixture.engine.state == UciSessionState.IDLE)
     }
     suite.test("UCI engine rejects mismatched advertised patch identity") {
-        val fixture = uciFixture(actualPatch = 2)
+        val fixture = uciFixture()
         var error: Throwable? = null
         fixture.engine.analyze(productionRequest()) { error = it.exceptionOrNull() }
-        completeHandshake(fixture)
+        completeHandshake(fixture, patchVersion = 3)
         assertThat(error is UciEngineCompatibilityException)
         assertThat(fixture.engine.state == UciSessionState.IDLE)
+    }
+    suite.test("UCI engine rejects an unrecognized future patch even when its identity matches") {
+        val fixture = uciFixture(actualPatch = 3)
+        var error: Throwable? = null
+        fixture.engine.analyze(productionRequest()) { error = it.exceptionOrNull() }
+        completeHandshake(fixture, patchVersion = 3)
+        assertThat(error is UciEngineCompatibilityException)
+        assertThat(fixture.engine.state == UciSessionState.IDLE)
+    }
+    suite.test("UCI engine configures every selectable Drawless rule policy on each request") {
+        val presets = RulesContractV1.Preset.entries
+        val deadPositions = DeadPositionPolicy.entries
+        val fiftyMoves = FiftyMovePolicy.entries
+        val bareKings = BareKingPolicy.entries
+
+        for (preset in presets) {
+            for (deadPosition in deadPositions) {
+                for (fiftyMove in fiftyMoves) {
+                    for (bareKing in bareKings) {
+                        val fixture = uciFixture()
+                        fixture.engine.start()
+                        completeHandshake(fixture)
+                        val base = when (preset) {
+                            RulesContractV1.Preset.DRAWLESS -> RulesContractV1.drawless(
+                                deadPosition = deadPosition,
+                                fiftyMove = fiftyMove,
+                            )
+                            RulesContractV1.Preset.ESCAPE -> RulesContractV1.escape(
+                                deadPosition = deadPosition,
+                                fiftyMove = fiftyMove,
+                            )
+                        }
+                        val rules = base.copy(bareKing = bareKing)
+                        fixture.engine.analyze(productionRequest(rules = rules)) {}
+
+                        val expectedVariant = preset.name.lowercase()
+                        val expectedDeadPosition = when (deadPosition) {
+                            DeadPositionPolicy.MATERIAL_VICTORY -> "material-victory"
+                            DeadPositionPolicy.FINAL_CAPTURE_VICTORY -> "final-capture-victory"
+                        }
+                        val expectedFiftyMove = when (fiftyMove) {
+                            FiftyMovePolicy.DISABLED -> "disabled"
+                            FiftyMovePolicy.COMPLETING_PLAYER_LOSES -> "completing-player-loses"
+                            FiftyMovePolicy.FORCED_MOVE_EXCEPTION -> "forced-move-exception"
+                            FiftyMovePolicy.MATERIAL_VICTORY -> "material-victory"
+                        }
+                        val expectedBareKing = when (bareKing) {
+                            BareKingPolicy.CONTINUE -> "continue"
+                            BareKingPolicy.BARE_KING_LOSES -> "bare-king-loses"
+                        }
+                        val commands = fixture.transport.commands
+                        assertThat("setoption name UCI_Variant value $expectedVariant" in commands)
+                        assertThat(
+                            "setoption name Drawless Dead Position value $expectedDeadPosition" in commands,
+                        )
+                        assertThat(
+                            "setoption name Drawless Fifty Move value $expectedFiftyMove" in commands,
+                        )
+                        assertThat(
+                            "setoption name Drawless Bare King value $expectedBareKing" in commands,
+                        )
+                        fixture.engine.close()
+                    }
+                }
+            }
+        }
+    }
+    suite.test("UCI engine starts a new search epoch when rules change within one game id") {
+        val fixture = uciFixture()
+        fixture.engine.start()
+        completeHandshake(fixture)
+        fixture.engine.analyze(productionRequest(id = "rules-before")) {}
+        fixture.engine.onLine("readyok")
+        fixture.engine.onLine("info depth 1 score cp 0 nodes 1 pv e2e4")
+        fixture.engine.onLine("bestmove e2e4")
+        assertThat(fixture.transport.commands.count { it == "ucinewgame" } == 1)
+
+        val changedRules = RulesContractV1.escape(
+            deadPosition = DeadPositionPolicy.FINAL_CAPTURE_VICTORY,
+            fiftyMove = FiftyMovePolicy.FORCED_MOVE_EXCEPTION,
+        ).copy(bareKing = BareKingPolicy.CONTINUE)
+        val secondRequestStart = fixture.transport.commands.size
+        fixture.engine.analyze(productionRequest(id = "rules-after", rules = changedRules)) {}
+
+        assertThat(fixture.transport.commands.count { it == "ucinewgame" } == 2)
+        val secondRequestCommands = fixture.transport.commands.drop(secondRequestStart)
+        assertThat(
+            secondRequestCommands.containsAll(
+                listOf(
+                    "setoption name UCI_Variant value escape",
+                    "setoption name Drawless Dead Position value final-capture-victory",
+                    "setoption name Drawless Fifty Move value forced-move-exception",
+                    "setoption name Drawless Bare King value continue",
+                    "ucinewgame",
+                    "isready",
+                ),
+            ),
+        )
+        fixture.engine.close()
+    }
+    suite.test("UCI engine fails closed when a Drawless rules option is missing") {
+        val fixture = uciFixture()
+        var error: Throwable? = null
+        fixture.engine.analyze(productionRequest()) { error = it.exceptionOrNull() }
+        completeHandshake(fixture, rulesOptionLines = drawlessRulesOptionLines().dropLast(1))
+
+        assertThat(error is UciEngineCompatibilityException)
+        assertThat(error?.message?.contains("Drawless Bare King") == true)
+        assertThat(fixture.transport.commands.none { it.startsWith("position ") || it.startsWith("go ") })
+    }
+    suite.test("UCI engine fails closed when Drawless rules choices or defaults drift") {
+        val incompatible = listOf(
+            drawlessRulesOptionLines()[0],
+            "option name Drawless Fifty Move type combo default disabled " +
+                "var disabled var completing-player-loses var material-victory",
+            drawlessRulesOptionLines()[2],
+        )
+        val fixture = uciFixture()
+        var error: Throwable? = null
+        fixture.engine.analyze(productionRequest()) { error = it.exceptionOrNull() }
+        completeHandshake(fixture, rulesOptionLines = incompatible)
+
+        assertThat(error is UciEngineCompatibilityException)
+        assertThat(error?.message?.contains("Drawless Fifty Move") == true)
+        assertThat(fixture.transport.commands.none { it.startsWith("position ") || it.startsWith("go ") })
     }
     suite.test("UCI engine rejects a live-position null bestmove") {
         val fixture = uciFixture()
@@ -738,6 +923,27 @@ internal fun registerEngineLayerTests(suite: TestSuite) {
                 listOf(UciMove("e2e5")), RulesContractV1.drawless(),
             )
         }
+    }
+    suite.test("player review roots retain their canonical position key across attempt ids") {
+        val moves = listOf("e2e4", "e7e5", "g1f3", "b8c6", "f1b5").map(::UciMove)
+        val plan = GameReviewPlanner.playerPlan(
+            gameId = "review-root-key",
+            initialFen = ChessPosition.START_FEN,
+            moves = moves,
+            rules = RulesContractV1.drawless(),
+            playerSide = Side.WHITE,
+        )
+
+        plan.roots.forEach { root ->
+            val expectedPosition = ChessAdapter.replay(root.request.initialFen, root.request.moves)
+            assertThat(root.key.positionFen == expectedPosition.fen())
+            assertThat(root.key.positionId == root.request.positionId)
+        }
+        val original = plan.roots.last()
+        val retried = original.copy(
+            request = original.request.copy(requestId = "review-root-key-retry"),
+        )
+        assertThat(retried.key === original.key)
     }
     suite.test("player review analyzes only the selected side and retains canonical context") {
         val moves = listOf("e2e4", "e7e5", "g1f3").map(::UciMove)
@@ -1071,6 +1277,61 @@ internal fun registerEngineLayerTests(suite: TestSuite) {
             )
         }
     }
+    suite.test("game review rejects seeded and live evidence from a non-v2 engine") {
+        val rules = RulesContractV1.drawless()
+        val root = GameReviewPlanner.playerRoot(
+            requestId = "legacy-seed",
+            gameId = "review-patch-gate",
+            initialFen = ChessPosition.START_FEN,
+            moves = emptyList(),
+            rules = rules,
+        )
+        val legacyIdentity = EngineIdentity("legacy-review-engine", "1", 1)
+        assertThrows<IllegalArgumentException> {
+            root.seed(reviewResponseFor(root.request, "e2e4", engine = legacyIdentity))
+        }
+
+        val playerEngine = FakeReviewEngine()
+        var playerCompletion: Result<GameReviewResult>? = null
+        GameReviewRunner(playerEngine).reviewPlayerMoves(
+            gameId = "review-patch-gate-player",
+            initialFen = ChessPosition.START_FEN,
+            moves = listOf(UciMove("e2e4")),
+            rules = rules,
+            outcome = GameOutcome(Side.BLACK, reason = EndReason.RESIGNATION),
+            playerSide = Side.WHITE,
+            onResult = { playerCompletion = it },
+        )
+        playerEngine.requests.single().let { pending ->
+            pending.responded = true
+            pending.callback(
+                Result.success(reviewResponseFor(pending.request, "e2e4", engine = legacyIdentity)),
+            )
+        }
+        val playerFailure = requireNotNull(playerCompletion).exceptionOrNull()
+        assertThat(playerFailure is IllegalArgumentException)
+        assertThat(playerFailure?.message?.contains("patch 2") == true)
+
+        val allMovesEngine = FakeReviewEngine()
+        var allMovesCompletion: Result<GameReviewResult>? = null
+        GameReviewRunner(allMovesEngine).review(
+            gameId = "review-patch-gate-all",
+            initialFen = ChessPosition.START_FEN,
+            moves = listOf(UciMove("e2e4")),
+            rules = rules,
+            outcome = GameOutcome(Side.BLACK, reason = EndReason.RESIGNATION),
+            onResult = { allMovesCompletion = it },
+        )
+        allMovesEngine.requests.single().let { pending ->
+            pending.responded = true
+            pending.callback(
+                Result.success(reviewResponseFor(pending.request, "e2e4", engine = legacyIdentity)),
+            )
+        }
+        val allMovesFailure = requireNotNull(allMovesCompletion).exceptionOrNull()
+        assertThat(allMovesFailure is IllegalStateException)
+        assertThat(allMovesFailure?.message?.contains("patch 2") == true)
+    }
     suite.test("player review rejects engine identity drift between seeded and live roots") {
         val moves = listOf("e2e4", "e7e5", "g1f3").map(::UciMove)
         val rules = RulesContractV1.drawless()
@@ -1081,7 +1342,7 @@ internal fun registerEngineLayerTests(suite: TestSuite) {
             moves = emptyList(),
             rules = rules,
         )
-        val seededEngine = EngineIdentity("seeded-review-engine", "1", 1)
+        val seededEngine = EngineIdentity("seeded-review-engine", "1", 2)
         val seed = seededRoot.seed(
             reviewResponseFor(seededRoot.request, "e2e4", engine = seededEngine),
         )
@@ -1111,7 +1372,7 @@ internal fun registerEngineLayerTests(suite: TestSuite) {
                 reviewResponseFor(
                     liveRoot.request,
                     "g1f3",
-                    engine = EngineIdentity("live-review-engine", "2", 1),
+                    engine = EngineIdentity("live-review-engine", "2", 2),
                 ),
             ),
         )
@@ -1231,6 +1492,40 @@ internal fun registerEngineLayerTests(suite: TestSuite) {
         assertThat(streams == 0)
         engine.respond("e7e5")
         assertThat(streams == 1 && requireNotNull(completed).moves.single().evidence?.usedAdjacentFallback == true)
+    }
+    suite.test("seeded root and adjacent evidence complete an off-MultiPV player move without engine work") {
+        val rules = RulesContractV1.drawless()
+        val root = GameReviewPlanner.playerRoot(
+            requestId = "seed-complete-root",
+            gameId = "player-complete-seed",
+            initialFen = ChessPosition.START_FEN,
+            moves = emptyList(),
+            rules = rules,
+        )
+        val rootSeed = root.seed(reviewResponseFor(root.request, "d2d4"))
+        val adjacent = GameReviewPlanner.adjacentRoot(
+            requestId = "seed-complete-adjacent",
+            root = root,
+            playedMove = UciMove("e2e4"),
+        )
+        val adjacentSeed = adjacent.seed(reviewResponseFor(adjacent.request, "e7e5"))
+        val engine = FakeReviewEngine()
+        var completed: GameReviewResult? = null
+
+        GameReviewRunner(engine).reviewPlayerMoves(
+            gameId = "player-complete-seed",
+            initialFen = ChessPosition.START_FEN,
+            moves = listOf(UciMove("e2e4")),
+            rules = rules,
+            outcome = GameOutcome(Side.BLACK, reason = EndReason.TIMEOUT),
+            playerSide = Side.WHITE,
+            seededRoots = listOf(rootSeed),
+            seededAdjacentRoots = listOf(adjacentSeed),
+            onResult = { completed = it.getOrThrow() },
+        )
+
+        assertThat(engine.requests.isEmpty())
+        assertThat(requireNotNull(completed).moves.single().evidence?.usedAdjacentFallback == true)
     }
     suite.test("player review safely trampolines a synchronously completing engine") {
         val requests = mutableListOf<EngineRequest>()
@@ -1583,11 +1878,12 @@ internal fun registerEngineLayerTests(suite: TestSuite) {
 
         val result = requireNotNull(completed)
         assertThat(result.evidenceSchemaVersion == REVIEW_EVIDENCE_SCHEMA_VERSION)
+        assertThat(REVIEW_ANALYSIS_VERSION == 2)
         assertThat(result.analysisVersion == REVIEW_ANALYSIS_VERSION)
         assertThat(result.gradingPolicyVersion == ReviewGradingPolicy.CURRENT.version)
         assertThat(
             result.ruleFidelity ==
-                ReviewRuleFidelity.PARTIAL_ENGINE_RULES_WITH_AUTHORITATIVE_TERMINAL_OVERLAY,
+                ReviewRuleFidelity.FULL_NATIVE_RULES_CONTRACT_V1_PATCH_V2,
         )
         assertThat(result.summary.white.gradedMoves == 1)
         assertThat(result.summary.white.qualityCounts.getValue(ReviewMoveQuality.BEST) == 1)
@@ -1608,11 +1904,14 @@ internal fun registerEngineLayerTests(suite: TestSuite) {
         assertThrows<IllegalArgumentException> {
             result.copy(summary = GameReviewSummary.from(emptyList()))
         }
-        val inconsistentEvidence = requireNotNull(result.moves.first().evidence).copy(
-            analysisVersion = REVIEW_ANALYSIS_VERSION + 1,
+        assertThrows<IllegalArgumentException> {
+            result.copy(analysisVersion = 1)
+        }
+        val staleV1Evidence = requireNotNull(result.moves.first().evidence).copy(
+            analysisVersion = 1,
         )
         assertThrows<IllegalArgumentException> {
-            result.copy(moves = listOf(result.moves.first().copy(evidence = inconsistentEvidence)) + result.moves.drop(1))
+            result.copy(moves = listOf(result.moves.first().copy(evidence = staleV1Evidence)) + result.moves.drop(1))
         }
     }
     suite.test("review runner uses the authoritative avoidable repetition result without analyzing terminal") {

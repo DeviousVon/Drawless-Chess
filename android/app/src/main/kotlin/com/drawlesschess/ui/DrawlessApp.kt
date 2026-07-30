@@ -36,6 +36,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.drawlesschess.BuildConfig
 import com.drawlesschess.core.*
 import com.drawlesschess.core.presentation.BoardTheme
 import com.drawlesschess.core.engine.BotDifficultyCatalog
@@ -576,7 +577,8 @@ private fun LicenseDialog(onDismiss: () -> Unit) {
             TextButton(
                 onClick = {
                     uriHandler.openUri(
-                        "https://github.com/DeviousVon/Drawless-Chess/releases/tag/v0.3.0",
+                        "https://github.com/DeviousVon/Drawless-Chess/releases/tag/" +
+                            "v${BuildConfig.VERSION_NAME}",
                     )
                 },
             ) {
@@ -600,7 +602,7 @@ private fun PrivacyDialog(onDismiss: () -> Unit) {
             TextButton(
                 onClick = {
                     uriHandler.openUri(
-                        "https://github.com/DeviousVon/Drawless-Chess/blob/main/PRIVACY.md",
+                        "https://drawlesschess.com/privacy/",
                     )
                 },
             ) {

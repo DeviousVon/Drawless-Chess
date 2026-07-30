@@ -1,0 +1,279 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Drawless Chess <engine@drawless.invalid>
+Date: Wed, 29 Jul 2026 00:30:00 -0500
+Subject: [PATCH] Add native RulesContractV1 parity patch v2
+
+Model the selectable bare-king, known-dead-position, and 50-move
+policies at every searched node. Preserve the app's terminal precedence,
+material tie breakers, and full-legal-set forced-move exception.
+---
+ src/position.cpp  | 145 +++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ src/position.h    |  10 ++++
+ src/search.cpp    |   1 +
+ src/ucioption.cpp |   8 ++-
+ 4 files changed, 162 insertions(+), 2 deletions(-)
+
+diff --git a/src/position.cpp b/src/position.cpp
+index 16d1fee55d34136289f88a99371282abce355d2f..d49199cb670a8f2e61528dcd9b24d065424f3fd7 100644
+--- a/src/position.cpp
++++ b/src/position.cpp
+@@ -1547,6 +1547,16 @@ void Position::do_move(Move m, StateInfo& newSt, bool givesCheck) {
+   assert(is_ok(m));
+   assert(&newSt != st);
+ 
++  // The app's forced 50-move exception is a property of the complete legal
++  // move set in the parent position. Compute it before changing the board and
++  // carry the answer into the child StateInfo where adjudication occurs.
++  const bool drawlessFiftyForced =
++      uses_drawless_rules_v1()
++      && st->rule50 >= 99
++      && (Options["Drawless Fifty Move"] == "forced-move-exception"
++          || Options["Drawless Fifty Move"] == "material-victory")
++      && !has_drawless_fifty_avoiding_move();
++
+ #ifndef NO_THREADS
+   thisThread->nodes.fetch_add(1, std::memory_order_relaxed);
+ #endif
+@@ -1559,6 +1569,7 @@ void Position::do_move(Move m, StateInfo& newSt, bool givesCheck) {
+   newSt.previous = st;
+   st = &newSt;
+   st->move = m;
++  st->drawlessFiftyForced = drawlessFiftyForced;
+ 
+   // Increment ply counters. In particular, rule50 will be reset to zero later on
+   // in case of a capture or a pawn move.
+@@ -2319,6 +2330,7 @@ void Position::do_null_move(StateInfo& newSt) {
+ 
+   newSt.previous = st;
+   st = &newSt;
++  st->drawlessFiftyForced = false;
+ 
+   st->dirtyPiece.dirty_num = 0;
+   st->dirtyPiece.piece[0] = NO_PIECE; // Avoid checks in UpdateAccumulator()
+@@ -2620,8 +2632,28 @@ bool Position::see_ge(Move m, Value threshold) const {
+ 
+ bool Position::is_optional_game_end(Value& result, int ply, int countStarted) const {
+ 
++  const bool drawlessRules = uses_drawless_rules_v1();
++  const bool drawlessBareKing =
++      drawlessRules
++      && Options["Drawless Bare King"] == "bare-king-loses"
++      && ((drawless_material(WHITE) == 0 && drawless_material(BLACK) > 0)
++          || (drawless_material(BLACK) == 0 && drawless_material(WHITE) > 0));
++  const bool drawlessDead = drawlessRules && drawless_known_dead_position();
++  const bool drawlessFifty =
++      drawlessRules
++      && st->rule50 >= 100
++      && Options["Drawless Fifty Move"] != "disabled";
++
++  // Checkmate and stalemate have absolute precedence in RulesContractV1.
++  // Defer all otherwise-applicable optional outcomes until the ordinary
++  // no-legal-move path has assigned the configured mate/stalemate result.
++  if (   drawlessRules
++      && (completes_drawless_repetition() || drawlessBareKing || drawlessDead || drawlessFifty)
++      && !MoveList<LEGAL>(*this).size())
++      return false;
++
+   // n-move rule
+-  if (n_move_rule() && st->rule50 > (2 * n_move_rule() - 1) && (!checkers() || MoveList<LEGAL>(*this).size()))
++  if (!drawlessRules && n_move_rule() && st->rule50 > (2 * n_move_rule() - 1) && (!checkers() || MoveList<LEGAL>(*this).size()))
+   {
+       int offset = 0;
+       if (var->chasingRule == AXF_CHASING && st->pliesFromNull >= 20)
+@@ -2727,6 +2759,55 @@ bool Position::is_optional_game_end(Value& result, int ply, int countStarted) co
+       }
+   }
+ 
++  // Drawless policy precedence after repetition is bare king, known-dead
++  // position, then the configured 50-move outcome. Values are always relative
++  // to the side to move, matching Fairy-Stockfish's search convention.
++  if (drawlessBareKing)
++  {
++      const Color winner = drawless_material(WHITE) == 0 ? BLACK : WHITE;
++      result = winner == sideToMove ? mate_in(ply) : mated_in(ply);
++      return true;
++  }
++
++  if (drawlessDead)
++  {
++      Color winner;
++      if (Options["Drawless Dead Position"] == "final-capture-victory")
++          winner = ~sideToMove;
++      else
++      {
++          const int whiteMaterial = drawless_material(WHITE);
++          const int blackMaterial = drawless_material(BLACK);
++          winner = whiteMaterial > blackMaterial ? WHITE
++                 : blackMaterial > whiteMaterial ? BLACK
++                                                 : ~sideToMove;
++      }
++      result = winner == sideToMove ? mate_in(ply) : mated_in(ply);
++      return true;
++  }
++
++  if (drawlessFifty)
++  {
++      Color winner;
++      if (Options["Drawless Fifty Move"] == "completing-player-loses")
++          winner = sideToMove;
++      else if (Options["Drawless Fifty Move"] == "forced-move-exception")
++          winner = st->drawlessFiftyForced ? ~sideToMove : sideToMove;
++      else
++      {
++          const int whiteMaterial = drawless_material(WHITE);
++          const int blackMaterial = drawless_material(BLACK);
++          const Color lastCaptureBy = drawless_last_capture_by();
++          winner = whiteMaterial > blackMaterial ? WHITE
++                 : blackMaterial > whiteMaterial ? BLACK
++                 : lastCaptureBy != COLOR_NB       ? lastCaptureBy
++                 : st->drawlessFiftyForced         ? ~sideToMove
++                                                   : sideToMove;
++      }
++      result = winner == sideToMove ? mate_in(ply) : mated_in(ply);
++      return true;
++  }
++
+   // counting rules
+   if (   counting_rule()
+       && st->countingLimit
+@@ -3115,6 +3196,68 @@ bool Position::has_repeated() const {
+ }
+ 
+ 
++/// Position::has_drawless_fifty_avoiding_move() checks the complete legal move
++/// set for a capture or pawn move that resets the standard halfmove clock.
++
++bool Position::has_drawless_fifty_avoiding_move() const {
++
++  for (Move move : MoveList<LEGAL>(*this))
++      if (   type_of(moved_piece(move)) == PAWN
++          || type_of(move) == EN_PASSANT
++          || (type_of(move) != CASTLING && piece_on(to_sq(move)) != NO_PIECE))
++          return true;
++
++  return false;
++}
++
++
++/// Position::drawless_known_dead_position() mirrors the deliberately
++/// conservative RulesContractV1 detector: bare kings, exactly one non-king
++/// minor, or bishops only with every bishop on the same square color.
++
++bool Position::drawless_known_dead_position() const {
++
++  if (count<PAWN>() || count<ROOK>() || count<QUEEN>())
++      return false;
++
++  const int bishops = count<BISHOP>();
++  const int knights = count<KNIGHT>();
++  const int nonKings = bishops + knights;
++
++  if (nonKings <= 1)
++      return true;
++
++  const Bitboard bishopSquares = pieces(BISHOP);
++  return knights == 0
++      && (!(bishopSquares & DarkSquares) || !(bishopSquares & ~DarkSquares));
++}
++
++
++/// Position::drawless_material() uses the immutable RulesContractV1 weights.
++
++int Position::drawless_material(Color c) const {
++  return count<PAWN>(c)
++       + 3 * (count<KNIGHT>(c) + count<BISHOP>(c))
++       + 5 * count<ROOK>(c)
++       + 9 * count<QUEEN>(c);
++}
++
++
++/// Position::drawless_last_capture_by() derives the last capturer from the
++/// real move history. A standalone FEN has no predecessor, matching the app's
++/// null lastCaptureBy value for a nonstandard initial position.
++
++Color Position::drawless_last_capture_by() const {
++
++  Color mover = ~sideToMove;
++  for (const StateInfo* stp = st; stp && stp->previous; stp = stp->previous, mover = ~mover)
++      if (stp->capturedPiece)
++          return mover;
++
++  return COLOR_NB;
++}
++
++
+ /// Position::all_legal_moves_complete_drawless_repetition() determines the
+ /// forced branch of the Drawless repetition rule before search pruning can
+ /// discard siblings. The complete LEGAL list is required: pseudo-legal moves
+diff --git a/src/position.h b/src/position.h
+index 81e171e83619ae4362e0b0ce2d864727e17cad72..097710a26c11e6e77f60fe8ddd5886cc6e22d050 100644
+--- a/src/position.h
++++ b/src/position.h
+@@ -83,6 +83,7 @@ struct StateInfo {
+   bool       pass;
+   Move       move;
+   int        repetition;
++  bool       drawlessFiftyForced;
+ 
+   // Used by NNUE
+   Eval::NNUE::Accumulator accumulator;
+@@ -329,9 +330,14 @@ public:
+   bool has_game_cycle(int ply) const;
+   bool has_repeated() const;
+   bool uses_drawless_forced_repetition() const;
++  bool uses_drawless_rules_v1() const;
+   bool completes_drawless_repetition() const;
+   bool all_legal_moves_complete_drawless_repetition(Move& firstMove);
+   Value drawless_forced_repetition_value(int ply) const;
++  bool has_drawless_fifty_avoiding_move() const;
++  bool drawless_known_dead_position() const;
++  int drawless_material(Color c) const;
++  Color drawless_last_capture_by() const;
+   Bitboard chased() const;
+   int count_limit(Color sideToCount) const;
+   int board_honor_counting_ply(int countStarted) const;
+@@ -1163,6 +1169,10 @@ inline bool Position::uses_drawless_forced_repetition() const {
+   return var->drawlessForcedRepetition;
+ }
+ 
++inline bool Position::uses_drawless_rules_v1() const {
++  return uses_drawless_forced_repetition();
++}
++
+ inline bool Position::completes_drawless_repetition() const {
+   assert(var != nullptr);
+   // StateInfo::repetition is negative from the third occurrence onward.
+diff --git a/src/search.cpp b/src/search.cpp
+index dff3513ad02ffddbbb8208108f82a03e6965c29e..c89fc16cca6b69597271dc29ec0dbc907a03dcdb 100644
+--- a/src/search.cpp
++++ b/src/search.cpp
+@@ -980,6 +980,7 @@ namespace {
+         &&  pos.non_pawn_material(us)
+         &&  pos.count<ALL_PIECES>(~us) != pos.count<PAWN>(~us)
+         && !pos.flip_enclosed_pieces()
++        && !(pos.uses_drawless_rules_v1() && pos.rule50_count() >= 99)
+         && (ss->ply >= thisThread->nmpMinPly || us != thisThread->nmpColor))
+     {
+         assert(eval - beta >= 0);
+diff --git a/src/ucioption.cpp b/src/ucioption.cpp
+index 6e69240a8a54d4d0c55f2fc84bb48c0a11996109..bd3da54bcd993027c3951124eeef4ccdbe111bd1 100644
+--- a/src/ucioption.cpp
++++ b/src/ucioption.cpp
+@@ -196,7 +196,13 @@ void init(OptionsMap& o) {
+   o["UCI_LimitStrength"]     << Option(false);
+   o["UCI_Elo"]               << Option(1350, 500, 2850);
+   o["UCI_ShowWDL"]           << Option(false);
+-  o["Drawless Patch Version"] << Option(1, 1, 1);
++  o["Drawless Patch Version"] << Option(2, 2, 2);
++  o["Drawless Dead Position"] << Option("material-victory",
++      {"material-victory", "final-capture-victory"});
++  o["Drawless Fifty Move"]    << Option("material-victory",
++      {"disabled", "completing-player-loses", "forced-move-exception", "material-victory"});
++  o["Drawless Bare King"]     << Option("bare-king-loses",
++      {"continue", "bare-king-loses"});
+   o["SyzygyPath"]            << Option("<empty>", on_tb_path);
+   o["SyzygyProbeDepth"]      << Option(1, 1, 100);
+   o["Syzygy50MoveRule"]      << Option(true);
+-- 
+2.50.1
+

@@ -1,9 +1,13 @@
 package com.drawlesschess.selfplay
 
+import com.drawlesschess.core.BareKingPolicy
+import com.drawlesschess.core.DeadPositionPolicy
+import com.drawlesschess.core.FiftyMovePolicy
 import com.drawlesschess.core.UciMove
 import java.io.BufferedWriter
 import java.nio.charset.StandardCharsets
 import java.util.ArrayDeque
+import java.util.Locale
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
@@ -293,11 +297,43 @@ class UciEngineProcess private constructor(
             "$role engine does not advertise UCI_Variant"
         }
         require(handshakeLines.count { it == PATCH_OPTION } == 1) {
-            "$role engine does not advertise exact Drawless patch v1 identity"
+            "$role engine does not advertise exact Drawless patch v2 identity"
+        }
+        require(handshakeLines.count { it == DEAD_POSITION_OPTION } == 1) {
+            "$role engine does not advertise the exact Drawless dead-position contract"
+        }
+        require(handshakeLines.count { it == FIFTY_MOVE_OPTION } == 1) {
+            "$role engine does not advertise the exact Drawless 50-move contract"
+        }
+        require(handshakeLines.count { it == BARE_KING_OPTION } == 1) {
+            "$role engine does not advertise the exact Drawless bare-king contract"
         }
 
         setOption("VariantPath", config.variantsPath.toString())
-        setOption("UCI_Variant", config.variant.name.lowercase())
+        setOption("UCI_Variant", config.variant.name.lowercase(Locale.ROOT))
+        setOption(
+            "Drawless Dead Position",
+            when (config.rules.deadPosition) {
+                DeadPositionPolicy.MATERIAL_VICTORY -> "material-victory"
+                DeadPositionPolicy.FINAL_CAPTURE_VICTORY -> "final-capture-victory"
+            },
+        )
+        setOption(
+            "Drawless Fifty Move",
+            when (config.rules.fiftyMove) {
+                FiftyMovePolicy.DISABLED -> "disabled"
+                FiftyMovePolicy.COMPLETING_PLAYER_LOSES -> "completing-player-loses"
+                FiftyMovePolicy.FORCED_MOVE_EXCEPTION -> "forced-move-exception"
+                FiftyMovePolicy.MATERIAL_VICTORY -> "material-victory"
+            },
+        )
+        setOption(
+            "Drawless Bare King",
+            when (config.rules.bareKing) {
+                BareKingPolicy.CONTINUE -> "continue"
+                BareKingPolicy.BARE_KING_LOSES -> "bare-king-loses"
+            },
+        )
         setOption("Threads", "1")
         setOption("Hash", config.hashMb.toString())
         setOption("Ponder", "false")
@@ -413,7 +449,16 @@ class UciEngineProcess private constructor(
         const val START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
         const val DIAGNOSTIC_LINES = 40
         const val PATCH_OPTION =
-            "option name Drawless Patch Version type spin default 1 min 1 max 1"
+            "option name Drawless Patch Version type spin default 2 min 2 max 2"
+        const val DEAD_POSITION_OPTION =
+            "option name Drawless Dead Position type combo default material-victory " +
+                "var material-victory var final-capture-victory"
+        const val FIFTY_MOVE_OPTION =
+            "option name Drawless Fifty Move type combo default material-victory " +
+                "var disabled var completing-player-loses var forced-move-exception var material-victory"
+        const val BARE_KING_OPTION =
+            "option name Drawless Bare King type combo default bare-king-loses " +
+                "var continue var bare-king-loses"
         val DEPTH = Regex("(?:^|\\s)depth (\\d+)(?:\\s|$)")
         val NODES = Regex("(?:^|\\s)nodes (\\d+)(?:\\s|$)")
         val SCORE = Regex("(?:^|\\s)score (cp|mate) (-?\\d+)(?:\\s|$)")

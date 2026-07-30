@@ -1,7 +1,8 @@
 # Production engine-facing layer
 
-Status: protocol, transport, in-process Android JNI endpoint, factory, app wiring, Android
-artifacts, and both supported runtime ABIs verified for private testing
+Status: protocol, transport, in-process Android JNI endpoint, factory, and app wiring implemented;
+the clean patch-v2 host verifier passed, while the exact Android candidate still requires
+designated-device verification
 
 ## Scope completed
 
@@ -16,7 +17,8 @@ Android SDK or native binary.
 - Explicit startup, configuration, search, cancellation-drain, failure, and close states.
 - Handshake, readiness, search, and cancellation-drain timeouts.
 - One active request plus one queued request while a cancelled command is draining.
-- Rule preset, strength, MultiPV, analysis mode, and tablebase 50-move configuration.
+- Exact `RulesContractV1` preset, dead-position, 50-move, and bare-king configuration, plus
+  strength, MultiPV, analysis mode, and tablebase 50-move configuration.
 - Runtime verification of the engine's Drawless patch version.
 - Conversion from UCI output to the tagged `EngineResponse` used by `GameCoordinator`.
 - A byte-oriented `NativeEnginePort` contract that can be implemented by a JNI-backed
@@ -55,8 +57,10 @@ path, and represented by a non-playing failed engine. It never silently changes 
 
 1. Send `uci`; collect identity and every advertised option.
 2. Require `uciok`, then send `isready` and require `readyok`.
-3. For a request, validate the selected variant, MultiPV, Elo/skill range, and patch.
-4. Set `UCI_Variant`, `MultiPV`, analysis mode, tablebase policy, and strength.
+3. For a request, validate every immutable contract-v1 invariant, the selected policy values,
+   MultiPV, Elo/skill range, patch identity, and exact option declarations.
+4. Set `UCI_Variant`, `Drawless Dead Position`, `Drawless Fifty Move`, `Drawless Bare King`,
+   `MultiPV`, analysis mode, tablebase policy, and strength.
 5. Send `ucinewgame` only when the game identity changes, followed by `isready`.
 6. Send the initial FEN plus the complete move history, then `go movetime`.
 7. Retain the deepest line for each MultiPV rank and produce one tagged response.
@@ -64,6 +68,14 @@ path, and represented by a non-playing failed engine. It never silently changes 
 
 Complete history is required: the engine cannot evaluate third occurrences correctly
 from the current FEN alone.
+
+`0004-preserve-drawless-deeper-search-boundaries.patch` protects contract-v1 results after normal
+root handling. Main search and quiescence preserve terminal-creating last-piece captures, quiet
+bishop/knight underpromotions, 50-move boundary moves, and mixed immediate terminal sets across
+null-move, ProbCut, futility, history, move-count, SEE, and capture-only pruning. Synthetic null
+moves do not change the Drawless halfmove or last-capturer history; repetition keys include only
+legally capturable en-passant targets. Terminal-child ponder extraction is suppressed and Syzygy
+root ranking is limited to orthodox chess.
 
 At the lower boundary, `SerializedNativeUciTransport` may accept commands while its port
 is starting. Once `NativeEnginePort.onStarted` arrives, it writes newline-framed commands
@@ -153,9 +165,9 @@ lines, the runner dynamically adds one adjacent-position helper rather than anal
 opponent decision. The preliminary
 in-memory evidence schema (schema 1) preserves line rank, score bound, depth, WDL-derived expected
 points, explicit best/played-line origin, separate analysis and grading-policy identities, and
-partial-rule fidelity. It is a foundation for the planned Review Evidence V2 contract, not that
-contract itself. A played move found in the same root MultiPV is compared there; otherwise review
-falls back to the following position and normalizes that score to the mover. Missing, bounded,
+exact native `RulesContractV1` fidelity. It is a foundation for the planned Review Evidence V2
+contract, not that contract itself. A played move found in the same root MultiPV is compared there;
+otherwise review falls back to the following position and normalizes that score to the mover. Missing, bounded,
 contradictory, or unsafe line evidence is not given a confident grade.
 
 Review retains one coherent MultiPV snapshot: every selected rank comes from the same completed
@@ -169,20 +181,24 @@ The runner submits one 350 ms search at a time, assigns
 Best/Good/Inaccuracy/Mistake/Blunder from expected-point loss, streams completed player decisions,
 and supports cancellation, safe retry identities, exact seeded-root reuse, progressive results,
 and a cached completed result. Natural terminal moves use the authoritative app outcome instead
-of attempting to search a terminal position. A coordinator-owned prefetch warms the current
-player root while the visible game is idle on the player's turn. Bot moves and hints have strict
-priority; moving, pausing, undoing, resigning, timing out, backgrounding the app, or closing the
-runtime cancels speculative work. Reuse requires the exact game history, rules, engine-analysis
-profile, and position identity. Only the player's grade summary is derived for presentation; the
-app intentionally does not display an accuracy percentage until a separate formula is calibrated
-and versioned. `GameRuntime` owns active and partial review state, so activity recreation detaches
-and reattaches without cancelling or duplicating post-game engine work.
+of attempting to search a terminal position. A coordinator-owned prefetch first warms the current
+player root while the visible game is idle on the player's turn. If that finishes and an earlier
+played move was outside its retained MultiPV, the remaining think time warms the exact
+played-position fallback as well. Bot moves and hints have strict priority; moving, pausing,
+undoing, resigning, timing out, backgrounding the app, or closing the runtime cancels speculative
+work. Reuse requires the exact game history, chosen move, resulting position, rules,
+engine-analysis profile, and position identity. When a foreground game becomes terminal,
+`GameRuntime` begins any remaining review work behind the result presentation instead of waiting
+for the Review action. It owns active and partial review state, so opening Review or recreating the
+activity attaches to the same work without cancelling or duplicating it. Only the player's grade
+summary is derived for presentation; the app intentionally does not display an accuracy percentage
+until a separate formula is calibrated and versioned.
 
-This first review is deliberately labeled Beta. Fairy currently receives the Drawless/Escape
-preset but not every app-side adjudication detail (notably bare-king and configurable
-dead-position/50-move policies). The runner corrects the recorded terminal move with the app's
-authoritative result, but an earlier suggested line near one of those boundaries can still need
-refinement. The app must not present this beta as an exact tablebase-like verdict.
+This first review remains deliberately labeled Beta even though patch v2 now evaluates the exact
+`RulesContractV1` throughout native search. Rule parity removes one correctness blocker; it does
+not supply constrained-root Evidence V2, calibrated accuracy, durable review/history storage, or
+the complete retry, process-death, accessibility, localization, and device acceptance matrix.
+The app must not present a time-limited local engine review as a tablebase-like verdict.
 
 ## Offline ratings
 
@@ -199,14 +215,23 @@ should calibrate the labels before public release.
 
 ## Verification boundary
 
-At this checkpoint, the Kotlin core harness passes 301 JVM/core-and-endpoint tests. Of those,
-25 native bridge tests cover split UTF-8/CRLF framing, malformed and oversized input, bounded FIFO
+The current Kotlin core harness passes 344 tests covering core, engine, and endpoint contracts.
+Its native bridge tests cover
+split UTF-8/CRLF framing, malformed and oversized input, bounded FIFO
 writes, synchronous and asynchronous completions, backpressure, stdout/stderr separation,
 consumer isolation, open/write/close failures, duplicate completion, explicit and
 unexpected termination, ABI selection, SHA-256 verification, end-to-end UCI composition,
 and propagation of an endpoint crash to an outstanding request. The broader JVM suite
-also covers protocol parsing, option negotiation, patch verification, cancellation
-draining, timeout shutdown, MultiPV conversion, difficulty, ratings, hints, and review.
+also covers protocol parsing, exact patch-v2 option negotiation and rule mapping, rejection of
+non-v1 contracts, policy/precedence acceptance fixtures, cancellation draining, timeout shutdown,
+MultiPV conversion, difficulty, ratings, hints, and review.
+
+The clean native verifier passed after compiling a direct `Position` state harness and exercising
+the full UCI acceptance matrix.
+That harness distinguishes null-history and legal-only en-passant key correctness from a merely
+matching final score; its node counter also proves the speculative state probes are neutral. The
+UCI fixtures cover deeper main/quiescence pruning, mixed terminal intersections, and quiet
+stalemates beyond the sparse material frontier.
 
 Eight JNI-port lifecycle tests use an injected fake native API to cover the canonical
 variant path, queued startup writes, independent blocking stdout/stderr readers,
@@ -217,17 +242,16 @@ static native method names, parameter/return types, and modifiers expected by
 Android shared library. The SDK-less Compose structure gate also
 passes with the production factory selected and release fallback prohibition checked.
 
-`AndroidFairyEngineInstrumentedTest` now passes independently on an API-36 x86-64 emulator
-and an API-33 ARM64 physical tablet. Each run uses the production factory and packaged asset,
-asserts the forced-repetition `h8g8` mate-in-one result and patch identity, closes the
-session, then creates and searches through a second session. This proves ART JNI loading,
-the packaged rules asset, native search, shutdown, and sequential reuse on both supported
-runtime ABIs.
+The patch-v2 `AndroidFairyEngineInstrumentedTest` gate runs independently on x86-64 and ARM64.
+Each run uses the production factory and packaged asset, asserts the exact option surface and
+policy-discriminating search result, closes the session, then creates and searches through a
+second session. A pass proves ART JNI loading, the packaged rules asset, native search, shutdown,
+and sequential reuse for that exact build and runtime ABI.
 
 The checked-in machine gate locks the SDK/JDK/Gradle/NDK/CMake inputs, audits debug and
 release AAR/APK native bytes, runs exactly one bounded native test on the explicitly selected
-device, and retains failure-safe evidence. Fresh 2026-07-14 x86-64 and ARM64 manifests both
-report `result: passed`, both packaged ABIs, patched tree
+device, and retains failure-safe evidence. The historical 2026-07-14 x86-64 and ARM64 manifests
+both report `result: passed`, both packaged ABIs, patch-v1 tree
 `80208e5f35549b88505df983e4bc0f7621083fd4`, and the same app artifacts: debug APK
 17,709,024 bytes with SHA-256
 `25a252a21b65a768c19b74e1dfecdb4ee7af2093ee0761c9fa06e3c85d0b87ff`, and unsigned
@@ -242,6 +266,10 @@ capture flow passes on the emulator and tablet. The complete 51-test suite also 
 against this current test-only pair on both devices, without replacing the exact three-device
 acceptance pair above.
 
+Those retained hashes document the older runtime baseline only. They do not verify patch-v2 tree
+`bf58452cf6bb2254050e7aa442d2b23f3664aaec`; the current candidate needs new artifact hashes and
+fresh x86-64/ARM64 machine results.
+
 The app instrumentation suite now contains 51 tests and passes twice from fresh processes against
 that exact clean APK pair on the API-33 ARM64 tablet, API-36 x86-64 emulator, and Pixel 9 Pro XL.
 The targeted forfeit flow also passes independently on all three. It covers confirmed-forfeit
@@ -251,7 +279,7 @@ native-hint acceptance case publishes a full-strength MultiPV hint and then comp
 move through the same process-global session; rapid game replacement also completes a real
 bot move without reproducing the former second-game session failure. The completion and audio
 tests lock the two-second-plus finish timelines, exactly-once cue ordering, reduced-motion
-collapse behavior, and the 101-resource sampled-audio catalog/platform-loading contract.
+collapse behavior, and the 103-resource sampled-audio catalog/platform-loading contract.
 
 This evidence does not cover sustained performance, low-memory/native-crash resilience,
 every form factor, a signed release, or an App Bundle. The licensing decision is complete:

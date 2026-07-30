@@ -10,7 +10,7 @@ import {
 export const metadata: Metadata = {
   title: "Every game has a winner",
   description:
-    "Offline chess with decisive no-draw rules, eight illustrated opponents, and no ads or tracking.",
+    "Offline chess with decisive no-draw rules, eight opponents, and Drawless-tuned on-device Game Review Beta—no ads or tracking.",
   alternates: { canonical: "/" },
 };
 
@@ -31,6 +31,17 @@ const themes = [
   { name: "Glacier Slate", className: "theme-glacier" },
   { name: "Verdigris Copper", className: "theme-verdigris" },
   { name: "Amethyst Geode", className: "theme-geode" },
+];
+
+const reviewPosition = [
+  "♜", "", "♝", "♛", "", "♜", "♚", "",
+  "♟", "♟", "", "", "♝", "♟", "♟", "♟",
+  "", "", "♞", "♟", "", "♞", "", "",
+  "", "", "♟", "", "♟", "", "", "",
+  "", "", "", "♙", "♙", "", "", "",
+  "", "", "♘", "", "", "♘", "", "",
+  "♙", "♙", "♙", "♕", "♗", "♙", "♙", "♙",
+  "♖", "", "♗", "", "♖", "", "♔", "",
 ];
 
 export default function Home() {
@@ -56,21 +67,22 @@ export default function Home() {
             <h1 id="hero-title">Every game has a winner.</h1>
             <p className="hero-lede">
               Familiar chess, reworked to replace routine draws with decisive
-              results. Play eight illustrated opponents completely offline—no
-              account, ads, or tracking.
+              results. Play eight illustrated opponents, then review your
+              decisions with the Drawless-tuned Fairy-Stockfish engine on your
+              device—no account, ads, or tracking.
             </p>
             <div className="button-row">
               <a className="button button-primary" href="#beta">
                 Join the beta
               </a>
-              <a className="button button-secondary" href="#rules">
-                How Drawless works
+              <a className="button button-secondary" href="#review">
+                Explore Game Review
               </a>
             </div>
             <div className="trust-row" aria-label="Product highlights">
               <span>Android</span>
               <span>Single player</span>
-              <span>Completely offline</span>
+              <span>Drawless-tuned Fairy-Stockfish</span>
             </div>
             <p className="release-note">
               <span className="status-dot" aria-hidden="true" /> Closed Android
@@ -109,7 +121,115 @@ export default function Home() {
             <span>Checkmate still wins</span>
             <span>Five board themes</span>
             <span>Eight opponents</span>
-            <span>Games save locally</span>
+            <span>On-device Game Review</span>
+          </div>
+        </section>
+
+        <section className="section review-section" id="review" aria-labelledby="review-title">
+          <div className="section-shell review-layout">
+            <div className="review-copy">
+              <p className="eyebrow">New · Game Review Beta</p>
+              <h2 id="review-title">The game ends. The learning starts.</h2>
+              <p className="review-lede">
+                Immediately after the result, the Drawless-tuned Fairy-Stockfish
+                engine analyzes your decisions with the exact rules you played.
+                Everything runs on your device—there is no game upload or cloud
+                analysis. Reviews are not saved as a review history.
+              </p>
+              <ol className="review-feature-list">
+                <li>
+                  <span aria-hidden="true">01</span>
+                  <div>
+                    <h3>Grades focused on your choices</h3>
+                    <p>
+                      See Best, Good, Inaccuracy, Mistake, and Blunder grades
+                      for the decisions you controlled.
+                    </p>
+                  </div>
+                </li>
+                <li>
+                  <span aria-hidden="true">02</span>
+                  <div>
+                    <h3>Better moves, with context</h3>
+                    <p>
+                      Compare stronger alternatives, short suggested lines,
+                      and the engine evaluation from your side.
+                    </p>
+                  </div>
+                </li>
+                <li>
+                  <span aria-hidden="true">03</span>
+                  <div>
+                    <h3>Replay the turning points</h3>
+                    <p>
+                      Step through every position, jump between issues, flip
+                      the board, and follow the better-move arrow.
+                    </p>
+                  </div>
+                </li>
+              </ol>
+            </div>
+
+            <figure className="review-preview">
+              <div className="review-preview-header">
+                <div>
+                  <span>Game Review</span>
+                  <strong>Your review</strong>
+                </div>
+                <span className="review-engine-badge">
+                  <i aria-hidden="true" /> On-device engine
+                </span>
+              </div>
+
+              <div className="review-grade-row" aria-label="Available move grades">
+                <span className="grade-best">★ Best</span>
+                <span className="grade-good">✓ Good</span>
+                <span className="grade-inaccuracy">?! Inaccuracy</span>
+                <span className="grade-mistake">? Mistake</span>
+                <span className="grade-blunder">?? Blunder</span>
+              </div>
+
+              <div className="review-workspace">
+                <div className="review-board-wrap">
+                  <div className="review-board" aria-hidden="true">
+                    {reviewPosition.map((piece, index) => (
+                      <span
+                        className={`review-square ${
+                          (Math.floor(index / 8) + (index % 8)) % 2 === 0
+                            ? "review-square-light"
+                            : "review-square-dark"
+                        }`}
+                        key={index}
+                      >
+                        {piece}
+                      </span>
+                    ))}
+                    <span className="review-arrow" />
+                  </div>
+                  <div className="review-controls" aria-hidden="true">
+                    <span>↤</span><span>←</span><strong>18 / 42</strong><span>→</span><span>↦</span>
+                  </div>
+                </div>
+
+                <div className="review-feedback">
+                  <p className="review-move-label">Move 18 · Your decision</p>
+                  <div className="review-selected-grade">
+                    <span aria-hidden="true">?</span>
+                    <strong>Mistake</strong>
+                  </div>
+                  <p>This gave the opponent a meaningful opportunity.</p>
+                  <div className="review-insight">
+                    <span>Better move</span>
+                    <strong>Highlighted on the board</strong>
+                  </div>
+                  <div className="review-insight">
+                    <span>Suggested line</span>
+                    <strong>Replay it move by move</strong>
+                  </div>
+                </div>
+              </div>
+              <figcaption>Illustrated feature preview · Game Review remains in beta</figcaption>
+            </figure>
           </div>
         </section>
 
@@ -236,7 +356,10 @@ export default function Home() {
             <article>
               <span className="feature-mark" aria-hidden="true">C</span>
               <h3>Keep your momentum</h3>
-              <p>Resume, hints, undo, rematches, local records, and streaks.</p>
+              <p>
+                Resume, hints, undo, rematches, local records, and streaks. Launch
+                Game Review from the completed result; reviews are not saved as a history.
+              </p>
             </article>
           </div>
         </section>

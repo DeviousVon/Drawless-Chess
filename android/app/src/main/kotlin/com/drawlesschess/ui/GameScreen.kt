@@ -5,6 +5,7 @@
 
 package com.drawlesschess.ui
 
+import android.os.SystemClock
 import android.widget.ImageView
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationVector1D
@@ -84,6 +85,7 @@ import kotlin.math.roundToInt
 private data class PendingCompletion(
     val result: GameResultView,
     val waitForAnimationPly: Int?,
+    val firstCueNotBeforeUptimeMillis: Long?,
 )
 
 @Composable
@@ -163,8 +165,9 @@ internal fun GameRoute(
     val visiblePlyCount = model.history.plyCount()
     LaunchedEffect(soundPlayer, preferences.soundEnabled, visiblePlyCount, lifecycleStarted) {
         if (preferences.soundEnabled && lifecycleStarted && visiblePlyCount > soundedPlyCount) {
-            val latestSan = model.history.lastPlayedSan().orEmpty()
-            soundPlayer.playMove(latestSan)
+            model.history.lastPlayedEntry()?.let { entry ->
+                soundPlayer.playMove(entry.notation, entry.accessibility.enPassant)
+            }
         }
         soundedPlyCount = visiblePlyCount
     }
@@ -196,7 +199,14 @@ internal fun GameRoute(
         if (!preferences.soundEnabled || !lifecycleStarted) soundPlayer.stopAll()
     }
 
-    LaunchedEffect(model.board.phase, model.result, visiblePlyCount, lifecycleStarted) {
+    LaunchedEffect(
+        model.board.phase,
+        model.result,
+        visiblePlyCount,
+        lifecycleStarted,
+        preferences.soundEnabled,
+        preferences.celebrationEffectsEnabled,
+    ) {
         if (!lifecycleStarted) return@LaunchedEffect
         if (previousPhase != CoordinatorPhase.COMPLETED &&
             model.board.phase == CoordinatorPhase.COMPLETED
@@ -205,14 +215,31 @@ internal fun GameRoute(
                 val finalOpponentMovePly = model.board.moveMotion?.takeIf { motion ->
                     motion.ply == visiblePlyCount && motion.mover != model.board.humanSide
                 }?.ply
-                pendingCompletion = PendingCompletion(result, finalOpponentMovePly)
+                val firstCueNotBefore = if (
+                    result.reason == EndReason.CHECKMATE &&
+                    preferences.soundEnabled &&
+                    preferences.celebrationEffectsEnabled &&
+                    model.history.lastPlayedEntry()?.notation?.endsWith("#") == true
+                ) {
+                    SystemClock.uptimeMillis() + CHECKMATE_COMPLETION_FOLLOWUP_MILLIS
+                } else {
+                    null
+                }
+                pendingCompletion = PendingCompletion(
+                    result = result,
+                    waitForAnimationPly = finalOpponentMovePly,
+                    firstCueNotBeforeUptimeMillis = firstCueNotBefore,
+                )
             }
         }
         previousPhase = model.board.phase
     }
 
-    LaunchedEffect(controller, model.board.phase, model.result) {
-        if (model.board.phase == CoordinatorPhase.COMPLETED && model.result != null) {
+    LaunchedEffect(controller, model.board.phase, model.result, lifecycleStarted) {
+        if (lifecycleStarted && model.board.phase == CoordinatorPhase.COMPLETED && model.result != null) {
+            // Use the result/celebration interval to finish any analysis that could not be warmed
+            // during play. Opening Review then reuses this runtime-owned state instead of starting.
+            runtime.prepareGameReview()
             onGameCompleted()
         }
     }
@@ -221,6 +248,8 @@ internal fun GameRoute(
         pendingCompletion,
         completedMoveAnimationPly,
         lifecycleStarted,
+        preferences.soundEnabled,
+        preferences.celebrationEffectsEnabled,
         preferences.hapticFeedbackEnabled,
         gameHaptics,
     ) {
@@ -229,6 +258,18 @@ internal fun GameRoute(
             if (pending.waitForAnimationPly == null ||
                 completedMoveAnimationPly >= pending.waitForAnimationPly
             ) {
+                pending.firstCueNotBeforeUptimeMillis
+                    ?.takeIf {
+                        preferences.soundEnabled && preferences.celebrationEffectsEnabled
+                    }
+                    ?.let { target ->
+                        val delayMillis = completionOverlayDelayMillis(
+                            firstCueNotBeforeUptimeMillis = target,
+                            nowUptimeMillis = SystemClock.uptimeMillis(),
+                            spec = CompletionEffectTimeline.forResult(pending.result.playerWon),
+                        )
+                        if (delayMillis > 0L) delay(delayMillis)
+                    }
                 postGameResult = pending.result
                 completionEffect = pending.result.takeIf {
                     preferences.celebrationEffectsEnabled
@@ -1860,9 +1901,6 @@ private fun PromotionDialog(
 private fun List<MoveHistoryRow>.plyCount(): Int = sumOf { row ->
     (if (row.white == null) 0 else 1) + (if (row.black == null) 0 else 1)
 }
-
-private fun List<MoveHistoryRow>.lastPlayedSan(): String? =
-    lastOrNull()?.let { row -> row.black ?: row.white }?.notation
 
 private fun List<MoveHistoryRow>.lastPlayedEntry(): MoveHistoryEntry? =
     lastOrNull()?.let { row -> row.black ?: row.white }

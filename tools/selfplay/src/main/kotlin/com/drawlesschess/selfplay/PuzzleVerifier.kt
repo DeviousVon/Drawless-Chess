@@ -1,5 +1,6 @@
 package com.drawlesschess.selfplay
 
+import com.drawlesschess.core.BareKingPolicy
 import com.drawlesschess.core.DeadPositionPolicy
 import com.drawlesschess.core.FiftyMovePolicy
 import com.drawlesschess.core.GameOutcome
@@ -125,6 +126,7 @@ object PuzzleVerifier {
         RulesContractV1.Preset.DRAWLESS,
         DeadPositionPolicy.MATERIAL_VICTORY,
         FiftyMovePolicy.DISABLED,
+        BareKingPolicy.BARE_KING_LOSES,
     )
 
     fun verify(options: PuzzleVerificationOptions): PuzzleVerificationSummary {
@@ -368,6 +370,7 @@ object PuzzleVerifier {
             variant = RulesContractV1.Preset.DRAWLESS,
             deadPosition = DeadPositionPolicy.MATERIAL_VICTORY,
             fiftyMove = FiftyMovePolicy.DISABLED,
+            bareKing = BareKingPolicy.BARE_KING_LOSES,
             whiteStrength = UciStrength.Skill(20),
             blackStrength = UciStrength.Skill(20),
             searchLimit = SearchLimit.Nodes(options.confirmNodes),

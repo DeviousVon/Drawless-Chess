@@ -1,6 +1,6 @@
 # High-quality stereo sampled audio library
 
-The Android app ships 101 stereo, 48 kHz Ogg/Vorbis q8 effects under
+The Android app ships 103 stereo, 48 kHz Ogg/Vorbis q8 effects under
 `android/app/src/main/res/raw`. `SampledSoundCatalog.kt` groups them into shuffle bags, including
 50 ordinary-move variations that all play before a pool repeats. Android packaging stores the
 OGG resources without APK deflation so `SoundPool` receives seekable files.
@@ -16,7 +16,9 @@ cues. The current pack:
 - masters effects to category-specific loudness and a -1 dB true-peak ceiling;
 - excludes the brittle 8 kHz alabaster preview from runtime recipes; and
 - routes captures to 12 recorded stone-crush variants and check to one selected, longer recorded
-  mechanical cue rather than layering either event over a normal move.
+  mechanical cue rather than layering either event over a normal move; and
+- gives en passant and checkmate dedicated Brick and Stone crash cues processed from the original
+  lossless CC0 WAVs, with only their inaudible trailing silence removed.
 
 The retained Freesound firework inputs are public HQ MP3 previews because original WAV downloads
 require an authenticated Freesound account. The q8 encode cannot reconstruct information already
@@ -31,7 +33,7 @@ Run the deterministic PowerShell builder with FFmpeg and FFprobe available:
 pwsh -NoProfile -File scripts/audio/rebuild_lossless_audio.ps1
 ```
 
-The builder renders all 101 files into staging, verifies the complete count, atomically replaces
+The builder renders all 103 files into staging, verifies the complete count, atomically replaces
 the Android runtime set, and refreshes durations, SHA-256 hashes, source mappings, processing
 descriptions, and format metadata in `audio_manifest.json`.
 
@@ -54,5 +56,5 @@ encoded and decoded content, Ogg headers, stereo 48 kHz Vorbis format, duration,
 non-silence, headroom, source allowlists, and licensing notices. Android instrumentation also
 loads every resource through both `MediaExtractor` and `SoundPool`.
 
-The runtime pack is approximately 1.47 MB (1.40 MiB). Historical rejected Ogg identities remain
+The runtime pack is approximately 1.57 MB (1.50 MiB). Historical rejected Ogg identities remain
 under `legacy/` as evidence only and are never packaged.

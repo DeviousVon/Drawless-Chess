@@ -5,6 +5,12 @@ enum class StalematePolicy {
     TRAPPED_PLAYER_WINS,
 }
 
+/**
+ * [FINAL_CAPTURE_VICTORY] awards the mover that creates the known-dead position.
+ * That mover is normally the final capturer. A quiet bishop/knight underpromotion is the
+ * only standard-chess transition that can create a known-dead position without a capture;
+ * in that rare case the promoting mover wins as the deterministic v1 fallback.
+ */
 enum class DeadPositionPolicy {
     MATERIAL_VICTORY,
     FINAL_CAPTURE_VICTORY,
@@ -156,9 +162,6 @@ class DrawlessAdjudicator {
 
         if (facts.deadPositionAfter) {
             if (rules.deadPosition == DeadPositionPolicy.FINAL_CAPTURE_VICTORY) {
-                check(facts.moveWasCapture) {
-                    "Final-capture adjudication requires the transition move to be a capture"
-                }
                 return GameOutcome(facts.mover, reason = EndReason.DEAD_POSITION_FINAL_CAPTURE)
             }
             val winner = when {

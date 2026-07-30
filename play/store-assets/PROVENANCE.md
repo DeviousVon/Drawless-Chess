@@ -1,6 +1,6 @@
 # Google Play store asset provenance
 
-This package uses only Drawless Chess repository artwork and current app captures. The fictional
+This historical July 18 package uses only Drawless Chess repository artwork and app captures. The fictional
 opponent portraits were generated specifically for this project with OpenAI's image-generation
 tool; their source masters, prompts, derivation details, and hashes are retained under
 `artwork/opponents`. No stock imagery or third-party promotional artwork is used.
@@ -15,9 +15,9 @@ tool; their source masters, prompts, derivation details, and hashes are retained
   “Offline · Decisive · No ads.”
 - Segoe UI, a Windows system font, is used only for feature-graphic text.
 
-## Current screenshot capture set
+## Historical `0.3.0` screenshot capture set
 
-All ten screenshots were recaptured on July 18, 2026 from the same current debug candidate:
+All ten screenshots were recaptured on July 18, 2026 from the same then-current debug candidate:
 
 - app APK: `android/app/build/outputs/apk/debug/app-debug.apk`
 - size: 18,861,297 bytes
@@ -88,8 +88,8 @@ are recorded in `asset-manifest.csv`.
 - Every screenshot is within Google's 2:1 maximum long-side/short-side ratio.
 - All twelve outputs were inspected at rendered and original resolution. Text is legible, modal
   content is complete, no image is stretched, and no system notification identifier remains.
-- The gameplay set visibly includes current opponent portraits, captured-piece scores, and current
-  controls. The tablet gameplay and defeat images also show the current piece icons in move
+- The gameplay set visibly includes the opponent portraits, captured-piece scores, and controls
+  from that candidate. The tablet gameplay and defeat images also show its piece icons in move
   history.
 
 ## Local regeneration

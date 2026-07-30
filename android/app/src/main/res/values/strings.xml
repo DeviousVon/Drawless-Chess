@@ -64,10 +64,10 @@
     <string name="rules_fifty_move">• After 50 moves without a pawn move or capture, material points decide the winner.</string>
     <string name="action_got_it">Got it</string>
     <string name="license_title">Open-source software</string>
-    <string name="license_body">Drawless Chess is licensed under GNU GPL version 3 or later. Sampled audio includes CC0 chess recordings by JJTaynos and mh2o, CC0 fireworks by Rudmer_Rotteveel, and MIT-licensed ion.sound recordings by Denis Ineshin. Exact corresponding source and third-party notices accompany the official v%1$s release.</string>
+    <string name="license_body">Drawless Chess is licensed under GNU GPL version 3 or later. Its on-device engine is modified Fairy-Stockfish, derived from Stockfish, under GPL-3.0-or-later. Sampled audio includes CC0 chess recordings by JJTaynos and mh2o, CC0 fireworks by Rudmer_Rotteveel, and MIT-licensed ion.sound recordings by Denis Ineshin. Exact corresponding source and third-party notices accompany the official v%1$s release.</string>
     <string name="license_view_source">View source</string>
     <string name="privacy_title">Privacy</string>
-    <string name="privacy_body">Drawless Chess works entirely offline. BB_Games does not collect, transmit, share, or sell personal data. Saved games, completed-game history, local statistics, and settings are stored on your device and may be included in Android backups if you enable them; BB_Games cannot access those backups. Privacy questions: realitymaster@protonmail.ch</string>
+    <string name="privacy_body">Drawless Chess works entirely offline. BB_Games does not collect, transmit, share, or sell personal data. Saved games, completed-game history, local statistics, and settings are stored on your device and may be included in Android backups if you enable them; BB_Games cannot access those backups. Privacy questions: support@drawlesschess.com</string>
     <string name="privacy_view_policy">View policy</string>
 
     <!-- Game setup -->
@@ -277,8 +277,10 @@
     <string name="review_cancel_analysis">Stop analysis</string>
     <string name="review_retry">Analyze again</string>
     <string name="review_move_position">Move %1$d of %2$d</string>
-    <string name="review_previous">Previous</string>
-    <string name="review_next">Next</string>
+    <string name="review_previous_issue">Previous mistake</string>
+    <string name="review_previous">Previous move</string>
+    <string name="review_next">Next move</string>
+    <string name="review_next_issue">Next mistake</string>
     <string name="review_moves">Game moves</string>
     <string name="review_starting_position">Starting position</string>
     <string name="review_choose_move">Choose a move to see its review.</string>
@@ -367,7 +369,7 @@
     <string name="result_dead_position_material">Checkmate became impossible, so the material rule decided the winner.</string>
     <string name="result_dead_position_material_score">Checkmate became impossible. White had %1$d material points and Black had %2$d, so %3$s won under the material rule.</string>
     <string name="result_dead_position_material_tie">Checkmate became impossible with material tied at %1$d points each. Under the material rule, the player who made the final move—%2$s—won.</string>
-    <string name="result_dead_position_final_capture">The final capture made checkmate impossible. Under the Final Capture rule, the player who made that capture won.</string>
+    <string name="result_dead_position_final_capture">That move made checkmate impossible. Under the Final Capture rule, the player who made the move won.</string>
     <string name="result_bare_king">%1$s had only a king remaining, so %2$s won.</string>
     <string name="result_timeout">Time expired.</string>
     <string name="result_resignation">The game ended by resignation.</string>

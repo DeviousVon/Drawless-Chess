@@ -1,17 +1,58 @@
 # Drawless Chess go-live status
 
-Status as of July 14, 2026: **engineering candidate verified; public release remains blocked.**
+Status as of July 30, 2026: **patch-v2 host rule parity is verified; the 1.0.0 exact Android
+candidate/device proof and public production release remain blocked.**
 
-No artifact has been uploaded to Google Play. The owner selected a one-time paid listing; the
-standard price is still awaiting final approval. The release package is intentionally unsigned
-until the owner creates a securely stored upload key.
+Google Play closed testing currently serves 0.3.0 (`versionCode` 3) on the Alpha track; six testers
+were opted in when the Console was inspected on July 30. The owner selected a one-time paid listing,
+and the standard price is still awaiting final approval. The authorized upload key already exists
+and must be reused as-is. Never generate, rotate, replace, or reset that key or certificate without
+Bob's explicit authorization for that exact action.
 
-GitHub CLI authentication and repository-admin permission are confirmed. The reviewed work is
-committed and pushed on `codex/go-live-readiness`; draft
-[PR #2](https://github.com/DeviousVon/Drawless-Chess/pull/2) is open against `main`. The current
-test-harness APK's final emulator/tablet suite and the independent repository review are complete.
+The local `codex/go-live-readiness` branch contains six commits beyond its published remote plus the
+current release worktree. GitHub publication must wait for the final clean candidate and successful
+release gates. The July 14 test-harness APK's emulator/tablet suite and independent repository
+review are complete, but those artifacts predate the patch-v2 engine candidate.
 
-## Completed in the current readiness pass
+## Current patch-v2 engine candidate
+
+- Fairy-Stockfish upstream remains pinned at commit
+  `fb78cb561aa01708338e35b3dc3b65a42149a3c4` and upstream tree
+  `dfe4b96037c10ab60e22613bf634452612fc2b04`.
+- The current patched tree is `bf58452cf6bb2254050e7aa442d2b23f3664aaec`; the fourth-patch
+  SHA-256 is
+  `22c8327ed64a2d7711695d372d817a6e037bca5fdbfc24ad812c1e869e59bedd`, the ordered patch-series
+  composite SHA-256 is
+  `7501f6322ee73b9d737c387e32f1c45cb6de7d0cb3b67648601e0236fca799ed`, and the variant
+  configuration SHA-256 is
+  `0570d4805f915c2c77228babc31e127c4155413dba4d335ccb527dc2b974d28f`.
+- Drawless patch interface v2 carries the complete `RulesContractV1` surface into native search:
+  Drawless/Escape stalemate, repetition and its forced exception, both bare-king and dead-position
+  choices, all 50-move choices and tie breakers, and the documented terminal precedence.
+- `0004-preserve-drawless-deeper-search-boundaries.patch` protects those outcomes through deeper
+  main/quiescence pruning, mixed terminal sets, quiet stalemate and bishop/knight underpromotion,
+  node-neutral probes, null-history, legal-only en-passant keys, terminal-child ponder handling,
+  and the custom-variant Syzygy guard.
+- The clean Linux x86-64 source/patch verifier passes exact replay, the direct native-state harness,
+  and the full UCI acceptance matrix, including both-color quiet stalemates beyond the sparse
+  material frontier and the node-neutral speculative-probe assertion.
+- The Kotlin core harness currently passes 344 tests. Full WSL headless `--validate-only` also
+  passes with the rebuilt patch-v2 engine and runner. Headless campaign, puzzle-candidate, and
+  puzzle-verification schemas are version 2 and include the bare-king policy in rule fingerprints;
+  the soak supervisor requires the schema-2 bare-king value, and older schema-v1 material must be
+  migrated, re-mined, or re-verified rather than mixed. This is validation, not a new duration or
+  strength claim.
+- Game Review analysis version 2 records full native contract-v1/patch-v2 fidelity and fails closed
+  on a wrong patch, mixed engine identity, mismatched request, or illegal/post-terminal replay.
+- Final Capture result copy in all five shipped locales now describes the terminal move rather than
+  assuming it was a capture, covering the quiet bishop/knight-underpromotion edge honestly.
+- A current APK is not verified merely because the July 14 patch-v1 artifacts passed. The v2
+  candidate still requires exact Android artifact proof plus installation, launch, and engine
+  verification on the designated Pixel phone and R6 tablet.
+- Game Review remains labeled Beta. Its engine Gate 1 closes only after those device checks;
+  evidence Gate 0 and experience/persistence/exit Gates 2-5 remain open.
+
+## Completed in the July 14 readiness baseline
 
 - Google Play personal-account creation, registration payment, identity verification, all three
   contact channels, and the separate physical-device verification are confirmed complete in
@@ -29,26 +70,28 @@ test-harness APK's final emulator/tablet suite and the independent repository re
   source, patches, checksums, notices, provenance, and source-bundle tooling are present.
 - Store-listing, privacy, Data Safety, content-rating, target-audience, closed-test, and release
   runbook drafts are prepared under `play/` and `docs/PLAY_RELEASE_GUIDE.md`.
-- The icon, feature graphic, and all ten screenshots are current for the same app candidate.
-  Phone images came from the API-36 emulator and tablet images from the physical API-33 tablet;
-  exact provenance, transforms, dimensions, and hashes are recorded under `play/store-assets/`.
-- The 101-file sampled-audio gate passes decoding, format, duration, silence/clipping,
+- The icon, feature graphic, and ten screenshots remain valid depictions of the 0.3.0 baseline, but
+  they predate the 1.0.0 Game Review and Adaptive-opponent additions. Phone images came from the
+  API-36 emulator and tablet images from the physical API-33 tablet; exact provenance, transforms,
+  dimensions, and hashes are recorded under `play/store-assets/`.
+- The 103-file sampled-audio gate passes decoding, format, duration, silence/clipping,
   uniqueness, hash, and source-provenance checks.
-- Host verification passes: 37 JavaScript tests and 223 Kotlin tests. Compose, Android,
+- Patch-v1 host verification passed: 37 JavaScript tests and 223 Kotlin tests. Compose, Android,
   native-source, patch-integrity, license-structure, and release lint gates pass. Lint reports
   zero errors and six existing non-blocking warnings.
 - Fresh fail-closed Android machine gates pass on both supported runtime ABIs:
   Android 16/API-36 x86-64 emulator and Android 13/API-33 ARM64 tablet. Both builds package
-  `arm64-v8a` and `x86_64` and identify patched engine tree
+  `arm64-v8a` and `x86_64` and identify the historical patch-v1 tree
   `80208e5f35549b88505df983e4bc0f7621083fd4`.
 - The exact clean app/test APK pair passes the targeted forfeit test plus the entire 51-test app
   suite twice from fresh processes on emulator, tablet, and Pixel 9 Pro XL. No crash, ANR, native fatal,
   engine-session failure, out-of-memory event, runner death, or audio resource/load failure was
   found. Tablet cold start was 2.206 seconds.
 
-## Exact private-test artifacts
+## Historical patch-v1 private-test artifacts
 
-These are retained exact engineering artifacts, not Play-distribution files:
+These are retained exact July 14 engineering artifacts, not current patch-v2 or Play-distribution
+files:
 
 | Artifact | Bytes | SHA-256 |
 | --- | ---: | --- |
@@ -72,47 +115,44 @@ Machine evidence is retained locally under:
 - `build/release-qa/pixel-clean`
 - `build/release-qa/final-harness`
 
-## Owner checklist before the first Play upload
+## Checklist before the 1.0.0 Play update
 
 Complete these in order. Items involving identity, private keys, payment, legal terms, real
 testers, or publication must be performed or explicitly approved by the owner.
 
-1. In the prefilled Play Console Create App form, personally review and accept the Developer
-   Program Policies, Play App Signing terms, and US export-law declarations, then create the paid
-   game. These are owner attestations and cannot be accepted by an assistant.
+1. Verify the already-authorized upload key against the pinned public certificate fingerprint and
+   configure it only for the release build. If it cannot be used, stop; no key or certificate
+   change and no upload-key reset is authorized by this checklist.
 2. Confirm the public developer display name (`BB_Games`), support email
-   (`realitymaster@protonmail.ch`), and intended target audience (recommended: 13 and over).
+   (`support@drawlesschess.com`), and intended target audience (recommended: 13 and over).
 3. Confirm the standard price and launch sale. Current recommendation: `$3.99` standard and a
    14-day `$2.99` launch sale, with Play's managed 60-minute paid-game trial enabled. Complete
    merchant/tax/bank setup as required for the paid listing.
-4. Create a strong upload-key password in a password manager, create the upload keystore outside
-   the repository and synchronized folders, keep encrypted backups in two controlled locations,
-   and enable Play App Signing. Never put key material or passwords in chat or Git.
-5. Freeze the release commit. Build the signed release AAB and run the exact-AAB verifier for
+4. Freeze the release commit. Build the signed release AAB and run the exact-AAB verifier for
    signature, package/version, API level, both ABIs, 16 KB native compatibility, permissions,
    dependency/SBOM evidence, notices, and corresponding source.
-6. Publish and verify the privacy-policy URL while signed out. Publish the GPL corresponding-source
-   archive and SHA-256 for the exact AAB on the matching `v0.1.0` GitHub release; verify the in-app
+5. Publish and verify the privacy-policy URL while signed out. Publish the GPL corresponding-source
+   archive and SHA-256 for the exact AAB on the matching `v1.0.0` GitHub release; verify the in-app
    source link before submission.
-7. Complete Play Console App content: Data Safety, privacy URL, ads/app access, target audience,
+6. Re-audit Play Console App content: Data Safety, privacy URL, ads/app access, target audience,
    content rating, category, pricing, countries, and store listing. Use the prepared drafts, but
    match the live Console wording and the exact signed AAB.
-8. Create the closed-test release and configure a self-enrollment Google Group. Testers need not
-   provide addresses in advance: share the Group link, Play opt-in link, and individual promo
-   codes after the release is published. Keep at least 12 opted in continuously for 14 days; aim
+7. Update the existing closed-test release and keep the self-enrollment Google Group configured.
+   Testers need not provide addresses in advance: share the Group link, Play opt-in link, and
+   individual promo codes after the release is published. Keep at least 12 opted in continuously for 14 days; aim
    for 15–18 so one dropout does not reset the minimum.
-9. Collect honest dated feedback, fix release blockers, issue a new tested build when necessary,
+8. Collect honest dated feedback, fix release blockers, issue a new tested build when necessary,
     and apply for production access only after Play reports the closed-test requirement satisfied.
-10. Review the final production submission and staged-rollout settings personally. Public release
+9. Review the final production submission and staged-rollout settings personally. Public release
     remains blocked until Google grants production access and the owner explicitly approves launch.
 
 ## Known non-blockers and deferred evidence
 
 - The owner account has an Ubuntu WSL2 distribution. A restricted sandbox identity cannot
   enumerate it, which caused the earlier false "no distribution" result. Using Ubuntu's existing
-  GNU Make/G++ and a checksum-verified portable Node 24.14.0 under `/tmp`, the complete patch
-  verifier compiled the unpatched and patched engines and passed identity, ELO-rounding, forced
-  repetition, history isolation, and stopped-search isolation gates. No package was installed in
+  GNU Make/G++ and a checksum-verified portable Node 24.14.0 under `/tmp`, the then-current
+  patch-v1 verifier compiled the unpatched and patched engines and passed identity, ELO-rounding,
+  forced repetition, history isolation, and stopped-search isolation gates. No package was installed in
   or removed from the owner's distribution.
 - A portable trusted FFmpeg build was used only for the sampled-audio decode audit.
 - Sustained low-memory testing, a Play pre-launch report, the signed-AAB check, and closed-test

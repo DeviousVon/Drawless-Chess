@@ -11,7 +11,7 @@
 # Set DRAWLESS_SIGNING_PROPERTIES only to use a protected properties file outside
 # the repository. Gradle rejects custom signing-properties paths inside the repo.
 
-storeFile=C:/Users/your-name/secure/drawless-chess-upload.jks
+storeFile=D:/private/drawless-chess-upload.jks
 storePassword=replace-locally
 keyAlias=drawless-upload
 keyPassword=replace-locally

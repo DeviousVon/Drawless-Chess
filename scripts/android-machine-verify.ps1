@@ -531,7 +531,8 @@ function Test-AndroidStructure {
     foreach ($requiredText in @(
         '@RunWith(AndroidJUnit4::class)', '@Test',
         'fun forcedRepetitionSearchClosesAndRestartsSequentially()',
-        'val first = factory.create()', 'val second = factory.create()', 'h8g8'
+        'factory.create().close()', 'repeat(2) { index ->',
+        'factory.create().use { engine ->', 'h8g8'
     )) { Require-Text $instrumentedTest $requiredText }
 
     foreach ($requiredText in @(
@@ -2146,8 +2147,8 @@ function Test-NativeStructure {
         $instrumentedTest = @(
             '@RunWith(AndroidJUnit4::class)', 'class AndroidFairyEngineInstrumentedTest',
             'fun forcedRepetitionSearchClosesAndRestartsSequentially()', 'AndroidFairyEngineFactory(',
-            'val first = factory.create()', 'first.close()', 'val second = factory.create()',
-            'second.close()', 'h8g8', 'response.engine.drawlessPatch'
+            'factory.create().close()', 'repeat(2) { index ->',
+            'factory.create().use { engine ->', 'h8g8', 'response.engine.drawlessPatch'
         )
         $hostBindings = @(
             'private static native long nativeCreate(String variantConfigPath);',

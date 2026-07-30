@@ -1,5 +1,6 @@
 package com.drawlesschess.selfplay
 
+import com.drawlesschess.core.BareKingPolicy
 import com.drawlesschess.core.DeadPositionPolicy
 import com.drawlesschess.core.EndReason
 import com.drawlesschess.core.FiftyMovePolicy
@@ -14,8 +15,8 @@ import java.security.MessageDigest
 import java.time.Instant
 import java.util.Locale
 
-internal const val PUZZLE_CANDIDATE_SCHEMA_VERSION = 1
-internal const val PUZZLE_VERIFICATION_SCHEMA_VERSION = 1
+internal const val PUZZLE_CANDIDATE_SCHEMA_VERSION = 2
+internal const val PUZZLE_VERIFICATION_SCHEMA_VERSION = 2
 
 enum class PuzzleCandidateKind {
     TERMINAL_MOVE,
@@ -26,16 +27,18 @@ data class PuzzleRules(
     val preset: RulesContractV1.Preset,
     val deadPosition: DeadPositionPolicy,
     val fiftyMove: FiftyMovePolicy,
+    val bareKing: BareKingPolicy,
 ) {
     val contract: RulesContractV1 = when (preset) {
         RulesContractV1.Preset.DRAWLESS -> RulesContractV1.drawless(deadPosition, fiftyMove)
         RulesContractV1.Preset.ESCAPE -> RulesContractV1.escape(deadPosition, fiftyMove)
-    }
+    }.copy(bareKing = bareKing)
 
     fun toMap(): Map<String, Any?> = linkedMapOf(
         "preset" to preset.name,
         "dead_position" to deadPosition.name,
         "fifty_move" to fiftyMove.name,
+        "bare_king" to bareKing.name,
     )
 
     companion object {
@@ -43,6 +46,7 @@ data class PuzzleRules(
             preset = enumValueOf(map.requiredString("preset")),
             deadPosition = enumValueOf(map.requiredString("dead_position")),
             fiftyMove = enumValueOf(map.requiredString("fifty_move")),
+            bareKing = enumValueOf(map.requiredString("bare_king")),
         )
 
         fun fromReportConfig(config: Map<String, String>): PuzzleRules = PuzzleRules(
@@ -62,6 +66,11 @@ data class PuzzleRules(
                 "forced_move_exception" -> FiftyMovePolicy.FORCED_MOVE_EXCEPTION
                 "material_victory" -> FiftyMovePolicy.MATERIAL_VICTORY
                 else -> error("Unsupported report fiftyMove '${config.getValue("fiftyMove")}'")
+            },
+            bareKing = when (config.getValue("bareKing")) {
+                "continue" -> BareKingPolicy.CONTINUE
+                "bare_king_loses" -> BareKingPolicy.BARE_KING_LOSES
+                else -> error("Unsupported report bareKing '${config.getValue("bareKing")}'")
             },
         )
     }
@@ -454,6 +463,7 @@ private data class ReportHeader(
     companion object {
         fun fromRecord(record: Map<String, Any?>): ReportHeader {
             require(record.requiredInt("report_schema_version") == REPORT_SCHEMA_VERSION)
+            require(record.requiredInt("config_schema_version") == SelfPlayConfig.SCHEMA_VERSION)
             val config = record.requiredObject("config").mapValues { (_, value) ->
                 value as? String ?: error("Report config values must be strings")
             }
@@ -482,6 +492,7 @@ internal fun candidateId(
         append(rules.preset.name).append('\u0000')
         append(rules.deadPosition.name).append('\u0000')
         append(rules.fiftyMove.name).append('\u0000')
+        append(rules.bareKing.name).append('\u0000')
         append(initialFen).append('\u0000')
         movesBefore.forEach { append(it).append('\u0000') }
         append(candidateFen).append('\u0000')

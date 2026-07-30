@@ -1,5 +1,6 @@
 package com.drawlesschess.selfplay
 
+import com.drawlesschess.core.BareKingPolicy
 import com.drawlesschess.core.DeadPositionPolicy
 import com.drawlesschess.core.FiftyMovePolicy
 import com.drawlesschess.core.RulesContractV1
@@ -8,6 +9,7 @@ import com.drawlesschess.core.chess.ChessPosition
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.nio.file.Path
+import java.util.Locale
 import java.util.Properties
 
 sealed interface SearchLimit {
@@ -45,6 +47,7 @@ enum class JobSource {
     SINGLE,
     SAME_LEVEL,
     ADJACENT,
+    RELEASE_CAMPAIGN,
 }
 
 data class SelfPlayConfig(
@@ -57,6 +60,7 @@ data class SelfPlayConfig(
     val openingsPath: Path?,
     val ladderLevelsPath: Path?,
     val adjacentMatchupsPath: Path?,
+    val releasePositionsPath: Path? = null,
     val games: Int,
     val parallelGames: Int,
     val initialFen: String,
@@ -64,6 +68,7 @@ data class SelfPlayConfig(
     val variant: RulesContractV1.Preset,
     val deadPosition: DeadPositionPolicy,
     val fiftyMove: FiftyMovePolicy,
+    val bareKing: BareKingPolicy,
     val whiteStrength: UciStrength?,
     val blackStrength: UciStrength?,
     val searchLimit: SearchLimit,
@@ -81,24 +86,26 @@ data class SelfPlayConfig(
     val rules: RulesContractV1 = when (variant) {
         RulesContractV1.Preset.DRAWLESS -> RulesContractV1.drawless(deadPosition, fiftyMove)
         RulesContractV1.Preset.ESCAPE -> RulesContractV1.escape(deadPosition, fiftyMove)
-    }
+    }.copy(bareKing = bareKing)
 
     fun fingerprintFields(): Map<String, String> = linkedMapOf(
         "schemaVersion" to SCHEMA_VERSION.toString(),
         "runLabel" to runLabel,
         "enginePath" to enginePath.toString(),
         "variantsPath" to variantsPath.toString(),
-        "jobSource" to jobSource.name.lowercase().replace('_', '-'),
+        "jobSource" to jobSource.name.lowercase(Locale.ROOT).replace('_', '-'),
         "openingsPath" to (openingsPath?.toString() ?: "-"),
         "ladderLevelsPath" to (ladderLevelsPath?.toString() ?: "-"),
         "adjacentMatchupsPath" to (adjacentMatchupsPath?.toString() ?: "-"),
+        "releasePositionsPath" to (releasePositionsPath?.toString() ?: "-"),
         "games" to games.toString(),
         "parallelGames" to parallelGames.toString(),
         "initialFen" to initialFen,
         "openingMoves" to openingMoves.joinToString(" ") { it.value },
-        "variant" to variant.name.lowercase(),
-        "deadPosition" to deadPosition.name.lowercase(),
-        "fiftyMove" to fiftyMove.name.lowercase(),
+        "variant" to variant.name.lowercase(Locale.ROOT),
+        "deadPosition" to deadPosition.name.lowercase(Locale.ROOT),
+        "fiftyMove" to fiftyMove.name.lowercase(Locale.ROOT),
+        "bareKing" to bareKing.name.lowercase(Locale.ROOT),
         "whiteStrength" to (whiteStrength?.label ?: "matrix"),
         "blackStrength" to (blackStrength?.label ?: "matrix"),
         "searchLimit" to searchLimit.label,
@@ -114,7 +121,7 @@ data class SelfPlayConfig(
     )
 
     companion object {
-        const val SCHEMA_VERSION = 1
+        const val SCHEMA_VERSION = 2
 
         private val knownKeys = setOf(
             "schemaVersion",
@@ -126,6 +133,7 @@ data class SelfPlayConfig(
             "openingsPath",
             "ladderLevelsPath",
             "adjacentMatchupsPath",
+            "releasePositionsPath",
             "games",
             "parallelGames",
             "initialFen",
@@ -133,6 +141,7 @@ data class SelfPlayConfig(
             "variant",
             "deadPosition",
             "fiftyMove",
+            "bareKing",
             "whiteStrength",
             "blackStrength",
             "searchMode",
@@ -194,11 +203,12 @@ data class SelfPlayConfig(
 
             val schema = strictInt("schemaVersion", SCHEMA_VERSION..SCHEMA_VERSION)
             check(schema == SCHEMA_VERSION)
-            val jobSource = when (optional("jobSource", "single").lowercase()) {
+            val jobSource = when (optional("jobSource", "single").lowercase(Locale.ROOT)) {
                 "single" -> JobSource.SINGLE
                 "same-level" -> JobSource.SAME_LEVEL
                 "adjacent" -> JobSource.ADJACENT
-                else -> error("jobSource must be single, same-level, or adjacent")
+                "release-campaign" -> JobSource.RELEASE_CAMPAIGN
+                else -> error("jobSource must be single, same-level, adjacent, or release-campaign")
             }
             val games = strictInt("games", 1..100_000)
             val pairColors = strictBoolean("pairColors")
@@ -212,6 +222,9 @@ data class SelfPlayConfig(
                 JobSource.ADJACENT -> require(pairColors) {
                     "pairColors must be true for jobSource=adjacent"
                 }
+                JobSource.RELEASE_CAMPAIGN -> require(pairColors) {
+                    "pairColors must be true for jobSource=release-campaign"
+                }
             }
             val parallel = strictInt("parallelGames", 1..64)
             require(parallel <= games) { "parallelGames cannot exceed games" }
@@ -220,7 +233,7 @@ data class SelfPlayConfig(
                 val present = names.filter(properties::containsKey)
                 require(present.isEmpty()) {
                     "Properties ${present.joinToString()} are forbidden for jobSource=" +
-                        jobSource.name.lowercase().replace('_', '-')
+                        jobSource.name.lowercase(Locale.ROOT).replace('_', '-')
                 }
             }
 
@@ -231,9 +244,15 @@ data class SelfPlayConfig(
             val openingsPath: Path?
             val ladderLevelsPath: Path?
             val adjacentMatchupsPath: Path?
+            val releasePositionsPath: Path?
             when (jobSource) {
                 JobSource.SINGLE -> {
-                    forbid("openingsPath", "ladderLevelsPath", "adjacentMatchupsPath")
+                    forbid(
+                        "openingsPath",
+                        "ladderLevelsPath",
+                        "adjacentMatchupsPath",
+                        "releasePositionsPath",
+                    )
                     initialPosition = ChessPosition.fromFen(
                         optional("initialFen", ChessPosition.START_FEN),
                     )
@@ -246,9 +265,17 @@ data class SelfPlayConfig(
                     openingsPath = null
                     ladderLevelsPath = null
                     adjacentMatchupsPath = null
+                    releasePositionsPath = null
                 }
                 JobSource.SAME_LEVEL -> {
-                    forbid("initialFen", "openingMoves", "whiteStrength", "blackStrength", "adjacentMatchupsPath")
+                    forbid(
+                        "initialFen",
+                        "openingMoves",
+                        "whiteStrength",
+                        "blackStrength",
+                        "adjacentMatchupsPath",
+                        "releasePositionsPath",
+                    )
                     initialPosition = ChessPosition.starting()
                     openingMoves = emptyList()
                     whiteStrength = null
@@ -256,9 +283,16 @@ data class SelfPlayConfig(
                     openingsPath = absoluteFile(required("openingsPath"), "openingsPath")
                     ladderLevelsPath = absoluteFile(required("ladderLevelsPath"), "ladderLevelsPath")
                     adjacentMatchupsPath = null
+                    releasePositionsPath = null
                 }
                 JobSource.ADJACENT -> {
-                    forbid("initialFen", "openingMoves", "whiteStrength", "blackStrength")
+                    forbid(
+                        "initialFen",
+                        "openingMoves",
+                        "whiteStrength",
+                        "blackStrength",
+                        "releasePositionsPath",
+                    )
                     initialPosition = ChessPosition.starting()
                     openingMoves = emptyList()
                     whiteStrength = null
@@ -269,28 +303,51 @@ data class SelfPlayConfig(
                         required("adjacentMatchupsPath"),
                         "adjacentMatchupsPath",
                     )
+                    releasePositionsPath = null
+                }
+                JobSource.RELEASE_CAMPAIGN -> {
+                    forbid("initialFen", "openingMoves", "whiteStrength", "blackStrength", "openingsPath")
+                    initialPosition = ChessPosition.starting()
+                    openingMoves = emptyList()
+                    whiteStrength = null
+                    blackStrength = null
+                    openingsPath = null
+                    ladderLevelsPath = absoluteFile(required("ladderLevelsPath"), "ladderLevelsPath")
+                    adjacentMatchupsPath = absoluteFile(
+                        required("adjacentMatchupsPath"),
+                        "adjacentMatchupsPath",
+                    )
+                    releasePositionsPath = absoluteFile(
+                        required("releasePositionsPath"),
+                        "releasePositionsPath",
+                    )
                 }
             }
 
-            val variant = when (required("variant").lowercase()) {
+            val variant = when (required("variant").lowercase(Locale.ROOT)) {
                 "drawless" -> RulesContractV1.Preset.DRAWLESS
                 "escape" -> RulesContractV1.Preset.ESCAPE
                 else -> error("variant must be drawless or escape")
             }
-            val deadPosition = when (required("deadPosition").lowercase()) {
+            val deadPosition = when (required("deadPosition").lowercase(Locale.ROOT)) {
                 "material" -> DeadPositionPolicy.MATERIAL_VICTORY
                 "final" -> DeadPositionPolicy.FINAL_CAPTURE_VICTORY
                 else -> error("deadPosition must be material or final")
             }
-            val fiftyMove = when (required("fiftyMove").lowercase()) {
+            val fiftyMove = when (required("fiftyMove").lowercase(Locale.ROOT)) {
                 "off" -> FiftyMovePolicy.DISABLED
                 "completing" -> FiftyMovePolicy.COMPLETING_PLAYER_LOSES
                 "forced" -> FiftyMovePolicy.FORCED_MOVE_EXCEPTION
                 "material" -> FiftyMovePolicy.MATERIAL_VICTORY
                 else -> error("fiftyMove must be off, completing, forced, or material")
             }
+            val bareKing = when (required("bareKing").lowercase(Locale.ROOT)) {
+                "continue" -> BareKingPolicy.CONTINUE
+                "loses" -> BareKingPolicy.BARE_KING_LOSES
+                else -> error("bareKing must be continue or loses")
+            }
 
-            val searchMode = required("searchMode").lowercase()
+            val searchMode = required("searchMode").lowercase(Locale.ROOT)
             val searchLimit = when (searchMode) {
                 "movetime" -> {
                     require(!properties.containsKey("nodes")) {
@@ -327,6 +384,7 @@ data class SelfPlayConfig(
                 openingsPath = openingsPath,
                 ladderLevelsPath = ladderLevelsPath,
                 adjacentMatchupsPath = adjacentMatchupsPath,
+                releasePositionsPath = releasePositionsPath,
                 games = games,
                 parallelGames = parallel,
                 initialFen = initialPosition.fen(),
@@ -334,6 +392,7 @@ data class SelfPlayConfig(
                 variant = variant,
                 deadPosition = deadPosition,
                 fiftyMove = fiftyMove,
+                bareKing = bareKing,
                 whiteStrength = whiteStrength,
                 blackStrength = blackStrength,
                 searchLimit = searchLimit,
@@ -369,7 +428,7 @@ data class SelfPlayConfig(
         }
 
         private fun parseStrength(text: String, name: String): UciStrength {
-            val parts = text.lowercase().split(':')
+            val parts = text.lowercase(Locale.ROOT).split(':')
             require(parts.size == 2) { "$name must be elo:500..2850 or skill:-20..20" }
             val value = parts[1].toIntOrNull() ?: error("$name has a non-integer value")
             return when (parts[0]) {

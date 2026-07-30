@@ -1,6 +1,6 @@
 # Third-party notices
 
-This file records the third-party material in the Drawless Chess 0.3.0 release
+This file records the third-party material in the Drawless Chess 1.0.0 release
 checkpoint. The exact resolved Android runtime inventory is generated from
 Gradle and recorded in `release/reports/release-sbom.cdx.json`.
 
@@ -77,9 +77,15 @@ The check cue derives from “Pump Action Shotgun Reload” by AugustSandberg:
 is a CC0 24-bit/96 kHz stereo WAV; only the recorded action cycle is used, with no
 gunshot.
 
-All six source pages designate the recordings Creative Commons Zero 1.0. CC0
-does not require attribution, but the identities, retained HQ preview files and
-hashes, original-download identities, and processing descriptions are preserved
+The dedicated en-passant and checkmate cues derive from original lossless WAVs by
+discofield:
+
+- “Brick crash”: <https://freesound.org/people/discofield/sounds/711656/>
+- “Stone crash”: <https://freesound.org/people/discofield/sounds/711657/>
+
+All eight source pages designate the recordings Creative Commons Zero 1.0. CC0
+does not require attribution, but the identities, retained source files and hashes,
+original-download identities, and processing descriptions are preserved
 under `docs/audio/`. The complete CC0 legal text is in
 `docs/audio/licenses/CC0-1.0.txt` in the corresponding source distribution.
 

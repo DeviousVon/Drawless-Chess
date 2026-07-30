@@ -63,10 +63,10 @@
     <string name="rules_fifty_move">• Após 50 lances sem movimento de peão ou captura, os pontos de material decidem o vencedor.</string>
     <string name="action_got_it">Entendi</string>
     <string name="license_title">Software de código aberto</string>
-    <string name="license_body">Drawless Chess é licenciado sob a GNU GPL versão 3 ou posterior. O áudio amostrado inclui gravações de xadrez CC0 de JJTaynos e mh2o, fogos de artifício CC0 de Rudmer_Rotteveel e gravações ion.sound de Denis Ineshin sob licença MIT. O código-fonte correspondente exato e os avisos de terceiros acompanham a versão oficial v%1$s.</string>
+    <string name="license_body">Drawless Chess é licenciado sob a GNU GPL versão 3 ou posterior. O motor executado no aparelho é uma versão modificada do Fairy-Stockfish, derivado do Stockfish e distribuído sob GPL-3.0-or-later. O áudio amostrado inclui gravações de xadrez CC0 de JJTaynos e mh2o, fogos de artifício CC0 de Rudmer_Rotteveel e gravações ion.sound de Denis Ineshin sob licença MIT. O código-fonte correspondente exato e os avisos de terceiros acompanham a versão oficial v%1$s.</string>
     <string name="license_view_source">Ver código-fonte</string>
     <string name="privacy_title">Privacidade</string>
-    <string name="privacy_body">Drawless Chess funciona totalmente offline. A BB_Games não coleta, transmite, compartilha nem vende dados pessoais. Partidas salvas, histórico de partidas concluídas, estatísticas locais e configurações ficam armazenados no seu dispositivo e podem ser incluídos nos backups do Android se você os ativar; a BB_Games não pode acessar esses backups. Dúvidas sobre privacidade: realitymaster@protonmail.ch</string>
+    <string name="privacy_body">Drawless Chess funciona totalmente offline. A BB_Games não coleta, transmite, compartilha nem vende dados pessoais. Partidas salvas, histórico de partidas concluídas, estatísticas locais e configurações ficam armazenados no seu dispositivo e podem ser incluídos nos backups do Android se você os ativar; a BB_Games não pode acessar esses backups. Dúvidas sobre privacidade: support@drawlesschess.com</string>
     <string name="privacy_view_policy">Ver política</string>
 
     <!-- Configuração da partida -->
@@ -273,8 +273,10 @@
     <string name="review_cancel_analysis">Interromper análise</string>
     <string name="review_retry">Analisar novamente</string>
     <string name="review_move_position">Lance %1$d de %2$d</string>
-    <string name="review_previous">Anterior</string>
-    <string name="review_next">Próximo</string>
+    <string name="review_previous_issue">Erro anterior</string>
+    <string name="review_previous">Lance anterior</string>
+    <string name="review_next">Próximo lance</string>
+    <string name="review_next_issue">Próximo erro</string>
     <string name="review_moves">Lances da partida</string>
     <string name="review_starting_position">Posição inicial</string>
     <string name="review_choose_move">Escolha um lance para ver a análise.</string>
@@ -363,7 +365,7 @@
     <string name="result_dead_position_material">O xeque-mate se tornou impossível, então a regra de material decidiu o vencedor.</string>
     <string name="result_dead_position_material_score">O xeque-mate se tornou impossível. As brancas tinham %1$d pontos de material e as pretas %2$d, então %3$s venceu pela regra de material.</string>
     <string name="result_dead_position_material_tie">O xeque-mate se tornou impossível com o material empatado em %1$d pontos para cada lado. Pela regra de material, venceu quem fez o lance final: %2$s.</string>
-    <string name="result_dead_position_final_capture">A captura final tornou o xeque-mate impossível. Pela regra Final Capture, venceu o jogador que fez essa captura.</string>
+    <string name="result_dead_position_final_capture">Essa jogada tornou o xeque-mate impossível. Pela regra Final Capture, venceu o jogador que fez essa jogada.</string>
     <string name="result_bare_king">%1$s ficou apenas com o rei, então %2$s venceu.</string>
     <string name="result_timeout">O tempo acabou.</string>
     <string name="result_resignation">A partida terminou por desistência.</string>

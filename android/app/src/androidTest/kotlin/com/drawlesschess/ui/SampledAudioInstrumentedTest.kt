@@ -33,12 +33,15 @@ class SampledAudioInstrumentedTest {
     }
 
     @Test
-    fun sanSelectsExactlyOneMoveCueAndCheckTakesPriority() {
+    fun moveFactsSelectExactlyOneCueInDocumentedPriorityOrder() {
         assertEquals(MoveSoundCue.MOVE, moveSoundCue("e4"))
         assertEquals(MoveSoundCue.CHECK, moveSoundCue("Qh7+"))
         assertEquals(MoveSoundCue.CAPTURE, moveSoundCue("Qxh7"))
-        assertEquals(MoveSoundCue.CHECK, moveSoundCue("Qxh7#"))
+        assertEquals(MoveSoundCue.CHECKMATE, moveSoundCue("Qxh7#"))
         assertEquals(MoveSoundCue.CHECK, moveSoundCue("O-O+"))
+        assertEquals(MoveSoundCue.EN_PASSANT, moveSoundCue("exd6", enPassant = true))
+        assertEquals(MoveSoundCue.EN_PASSANT, moveSoundCue("exd6+", enPassant = true))
+        assertEquals(MoveSoundCue.CHECKMATE, moveSoundCue("exd6#", enPassant = true))
     }
 
     @Test
@@ -54,6 +57,8 @@ class SampledAudioInstrumentedTest {
             SampledSoundCatalog.glassFracture to 3,
             SampledSoundCatalog.glassShards to 3,
             intArrayOf(SampledSoundCatalog.check) to 1,
+            intArrayOf(SampledSoundCatalog.enPassant) to 1,
+            intArrayOf(SampledSoundCatalog.checkmate) to 1,
             SampledSoundCatalog.promotions to 4,
             SampledSoundCatalog.hints to 3,
             SampledSoundCatalog.lowTime to 4,
@@ -61,8 +66,8 @@ class SampledAudioInstrumentedTest {
             SampledSoundCatalog.undo to 3,
         )
         groups.forEach { (resources, expected) -> assertEquals(expected, resources.size) }
-        assertEquals(101, SampledSoundCatalog.all.size)
-        assertEquals(101, SampledSoundCatalog.all.toSet().size)
+        assertEquals(103, SampledSoundCatalog.all.size)
+        assertEquals(103, SampledSoundCatalog.all.toSet().size)
 
         SampledSoundCatalog.all.forEach { resource ->
             val name = context.resources.getResourceEntryName(resource)
@@ -196,6 +201,7 @@ class SampledAudioInstrumentedTest {
         player.setVolumePercent(50)
         player.playMove("Qxh7+")
         player.playMove("Qh7#")
+        player.playMove("exd6", enPassant = true)
         player.playCheck()
         player.playCompletionCue(CompletionEffectCue.GLASS_SHARDS)
         player.playCompletionCue(CompletionEffectCue.GLASS_IMPACT)

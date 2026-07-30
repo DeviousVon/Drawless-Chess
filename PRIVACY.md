@@ -1,7 +1,7 @@
 # Privacy Policy for Drawless Chess
 
 **Effective date:** July 11, 2026
-**Last updated:** July 14, 2026
+**Last updated:** July 30, 2026
 
 BB_Games ("we," "us," or "our") publishes Drawless Chess, Android package
 `com.drawlesschess`. This policy explains how the app handles information.
@@ -104,4 +104,4 @@ will also be disclosed through the app or store listing when appropriate.
 ## Contact
 
 Developer: **BB_Games**
-Privacy and support email: **realitymaster@protonmail.ch**
+Privacy and support email: **support@drawlesschess.com**

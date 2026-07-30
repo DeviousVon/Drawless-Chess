@@ -172,7 +172,7 @@ private fun engineResponse(request: EngineRequest, move: String) = EngineRespons
     depth = 2,
     nodes = 20,
     variations = listOf(PrincipalVariation(10, null, listOf(UciMove(move)))),
-    engine = EngineIdentity("fairy-stockfish", "test", 1),
+    engine = EngineIdentity("fairy-stockfish", "test", 2),
 )
 
 private fun coordinatorConfig(
@@ -222,6 +222,7 @@ private fun coordinatorFixture(
 
 fun main() {
     val suite = TestSuite()
+    registerRulesAcceptanceFixtureTests(suite)
 
     suite.test("ordinary position continues") {
         assertThat(adjudicator.adjudicate(drawless, facts()) == null)
@@ -280,9 +281,10 @@ fun main() {
             )?.winner == Side.WHITE,
         )
     }
-    suite.test("final capture rejects non-capture transition") {
+    suite.test("final capture policy awards a non-capturing dead-position creator") {
         val rules = RulesContractV1.drawless(deadPosition = DeadPositionPolicy.FINAL_CAPTURE_VICTORY)
-        assertThrows<IllegalStateException> { adjudicator.adjudicate(rules, facts(dead = true)) }
+        val outcome = adjudicator.adjudicate(rules, facts(dead = true))
+        assertThat(outcome == GameOutcome(Side.WHITE, reason = EndReason.DEAD_POSITION_FINAL_CAPTURE))
     }
     suite.test("50-move completion defeats mover") {
         val rules = RulesContractV1.drawless(fiftyMove = FiftyMovePolicy.COMPLETING_PLAYER_LOSES)
@@ -639,6 +641,31 @@ fun main() {
         val after = ChessRules.apply(ChessPosition.starting(), UciMove("e2e4"))
         assertThat(RepetitionKey.of(after).value.endsWith("KQkq -"))
     }
+    suite.test("repetition key omits a pinned en-passant target") {
+        var position = ChessPosition.fromFen("k3r1n1/3p4/8/4P3/8/8/8/4K1N1 b - - 0 1")
+        var session = GameSession.newGame(
+            "pinned-en-passant-repetition",
+            RulesContractV1.drawless(fiftyMove = FiftyMovePolicy.DISABLED),
+            RepetitionKey.of(position),
+            position.sideToMove,
+        )
+        val moves = listOf(
+            "d7d5",
+            "g1f3", "g8f6", "f3g1", "f6g8",
+            "g1f3", "g8f6", "f3g1", "f6g8",
+        ).map(::UciMove)
+        moves.forEachIndexed { index, move ->
+            val transition = ChessAdapter.transition(position, move)
+            session = session.apply(transition)
+            position = ChessRules.apply(position, move)
+            if (index == 0) {
+                assertThat(position.enPassantTarget == Square.parse("d6"))
+                assertThat(UciMove("e5d6") !in ChessRules.legalUciMoves(position))
+                assertThat(RepetitionKey.of(position).value.endsWith("- -"))
+            }
+        }
+        assertThat(session.outcome == GameOutcome(Side.WHITE, reason = EndReason.REPETITION))
+    }
     suite.test("repetition key retains a legal en-passant target") {
         val position = ChessPosition.fromFen("4k3/8/8/3pP3/8/8/8/4K3 w - d6 0 1")
         assertThat(RepetitionKey.of(position).value.endsWith("- d6"))
@@ -743,6 +770,33 @@ fun main() {
         assertThat(fixture.coordinator.completedReviewPrefetchRoots().single().key.ply == 1)
         assertThat(fixture.coordinator.snapshot().phase == CoordinatorPhase.HUMAN_TURN)
         assertThat(fixture.coordinator.snapshot().engineError == null)
+    }
+    suite.test("idle review prefetch warms an off-MultiPV played-position fallback after the current root") {
+        val fixture = coordinatorFixture()
+        fixture.coordinator.setReviewPrefetchEnabled(true)
+        val firstRoot = fixture.engine.requests.single()
+        fixture.engine.respond(firstRoot, "d2d4")
+
+        fixture.coordinator.playHuman(UciMove("e2e4"))
+        val bot = fixture.engine.requests.last()
+        fixture.engine.respond(bot, "e7e5")
+
+        val currentRoot = fixture.engine.requests.last()
+        assertThat(currentRoot.request.purpose == EnginePurpose.REVIEW)
+        assertThat(currentRoot.request.moves.map { it.value } == listOf("e2e4", "e7e5"))
+        fixture.engine.respond(currentRoot, "g1f3")
+
+        val adjacent = fixture.engine.requests.last()
+        assertThat(adjacent !== currentRoot)
+        assertThat(adjacent.request.purpose == EnginePurpose.REVIEW)
+        assertThat(adjacent.request.moves.map { it.value } == listOf("e2e4"))
+        assertThat(adjacent.request.positionId.contains(":review:1:"))
+        fixture.engine.respond(adjacent, "e7e5")
+
+        assertThat(fixture.coordinator.completedReviewPrefetchRoots().size == 2)
+        assertThat(fixture.coordinator.completedReviewPrefetchAdjacentRoots().size == 1)
+        assertThat(fixture.coordinator.snapshot().phase == CoordinatorPhase.HUMAN_TURN)
+        assertThat(fixture.engine.requests.last() === adjacent)
     }
     suite.test("human move preempts review prefetch and bot then starts the next player root") {
         val fixture = coordinatorFixture()
