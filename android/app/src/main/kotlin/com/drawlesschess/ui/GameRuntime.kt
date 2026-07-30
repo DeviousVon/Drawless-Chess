@@ -19,6 +19,7 @@ import com.drawlesschess.core.engine.NamedBotLevel
 import com.drawlesschess.core.engine.ReviewedMove
 import com.drawlesschess.engine.AndroidFairyEngineFactory
 import com.drawlesschess.engine.AndroidUciTimeoutScheduler
+import com.drawlesschess.review.IsolatedReviewEngine
 import java.util.UUID
 import java.util.concurrent.CopyOnWriteArraySet
 import java.util.concurrent.Executors
@@ -88,6 +89,7 @@ class GameRuntime private constructor(
         scheduler = movePacingScheduler,
         delayMillis = GamePacing.OPPONENT_MOVE_DELAY_MILLIS,
     )
+    private val reviewEngine = IsolatedReviewEngine(uiContext)
     private val reviewLock = Any()
     private val reviewPreparationExecutor = Executors.newSingleThreadExecutor()
     private val reviewEngineSubmissions = AtomicInteger(0)
@@ -98,7 +100,7 @@ class GameRuntime private constructor(
                 onResult: (Result<EngineResponse>) -> Unit,
             ): EngineCancellation {
                 reviewEngineSubmissions.incrementAndGet()
-                return engine.analyze(request, onResult)
+                return reviewEngine.analyze(request, onResult)
             }
         },
     )
@@ -134,6 +136,7 @@ class GameRuntime private constructor(
                 initialAssistance = AssistanceCounts(
                     threatIndication = threatIndicationEnabled,
                 ),
+                reviewEngine = reviewEngine,
             )
         } else {
             GameCoordinator.restore(
@@ -143,10 +146,12 @@ class GameRuntime private constructor(
                 timeSource,
                 idSource,
                 botMovePresentationDelayMillis = GamePacing.PIECE_MOVE_ANIMATION_MILLIS.toLong(),
+                reviewEngine = reviewEngine,
             )
         }
     } catch (error: Throwable) {
         runCatching { reviewPreparationExecutor.shutdownNow() }
+        runCatching { reviewEngine.close() }
         runCatching { engineProvision.engine.close() }
         runCatching { movePacingScheduler.close() }
         throw error
@@ -230,6 +235,7 @@ class GameRuntime private constructor(
             runCatching { reviewCancellation?.cancel() }
             reviewPreparationExecutor.shutdownNow()
             runCatching { coordinator.close() }
+            runCatching { reviewEngine.close() }
             runCatching { engineProvision.engine.close() }
             runCatching { movePacingScheduler.close() }
         }
@@ -239,7 +245,7 @@ class GameRuntime private constructor(
         require(it.outcome != null) { "Game review is available only after a completed game" }
     }
 
-    /** Keeps speculative review work aligned with the visible game lifecycle. */
+    /** Keeps isolated speculative review work aligned with the visible game lifecycle. */
     internal fun setGameForeground(foreground: Boolean) {
         if (closed.get()) return
         coordinator.setReviewPrefetchEnabled(foreground)

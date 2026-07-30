@@ -19,6 +19,7 @@ import kotlin.concurrent.withLock
 class GameCoordinator private constructor(
     private val config: GameConfig,
     private val engine: ChessEngine,
+    private val reviewEngine: ChessEngine,
     private val checkpointSink: CheckpointSink,
     private val timeSource: CoordinatorTimeSource,
     private val idSource: CoordinatorIdSource,
@@ -91,8 +92,8 @@ class GameCoordinator private constructor(
     }
 
     /**
-     * Uses the coordinator's sole engine slot to warm the exact full-strength review root while
-     * the visible game is waiting for the player. Gameplay always owns priority: disabling this,
+     * Uses the isolated review engine to warm the exact full-strength review root while
+     * the visible game is waiting for the player. Disabling this,
      * starting a hint, moving, pausing, undoing, resigning, timing out, or closing cancels the
      * speculative request. Completed roots are returned only after exact request/revision checks.
      */
@@ -539,7 +540,7 @@ class GameCoordinator private constructor(
             val (root, adjacent, expectedRevision) = workAndRevision
             val request = root?.request ?: requireNotNull(adjacent).request
             val cancellation = try {
-                engine.analyze(request) { result ->
+                reviewEngine.analyze(request) { result ->
                     handleReviewPrefetchResult(root, adjacent, expectedRevision, result)
                 }
             } catch (_: Throwable) {
@@ -757,6 +758,7 @@ class GameCoordinator private constructor(
             idSource: CoordinatorIdSource,
             botMovePresentationDelayMillis: Long = 0,
             initialAssistance: AssistanceCounts = AssistanceCounts(),
+            reviewEngine: ChessEngine = engine,
         ): GameCoordinator {
             require(config.mode != GameMode.RATED || !initialAssistance.wasUsed) {
                 "Rated games cannot start with assistance"
@@ -766,7 +768,7 @@ class GameCoordinator private constructor(
                 config.gameId, config.rules, RepetitionKey.of(position), position.sideToMove,
             )
             return GameCoordinator(
-                config, engine, checkpointSink, timeSource, idSource, botMovePresentationDelayMillis,
+                config, engine, reviewEngine, checkpointSink, timeSource, idSource, botMovePresentationDelayMillis,
                 session, position, CoordinatorClock.initial(config.timeControl, position.sideToMove, timeSource.now()),
                 emptyList(), initialAssistance, 0,
             )
@@ -779,6 +781,7 @@ class GameCoordinator private constructor(
             timeSource: CoordinatorTimeSource,
             idSource: CoordinatorIdSource,
             botMovePresentationDelayMillis: Long = 0,
+            reviewEngine: ChessEngine = engine,
         ): GameCoordinator {
             require(
                 (checkpoint.config.timeControl == TimeControl.Untimed && !checkpoint.clock.timed) ||
@@ -821,7 +824,7 @@ class GameCoordinator private constructor(
             }
             val restoredClock = if (session.outcome == null) checkpoint.clock else checkpoint.clock.stop(timeSource.now())
             return GameCoordinator(
-                checkpoint.config, engine, checkpointSink, timeSource, idSource, botMovePresentationDelayMillis,
+                checkpoint.config, engine, reviewEngine, checkpointSink, timeSource, idSource, botMovePresentationDelayMillis,
                 session, rebuiltPosition, restoredClock, checkpoint.moveClocks,
                 checkpoint.assistance, checkpoint.revision,
             )
