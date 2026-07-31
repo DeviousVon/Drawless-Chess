@@ -76,11 +76,12 @@ assumed side effect of translated resources.
   moves, corrupt reports, or incorrect adjudications, followed by one 24-hour soak of the frozen
   release-candidate artifacts.
 
-  A 24-hour stability soak is currently running against the frozen headless snapshot named
-  `release-default-24h-b1bced2-20260730T233802Z`. It started before the later Android
-  `FairyUciEngine` and `GameCoordinator` worktree changes. Its eventual result is scoped native/rules
-  stability evidence, not exact app-adapter, APK/AAB, or device proof, and this gate remains open
-  until the supervisor finishes and the evidence is reconciled with the frozen release commit.
+  The attempted 24-hour stability soak `release-default-clean24h-20260730T203150Z` stopped after
+  3,670 seconds when its round-three zero-work-resume check correctly detected that
+  `GameCoordinator.kt` had changed underneath the run. Before that harness failure, 360 games
+  completed with zero self-play failures and three capped/censored results. This is useful partial
+  native/rules evidence, but it is not a 24-hour result and does not verify the later Android
+  adapter, APK/AAB, or device behavior. Restart the soak from an immutable frozen release commit.
 - [ ] Run the new build and haptic behavior on the physical Pixel and tablet. Emulator evidence is
   useful but cannot verify the feel or strength of real vibration hardware.
 
