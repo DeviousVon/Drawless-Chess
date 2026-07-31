@@ -293,30 +293,72 @@ object GameReviewPlanner {
         )
     }
 
+    /**
+     * Builds the current speculative root from the coordinator's already-validated position.
+     *
+     * Foreground play advances one position cursor as moves are committed. Replaying the complete
+     * history again for every idle review request made a game quadratic and, on slower devices,
+     * put hundreds of milliseconds of reconstruction work in the input path.
+     */
+    internal fun playerRootAtPosition(
+        requestId: String,
+        gameId: String,
+        initialFen: String,
+        moves: List<UciMove>,
+        rules: RulesContractV1,
+        position: ChessPosition,
+        moveTimeMillis: Long = DEFAULT_GAME_REVIEW_MOVE_TIME_MILLIS,
+    ): GameReviewRoot {
+        require(requestId.isNotBlank() && gameId.isNotBlank() && initialFen.isNotBlank() && moveTimeMillis > 0)
+        return reviewRoot(
+            ply = moves.size + 1,
+            requestId = requestId,
+            gameId = gameId,
+            initialFen = initialFen,
+            normalizedInitialFen = ChessPosition.fromFen(initialFen).fen(),
+            prefix = moves,
+            rules = rules,
+            moveTimeMillis = moveTimeMillis,
+            position = position,
+        )
+    }
+
     fun adjacentRoot(
         requestId: String,
         root: GameReviewRoot,
         playedMove: UciMove,
+    ): GameReviewAdjacentRoot = adjacentRoot(requestId, root.key, playedMove)
+
+    /**
+     * Recreates an adjacent fallback directly from a completed root's stable key.
+     *
+     * The key already contains the canonical pre-move FEN and exact move prefix, so historical
+     * roots never need to be replayed merely to schedule their one-ply fallback.
+     */
+    internal fun adjacentRoot(
+        requestId: String,
+        rootKey: GameReviewRootKey,
+        playedMove: UciMove,
     ): GameReviewAdjacentRoot {
         require(requestId.isNotBlank())
-        val before = ChessPosition.fromFen(root.key.positionFen)
+        val before = ChessPosition.fromFen(rootKey.positionFen)
         val after = ChessRules.apply(before, playedMove)
         val positionId =
-            "${root.request.gameId}:review:${root.ply}:${RepetitionKey.of(after).value}"
+            "${rootKey.gameId}:review:${rootKey.ply}:${RepetitionKey.of(after).value}"
         return GameReviewAdjacentRoot(
             request = EngineRequest(
                 requestId = requestId,
-                gameId = root.request.gameId,
+                gameId = rootKey.gameId,
                 positionId = positionId,
-                initialFen = root.key.normalizedInitialFen,
-                moves = root.request.moves + playedMove,
-                rules = root.request.rules,
-                strength = root.request.strength,
-                limits = root.request.limits,
+                initialFen = rootKey.normalizedInitialFen,
+                moves = rootKey.movesBefore + playedMove,
+                rules = rootKey.rules,
+                strength = rootKey.strength,
+                limits = rootKey.limits,
                 purpose = EnginePurpose.REVIEW,
             ),
             key = GameReviewAdjacentKey(
-                rootKey = root.key,
+                rootKey = rootKey,
                 playedMove = playedMove,
                 positionId = positionId,
                 positionFen = after.fen(),

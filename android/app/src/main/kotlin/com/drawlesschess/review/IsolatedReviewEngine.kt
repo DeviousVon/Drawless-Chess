@@ -7,6 +7,7 @@ import android.content.Intent
 import android.content.ServiceConnection
 import android.os.Bundle
 import android.os.Handler
+import android.os.HandlerThread
 import android.os.IBinder
 import android.os.Looper
 import android.os.Message
@@ -28,39 +29,50 @@ class IsolatedReviewEngine(context: Context) : ChessEngine, AutoCloseable {
 
     private val applicationContext = context.applicationContext
     private val closed = AtomicBoolean(false)
+    private val stateLock = Any()
     private val pending = ConcurrentHashMap<String, Pending>()
     private val submitted = ConcurrentHashMap.newKeySet<String>()
-    private val replyMessenger = Messenger(Handler(Looper.getMainLooper(), ::handleReply))
+    private val workerThread = HandlerThread("drawless-review-ipc").apply { start() }
+    private val workerHandler = Handler(workerThread.looper)
+    private val replyMessenger = Messenger(Handler(workerThread.looper, ::handleReply))
     private val connection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName, binder: IBinder) {
-            serviceMessenger = Messenger(binder)
-            pending.values.forEach { submit(it.request) }
+            workerHandler.post {
+                if (closed.get()) return@post
+                serviceMessenger = Messenger(binder)
+                pending.values.forEach { submit(it.request) }
+            }
         }
 
         override fun onServiceDisconnected(name: ComponentName) {
-            serviceMessenger = null
-            failAll(IllegalStateException("Review engine process disconnected"))
+            serviceUnavailable(IllegalStateException("Review engine process disconnected"))
         }
 
         override fun onBindingDied(name: ComponentName) {
-            serviceMessenger = null
-            failAll(IllegalStateException("Review engine binding died"))
+            serviceTerminated(IllegalStateException("Review engine binding died"))
         }
 
         override fun onNullBinding(name: ComponentName) {
-            failAll(IllegalStateException("Review engine service returned no binder"))
+            serviceTerminated(IllegalStateException("Review engine service returned no binder"))
         }
     }
     @Volatile private var serviceMessenger: Messenger? = null
 
     init {
-        check(
+        val bound = try {
             applicationContext.bindService(
                 Intent(applicationContext, ReviewEngineService::class.java),
                 connection,
                 Context.BIND_AUTO_CREATE,
-            ),
-        ) { "Could not bind isolated review engine" }
+            )
+        } catch (error: Throwable) {
+            workerThread.quitSafely()
+            throw error
+        }
+        if (!bound) {
+            workerThread.quitSafely()
+            error("Could not bind isolated review engine")
+        }
     }
 
     override fun analyze(
@@ -70,64 +82,175 @@ class IsolatedReviewEngine(context: Context) : ChessEngine, AutoCloseable {
         require(request.purpose == EnginePurpose.REVIEW) {
             "The isolated review engine accepts review requests only"
         }
-        check(!closed.get()) { "Review engine client is closed" }
-        check(pending.putIfAbsent(request.requestId, Pending(request, onResult)) == null) {
-            "Duplicate review request ${request.requestId}"
+        val accepted = Pending(request, onResult)
+        synchronized(stateLock) {
+            check(!closed.get()) { "Review engine client is closed" }
+            check(pending.putIfAbsent(request.requestId, accepted) == null) {
+                "Duplicate review request ${request.requestId}"
+            }
         }
-        if (serviceMessenger != null) submit(request)
+        if (!workerHandler.post { submit(request) }) {
+            synchronized(stateLock) { pending.remove(request.requestId, accepted) }
+            throw IllegalStateException("Review engine client is closed")
+        }
         return EngineCancellation {
-            if (pending.remove(request.requestId) != null) {
-                submitted.remove(request.requestId)
-                send(MSG_CANCEL, Bundle().apply { putString(KEY_REQUEST_ID, request.requestId) })
+            if (!workerHandler.post { cancelOnWorker(request.requestId) }) {
+                // The worker has already terminated. Do not retain a request which can no longer
+                // receive a reply; close/unbind has already stopped any service-side analysis.
+                synchronized(stateLock) {
+                    pending.remove(request.requestId)
+                    submitted.remove(request.requestId)
+                }
             }
         }
     }
 
     override fun close() {
         if (!closed.compareAndSet(false, true)) return
-        pending.clear()
-        submitted.clear()
-        serviceMessenger = null
-        runCatching { applicationContext.unbindService(connection) }
+        if (!workerHandler.post(::closeOnWorker)) {
+            synchronized(stateLock) {
+                pending.clear()
+                submitted.clear()
+            }
+            serviceMessenger = null
+            runCatching { applicationContext.unbindService(connection) }
+            workerThread.quitSafely()
+        }
     }
 
     private fun submit(request: EngineRequest) {
-        if (!pending.containsKey(request.requestId) || !submitted.add(request.requestId)) return
-        send(MSG_ANALYZE, Bundle().apply { putString(KEY_PAYLOAD, ReviewEngineJson.request(request)) })
+        val target = serviceMessenger ?: return
+        synchronized(stateLock) {
+            if (!pending.containsKey(request.requestId) || !submitted.add(request.requestId)) return
+        }
+        val data = try {
+            Bundle().apply { putString(KEY_PAYLOAD, ReviewEngineJson.request(request)) }
+        } catch (error: Throwable) {
+            val accepted = synchronized(stateLock) {
+                submitted.remove(request.requestId)
+                pending.remove(request.requestId)
+            }
+            accepted?.let {
+                runCatching { accepted.callback(Result.failure(error)) }
+            }
+            return
+        }
+        if (!send(target, MSG_ANALYZE, data)) {
+            synchronized(stateLock) { submitted.remove(request.requestId) }
+        }
     }
 
-    private fun send(what: Int, data: Bundle) {
-        val target = serviceMessenger ?: return
+    private fun cancelOnWorker(requestId: String) {
+        val wasSubmitted = synchronized(stateLock) {
+            if (pending.remove(requestId) == null) return
+            submitted.remove(requestId)
+        }
+        if (wasSubmitted) {
+            serviceMessenger?.let { target ->
+                send(target, MSG_CANCEL, Bundle().apply { putString(KEY_REQUEST_ID, requestId) })
+            }
+        }
+    }
+
+    private fun closeOnWorker() {
+        val target = serviceMessenger
+        val submittedRequestIds = synchronized(stateLock) {
+            submitted.toList().also {
+                pending.clear()
+                submitted.clear()
+            }
+        }
+        if (target != null) {
+            submittedRequestIds.forEach { requestId ->
+                send(
+                    target,
+                    MSG_CANCEL,
+                    Bundle().apply { putString(KEY_REQUEST_ID, requestId) },
+                )
+            }
+        }
+        serviceMessenger = null
+        runCatching { applicationContext.unbindService(connection) }
+        workerThread.quitSafely()
+    }
+
+    private fun send(target: Messenger, what: Int, data: Bundle): Boolean {
         try {
             target.send(Message.obtain(null, what).apply {
                 this.data = data
                 replyTo = replyMessenger
             })
+            return true
         } catch (error: RemoteException) {
-            failAll(error)
+            serviceMessenger = null
+            if (!closed.get()) failAllOnWorker(error)
+            return false
         }
     }
 
     private fun handleReply(message: Message): Boolean {
         if (message.what != MSG_RESULT) return false
         val requestId = message.data.getString(KEY_REQUEST_ID) ?: return true
-        val accepted = pending.remove(requestId) ?: return true
-        submitted.remove(requestId)
+        val accepted = synchronized(stateLock) {
+            val value = pending.remove(requestId) ?: return true
+            submitted.remove(requestId)
+            value
+        }
         val failure = message.data.getString(KEY_ERROR)
         val result = if (failure != null) {
             Result.failure(IllegalStateException(failure))
         } else {
             runCatching { ReviewEngineJson.response(requireNotNull(message.data.getString(KEY_PAYLOAD))) }
         }
-        accepted.callback(result)
+        runCatching { accepted.callback(result) }
         return true
     }
 
-    private fun failAll(error: Throwable) {
-        val accepted = pending.values.toList()
-        pending.clear()
-        submitted.clear()
-        accepted.forEach { it.callback(Result.failure(error)) }
+    private fun serviceUnavailable(error: Throwable) {
+        if (!workerHandler.post {
+                serviceMessenger = null
+                if (!closed.get()) failAllOnWorker(error)
+            }
+        ) {
+            val accepted = drainPending()
+            if (!closed.get()) deliverFailuresOffWorker(accepted, error)
+        }
+    }
+
+    private fun serviceTerminated(error: Throwable) {
+        if (!closed.compareAndSet(false, true)) return
+        if (!workerHandler.post {
+                serviceMessenger = null
+                failAllOnWorker(error)
+                runCatching { applicationContext.unbindService(connection) }
+                workerThread.quitSafely()
+            }
+        ) {
+            val accepted = drainPending()
+            serviceMessenger = null
+            runCatching { applicationContext.unbindService(connection) }
+            deliverFailuresOffWorker(accepted, error)
+        }
+    }
+
+    private fun failAllOnWorker(error: Throwable) {
+        drainPending().forEach { runCatching { it.callback(Result.failure(error)) } }
+    }
+
+    private fun drainPending(): List<Pending> =
+        synchronized(stateLock) {
+            pending.values.toList().also {
+                pending.clear()
+                submitted.clear()
+            }
+        }
+
+    private fun deliverFailuresOffWorker(accepted: List<Pending>, error: Throwable) {
+        if (accepted.isEmpty()) return
+        Thread(
+            { accepted.forEach { runCatching { it.callback(Result.failure(error)) } } },
+            "drawless-review-ipc-failure",
+        ).start()
     }
 }
 
@@ -200,7 +323,12 @@ class ReviewEngineService : Service() {
             sendFailure(reply, request.requestId, error)
             return
         }
-        if (!completed.get()) cancellations[request.requestId] = cancellation
+        if (!completed.get()) {
+            cancellations[request.requestId] = cancellation
+            // Completion can race between the first check and map publication. Do not leave a
+            // finished request looking live (or make its request ID permanently "duplicate").
+            if (completed.get()) cancellations.remove(request.requestId, cancellation)
+        }
     }
 
     private fun sendFailure(reply: Messenger, requestId: String, error: Throwable?) {

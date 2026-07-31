@@ -13,6 +13,7 @@ import com.drawlesschess.core.engine.GameReviewRoot
 import com.drawlesschess.core.engine.GameReviewRootKey
 import com.drawlesschess.core.engine.SeededGameReviewAdjacentRoot
 import com.drawlesschess.core.engine.SeededGameReviewRoot
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
@@ -31,12 +32,32 @@ class GameCoordinator private constructor(
     initialAssistance: AssistanceCounts,
     initialRevision: Long,
 ) {
+    private data class ReviewAdjacentCandidate(
+        val rootKey: GameReviewRootKey,
+        val playedMove: UciMove,
+    )
+
+    private data class ReviewRootPreparation(
+        val requestId: String,
+        val expectedRevision: Long,
+        val moves: List<UciMove>,
+        val position: ChessPosition,
+    )
+
+    private data class PreparedReviewPrefetch(
+        val root: GameReviewRoot?,
+        val adjacent: GameReviewAdjacentRoot?,
+        val expectedRevision: Long,
+    )
+
     init {
         require(botMovePresentationDelayMillis >= 0) { "Bot move presentation delay must not be negative" }
     }
 
     private val lock = Any()
     private val engineInvocationLock = ReentrantLock()
+    private val reviewInvocationLock = ReentrantLock()
+    private val reviewSharesGameplayEngine = reviewEngine === engine
     private var session = initialSession
     private var position = initialPosition
     private var clock = initialClock
@@ -55,6 +76,9 @@ class GameCoordinator private constructor(
     private val reviewPrefetchRootsByKey = linkedMapOf<GameReviewRootKey, SeededGameReviewRoot>()
     private val reviewPrefetchAdjacentRootsByKey =
         linkedMapOf<GameReviewAdjacentKey, SeededGameReviewAdjacentRoot>()
+    private val reviewPrefetchRootKeysByPly = linkedMapOf<Int, GameReviewRootKey>()
+    private val reviewAdjacentCandidates = linkedSetOf<ReviewAdjacentCandidate>()
+    private var adjacentPrefetchRevision: Long? = null
     private var engineError: String? = null
 
     fun start() {
@@ -75,7 +99,7 @@ class GameCoordinator private constructor(
             closed = true
             clearActiveEngineLocked()
         }
-        cancelAndDrainEngineLaunch(cancellation)
+        cancelAndDrainAllEngineLaunches(cancellation)
     }
 
     fun snapshot(): CoordinatorSnapshot = synchronized(lock) {
@@ -102,6 +126,9 @@ class GameCoordinator private constructor(
             if (closed) return
             reviewPrefetchEnabled = enabled
             if (!enabled && activeRequestPurpose == EnginePurpose.REVIEW) {
+                // Disabling is an external interruption, not a failed search. Permit this one
+                // queued adjacent fallback to retry when the same position is foregrounded.
+                if (activeReviewPrefetchAdjacentRoot != null) adjacentPrefetchRevision = null
                 clearActiveEngineLocked()
             } else {
                 null
@@ -110,7 +137,7 @@ class GameCoordinator private constructor(
         if (enabled) {
             cancelIgnoringFailure(cancellation)
         } else {
-            cancelAndDrainEngineLaunch(cancellation)
+            cancelAndDrainReviewLaunch(cancellation)
         }
         // If a concurrent enable lost tryLock while this call drained the prior launch, this
         // final recheck observes the latest flag and restores the eligible speculative request.
@@ -157,7 +184,7 @@ class GameCoordinator private constructor(
                 }
             }
         } catch (error: Throwable) {
-            cancelAndDrainEngineLaunch(prefetchCancellation)
+            cancelAndDrainReviewLaunch(prefetchCancellation)
             throw error
         }
         cancelIgnoringFailure(prefetchCancellation)
@@ -166,7 +193,7 @@ class GameCoordinator private constructor(
         } else {
             // A terminal move or timeout hands the engine to post-game review immediately.
             // Do not return while a speculative analyze call is still publishing its handle.
-            cancelAndDrainEngineLaunch(null)
+            cancelAndDrainAllEngineLaunches(null)
         }
         if (clockExpired) return
     }
@@ -182,7 +209,7 @@ class GameCoordinator private constructor(
                 null
             }
         }
-        if (clockExpired) cancelAndDrainEngineLaunch(cancellation) else cancelIgnoringFailure(cancellation)
+        if (clockExpired) cancelAndDrainAllEngineLaunches(cancellation) else cancelIgnoringFailure(cancellation)
     }
 
     fun pause() {
@@ -199,7 +226,7 @@ class GameCoordinator private constructor(
             revision++
             persistLocked()
         }
-        cancelAndDrainEngineLaunch(cancellation)
+        cancelAndDrainAllEngineLaunches(cancellation)
     }
 
     fun resume() {
@@ -230,7 +257,7 @@ class GameCoordinator private constructor(
             revision++
             persistLocked()
         }
-        cancelAndDrainEngineLaunch(cancellation)
+        cancelAndDrainReviewLaunch(cancellation)
         launchReviewPrefetchIfNeeded()
     }
 
@@ -259,6 +286,9 @@ class GameCoordinator private constructor(
                             "The position changed before hint analysis started"
                         }
                         if (activeRequestPurpose == EnginePurpose.REVIEW) {
+                            if (activeReviewPrefetchAdjacentRoot != null) {
+                                adjacentPrefetchRevision = null
+                            }
                             prefetchCancellation = clearActiveEngineLocked()
                         }
                         require(activeRequestId == null) { "Hint analysis is already in progress" }
@@ -336,6 +366,9 @@ class GameCoordinator private constructor(
             val rebuilt = rebuild(config, retained)
             session = rebuilt.first
             position = rebuilt.second
+            reviewAdjacentCandidates.clear()
+            reviewPrefetchRootKeysByPly.keys.removeAll { ply -> ply > retained.size + 1 }
+            adjacentPrefetchRevision = null
             moveClocks = moveClocks.take(retained.size)
             clock = restoredClockAfterUndo(retained.size, timeSource.now())
             assistance = assistance.copy(undos = assistance.undos + 1)
@@ -364,7 +397,7 @@ class GameCoordinator private constructor(
             revision++
             persistLocked()
         }
-        cancelAndDrainEngineLaunch(cancellation)
+        cancelAndDrainAllEngineLaunches(cancellation)
     }
 
     fun retryBot() {
@@ -509,67 +542,145 @@ class GameCoordinator private constructor(
     }
 
     private fun launchReviewPrefetchIfNeeded() {
-        // This can run from inside a Fairy result callback. Never wait behind foreground work:
-        // doing so could invert the coordinator gate and the engine's own callback monitor.
-        if (!engineInvocationLock.tryLock()) return
+        // Production review owns a different process and launch gate. A slow bind, serialization,
+        // or test double must never hold the gameplay gate needed by a move, hint, bot, or undo.
+        // The shared gate remains only for callers which explicitly supply one engine for both.
+        val invocationLock = if (reviewSharesGameplayEngine) engineInvocationLock else reviewInvocationLock
+        if (!invocationLock.tryLock()) return
+        val retryAfterStaleLaunch: Boolean
         try {
-            val workAndRevision = synchronized(lock) {
-                if (!started || closed || !reviewPrefetchEnabled || session.outcome != null ||
-                    clock.paused || session.sideToMove != config.humanSide || activeRequestId != null ||
-                    engineError != null
-                ) {
-                    return
-                }
-                val currentRoot = GameReviewPlanner.playerRoot(
-                    requestId = idSource.nextId(),
-                    gameId = config.gameId,
-                    initialFen = config.initialFen,
-                    moves = session.moves.map { it.move },
-                    rules = config.rules,
-                )
-                val root = currentRoot.takeUnless { it.key in reviewPrefetchRootsByKey }
-                val adjacent = if (root == null) nextReviewAdjacentPrefetchLocked() else null
-                val request = root?.request ?: adjacent?.request ?: return
-                activeRequestId = request.requestId
-                activeRequestPurpose = EnginePurpose.REVIEW
-                activeReviewPrefetchRoot = root
-                activeReviewPrefetchAdjacentRoot = adjacent
-                activeReviewPrefetchRevision = revision
-                Triple(root, adjacent, revision)
-            }
-            val (root, adjacent, expectedRevision) = workAndRevision
-            val request = root?.request ?: requireNotNull(adjacent).request
-            val cancellation = try {
-                reviewEngine.analyze(request) { result ->
-                    handleReviewPrefetchResult(root, adjacent, expectedRevision, result)
-                }
-            } catch (_: Throwable) {
-                synchronized(lock) {
-                    if (activeRequestId == request.requestId &&
-                        activeRequestPurpose == EnginePurpose.REVIEW
-                    ) {
-                        clearActiveEngineLocked()
-                    }
-                }
-                return
-            }
+            retryAfterStaleLaunch = launchPreparedReviewPrefetch()
+        } finally {
+            invocationLock.unlock()
+        }
+        // A separate review engine can finish publishing its cancellation after gameplay has
+        // already reached the next player position. Restore that newest eligible root now.
+        if (retryAfterStaleLaunch) launchReviewPrefetchIfNeeded()
+    }
 
-            var cancelImmediately = false
+    private fun launchPreparedReviewPrefetch(): Boolean {
+        val prepared = prepareReviewPrefetch() ?: return false
+        val root = prepared.root
+        val adjacent = prepared.adjacent
+        val request = root?.request ?: requireNotNull(adjacent).request
+        val callbackAccepted = AtomicBoolean(false)
+        val continuationRequested = AtomicBoolean(false)
+        val cancellation = try {
+            reviewEngine.analyze(request) { result ->
+                handleReviewPrefetchResult(
+                    root = root,
+                    adjacent = adjacent,
+                    expectedRevision = prepared.expectedRevision,
+                    result = result,
+                    callbackAccepted = callbackAccepted,
+                    continuationRequested = continuationRequested,
+                )
+            }
+        } catch (_: Throwable) {
             synchronized(lock) {
                 if (activeRequestId == request.requestId &&
-                    activeRequestPurpose == EnginePurpose.REVIEW &&
-                    activeReviewPrefetchRoot === root && activeReviewPrefetchAdjacentRoot === adjacent &&
-                    activeReviewPrefetchRevision == expectedRevision
+                    activeRequestPurpose == EnginePurpose.REVIEW
                 ) {
-                    activeCancellation = cancellation
-                } else {
-                    cancelImmediately = true
+                    clearActiveEngineLocked()
                 }
             }
-            if (cancelImmediately) cancelIgnoringFailure(cancellation)
-        } finally {
-            engineInvocationLock.unlock()
+            return false
         }
+
+        val cancelImmediately = synchronized(lock) {
+            if (activeRequestId == request.requestId &&
+                activeRequestPurpose == EnginePurpose.REVIEW &&
+                activeReviewPrefetchRoot === root && activeReviewPrefetchAdjacentRoot === adjacent &&
+                activeReviewPrefetchRevision == prepared.expectedRevision
+            ) {
+                activeCancellation = cancellation
+                false
+            } else {
+                true
+            }
+        }
+        if (cancelImmediately) cancelIgnoringFailure(cancellation)
+        // Synchronous completion legitimately clears the active slot before analyze returns.
+        // Retry only for a continuation which lost the gate, or when some *other* action made
+        // this launch stale while its handle was pending. A synchronous failure must not loop.
+        return continuationRequested.get() ||
+            (cancelImmediately && !callbackAccepted.get())
+    }
+
+    /**
+     * Copies the current lightweight inputs under the coordinator lock, then builds FEN/request
+     * structures outside it. Result callbacks and UI actions can therefore never queue behind
+     * historical reconstruction.
+     */
+    private fun prepareReviewPrefetch(): PreparedReviewPrefetch? {
+        val rootPreparation = synchronized(lock) {
+            if (!reviewPrefetchEligibleLocked()) return null
+            ReviewRootPreparation(
+                requestId = idSource.nextId(),
+                expectedRevision = revision,
+                moves = session.moves.map { it.move },
+                position = position,
+            )
+        }
+        val currentRoot = GameReviewPlanner.playerRootAtPosition(
+            requestId = rootPreparation.requestId,
+            gameId = config.gameId,
+            initialFen = config.initialFen,
+            moves = rootPreparation.moves,
+            rules = config.rules,
+            position = rootPreparation.position,
+        )
+
+        val adjacentPreparation = synchronized(lock) {
+            if (!reviewPrefetchEligibleLocked() || revision != rootPreparation.expectedRevision) return null
+            reviewPrefetchRootKeysByPly[currentRoot.ply] = currentRoot.key
+            if (currentRoot.key !in reviewPrefetchRootsByKey) {
+                reserveReviewPrefetchLocked(currentRoot, null, rootPreparation.expectedRevision)
+                return PreparedReviewPrefetch(currentRoot, null, rootPreparation.expectedRevision)
+            }
+            if (adjacentPrefetchRevision == revision) return null
+            val candidate = reviewAdjacentCandidates.firstOrNull() ?: return null
+            Triple(candidate, idSource.nextId(), revision)
+        }
+
+        val (candidate, requestId, expectedRevision) = adjacentPreparation
+        val adjacent = GameReviewPlanner.adjacentRoot(
+            requestId = requestId,
+            rootKey = candidate.rootKey,
+            playedMove = candidate.playedMove,
+        )
+        return synchronized(lock) {
+            if (!reviewPrefetchEligibleLocked() || revision != expectedRevision ||
+                candidate !in reviewAdjacentCandidates
+            ) {
+                return null
+            }
+            if (adjacent.key in reviewPrefetchAdjacentRootsByKey) {
+                reviewAdjacentCandidates.remove(candidate)
+                return null
+            }
+            adjacentPrefetchRevision = revision
+            reserveReviewPrefetchLocked(null, adjacent, expectedRevision)
+            PreparedReviewPrefetch(null, adjacent, expectedRevision)
+        }
+    }
+
+    private fun reviewPrefetchEligibleLocked(): Boolean =
+        started && !closed && reviewPrefetchEnabled && session.outcome == null &&
+            !clock.paused && session.sideToMove == config.humanSide && activeRequestId == null &&
+            engineError == null
+
+    private fun reserveReviewPrefetchLocked(
+        root: GameReviewRoot?,
+        adjacent: GameReviewAdjacentRoot?,
+        expectedRevision: Long,
+    ) {
+        val request = root?.request ?: requireNotNull(adjacent).request
+        activeRequestId = request.requestId
+        activeRequestPurpose = EnginePurpose.REVIEW
+        activeReviewPrefetchRoot = root
+        activeReviewPrefetchAdjacentRoot = adjacent
+        activeReviewPrefetchRevision = expectedRevision
     }
 
     private fun handleReviewPrefetchResult(
@@ -577,7 +688,12 @@ class GameCoordinator private constructor(
         adjacent: GameReviewAdjacentRoot?,
         expectedRevision: Long,
         result: Result<EngineResponse>,
+        callbackAccepted: AtomicBoolean? = null,
+        continuationRequested: AtomicBoolean? = null,
     ) {
+        // Identity/evidence conversion is deliberately outside the coordinator monitor.
+        val seededRoot = root?.let { value -> result.mapCatching(value::seed).getOrNull() }
+        val seededAdjacent = adjacent?.let { value -> result.mapCatching(value::seed).getOrNull() }
         var continuePrefetch = false
         val request = root?.request ?: requireNotNull(adjacent).request
         synchronized(lock) {
@@ -588,6 +704,7 @@ class GameCoordinator private constructor(
             ) {
                 return
             }
+            callbackAccepted?.set(true)
             clearActiveEngineLocked()
             if (closed || !reviewPrefetchEnabled || revision != expectedRevision ||
                 session.outcome != null || clock.paused || session.sideToMove != config.humanSide
@@ -595,52 +712,26 @@ class GameCoordinator private constructor(
                 return
             }
             if (root != null) {
-                result.mapCatching(root::seed).getOrNull()?.let { seeded ->
+                seededRoot?.let { seeded ->
                     reviewPrefetchRootsByKey[seeded.key] = seeded
                     continuePrefetch = true
                 }
             } else {
-                result.mapCatching(requireNotNull(adjacent)::seed).getOrNull()?.let { seeded ->
+                seededAdjacent?.let { seeded ->
                     reviewPrefetchAdjacentRootsByKey[seeded.key] = seeded
+                    reviewAdjacentCandidates.remove(
+                        ReviewAdjacentCandidate(seeded.key.rootKey, seeded.key.playedMove),
+                    )
                     continuePrefetch = true
                 }
             }
         }
         // A completed current root uses only the first 350 ms of a long think. Continue with any
         // exact played-position fallback that remains from an earlier player move.
-        if (continuePrefetch) launchReviewPrefetchIfNeeded()
-    }
-
-    /**
-     * Finds the oldest completed player root whose chosen move was outside its retained MultiPV.
-     * Current-root work always runs first; this backlog uses only the remaining idle player time.
-     */
-    private fun nextReviewAdjacentPrefetchLocked(): GameReviewAdjacentRoot? {
-        val playedMoves = session.moves.map { it.move }
-        session.moves.forEach { record ->
-            if (record.mover != config.humanSide) return@forEach
-            val root = GameReviewPlanner.playerRoot(
-                requestId = "${config.gameId}-review-prefetch-candidate-${record.ply}",
-                gameId = config.gameId,
-                initialFen = config.initialFen,
-                moves = playedMoves.take(record.ply - 1),
-                rules = config.rules,
-            )
-            val seededRoot = reviewPrefetchRootsByKey[root.key] ?: return@forEach
-            if (seededRoot.response.variations.any { variation ->
-                    variation.moves.firstOrNull() == record.move
-                }
-            ) {
-                return@forEach
-            }
-            val adjacent = GameReviewPlanner.adjacentRoot(
-                requestId = idSource.nextId(),
-                root = root,
-                playedMove = record.move,
-            )
-            if (adjacent.key !in reviewPrefetchAdjacentRootsByKey) return adjacent
+        if (continuePrefetch) {
+            continuationRequested?.set(true)
+            launchReviewPrefetchIfNeeded()
         }
-        return null
     }
 
     private fun commitMoveLocked(
@@ -649,6 +740,7 @@ class GameCoordinator private constructor(
         now: TimeReading,
         nextSideStartDelayMillis: Long = 0,
     ) {
+        enqueueReviewAdjacentCandidateLocked(transition)
         val increment = (config.timeControl as? TimeControl.Clock)?.incrementMillis ?: 0
         session = session.apply(transition)
         position = after
@@ -668,6 +760,21 @@ class GameCoordinator private constructor(
         engineError = null
         revision++
         persistLocked()
+    }
+
+    private fun enqueueReviewAdjacentCandidateLocked(transition: MoveTransition) {
+        if (transition.mover != config.humanSide) return
+        val ply = session.moves.size + 1
+        val rootKey = reviewPrefetchRootKeysByPly[ply] ?: return
+        if (rootKey.positionFen != position.fen()) return
+        val seededRoot = reviewPrefetchRootsByKey[rootKey] ?: return
+        if (seededRoot.response.variations.any { variation ->
+                variation.moves.firstOrNull() == transition.move
+            }
+        ) {
+            return
+        }
+        reviewAdjacentCandidates += ReviewAdjacentCandidate(rootKey, transition.move)
     }
 
     private fun expireClockLocked(now: TimeReading): Boolean {
@@ -716,15 +823,26 @@ class GameCoordinator private constructor(
         return cancellation
     }
 
-    /**
-     * Cancels a published handle and also waits out the narrow interval between reserving the
-     * coordinator slot and publishing that handle. This is used whenever no replacement request
-     * will acquire [engineInvocationLock] itself, so lifecycle and terminal actions return with
-     * no speculative engine launch left behind.
-     */
+    /** Cancels a published gameplay handle and drains its in-flight analyze call. */
     private fun cancelAndDrainEngineLaunch(cancellation: EngineCancellation?) {
         cancelIgnoringFailure(cancellation)
         engineInvocationLock.withLock { /* An in-flight analyze launch has drained. */ }
+    }
+
+    /** Drains the gate used by review, without making ordinary moves or undo wait on it. */
+    private fun cancelAndDrainReviewLaunch(cancellation: EngineCancellation?) {
+        cancelIgnoringFailure(cancellation)
+        val invocationLock = if (reviewSharesGameplayEngine) engineInvocationLock else reviewInvocationLock
+        invocationLock.withLock { /* An in-flight review analyze launch has drained. */ }
+    }
+
+    /** Lifecycle and terminal transitions leave neither engine with an unpublished launch. */
+    private fun cancelAndDrainAllEngineLaunches(cancellation: EngineCancellation?) {
+        cancelIgnoringFailure(cancellation)
+        engineInvocationLock.withLock { /* An in-flight gameplay analyze launch has drained. */ }
+        if (!reviewSharesGameplayEngine) {
+            reviewInvocationLock.withLock { /* An in-flight review analyze launch has drained. */ }
+        }
     }
 
     private fun cancelIgnoringFailure(cancellation: EngineCancellation?) {

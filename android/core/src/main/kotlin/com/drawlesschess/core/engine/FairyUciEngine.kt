@@ -590,17 +590,30 @@ class FairyUciEngine(
                         evidenceAvailable = false,
                     ))
                 }
-            val responseBestMove = snapshot?.ranks
-                ?.getValue(1)
-                ?.principalVariation
-                ?.first()
-                ?: bestMove
+            // Limited-strength play is expressed by the UCI bestmove itself: Fairy-Stockfish may
+            // deliberately choose a weaker move than the rank-1 PV. Never replace a gameplay move
+            // with the coherent scored snapshot retained for review and analysis consumers.
+            val preserveNativeMove = request.purpose == EnginePurpose.BOT_MOVE
+            val responseBestMove = if (preserveNativeMove) {
+                bestMove
+            } else {
+                snapshot?.ranks
+                    ?.getValue(1)
+                    ?.principalVariation
+                    ?.first()
+                    ?: bestMove
+            }
+            val responsePonderMove = if (preserveNativeMove) {
+                best.ponder
+            } else {
+                best.ponder.takeIf { responseBestMove == bestMove }
+            }
             return EngineResponse(
                 requestId = request.requestId,
                 gameId = request.gameId,
                 positionId = request.positionId,
                 bestMove = responseBestMove,
-                ponderMove = best.ponder.takeIf { responseBestMove == bestMove },
+                ponderMove = responsePonderMove,
                 depth = snapshot?.depth ?: 0,
                 nodes = snapshot?.ranks?.values?.maxOfOrNull { it.nodes ?: 0L } ?: 0L,
                 variations = converted,

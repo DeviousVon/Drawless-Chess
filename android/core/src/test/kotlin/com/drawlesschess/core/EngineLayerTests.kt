@@ -460,6 +460,148 @@ internal fun registerEngineLayerTests(suite: TestSuite) {
         assertThat(completed.variations.single().moves.first() == UciMove("e2e4"))
         assertThat(completed.depth == 8 && completed.nodes == 600L)
     }
+    suite.test("every bot strength preserves native bestmove and ponder when rank-one PV differs") {
+        val approximateEloCases = buildList {
+            BotDifficultyCatalog.namedLevels.forEach { level ->
+                add("named-${level.id}" to level.approximateElo)
+            }
+            addAll(
+                listOf(
+                    "adaptive-minimum" to 500,
+                    "adaptive-starting" to 800,
+                    "adaptive-maximum" to 2_850,
+                    "custom-minimum" to 500,
+                    "custom-representative" to 1_735,
+                    "custom-maximum" to 2_850,
+                    "legacy-learner" to 600,
+                    "legacy-casual" to 900,
+                    "legacy-challenger" to 1_200,
+                    "legacy-club" to 1_500,
+                    "legacy-expert" to 1_850,
+                    "legacy-master" to 2_200,
+                    "legacy-grandmaster" to 2_600,
+                ),
+            )
+        }.map { (id, elo) -> id to EngineStrength.ApproximateElo(elo) }
+        val rawSkillCases = listOf(-20, -3, 0, 19, 20).map { level ->
+            "legacy-skill-$level" to EngineStrength.SkillLevel(level)
+        }
+
+        (approximateEloCases + rawSkillCases).forEach { (caseId, strength) ->
+            val fixture = uciFixture()
+            fixture.engine.start(); completeHandshake(fixture)
+            var response: EngineResponse? = null
+            fixture.engine.analyze(
+                productionRequest(
+                    id = "bestmove-$caseId",
+                    purpose = EnginePurpose.BOT_MOVE,
+                    strength = strength,
+                ),
+            ) {
+                response = it.getOrThrow()
+            }
+            when (strength) {
+                is EngineStrength.ApproximateElo -> {
+                    assertThat(
+                        "setoption name UCI_LimitStrength value true" in fixture.transport.commands,
+                        "$caseId did not enable UCI Elo limiting",
+                    )
+                    assertThat(
+                        "setoption name UCI_Elo value ${strength.elo}" in fixture.transport.commands,
+                        "$caseId did not send its exact Elo",
+                    )
+                    assertThat(
+                        fixture.transport.commands.none { it.startsWith("setoption name Skill Level value") },
+                        "$caseId unexpectedly used raw Skill Level",
+                    )
+                }
+                is EngineStrength.SkillLevel -> {
+                    assertThat(
+                        "setoption name UCI_LimitStrength value false" in fixture.transport.commands,
+                        "$caseId did not disable UCI Elo limiting",
+                    )
+                    assertThat(
+                        "setoption name Skill Level value ${strength.level}" in fixture.transport.commands,
+                        "$caseId did not send its exact raw Skill Level",
+                    )
+                    assertThat(
+                        fixture.transport.commands.none { it.startsWith("setoption name UCI_Elo value") },
+                        "$caseId unexpectedly sent an Elo value",
+                    )
+                }
+            }
+            fixture.engine.onLine("readyok")
+            fixture.engine.onLine("info depth 8 score cp 30 nodes 800 pv e2e4 e7e5")
+            fixture.engine.onLine("bestmove d2d3 ponder d7d5")
+
+            val completed = requireNotNull(response) { "$caseId did not complete" }
+            assertThat(completed.bestMove == UciMove("d2d3"), "$caseId replaced the native bestmove")
+            assertThat(completed.ponderMove == UciMove("d7d5"), "$caseId replaced the native ponder")
+            assertThat(
+                completed.variations.single().moves.first() == UciMove("e2e4"),
+                "$caseId did not retain the stronger PV as analysis evidence",
+            )
+            fixture.engine.close()
+        }
+    }
+    suite.test("a reused bot engine applies mixed strengths without leaking a prior game") {
+        val mixedStrengths = listOf(
+            "named-learner" to EngineStrength.ApproximateElo(550),
+            "named-grandmaster" to EngineStrength.ApproximateElo(2_550),
+            "named-casual" to EngineStrength.ApproximateElo(800),
+            "legacy-skill-minimum" to EngineStrength.SkillLevel(-20),
+            "named-master" to EngineStrength.ApproximateElo(2_100),
+            "adaptive-minimum" to EngineStrength.ApproximateElo(500),
+            "named-challenger" to EngineStrength.ApproximateElo(1_000),
+            "legacy-skill-maximum" to EngineStrength.SkillLevel(20),
+            "named-expert" to EngineStrength.ApproximateElo(1_675),
+            "adaptive-maximum" to EngineStrength.ApproximateElo(2_850),
+            "named-club" to EngineStrength.ApproximateElo(1_300),
+            "custom-representative" to EngineStrength.ApproximateElo(1_735),
+        )
+        val fixture = uciFixture()
+        fixture.engine.start(); completeHandshake(fixture)
+
+        mixedStrengths.forEachIndexed { index, (caseId, strength) ->
+            val commandStart = fixture.transport.commands.size
+            var response: EngineResponse? = null
+            fixture.engine.analyze(
+                productionRequest(
+                    id = "mixed-$index-$caseId",
+                    gameId = "mixed-game-$index",
+                    purpose = EnginePurpose.BOT_MOVE,
+                    strength = strength,
+                ),
+            ) {
+                response = it.getOrThrow()
+            }
+            val requestCommands = fixture.transport.commands.drop(commandStart)
+            when (strength) {
+                is EngineStrength.ApproximateElo -> {
+                    assertThat(
+                        "setoption name UCI_LimitStrength value true" in requestCommands &&
+                            "setoption name UCI_Elo value ${strength.elo}" in requestCommands,
+                        "$caseId leaked a prior strength instead of applying Elo ${strength.elo}",
+                    )
+                }
+                is EngineStrength.SkillLevel -> {
+                    assertThat(
+                        "setoption name UCI_LimitStrength value false" in requestCommands &&
+                            "setoption name Skill Level value ${strength.level}" in requestCommands,
+                        "$caseId leaked a prior strength instead of applying Skill Level ${strength.level}",
+                    )
+                }
+            }
+            fixture.engine.onLine("readyok")
+            fixture.engine.onLine("info depth 8 score cp 30 nodes 800 pv e2e4 e7e5")
+            fixture.engine.onLine("bestmove d2d3 ponder d7d5")
+            assertThat(
+                requireNotNull(response) { "$caseId did not complete" }.bestMove == UciMove("d2d3"),
+                "$caseId replaced the native bestmove in a reused session",
+            )
+        }
+        fixture.engine.close()
+    }
     suite.test("UCI engine selects one deepest complete same-depth MultiPV snapshot") {
         val fixture = uciFixture()
         fixture.engine.start(); completeHandshake(fixture)

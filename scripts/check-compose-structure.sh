@@ -33,6 +33,7 @@ mapfile -t engine_sources < <(find "$root/android/engine/src/main/kotlin" -name 
   "$root/scripts/stubs/android/util/Log.kt" \
   "$root/scripts/stubs/com/drawlesschess/BuildConfig.kt" \
   "$root/scripts/stubs/com/drawlesschess/R.kt" \
+  "$root/scripts/stubs/com/drawlesschess/review/IsolatedReviewEngine.kt" \
   "$root/scripts/stubs/kotlinx/coroutines/flow/StateFlow.kt" \
   "$root/android/app/src/main/kotlin/com/drawlesschess/ui/GamePacing.kt" \
   "$root/android/app/src/main/kotlin/com/drawlesschess/ui/StartingColor.kt" \
