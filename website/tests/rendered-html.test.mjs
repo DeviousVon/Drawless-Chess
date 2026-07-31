@@ -28,19 +28,21 @@ test("exports every public route and the custom not-found page", async () => {
   );
 });
 
-test("renders the final product story with accurate pre-release claims", async () => {
+test("renders the major-update story without presenting it as the live Play build", async () => {
   const html = await releaseFile("index.html");
 
   assert.match(html, /<html[^>]+lang="en"/i);
   assert.match(html, /Every game has a winner\./);
-  assert.match(html, /Drawless-tuned Fairy-Stockfish engine on your device/i);
+  assert.match(html, /next closed-test update adds Vesper as the eighth[\s\S]*Drawless-tuned Fairy-Stockfish engine/i);
   assert.match(html, /id="review"/i);
   assert.match(html, /The game ends\. The learning starts\./);
   assert.match(html, /Familiar chess\. Decisive endings\./);
   assert.match(html, /Bare king loses/);
   assert.match(html, /After 50 moves without a pawn move or capture, material points decide the winner\./);
   assert.doesNotMatch(html, /No automatic 50-move draw|There is no automatic 50-move ending/i);
-  assert.match(html, /Closed Android\s*beta now open/);
+  assert.match(html, /Closed Android\s*test open · major update in preparation/);
+  assert.match(html, /current Play build remains in the closed test/i);
+  assert.match(html, /major update with Vesper and Game Review Beta is still in preparation[\s\S]*for that track/i);
   assert.match(html, /public release is (?:still )?in\s*preparation/i);
   assert.match(html, /Level names are descriptive—not Elo claims\./);
   assert.match(html, /Meet Vesper\. Then climb the ranks\./);
@@ -50,6 +52,7 @@ test("renders the final product story with accurate pre-release claims", async (
     "Vesper leads the opponent roster",
   );
   assert.match(html, /No internet permission/);
+  assert.doesNotMatch(html, /\b(?:0\.3\.0|1\.0\.0|version code)\b/i);
   assert.doesNotMatch(html, /Download now|Get it on Google Play|Available now/i);
   assert.doesNotMatch(html, /Codex is working|starter loading skeleton/i);
 });
@@ -82,18 +85,18 @@ test("explains the rules-aware, private Game Review beta without overclaiming", 
   assert.doesNotMatch(html, /accuracy (?:score|percentage)|reviews? every move/i);
 });
 
-test("publishes the temporary closed-beta access flow in the right order", async () => {
+test("publishes the temporary closed-test access flow in the right order", async () => {
   const html = await releaseFile("index.html");
   const groupUrl = "https://groups.google.com/g/drawless-chess-testers";
   const downloadUrl = "https://play.google.com/store/apps/details?id=com.drawlesschess";
 
   assert.match(html, /id="beta"/i);
-  assert.match(html, /Closed Android beta/i);
+  assert.match(html, /Closed Android test/i);
   assert.match(html, /Use the same Google account for both steps/i);
   assert.match(html, new RegExp(groupUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   assert.match(html, new RegExp(downloadUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   assert.ok(html.indexOf(groupUrl) < html.indexOf(downloadUrl), "group step precedes download");
-  assert.match(html, /href="\/#beta"[^>]*>Beta access/i);
+  assert.match(html, /href="\/#beta"[^>]*>Test access/i);
 });
 
 test("prioritizes the responsive hero artwork and preserves image proportions", async () => {
@@ -184,10 +187,15 @@ test("ships accessible metadata and no browser-side runtime", async () => {
     assert.doesNotMatch(html, /modulepreload|__VINEXT|vite-rsc/i);
   }
 
+  assert.match(pages[0], /name="description"[^>]+content="[^"]*next closed-test update[^"]*Game Review Beta[^"]*"/i);
+  assert.match(pages[0], /property="og:description"[^>]+content="[^"]*next closed-test update[^"]*Game Review Beta[^"]*Drawless-tuned Fairy-Stockfish[^"]*"/i);
   assert.match(pages[0], /property="og:image"[^>]+content="https:\/\/drawlesschess\.com\/og\.png"/i);
   assert.match(pages[0], /name="twitter:card"[^>]+content="summary_large_image"/i);
-  assert.match(pages[0], /name="twitter:description"[^>]+content="[^"]*Game Review Beta[^"]*"/i);
+  assert.match(pages[0], /name="twitter:description"[^>]+content="[^"]*Next closed-test update[^"]*Game Review Beta[^"]*Drawless-tuned Fairy-Stockfish[^"]*"/i);
   assert.match(pages[0], /rel="manifest"[^>]+href="\/site\.webmanifest"/i);
+  const manifest = JSON.parse(await releaseFile("site.webmanifest"));
+  assert.match(manifest.description, /next closed-test update/i);
+  assert.match(manifest.description, /Game Review Beta/i);
 });
 
 test("ships a complete same-origin favicon set", async () => {

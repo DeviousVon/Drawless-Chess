@@ -10,7 +10,7 @@ import {
 export const metadata: Metadata = {
   title: "Every game has a winner",
   description:
-    "Offline chess with decisive no-draw rules, eight opponents, and Drawless-tuned on-device Game Review Beta—no ads or tracking.",
+    "Preview the next closed-test update: eight opponents and Game Review Beta, powered on-device by Drawless-tuned Fairy-Stockfish.",
   alternates: { canonical: "/" },
 };
 
@@ -67,16 +67,16 @@ export default function Home() {
             <h1 id="hero-title">Every game has a winner.</h1>
             <p className="hero-lede">
               Familiar chess, reworked to replace routine draws with decisive
-              results. Play eight illustrated opponents, then review your
-              decisions with the Drawless-tuned Fairy-Stockfish engine on your
-              device—no account, ads, or tracking.
+              results. The next closed-test update adds Vesper as the eighth
+              opponent and Game Review Beta, powered on your device by the
+              Drawless-tuned Fairy-Stockfish engine—no account, ads, or tracking.
             </p>
             <div className="button-row">
               <a className="button button-primary" href="#beta">
-                Join the beta
+                Join the closed test
               </a>
               <a className="button button-secondary" href="#review">
-                Explore Game Review
+                Preview Game Review
               </a>
             </div>
             <div className="trust-row" aria-label="Product highlights">
@@ -86,7 +86,7 @@ export default function Home() {
             </div>
             <p className="release-note">
               <span className="status-dot" aria-hidden="true" /> Closed Android
-              beta now open
+              test open · major update in preparation
             </p>
           </div>
 
@@ -128,7 +128,7 @@ export default function Home() {
         <section className="section review-section" id="review" aria-labelledby="review-title">
           <div className="section-shell review-layout">
             <div className="review-copy">
-              <p className="eyebrow">New · Game Review Beta</p>
+              <p className="eyebrow">Next major update · Game Review Beta</p>
               <h2 id="review-title">The game ends. The learning starts.</h2>
               <p className="review-lede">
                 Immediately after the result, the Drawless-tuned Fairy-Stockfish
@@ -236,13 +236,14 @@ export default function Home() {
         <section className="section section-shell beta-section" id="beta" aria-labelledby="beta-title">
           <div className="beta-panel">
             <div className="beta-copy">
-              <p className="eyebrow">Closed Android beta</p>
+              <p className="eyebrow">Closed Android test</p>
               <h2 id="beta-title">Play it before launch.</h2>
               <p>
-                Help shape Drawless Chess while the public release is in
-                preparation. Beta access takes two quick steps.
+                The current Play build remains in the closed test. The major
+                update with Vesper and Game Review Beta is still in preparation
+                for that track. Access takes two quick steps.
               </p>
-              <span className="beta-badge">Temporary beta access</span>
+              <span className="beta-badge">Current build on Play · major update next</span>
             </div>
             <div className="beta-flow">
               <ol className="beta-steps">
@@ -260,7 +261,7 @@ export default function Home() {
                     rel="noreferrer"
                     aria-label="Join the testing group (opens in a new tab)"
                   >
-                    Join the testing group <span aria-hidden="true">↗</span>
+                    Join the closed test <span aria-hidden="true">↗</span>
                   </a>
                 </li>
                 <li className="beta-step">
@@ -268,16 +269,16 @@ export default function Home() {
                   <h3>Install from Google Play</h3>
                   <p>
                     After joining, open the private Play listing with that same
-                    account and install the beta.
+                    account and install the current test build.
                   </p>
                   <a
                     className="button button-gold"
                     href={BETA_DOWNLOAD_URL}
                     target="_blank"
                     rel="noreferrer"
-                    aria-label="Download the beta from Google Play (opens in a new tab)"
+                    aria-label="Install the current test build from Google Play (opens in a new tab)"
                   >
-                    Download the beta <span aria-hidden="true">↗</span>
+                    Install the current test build <span aria-hidden="true">↗</span>
                   </a>
                 </li>
               </ol>
@@ -475,11 +476,12 @@ export default function Home() {
           <p className="eyebrow">Drawless Chess for Android</p>
           <h2 id="cta-title">Ready when the position isn’t.</h2>
           <p>
-            The public release is still in preparation, but the closed beta is
-            open now. Join with the Google account you use in the Play Store.
+            The public release is still in preparation. The current Play build
+            remains in the closed test, with the major update coming to that
+            track next. Join with the Google account you use in the Play Store.
           </p>
           <div className="button-row button-row-center">
-            <a className="button button-primary" href="#beta">Join the beta</a>
+            <a className="button button-primary" href="#beta">Join the closed test</a>
             <a className="button button-secondary" href={SOURCE_URL}>View the source</a>
           </div>
         </section>

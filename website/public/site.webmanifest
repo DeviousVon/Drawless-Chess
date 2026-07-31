@@ -1,7 +1,7 @@
 {
   "name": "Drawless Chess",
   "short_name": "Drawless Chess",
-  "description": "Offline decisive chess with Drawless-tuned on-device Game Review Beta.",
+  "description": "Preview the next closed-test update with Drawless-tuned on-device Game Review Beta.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#081014",

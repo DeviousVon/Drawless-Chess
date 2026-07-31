@@ -37,8 +37,14 @@ immutable release directory and switch the site's `current` symlink atomically.
 
 ## Release-state copy
 
+As of July 30, 2026, the verified Play closed track serves 0.3.0 (version code 3).
+The 1.0.0 candidate (version code 4), including Vesper and Game Review Beta, is not yet
+on that track. Public site copy therefore distinguishes the current test build from the
+next major update and intentionally omits version numbers. Update that copy only after
+independently verifying the Play rollout state.
+
 The public Android release is still in preparation. Until launch, do not claim public
-availability, a launch price, or a public version number. Temporary beta access may link
+availability, a launch price, or a public version number. Temporary test access may link
 only to the verified tester group and closed-track Play listing. Support and privacy mail
-use `support@drawlesschess.com`; configure and test that mailbox before the production
-site launches.
+use `support@drawlesschess.com`; mailbox delivery is an external release gate, not proven
+by the site tests. Verify send and receive before deploying a site that advertises it.
