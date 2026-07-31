@@ -40,6 +40,9 @@ Android SDK or native binary.
   build-locked SHA-256, and protects the installed file before native startup.
 - `AndroidFairyEngineFactory`, which owns installation, JNI-port construction, timeout
   scheduling, build/patch identity, and session cleanup.
+- `IsolatedReviewEngine`, which accepts review requests only and binds through Android
+  `Messenger` IPC to `ReviewEngineService` in the dedicated `:review_engine` app process. Client
+  request serialization and replies run on a private `HandlerThread`, not the gameplay UI looper.
 
 The `:engine` module pins the upstream and patched source identity, declares the
 `drawless_fairy` CMake target for `arm64-v8a` and `x86_64`, stages legal/source material,
@@ -47,8 +50,10 @@ and exposes a six-operation JNI ABI: create, start, write, stdout read, stderr r
 close. JNI methods are registered from `JNI_OnLoad`; native code never calls back into
 Kotlin. UI and game-law code never receive raw UCI text or native handles.
 
-`:app` now depends on `:engine` and selects `AndroidFairyEngineFactory` by default. The
-development bot can be selected only for an explicit debug build with
+`:app` now depends on `:engine` and selects `AndroidFairyEngineFactory` by default for gameplay and
+hints. Review work uses the same verified factory inside `ReviewEngineService`; the service's
+separate Android process owns different Fairy process globals, and `GameCoordinator` gives review
+calls a different launch gate. The development bot can be selected only for an explicit debug build with
 `-Pdrawless.useDevelopmentEngine=true`; release hardcodes that selection off. A native
 startup/linkage failure is logged, displayed through the existing controller/bot-error
 path, and represented by a non-playing failed engine. It never silently changes opponents.
@@ -90,8 +95,10 @@ session-owned scheduled executor. Kotlin calls native blocking functions only fr
 workers; it does not rely on thread interruption to stop them. `close()` invokes the
 native close primitive directly, which injects stop/quit, closes the bounded native byte
 pipes, joins the Fairy worker, and wakes blocked native reads or writes before the managed
-executors are shut down. The native bridge permits one in-process engine session at a
-time and separates the bounded stdin, stdout, and stderr channels.
+executors are shut down. The native bridge permits one in-process engine session per Android
+process and separates the bounded stdin, stdout, and stderr channels. Production may therefore own
+one gameplay session in the main app process and one review-only session in `:review_engine` without
+sharing either native singleton.
 
 ## Failure policy
 
@@ -151,9 +158,18 @@ the production adapter sends the exact target through `UCI_LimitStrength` and `U
 with a 350 ms move budget. The patched engine uses floor-based stochastic rounding for
 negative fractional skill levels, removing the prior systematic low-Elo strength bias.
 
+For `BOT_MOVE`, the adapter returns Fairy-Stockfish's terminal UCI `bestmove` and optional
+`ponder` exactly as emitted. Limited-strength Fairy may deliberately choose a weaker move than the
+rank-one MultiPV line retained from the same search, so that analysis snapshot must never replace
+the gameplay choice. Hint and review consumers may use their coherent rank-one analysis, but this
+raw-move invariant applies to every named, adaptive, custom, historical-Elo, and raw-Skill gameplay
+path and must be preserved by any port.
+
 Hints are casual-only, full-strength MultiPV requests. `GameCoordinator` owns hint and bot
-requests in one serialized slot because the native bridge permits one Fairy session per
-process. While a hint runs the board enters `HINT_THINKING`; pause, undo, resign, timeout,
+requests in one serialized gameplay slot because the native bridge permits one Fairy session per
+process. Review uses a separate process and invocation lock, so a slow review bind, request
+serialization, or cancellation publication cannot occupy the gameplay slot or block a move, hint,
+or undo. While a hint runs the board enters `HINT_THINKING`; pause, undo, resign, timeout,
 or runtime close cancels it, and tagged results are discarded if the position changed.
 Hint failures return to the human turn without poisoning bot UI state. The app presents
 the engine-ranked best move in SAN and, when available, up to two lower-ranked MultiPV
@@ -182,11 +198,14 @@ Best/Good/Inaccuracy/Mistake/Blunder from expected-point loss, streams completed
 and supports cancellation, safe retry identities, exact seeded-root reuse, progressive results,
 and a cached completed result. Natural terminal moves use the authoritative app outcome instead
 of attempting to search a terminal position. A coordinator-owned prefetch first warms the current
-player root while the visible game is idle on the player's turn. If that finishes and an earlier
-played move was outside its retained MultiPV, the remaining think time warms the exact
-played-position fallback as well. Bot moves and hints have strict priority; moving, pausing,
-undoing, resigning, timing out, backgrounding the app, or closing the runtime cancels speculative
-work. Reuse requires the exact game history, chosen move, resulting position, rules,
+player root while the visible game is idle on the player's turn. It constructs that root from the
+coordinator's already-validated position instead of replaying the entire history on every turn. If
+the root finishes and an earlier played move was outside its retained MultiPV, at most one
+historical adjacent fallback is attempted in that player-position revision; it is recreated from
+the completed root's stable key rather than another full replay. Moving, pausing, undoing,
+resigning, timing out, backgrounding the app, or closing the runtime cancels stale speculative
+work without making gameplay wait for review startup. Reuse requires the exact game history,
+chosen move, resulting position, rules,
 engine-analysis profile, and position identity. When a foreground game becomes terminal,
 `GameRuntime` begins any remaining review work behind the result presentation instead of waiting
 for the Review action. It owns active and partial review state, so opening Review or recreating the
@@ -215,7 +234,7 @@ should calibrate the labels before public release.
 
 ## Verification boundary
 
-The current Kotlin core harness passes 344 tests covering core, engine, and endpoint contracts.
+The current Kotlin core harness passes 357 tests covering core, engine, and endpoint contracts.
 Its native bridge tests cover
 split UTF-8/CRLF framing, malformed and oversized input, bounded FIFO
 writes, synchronous and asynchronous completions, backpressure, stdout/stderr separation,
@@ -225,6 +244,14 @@ and propagation of an endpoint crash to an outstanding request. The broader JVM 
 also covers protocol parsing, exact patch-v2 option negotiation and rule mapping, rejection of
 non-v1 contracts, policy/precedence acceptance fixtures, cancellation draining, timeout shutdown,
 MultiPV conversion, difficulty, ratings, hints, and review.
+
+The permanent strength regression coverage includes all seven named Elos, Vesper at its initial and
+boundary adaptive values, custom and historical Elo paths, raw legacy Skill Level samples,
+divergent PV-versus-bestmove preservation, mixed strength changes in one reused session, and exact
+coordinator forwarding for new and restored games. A temporary same-search JNI harness additionally
+ran 332 games and 3,320 decisions on the x86-64 emulator and R6 ARM64 tablet with zero native
+bestmove, ponder, legality, or strength/configuration mismatches. That is adapter-fidelity evidence,
+not an Elo measurement or exact-release-artifact proof.
 
 The clean native verifier passed after compiling a direct `Position` state harness and exercising
 the full UCI acceptance matrix.

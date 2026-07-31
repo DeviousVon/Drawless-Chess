@@ -1,7 +1,8 @@
 # Drawless Chess go-live status
 
-Status as of July 30, 2026: **patch-v2 host rule parity is verified; the 1.0.0 exact Android
-candidate/device proof and public production release remain blocked.**
+Status as of July 31, 2026: **Bob has accepted the hash-scoped debug build below as RC1 for
+gameplay responsiveness, review latency, and difficulty consistency; the exact clean, optimized
+1.0.0 Android candidate/device proof and public production release remain blocked.**
 
 Google Play closed testing currently serves 0.3.0 (`versionCode` 3) on the Alpha track; six testers
 were opted in when the Console was inspected on July 30. The owner selected a one-time paid listing,
@@ -9,10 +10,11 @@ and the standard price is still awaiting final approval. The authorized upload k
 and must be reused as-is. Never generate, rotate, replace, or reset that key or certificate without
 Bob's explicit authorization for that exact action.
 
-The local `codex/go-live-readiness` branch contains six commits beyond its published remote plus the
-current release worktree. GitHub publication must wait for the final clean candidate and successful
-release gates. The July 14 test-harness APK's emulator/tablet suite and independent repository
-review are complete, but those artifacts predate the patch-v2 engine candidate.
+The current RC1 worktree is being frozen for GitHub publication. Every artifact and device claim
+below is scoped to its recorded source or binary identity; neither a branch name nor an older APK
+silently verifies a later commit. The July 14 test-harness APK's emulator/tablet suite and
+independent repository review are complete, but those artifacts predate the patch-v2 engine
+candidate.
 
 ## Current patch-v2 engine candidate
 
@@ -36,7 +38,7 @@ review are complete, but those artifacts predate the patch-v2 engine candidate.
 - The clean Linux x86-64 source/patch verifier passes exact replay, the direct native-state harness,
   and the full UCI acceptance matrix, including both-color quiet stalemates beyond the sparse
   material frontier and the node-neutral speculative-probe assertion.
-- The Kotlin core harness currently passes 344 tests. Full WSL headless `--validate-only` also
+- The Kotlin core harness currently passes 357 tests. Full WSL headless `--validate-only` also
   passes with the rebuilt patch-v2 engine and runner. Headless campaign, puzzle-candidate, and
   puzzle-verification schemas are version 2 and include the bare-king policy in rule fingerprints;
   the soak supervisor requires the schema-2 bare-king value, and older schema-v1 material must be
@@ -46,10 +48,27 @@ review are complete, but those artifacts predate the patch-v2 engine candidate.
   on a wrong patch, mixed engine identity, mismatched request, or illegal/post-terminal replay.
 - Final Capture result copy in all five shipped locales now describes the terminal move rather than
   assuming it was a capture, covering the quiet bishop/knight-underpromotion edge honestly.
-- A current APK is not verified merely because the July 14 patch-v1 artifacts passed. The v2
-  candidate still requires exact Android artifact proof plus installation, launch, and engine
-  verification on the designated Pixel phone and R6 tablet.
-- Game Review remains labeled Beta. Its engine Gate 1 closes only after those device checks;
+- The current production `FairyUciEngine.kt` blob
+  `2b378b704ba15deeeffc87b9fa5519a1174da58f` passed a same-search JNI strength harness on the
+  API-36 x86-64 emulator and R6 ARM64 tablet: 332 games and 3,320 decisions across all visible,
+  adaptive, custom, historical-Elo, and raw-Skill cases, with zero native bestmove, ponder,
+  legality, or strength/configuration mismatches. This proves adapter fidelity, not Elo calibration,
+  independent strength samples, or Pixel execution.
+- Debug APK SHA-256
+  `634F1F3B334D0E04FC7C15CDF6A4F22E541A990B6EF27B3F309F2237B0DEE173` was installed and launched
+  on the designated Pixel and R6 with app data preserved, and Bob accepted its responsiveness,
+  review latency, and difficulty consistency as RC1. Its retained performance report records the
+  earlier 355-test tree; later `GameCoordinator` changes and the current 357-test tree are therefore
+  not covered by that APK's device result.
+- The isolated review-engine class passed three instrumentation tests on both the emulator and R6,
+  with a distinct `:review_engine` process and no fatal app-process crash. In the retained synthetic
+  benchmark, all four final-turn responsiveness gates passed and enabled main-pulse p95 was lower
+  than disabled in all four runs. The R6 full-scenario wall ratio nevertheless exceeded the old
+  1.15 diagnostic limit twice (`1.1766x` and `1.1775x`); owner acceptance does not turn that metric
+  into an automated pass.
+- The exact clean, optimized 1.0.0 candidate still requires new artifact hashes, installation,
+  launch, engine verification, and upgrade checks on the designated Pixel phone and R6 tablet.
+  Game Review remains labeled Beta. Its engine Gate 1 closes only after that exact candidate proof;
   evidence Gate 0 and experience/persistence/exit Gates 2-5 remain open.
 
 ## Completed in the July 14 readiness baseline

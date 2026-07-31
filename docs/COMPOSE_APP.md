@@ -37,7 +37,9 @@ Official references:
     progress, move grades, better-move and short-line suggestions, evaluation display,
     board replay/flip controls, and a retained Back path to the completed result. Review is
     available only from the current result and is not persisted as a review history. The result
-    screen also keeps Quick Play and Rematch available without returning home.
+    screen also keeps Quick Play and Rematch available without returning home. Foreground review
+    pre-analysis runs through a review-only engine in the dedicated `:review_engine` process, so
+    its native singleton and launch gate are separate from gameplay and hints.
 
 The game screen renders:
 
@@ -87,7 +89,7 @@ does not collapse the board. Landscape/expanded layouts use a side panel only wh
   structure.
 - The structure gate requires `:app` to depend on `:engine`, verifies the factory API,
   and rejects a release configuration that can select the development bot.
-- The current Kotlin core harness passes 344 tests covering the core, exact rule-policy bridge,
+- The current Kotlin core harness passes 357 tests covering the core, exact rule-policy bridge,
   native transport, and fake-native JNI-port lifecycle suites; it is not an Android binary or
   device test.
 

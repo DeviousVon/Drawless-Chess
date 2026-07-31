@@ -4,10 +4,12 @@ Status: accepted; whole application selected as GPL-3.0-or-later; release eviden
 
 ## Decision
 
-Use an in-process JNI bridge to drive the pinned Fairy-Stockfish shared library during
-private Android testing. Keep the existing `NativeEnginePort` boundary so the runtime can
-still be replaced by a separately executed worker before release without changing chess
-law, UCI protocol, game coordination, or UI code.
+Use the narrow JNI bridge to drive the pinned Fairy-Stockfish shared library inside each Android
+process. Gameplay and hints own the main app process's engine session. Speculative and post-game
+review bind through Android `Messenger` IPC to `ReviewEngineService` in the dedicated
+`:review_engine` app process, whose own JNI session has separate Fairy process globals. Keep the
+existing `ChessEngine` and `NativeEnginePort` boundaries so chess law, UCI protocol, and UI code do
+not depend on which Android process owns the native session.
 
 The bridge follows these constraints:
 
@@ -22,6 +24,9 @@ The bridge follows these constraints:
   reaches EOF deterministically.
 - Fairy uses process-global state, so the native registry permits exactly one live engine
   session per app process. Sequential sessions receive new handles and are supported.
+- `IsolatedReviewEngine` accepts `REVIEW` requests only. Its client serialization and reply handling
+  run on a private worker looper, and the coordinator gives review calls an invocation gate
+  independent from gameplay.
 
 This follows Android's guidance to keep JNI narrow, minimize marshalling, keep asynchronous
 coordination in managed code, load packaged shared libraries with `System.loadLibrary`,
@@ -61,8 +66,10 @@ clock or last-capturer history, and pseudo-only en-passant targets are removed f
 - No failure selects the development bot.
 - The old legal-move bot is available only through
   `-Pdrawless.useDevelopmentEngine=true` on a debug build. Release hardcodes the flag off.
-- A native memory error or abort can still terminate the whole app because JNI shares the
-  process. Device crash and low-memory testing are mandatory before release.
+- A native memory error or abort in the gameplay session can still terminate the main app process
+  because JNI shares that process. The same failure in `:review_engine` terminates or disconnects
+  the review service instead; the client fails outstanding review work closed and must not replace
+  or poison gameplay. Device crash and low-memory testing remain mandatory before release.
 
 ## Licensing consequence
 
@@ -108,6 +115,11 @@ Patch-v2 Android instrumentation must pass independently on x86-64 and ARM64. It
 packaged asset identity, ART JNI load, exact option surface, policy-discriminating search, close,
 and sequential restart. Each machine manifest records both packaged ABIs and the runtime ABI
 actually exercised; an older patch-v1 manifest is not evidence for the current native bytes.
+
+The isolated review-engine class has passed its bind, request, result, cancellation, close, and
+distinct-process checks on the API-36 x86-64 emulator and R6 ARM64 tablet. Core concurrency tests
+also prove that a blocked review startup cannot block a gameplay launch or undo, while background
+disable and runtime close still drain unpublished review launches deterministically.
 
 The historical patch-v1 51-test app suite passes twice from fresh processes against its exact
 clean APK pair on the API-33 ARM64 tablet, API-36 x86-64 emulator, and Pixel 9 Pro XL. The targeted forfeit

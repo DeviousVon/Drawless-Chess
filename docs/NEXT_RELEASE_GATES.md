@@ -1,6 +1,6 @@
 # Drawless Chess next-release gates
 
-**Recorded:** July 15, 2026; last audited July 30, 2026
+**Recorded:** July 15, 2026; last audited July 31, 2026
 **Applies to:** the `1.0.0` release after Play-delivered `0.3.0` and every later Play release
 **Rule:** do not submit, roll out, or invite international testers until every applicable hard
 gate below has evidence and the owner approves the exact Play Console changes.
@@ -75,8 +75,19 @@ assumed side effect of translated resources.
   Drawless-rule edge positions. The final 5,000 consecutive games must have zero crashes, illegal
   moves, corrupt reports, or incorrect adjudications, followed by one 24-hour soak of the frozen
   release-candidate artifacts.
+
+  A 24-hour stability soak is currently running against the frozen headless snapshot named
+  `release-default-24h-b1bced2-20260730T233802Z`. It started before the later Android
+  `FairyUciEngine` and `GameCoordinator` worktree changes. Its eventual result is scoped native/rules
+  stability evidence, not exact app-adapter, APK/AAB, or device proof, and this gate remains open
+  until the supervisor finishes and the evidence is reconciled with the frozen release commit.
 - [ ] Run the new build and haptic behavior on the physical Pixel and tablet. Emulator evidence is
   useful but cannot verify the feel or strength of real vibration hardware.
+
+  Debug APK SHA-256 `634F1F3B334D0E04FC7C15CDF6A4F22E541A990B6EF27B3F309F2237B0DEE173`
+  was installed and launched on both designated devices and received owner RC1 acceptance, but it
+  came from the earlier 355-test tree. Later coordinator changes mean it cannot close the exact
+  optimized-candidate or haptic gate for the current 357-test worktree.
 - [ ] Owner confirms the launch price. Current evidence supports retaining **$3.99** for launch,
   then testing **$4.99** only after a stable measurement window; do not change the Play price as
   part of this engineering work.

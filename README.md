@@ -52,9 +52,12 @@ boundary. See `docs/ENGINE_RUNTIME.md`.
 
 The forced-repetition exception is an actual pinned Fairy-Stockfish patch with both-color
 parity and history isolation. The Android `:engine` module contains the in-process JNI
-runtime, and the app selects it by default without silent fallback. Current patch-v2 focused
-instrumentation passes on the API-36 x86-64 emulator and the R6 ARM64 tablet. Exact 1.0.0
-candidate verification on both designated physical devices remains a release gate. See
+runtime, and the app selects it by default without silent fallback. Gameplay and hint work use
+the main app process; Game Review binds to a dedicated `:review_engine` app process so its
+process-global native state and coordinator launch gate are not shared with live play. Current
+patch-v2 focused instrumentation passes on the API-36 x86-64 emulator and the R6 ARM64 tablet.
+Exact clean, optimized 1.0.0 candidate verification on both designated physical devices remains
+a release gate. See
 `docs/FORCED_REPETITION_PATCH.md`, `docs/NATIVE_ENGINE.md`, and
 `docs/ADR-003-ANDROID-ENGINE-RUNTIME.md`.
 
@@ -70,13 +73,21 @@ SDK/JDK setup and commands for both host lanes are in `docs/ANDROID_MACHINE_VERI
 ## Current verification checkpoint
 
 - `npm test` passes 42 JavaScript contract and adjudication tests.
-- `npm run test:kotlin` passes 344 JVM/core-and-endpoint tests.
+- `npm run test:kotlin` passes 357 JVM/core-and-endpoint tests.
 - `npm run test:audio` verifies all 103 sampled effects and 18 retained sources, including
   decoded uniqueness, hashes, source pins, duration bounds, silence/clipping, format, and notices.
 - The complete host release suite passes licensing, UI structure, localization, engine parity,
   pinned native-source integrity, and Android structure gates.
 - The patch-v2 fifty-move/Game Review instrumentation passes on the API-36 x86-64 emulator and
   the R6 ARM64 tablet. The designated Pixel is still required for the exact candidate device gate.
+- A same-search JNI strength harness passed 332 games and 3,320 decisions across the emulator and
+  R6 with zero native bestmove, ponder, legality, or strength/configuration mismatches. It covered
+  all eight visible opponents plus adaptive, custom, historical-Elo, and raw-Skill boundaries; it
+  was adapter evidence, not an Elo calibration or a Pixel run.
+- Bob accepted gameplay responsiveness, review latency, and difficulty consistency as RC1 on debug
+  APK SHA-256 `634F1F3B334D0E04FC7C15CDF6A4F22E541A990B6EF27B3F309F2237B0DEE173`, installed and launched on
+  the Pixel and R6. That APK came from the earlier 355-test tree and does not verify the later
+  `GameCoordinator` changes in the current 357-test worktree.
 - Older APK hashes and 51-test device runs remain historical engineering evidence in the detailed
   verification documents; they are not presented as evidence for 1.0.0.
 

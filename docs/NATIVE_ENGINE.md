@@ -171,7 +171,7 @@ but its licensing direction is no longer provisional: the combined work is GPL. 
 to a worker is not required as a licensing workaround and would not automatically remove
 GPL obligations.
 
-The current Kotlin core harness passes 344 tests. `npm run test:kotlin` exercises the JVM-neutral
+The current Kotlin core harness passes 357 tests. `npm run test:kotlin` exercises the JVM-neutral
 native transport/composition, exact rule-option
 mapping and rejection, acceptance fixtures for every contract-v1 policy and precedence branch,
 the real managed JNI-port code, and the static-native signature contract. The Compose structure

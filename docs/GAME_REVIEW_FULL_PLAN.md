@@ -6,8 +6,10 @@
 streams finished move grades, shows a short suggested line and better-move arrow, keeps opponent
 moves as neutral board context, and retains one completed result in `GameRuntime` memory. Exact
 player roots and played-position fallbacks completed during safe foreground thinking time are
-reused after the game, and any remainder begins behind the result presentation. Native patch v2
-now receives and searches the exact stored `RulesContractV1` policy surface.
+reused after the game, and any remainder begins behind the result presentation. Review work binds
+to a dedicated `:review_engine` Android process instead of sharing gameplay's native singleton or
+coordinator launch gate. Native patch v2 now receives and searches the exact stored
+`RulesContractV1` policy surface.
 
 **Target:** a trustworthy, useful, offline review that survives normal Android lifecycle events,
 can be reopened from game history, and is explicit about the limits of its accuracy score.
@@ -33,8 +35,10 @@ The first preparation slice now supplies:
   context, and a translucent orientation-aware better-move arrow, without presenting an
   uncalibrated accuracy percentage;
 - sparse player-only work planning, dynamic adjacent helpers, immutable per-move streaming, exact
-  seeded root/fallback reuse, coordinator-owned foreground pre-analysis that always yields to bot
-  and hint work, and result-screen finalization before the Review action;
+  seeded root/fallback reuse, coordinator-owned foreground pre-analysis in the isolated review
+  process, current-position root preparation without repeated full-history replay, at most one
+  historical fallback attempt per player-position revision, and result-screen finalization before
+  the Review action;
 - runtime-owned `StateFlow` analysis state, saved board orientation/selected ply, and lifecycle
   coverage so activity recreation does not cancel or restart an active review;
 - polite TalkBack announcements when move selection changes; and
@@ -58,7 +62,7 @@ availability.
 | Gate | Deliverable | Estimate/status | Hard exit condition |
 | --- | --- | --- | --- |
 | 0 | Evidence V2 | 2-4 days | Every graded move has validated, versioned best-move and played-move evidence. |
-| 1 | Full app-rule parity | Host verified; device proof active | Search ranks lines under the exact stored rules contract, not a preset approximation. |
+| 1 | Full app-rule parity | Host verified; exact optimized-device proof open | Search ranks lines under the exact stored rules contract, not a preset approximation. |
 | 2 | Complete in-session experience | 2-4 days | Player summary, useful full-game context/navigation, and deterministic explanations work on phone and tablet. |
 | 3 | Rotation-safe ownership | 1-2 days | Rotation does not cancel, duplicate, or restart analysis, and UI position is restored. |
 | 4 | Complete-result persistence and history | 3-6 days | A finished review reopens after a new game or process restart; schema migration preserves existing data. |
@@ -84,18 +88,21 @@ initial full release.
 - `android/app/src/main/kotlin/com/drawlesschess/ui/GameRuntime.kt` owns active review state in a
   `StateFlow`, so configuration recreation can detach and reattach without restarting analysis.
   It still holds only one in-memory result; Home, Quick Play, Rematch, or process death loses that
-  cache.
+  cache. Its `IsolatedReviewEngine` client sends review-only work to `ReviewEngineService` in the
+  `:review_engine` process; gameplay and hints retain the main-process engine.
 - `android/app/src/main/kotlin/com/drawlesschess/ui/GameReviewScreen.kt` shows player-only grade
   counts and mistake navigation, keeps opponent moves selectable without exposing their grades or
   evaluations, merges streamed player results into the full timeline, and draws the suggested
   move on the board. It deliberately shows no uncalibrated accuracy value.
 - `GameCoordinator` may pre-analyze the current player root only while the game is visible and on
-  the player's turn. After that root completes, remaining idle time may warm exact adjacent
-  fallback evidence for an earlier off-MultiPV player move. Bot/hint work preempts it, every
-  lifecycle/game mutation cancels it, and `GameRuntime` reuses evidence only through exact
-  versioned root plus played-move/resulting-position keys. Foreground terminal games start any
-  remainder during result presentation. This is foreground work, not WorkManager or unrestricted
-  background execution.
+  the player's turn. It builds the root from the already-validated coordinator position rather than
+  replaying the complete game on every turn. After that root completes, remaining idle time may
+  warm at most one exact adjacent fallback for an earlier off-MultiPV player move in that position
+  revision, reconstructed from the completed root's stable key. Gameplay and review have separate
+  invocation gates; lifecycle/game mutation still cancels stale review work, and `GameRuntime`
+  reuses evidence only through exact versioned root plus played-move/resulting-position keys.
+  Foreground terminal games start any remainder during result presentation. This is foreground
+  work, not WorkManager or unrestricted background execution.
 - Room schema 2 already stores canonical completed-game inputs in `CompletedGameEntity`: initial
   FEN, ordered UCI moves, the exact rules snapshot, outcome, player side, and opponent identity.
   There is no public history/review repository or persisted review row.
@@ -157,7 +164,9 @@ where UCI syntax is involved, `NativeBridgeTests.kt`:
 ## Gate 1: full app-rule parity
 
 **Status:** patch-v2 implementation and clean native verification complete; Gate 1 remains open
-until the exact Android engine candidate passes on the designated Pixel phone and R6 tablet.
+until the exact clean, optimized Android engine candidate passes on the designated Pixel phone and
+R6 tablet. The owner-accepted earlier debug APK and emulator/R6 adapter harness are valuable scoped
+evidence, but neither verifies the later 357-test worktree as that exact candidate.
 
 The Beta label had to remain while search could recommend or score a line under rules different
 from the recorded game. Patch v2 corrects that inside searched nodes rather than changing only the
