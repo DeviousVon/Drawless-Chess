@@ -18,6 +18,7 @@ export function SiteHeader() {
           <span>Drawless Chess</span>
         </a>
         <nav className="site-nav" aria-label="Primary navigation">
+          <a className="nav-play" href="/play/">Play</a>
           <a className="nav-beta" href="/#beta">Test access</a>
           <a className="nav-review" href="/#review">Game review</a>
           <a href="/#rules">How it works</a>
@@ -41,6 +42,7 @@ export function SiteFooter() {
           <p>Offline chess. Decisive by design.</p>
         </div>
         <nav aria-label="Footer navigation">
+          <a href="/play/">Play</a>
           <a href="/#beta">Test access</a>
           <a href="/#review">Game review</a>
           <a href="/#rules">How it works</a>

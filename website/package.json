@@ -8,14 +8,15 @@
   },
   "scripts": {
     "dev": "vinext dev",
-    "build": "vinext build",
+    "build": "vinext build && vite build --config vite.play.config.ts",
     "start": "vinext start",
     "prepare:openbsd": "node scripts/prepare-openbsd-release.mjs dist/client release",
-    "verify:openbsd": "node scripts/verify-openbsd-release.mjs release --route / --route /privacy/ --route /support/ --route /open-source/",
-    "test": "pnpm run build && pnpm run prepare:openbsd && pnpm run verify:openbsd && node --test tests/rendered-html.test.mjs",
-    "lint": "eslint . --ignore-pattern dist --ignore-pattern .next"
+    "verify:openbsd": "node scripts/verify-openbsd-release.mjs release --route / --route /play/ --route /privacy/ --route /support/ --route /open-source/",
+    "test": "pnpm run build && pnpm run prepare:openbsd && pnpm run verify:openbsd && node --test tests/rendered-html.test.mjs && node --experimental-strip-types --test tests/play-rules.test.ts",
+    "lint": "eslint . --ignore-pattern dist --ignore-pattern release --ignore-pattern .next"
   },
   "dependencies": {
+    "ffish-es6": "0.7.9",
     "next": "16.2.6",
     "react": "19.2.6",
     "react-dom": "19.2.6"

@@ -42,7 +42,7 @@ export default function OpenSourcePage() {
           </section>
           <section>
             <h2>Third-party work</h2>
-            <p>Drawless Chess includes a modified Fairy-Stockfish engine, derived from Stockfish under GPL-3.0-or-later, plus other credited open-source software and audio. The repository maintains project notices and provenance records.</p>
+            <p>Drawless Chess includes a modified Fairy-Stockfish engine, derived from Stockfish under GPL-3.0-or-later, plus other credited open-source software and audio. The casual browser preview uses the GPL-3.0 <strong>ffish-es6 0.7.9</strong> WebAssembly library for local chess move generation. The repository maintains exact version, source-identity, notice, and provenance records.</p>
             <div className="inline-links">
               <a className="text-link" href={`${SOURCE_URL}/blob/main/THIRD_PARTY_NOTICES.md`}>Third-party notices</a>
               <a className="text-link" href={`${SOURCE_URL}/blob/main/NOTICE`}>Project notice</a>

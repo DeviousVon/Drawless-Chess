@@ -33,17 +33,6 @@ const themes = [
   { name: "Amethyst Geode", className: "theme-geode" },
 ];
 
-const reviewPosition = [
-  "♜", "", "♝", "♛", "", "♜", "♚", "",
-  "♟", "♟", "", "", "♝", "♟", "♟", "♟",
-  "", "", "♞", "♟", "", "♞", "", "",
-  "", "", "♟", "", "♟", "", "", "",
-  "", "", "", "♙", "♙", "", "", "",
-  "", "", "♘", "", "", "♘", "", "",
-  "♙", "♙", "♙", "♕", "♗", "♙", "♙", "♙",
-  "♖", "", "♗", "", "♖", "", "♔", "",
-];
-
 export default function Home() {
   return (
     <>
@@ -109,7 +98,6 @@ export default function Home() {
                 />
               </picture>
             </div>
-            <div className="visual-tag visual-tag-top">Actual app screen</div>
             <div className="visual-tag visual-tag-bottom">
               <span aria-hidden="true">♟</span> Material decides after 50 moves
             </div>
@@ -171,64 +159,24 @@ export default function Home() {
             </div>
 
             <figure className="review-preview">
-              <div className="review-preview-header">
-                <div>
-                  <span>Game Review</span>
-                  <strong>Your review</strong>
-                </div>
-                <span className="review-engine-badge">
-                  <i aria-hidden="true" /> On-device engine
-                </span>
+              <div className="review-screenshot-frame">
+                <picture>
+                  <source
+                    type="image/webp"
+                    srcSet="/media/game-review-360.webp 360w, /media/game-review-720.webp 720w"
+                    sizes="(max-width: 760px) calc(100vw - 60px), 452px"
+                  />
+                  <img
+                    src="/media/game-review-720.webp"
+                    width="720"
+                    height="1100"
+                    alt="Drawless Chess Game Review Beta on the Imperial Marble board, grading f3 as a Blunder, recommending c4, and showing the c4 Nc6 Nc3 e5 line, evaluation, and better-move arrow."
+                    loading="lazy"
+                    decoding="async"
+                  />
+                </picture>
               </div>
-
-              <div className="review-grade-row" aria-label="Available move grades">
-                <span className="grade-best">★ Best</span>
-                <span className="grade-good">✓ Good</span>
-                <span className="grade-inaccuracy">?! Inaccuracy</span>
-                <span className="grade-mistake">? Mistake</span>
-                <span className="grade-blunder">?? Blunder</span>
-              </div>
-
-              <div className="review-workspace">
-                <div className="review-board-wrap">
-                  <div className="review-board" aria-hidden="true">
-                    {reviewPosition.map((piece, index) => (
-                      <span
-                        className={`review-square ${
-                          (Math.floor(index / 8) + (index % 8)) % 2 === 0
-                            ? "review-square-light"
-                            : "review-square-dark"
-                        }`}
-                        key={index}
-                      >
-                        {piece}
-                      </span>
-                    ))}
-                    <span className="review-arrow" />
-                  </div>
-                  <div className="review-controls" aria-hidden="true">
-                    <span>↤</span><span>←</span><strong>18 / 42</strong><span>→</span><span>↦</span>
-                  </div>
-                </div>
-
-                <div className="review-feedback">
-                  <p className="review-move-label">Move 18 · Your decision</p>
-                  <div className="review-selected-grade">
-                    <span aria-hidden="true">?</span>
-                    <strong>Mistake</strong>
-                  </div>
-                  <p>This gave the opponent a meaningful opportunity.</p>
-                  <div className="review-insight">
-                    <span>Better move</span>
-                    <strong>Highlighted on the board</strong>
-                  </div>
-                  <div className="review-insight">
-                    <span>Suggested line</span>
-                    <strong>Replay it move by move</strong>
-                  </div>
-                </div>
-              </div>
-              <figcaption>Illustrated feature preview · Game Review remains in beta</figcaption>
+              <figcaption>Game Review remains in beta · current Android test build</figcaption>
             </figure>
           </div>
         </section>

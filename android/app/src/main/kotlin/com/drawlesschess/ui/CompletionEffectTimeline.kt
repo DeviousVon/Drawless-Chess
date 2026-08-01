@@ -2,7 +2,7 @@ package com.drawlesschess.ui
 
 import kotlin.math.roundToLong
 
-internal const val CHECKMATE_COMPLETION_FOLLOWUP_MILLIS = 500L
+internal const val CHECKMATE_COMPLETION_FOLLOWUP_MILLIS = 1_000L
 
 internal enum class CompletionEffectCue {
     FIREWORK_LOW,

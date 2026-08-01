@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { readFile, readdir, stat } from "node:fs/promises";
 import test from "node:test";
 
@@ -11,6 +12,7 @@ async function releaseFile(path) {
 test("exports every public route and the custom not-found page", async () => {
   const routes = [
     "index.html",
+    "play/index.html",
     "privacy/index.html",
     "support/index.html",
     "open-source/index.html",
@@ -26,6 +28,44 @@ test("exports every public route and the custom not-found page", async () => {
     [...notFound.matchAll(/<title>([^<]+)<\/title>/gi)].map((match) => match[1]),
     ["Page not found · Drawless Chess"],
   );
+});
+
+test("ships one isolated, same-origin playable runtime with its pinned WASM", async () => {
+  const html = await releaseFile("play/index.html");
+  const scripts = [...html.matchAll(/<script\b([^>]*)><\/script>/gi)].map((match) => match[1]);
+
+  assert.match(html, /<html[^>]+lang="en"/i);
+  assert.match(html, /<title>Play · Drawless Chess<\/title>/i);
+  assert.match(html, /name="description"[^>]+casual game of Drawless Chess/i);
+  assert.equal(scripts.length, 1, "play page has one entry script");
+  assert.match(scripts[0], /type="module"/i);
+  const scriptPath = scripts[0].match(/src="([^"]+)"/i)?.[1];
+  assert.match(scriptPath ?? "", /^\/play\/assets\/[A-Za-z0-9_.-]+\.js$/);
+  assert.equal((await stat(new URL(scriptPath.slice(1), releaseRoot))).isFile(), true, "play entry script");
+  assert.equal((await stat(new URL(`${scriptPath.slice(1)}.gz`, releaseRoot))).isFile(), true, "compressed play entry script");
+  const playRuntime = await releaseFile(scriptPath.slice(1));
+  const playStylesheetPath = html.match(/href="(\/play\/assets\/[A-Za-z0-9_.-]+\.css)"/i)?.[1];
+  assert.ok(playStylesheetPath, "play stylesheet");
+  const playStylesheet = await releaseFile(playStylesheetPath.slice(1));
+  assert.match(playRuntime, /Imperial Marble/);
+  assert.match(playRuntime, /Original Drawless pieces/);
+  assert.match(playRuntime, /M50 14 C39 14 33 22 33 32/, "original Drawless pawn silhouette");
+  assert.match(playRuntime, /#fffcf2/, "Imperial Marble white-piece fill");
+  assert.match(playRuntime, /#eaf1ec/, "Imperial Marble black-piece outline");
+  assert.doesNotMatch(playRuntime, /[♔-♟]/u, "does not fall back to platform chess glyphs");
+  assert.match(playStylesheet, /\.web-square-light\{background-color:#f2f0eb}/i);
+  assert.match(playStylesheet, /\.web-square-dark\{background-color:#344a3f}/i);
+  assert.doesNotMatch(html, /<script\b[^>]+https?:\/\//i);
+  assert.doesNotMatch(html, /__VINEXT|vite-rsc/i);
+
+  const wasm = await readFile(new URL("game/ffish-0.7.9.wasm", releaseRoot));
+  assert.equal(wasm.byteLength, 920681);
+  assert.equal(
+    createHash("sha256").update(wasm).digest("hex"),
+    "f524da0ccba29b5cc6e8c9bd0ec0fa1ec6fd887fe019dfc05bc209edb2e34882",
+  );
+  assert.equal((await stat(new URL("game/ffish-0.7.9.wasm.gz", releaseRoot))).isFile(), true, "compressed WASM");
+  assert.match(await releaseFile("sitemap.xml"), /https:\/\/drawlesschess\.com\/play\//i);
 });
 
 test("renders the major-update story without presenting it as the live Play build", async () => {
@@ -81,7 +121,17 @@ test("explains the rules-aware, private Game Review beta without overclaiming", 
   }
 
   assert.match(html, /href="\/#review"[^>]*>Game review/i);
+  const reviewFigure = html.match(/<figure class="review-preview">[\s\S]*?<\/figure>/i)?.[0] ?? "";
+  assert.match(reviewFigure, /srcset="\/media\/game-review-360\.webp 360w, \/media\/game-review-720\.webp 720w"/i);
+  assert.match(reviewFigure, /alt="Drawless Chess Game Review Beta[^\"]*Imperial Marble board/i);
+  assert.match(reviewFigure, /grading f3 as a Blunder/i);
+  assert.match(reviewFigure, /recommending c4/i);
+  assert.match(reviewFigure, /c4 Nc6 Nc3 e5 line/i);
+  assert.match(reviewFigure, /Game Review remains in beta · current Android test build/i);
+  assert.doesNotMatch(html, /Actual app screen/i);
+  assert.doesNotMatch(reviewFigure, /Best move grade|Illustrated feature preview|review-square|♜|♟/i);
   assert.match(openSource, /modified Fairy-Stockfish engine, derived from Stockfish/i);
+  assert.match(openSource, /casual browser preview uses the GPL-3\.0 <strong>ffish-es6 0\.7\.9<\/strong>/i);
   assert.doesNotMatch(html, /accuracy (?:score|percentage)|reviews? every move/i);
 });
 
@@ -171,7 +221,7 @@ test("gives the proof and privacy selling points a stronger visual hierarchy", a
   );
 });
 
-test("ships accessible metadata and no browser-side runtime", async () => {
+test("ships accessible metadata and no browser-side runtime on the marketing pages", async () => {
   const pages = await Promise.all([
     releaseFile("index.html"),
     releaseFile("privacy/index.html"),

@@ -32,8 +32,10 @@ const textExtensions = new Set([
   ".svg",
   ".txt",
   ".webmanifest",
+  ".wasm",
   ".xml",
 ]);
+const interactiveHtmlPaths = new Set(["play/index.html"]);
 
 function compareNames(left, right) {
   return left < right ? -1 : left > right ? 1 : 0;
@@ -345,6 +347,8 @@ async function transformHtml(clientComponents) {
 
   for (const file of await walkFiles(releaseRoot)) {
     if (path.extname(file).toLowerCase() !== ".html") continue;
+    const relative = toPosix(path.relative(releaseRoot, file));
+    if (interactiveHtmlPaths.has(relative)) continue;
     const source = await readFile(file, "utf8");
     const transformed = stripFrameworkMarkup(source);
     await writeFile(file, transformed.html, "utf8");
@@ -363,7 +367,9 @@ async function pruneRuntimeArtifacts(clientComponents) {
   const removed = [];
   for (const file of await walkFiles(releaseRoot)) {
     if (!/[.](?:rsc|m?js)$/i.test(file)) continue;
-    removed.push(toPosix(path.relative(releaseRoot, file)));
+    const relative = toPosix(path.relative(releaseRoot, file));
+    if (relative.startsWith("play/")) continue;
+    removed.push(relative);
     await rm(file, { force: true });
   }
   return removed.sort(compareNames);
@@ -427,13 +433,14 @@ async function writeReleaseMetadata(clientComponents, transformResult, synthesiz
   const timestamp = sourceDate();
   const input = toPosix(path.relative(projectRoot, inputRoot)) || ".";
   const metadata = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     artifact: "drawlesschess-openbsd-static",
     buildId,
     generatedAt: timestamp.iso,
     sourceDateEpoch: timestamp.epoch,
     input,
     clientComponents,
+    interactiveRoutes: ["/play/"],
     frameworkMarkup: {
       stripped: clientComponents.length === 0,
       htmlFilesProcessed: transformResult.files,

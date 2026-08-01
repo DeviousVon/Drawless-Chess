@@ -273,6 +273,7 @@ class PostGameFeedbackInstrumentedTest {
     fun completionTimelinesStaySynchronizedAndReferenceRendererRemainsBounded() {
         assertTrue(CompletionEffectTimeline.Victory.durationMillis >= 2_000)
         assertTrue(CompletionEffectTimeline.Defeat.durationMillis >= 2_000)
+        assertEquals(1_000L, CHECKMATE_COMPLETION_FOLLOWUP_MILLIS)
 
         val checkmateCueStartedAt = 10_000L
         val firstCompletionCueTarget =

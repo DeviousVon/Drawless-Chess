@@ -18,11 +18,20 @@ The Android application links the modified engine in process. Drawless Chess has
 therefore adopted GPL-3.0-or-later for the combined application; it does not rely
 on the JNI boundary to avoid the engine's copyleft terms.
 
-## JavaScript engine proof of concept
+## JavaScript chess runtimes
 
 The repository's non-Android experiment directly depends on
 `fairy-stockfish-nnue.wasm` 1.1.11 and `ffish-es6` 0.7.9. The npm lockfile reports
 GPL-3.0 for both. These packages do not define the native Android source identity.
+
+The deployed casual web game directly uses `ffish-es6` 0.7.9 for local legal move
+generation. Its npm registry identity is SHA-512
+`UcXkfJUkbJrDI6NzQ9eorcPQ+qMw01bsaDXkW7J68ekDECGyinbZsAryzfx/iwK6oSAUSzgkbwBfEm2PNLT7Hw==`,
+and its corresponding upstream Fairy-Stockfish source revision is
+`efb3193d0029c4d125a1b19964667f6ba7454bbc`. The web controller applies the
+project's Drawless adjudication contract outside that library and labels its
+separate lightweight opponent as Web Casual; it is not the patched Android
+engine identity.
 
 ## Android release runtime
 
