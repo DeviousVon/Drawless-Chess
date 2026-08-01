@@ -1,0 +1,793 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Drawless Chess <engine@drawless.invalid>
+Date: Wed, 29 Jul 2026 02:30:00 -0500
+Subject: [PATCH 4/4] Preserve Drawless deeper-search boundaries
+
+Preserve every RulesContractV1 terminal through selective main and quiescence search. Add exact material and no-legal child classification, node-neutral speculative probes, null/history and legal-en-passant state parity, mandatory terminal ponder handling, and orthodox-only Syzygy root ranking.
+---
+ src/position.cpp | 143 ++++++++++++++++++-
+ src/position.h   |   6 +
+ src/search.cpp   | 350 +++++++++++++++++++++++++++++++++++++++++++----
+ 3 files changed, 463 insertions(+), 36 deletions(-)
+
+diff --git a/src/position.cpp b/src/position.cpp
+index d49199cb670a8f2e61528dcd9b24d065424f3fd7..4e13e8a11359e53eb3896b57a9675b529d141548 100644
+--- a/src/position.cpp
++++ b/src/position.cpp
+@@ -544,6 +544,7 @@ Position& Position::set(const Variant* v, const string& fenStr, bool isChess960,
+   tsumeMode = Options["TsumeMode"];
+   thisThread = th;
+   set_state(st);
++  normalize_drawless_ep();
+ 
+   assert(pos_is_ok());
+ 
+@@ -2123,6 +2124,7 @@ void Position::do_move(Move m, StateInfo& newSt, bool givesCheck) {
+ 
+   // Update king attacks used for fast check detection
+   set_check_info(st);
++  normalize_drawless_ep();
+ 
+   // Calculate the repetition info. It is the ply distance from the previous
+   // occurrence of the same position, negative in the 3-fold case, or zero
+@@ -2147,6 +2149,21 @@ void Position::do_move(Move m, StateInfo& newSt, bool givesCheck) {
+ }
+ 
+ 
++/// Position::do_drawless_probe_move() makes a reversible classification move
++/// without charging it as a searched node. Drawless policy probes may inspect
++/// every legal sibling before the real search; counting those speculative
++/// makes would inflate NPS and make a `go nodes` limit stop early.
++
++void Position::do_drawless_probe_move(Move m, StateInfo& newSt) {
++
++  do_move(m, newSt);
++
++#ifndef NO_THREADS
++  thisThread->nodes.fetch_sub(1, std::memory_order_relaxed);
++#endif
++}
++
++
+ /// Position::undo_move() unmakes a move. When it returns, the position should
+ /// be restored to exactly the same state as before the move was made.
+ 
+@@ -2343,7 +2360,10 @@ void Position::do_null_move(StateInfo& newSt) {
+   st->key ^= Zobrist::side;
+   prefetch(TT.first_entry(key()));
+ 
+-  ++st->rule50;
++  // A null move is only a search device. It must not advance the app's
++  // real-game halfmove clock or manufacture an early Drawless terminal.
++  if (!uses_drawless_rules_v1())
++      ++st->rule50;
+   st->pliesFromNull = 0;
+ 
+   sideToMove = ~sideToMove;
+@@ -3196,6 +3216,29 @@ bool Position::has_repeated() const {
+ }
+ 
+ 
++/// Position::has_legal_move() answers the common terminal query without
++/// constructing and compacting a complete LEGAL list. Pseudo moves are still
++/// generated in bulk, but legality checking stops at the first playable move.
++
++bool Position::has_legal_move() const {
++  if (is_immediate_game_end())
++      return false;
++
++  if (checkers())
++  {
++      for (Move move : MoveList<EVASIONS>(*this))
++          if (!virtual_drop(move) && legal(move))
++              return true;
++  }
++  else
++      for (Move move : MoveList<NON_EVASIONS>(*this))
++          if (!virtual_drop(move) && legal(move))
++              return true;
++
++  return false;
++}
++
++
+ /// Position::has_drawless_fifty_avoiding_move() checks the complete legal move
+ /// set for a capture or pawn move that resets the standard halfmove clock.
+ 
+@@ -3211,6 +3254,82 @@ bool Position::has_drawless_fifty_avoiding_move() const {
+ }
+ 
+ 
++/// Position::drawless_fifty_boundary() marks nodes where the next quiet
++/// non-pawn move reaches the enabled RulesContractV1 100-halfmove terminal.
++
++bool Position::drawless_fifty_boundary() const {
++  return uses_drawless_rules_v1()
++      && st->rule50 >= 99
++      && Options["Drawless Fifty Move"] != "disabled";
++}
++
++
++/// Position::normalize_drawless_ep() removes pseudo-only en-passant targets
++/// from RulesContractV1 state and its repetition key. The app records an EP
++/// right only when at least one legal en-passant capture exists; in particular,
++/// a pawn pinned to its king must not make an otherwise identical board hash as
++/// a different position.
++
++void Position::normalize_drawless_ep() {
++  if (!uses_drawless_rules_v1() || !st->epSquares)
++      return;
++
++  Bitboard legalEpSquares = 0;
++  for (Move move : MoveList<LEGAL>(*this))
++      if (type_of(move) == EN_PASSANT)
++          legalEpSquares |= to_sq(move);
++
++  Bitboard invalidEpSquares = st->epSquares & ~legalEpSquares;
++  st->epSquares &= legalEpSquares;
++  while (invalidEpSquares)
++      st->key ^= Zobrist::enpassant[file_of(pop_lsb(invalidEpSquares))];
++}
++
++
++/// Position::drawless_policy_terminal() recognizes the two material-topology
++/// terminals that an otherwise quiet or selectively pruned move can create.
++
++bool Position::drawless_policy_terminal() const {
++  if (!uses_drawless_rules_v1())
++      return false;
++
++  const bool bareKing =
++      Options["Drawless Bare King"] == "bare-king-loses"
++      && ((drawless_material(WHITE) == 0 && drawless_material(BLACK) > 0)
++          || (drawless_material(BLACK) == 0 && drawless_material(WHITE) > 0));
++
++  return bareKing || drawless_known_dead_position();
++}
++
++
++/// Position::drawless_policy_terminal_move_candidate() is a cheap necessary-
++/// condition gate for the exact do/undo classifier used by search. It is
++/// deliberately conservative: false must mean that no single orthodox move
++/// can create bare-king or known-dead material, while true is only a request
++/// for exact classification of the legal moves.
++
++bool Position::drawless_policy_terminal_move_candidate() const {
++  if (!uses_drawless_rules_v1())
++      return false;
++
++  const int opposingNonKings = count<PAWN>(~sideToMove)
++                             + count<KNIGHT>(~sideToMove)
++                             + count<BISHOP>(~sideToMove)
++                             + count<ROOK>(~sideToMove)
++                             + count<QUEEN>(~sideToMove);
++  const bool bareCandidate =
++      Options["Drawless Bare King"] == "bare-king-loses"
++      && opposingNonKings == 1;
++
++  const int blockers = count<PAWN>() + count<ROOK>() + count<QUEEN>();
++  const int nonKings = blockers + count<KNIGHT>() + count<BISHOP>();
++  const bool deadCandidate = blockers <= 2
++                          && (nonKings <= 2 || count<KNIGHT>() <= 1);
++
++  return bareCandidate || deadCandidate;
++}
++
++
+ /// Position::drawless_known_dead_position() mirrors the deliberately
+ /// conservative RulesContractV1 detector: bare kings, exactly one non-king
+ /// minor, or bishops only with every bishop on the same square color.
+@@ -3249,10 +3368,22 @@ int Position::drawless_material(Color c) const {
+ 
+ Color Position::drawless_last_capture_by() const {
+ 
+-  Color mover = ~sideToMove;
+-  for (const StateInfo* stp = st; stp && stp->previous; stp = stp->previous, mover = ~mover)
+-      if (stp->capturedPiece)
+-          return mover;
++  // A null frame copies capturedPiece but is not a real move. Ignore both the
++  // copied capture and its synthetic turn: real moves immediately before and
++  // after a skipped null turn belong to the same inferred mover.
++  Color mover = st->pliesFromNull == 0 ? sideToMove : ~sideToMove;
++  for (const StateInfo* stp = st; stp && stp->previous; )
++  {
++      const StateInfo* previous = stp->previous;
++      if (stp->pliesFromNull != 0)
++      {
++          if (stp->capturedPiece)
++              return mover;
++          if (previous->pliesFromNull != 0)
++              mover = ~mover;
++      }
++      stp = previous;
++  }
+ 
+   return COLOR_NB;
+ }
+@@ -3282,7 +3413,7 @@ bool Position::all_legal_moves_complete_drawless_repetition(Move& firstMove) {
+       StateInfo nextState;
+       ASSERT_ALIGNED(&nextState, Eval::NNUE::CacheLineSize);
+ 
+-      do_move(move, nextState);
++      do_drawless_probe_move(move, nextState);
+       const bool repeats = completes_drawless_repetition();
+       undo_move(move);
+ 
+diff --git a/src/position.h b/src/position.h
+index 097710a26c11e6e77f60fe8ddd5886cc6e22d050..66428bd0559e203986b2baf3fe3d63fa7c65e8cc 100644
+--- a/src/position.h
++++ b/src/position.h
+@@ -301,6 +301,7 @@ public:
+   // Doing and undoing moves
+   void do_move(Move m, StateInfo& newSt);
+   void do_move(Move m, StateInfo& newSt, bool givesCheck);
++  void do_drawless_probe_move(Move m, StateInfo& newSt);
+   void undo_move(Move m);
+   void do_null_move(StateInfo& newSt);
+   void undo_null_move();
+@@ -329,12 +330,16 @@ public:
+   bool is_draw(int ply) const;
+   bool has_game_cycle(int ply) const;
+   bool has_repeated() const;
++  bool has_legal_move() const;
+   bool uses_drawless_forced_repetition() const;
+   bool uses_drawless_rules_v1() const;
+   bool completes_drawless_repetition() const;
+   bool all_legal_moves_complete_drawless_repetition(Move& firstMove);
+   Value drawless_forced_repetition_value(int ply) const;
+   bool has_drawless_fifty_avoiding_move() const;
++  bool drawless_fifty_boundary() const;
++  bool drawless_policy_terminal() const;
++  bool drawless_policy_terminal_move_candidate() const;
+   bool drawless_known_dead_position() const;
+   int drawless_material(Color c) const;
+   Color drawless_last_capture_by() const;
+@@ -365,6 +370,7 @@ private:
+   void set_castling_right(Color c, Square rfrom);
+   void set_state(StateInfo* si) const;
+   void set_check_info(StateInfo* si) const;
++  void normalize_drawless_ep();
+ 
+   // Other helpers
+   void move_piece(Square from, Square to);
+diff --git a/src/search.cpp b/src/search.cpp
+index c89fc16cca6b69597271dc29ec0dbc907a03dcdb..ed6fe4ebff1b3807a17fef08e993c5cadabf4a7d 100644
+--- a/src/search.cpp
++++ b/src/search.cpp
+@@ -22,6 +22,7 @@
+ #include <cstring>   // For std::memset
+ #include <iostream>
+ #include <sstream>
++#include <vector>
+ 
+ #include "evaluate.h"
+ #include "misc.h"
+@@ -93,6 +94,59 @@ namespace {
+     return VALUE_DRAW + Value(2 * (thisThread->nodes & 1) - 1);
+   }
+ 
++  // Exact, reversible classification is required here: material counts alone
++  // cannot tell whether a capture or a quiet underpromotion creates the
++  // configured bare-king/known-dead terminal.
++  bool creates_drawless_policy_terminal(Position& pos, Move move) {
++    StateInfo st;
++    ASSERT_ALIGNED(&st, Eval::NNUE::CacheLineSize);
++
++    pos.do_drawless_probe_move(move, st);
++    const bool terminal = pos.drawless_policy_terminal();
++    pos.undo_move(move);
++    return terminal;
++  }
++
++  bool creates_drawless_immediate_terminal(Position& pos, Move move) {
++    StateInfo st;
++    ASSERT_ALIGNED(&st, Eval::NNUE::CacheLineSize);
++
++    pos.do_drawless_probe_move(move, st);
++    Value result;
++    const bool terminal = pos.is_game_end(result) || !pos.has_legal_move();
++    pos.undo_move(move);
++    return terminal;
++  }
++
++  bool creates_drawless_no_legal_terminal(Position& pos, Move move) {
++    StateInfo st;
++    ASSERT_ALIGNED(&st, Eval::NNUE::CacheLineSize);
++
++    pos.do_drawless_probe_move(move, st);
++    const bool terminal = !pos.has_legal_move();
++    pos.undo_move(move);
++    return terminal;
++  }
++
++  bool has_drawless_no_legal_terminal_move(Position& pos) {
++    for (Move move : MoveList<LEGAL>(pos))
++        if (creates_drawless_no_legal_terminal(pos, move))
++            return true;
++
++    return false;
++  }
++
++  bool has_drawless_policy_terminal_move(Position& pos) {
++    if (!pos.drawless_policy_terminal_move_candidate())
++        return false;
++
++    for (Move move : MoveList<LEGAL>(pos))
++        if (creates_drawless_policy_terminal(pos, move))
++            return true;
++
++    return false;
++  }
++
+   // Skill structure is used to implement strength limit
+   struct Skill {
+     explicit Skill(int l) : level(l) {}
+@@ -190,11 +244,24 @@ void MainThread::search() {
+ 
+   Eval::NNUE::verify();
+ 
+-  if (rootMoves.empty() || (CurrentProtocol == XBOARD && rootPos.is_optional_game_end()))
++  Value drawlessRootResult = VALUE_NONE;
++  const bool drawlessRootEnd =
++      rootPos.uses_drawless_rules_v1()
++      && rootPos.is_game_end(drawlessRootResult);
++
++  if (   rootMoves.empty()
++      || drawlessRootEnd
++      || (CurrentProtocol == XBOARD && rootPos.is_optional_game_end()))
+   {
++      // Drawless outcomes are mandatory game ends, not optional claims. Remove
++      // every playable root move so UCI returns bestmove (none) rather than a
++      // move from an already-ended game.
++      if (drawlessRootEnd)
++          rootMoves.clear();
+       rootMoves.emplace_back(MOVE_NONE);
+       Value variantResult;
+-      Value result =  rootPos.is_game_end(variantResult) ? variantResult
++      Value result =  drawlessRootEnd                    ? drawlessRootResult
++                    : rootPos.is_game_end(variantResult) ? variantResult
+                     : rootPos.checkers()                 ? rootPos.checkmate_value()
+                                                          : rootPos.stalemate_value();
+       if (CurrentProtocol == XBOARD)
+@@ -692,7 +759,7 @@ namespace {
+     Value bestValue, value, ttValue, eval, maxValue, probCutBeta;
+     bool givesCheck, improving, didLMR, priorCapture;
+     bool captureOrPromotion, doFullDepthSearch, moveCountPruning,
+-         ttCapture, singularQuietLMR;
++         ttCapture, singularQuietLMR, drawlessImmediateTerminalMove;
+     Piece movedPiece;
+     int moveCount, captureCount, quietCount;
+ 
+@@ -701,7 +768,8 @@ namespace {
+     ss->inCheck        = pos.checkers();
+     priorCapture       = pos.captured_piece();
+     Color us           = pos.side_to_move();
+-    const bool drawlessRepetition = pos.uses_drawless_forced_repetition();
++    const bool drawlessHistoryDependent = pos.uses_drawless_rules_v1();
++    const bool drawlessFiftyBoundary = pos.drawless_fifty_boundary();
+     moveCount          = captureCount = quietCount = ss->moveCount = 0;
+     bestValue          = -VALUE_INFINITE;
+     maxValue           = VALUE_INFINITE;
+@@ -755,6 +823,11 @@ namespace {
+         return forcedValue;
+     }
+ 
++    // Only sparse endgame topologies reach this exact full-legal-set probe.
++    // Its result protects every move capable of creating bare king or known
++    // dead material from selective pruning below the root.
++    const bool drawlessPolicyFrontier = has_drawless_policy_terminal_move(pos);
++
+     if (!rootNode)
+     {
+         // Step 3. Mate distance pruning. Even if we mate at the next move our score
+@@ -792,9 +865,10 @@ namespace {
+     posKey = excludedMove == MOVE_NONE ? pos.key() : pos.key() ^ make_key(excludedMove);
+     bool ttProbeHit;
+     tte = TT.probe(posKey, ttProbeHit);
+-    // Board-only TT bounds are not valid for Drawless repetition histories.
+-    // Keep a legal TT move for ordering, but never trust the stored score.
+-    ss->ttHit = ttProbeHit && !drawlessRepetition;
++    // Board-only TT bounds are not valid for the history- and policy-dependent
++    // RulesContractV1. Keep a legal TT move for ordering, but never trust its
++    // stored score or bound.
++    ss->ttHit = ttProbeHit && !drawlessHistoryDependent;
+     ttValue = ss->ttHit ? value_from_tt(tte->value(), ss->ply, pos.rule50_count()) : VALUE_NONE;
+     ttMove =  rootNode ? thisThread->rootMoves[thisThread->pvIdx].pv[0]
+             : ttProbeHit   ? tte->move() : MOVE_NONE;
+@@ -962,6 +1036,12 @@ namespace {
+     if (pos.must_capture() && pos.has_capture())
+         goto moves_loop;
+ 
++    // At the 100-halfmove boundary, a quiet move can be an immediate decisive
++    // terminal. Search the complete legal set before any heuristic can discard
++    // that move or return the static board evaluation.
++    if (drawlessFiftyBoundary || drawlessPolicyFrontier)
++        goto moves_loop;
++
+     // Step 7. Futility pruning: child node (~50 Elo)
+     if (   !PvNode
+         &&  depth < 9 - 3 * pos.blast_on_capture()
+@@ -980,7 +1060,6 @@ namespace {
+         &&  pos.non_pawn_material(us)
+         &&  pos.count<ALL_PIECES>(~us) != pos.count<PAWN>(~us)
+         && !pos.flip_enclosed_pieces()
+-        && !(pos.uses_drawless_rules_v1() && pos.rule50_count() >= 99)
+         && (ss->ply >= thisThread->nmpMinPly || us != thisThread->nmpColor))
+     {
+         assert(eval - beta >= 0);
+@@ -1076,7 +1155,7 @@ namespace {
+                 if (value >= probCutBeta)
+                 {
+                     // if transposition table doesn't have equal or more deep info write probCut data into it
+-                    if ( !drawlessRepetition
++                    if ( !drawlessHistoryDependent
+                       && !(ss->ttHit
+                        && tte->depth() >= depth - 3
+                        && ttValue != VALUE_NONE))
+@@ -1102,6 +1181,7 @@ moves_loop: // When in check, search starts from here
+     // Step 11. A small Probcut idea, when we are in check
+     probCutBeta = beta + 409;
+     if (   ss->inCheck
++        && !drawlessPolicyFrontier
+         && !PvNode
+         && depth >= 4
+         && ttCapture
+@@ -1136,14 +1216,36 @@ moves_loop: // When in check, search starts from here
+     // Indicate PvNodes that will probably fail low if the node was searched
+     // at a depth equal or greater than the current depth, and the result of this search was a fail low.
+     bool likelyFailLow =    PvNode
++                         && ss->ttHit
+                          && ttMove
+                          && (tte->bound() & BOUND_UPPER)
+                          && tte->depth() >= depth;
+ 
+     // Step 12. Loop through all pseudo-legal moves until no moves remain
+-    // or a beta cutoff occurs.
+-    while ((move = mp.next_move(moveCountPruning)) != MOVE_NONE)
++    // or a beta cutoff occurs. Restore ordinary quiet move-count pruning at
++    // RulesContractV1 nodes, but classify the legal set once before the first
++    // requested skip. If any move leaves no legal reply, retain the quiets so
++    // the exact per-move classifier below can protect that terminal.
++    bool drawlessNoLegalTerminalChecked = false;
++    bool drawlessNoLegalTerminalFound = false;
++    while (true)
+     {
++      bool skipQuiets = moveCountPruning && !drawlessPolicyFrontier;
++      if (   skipQuiets
++          && drawlessHistoryDependent
++          && !drawlessNoLegalTerminalChecked)
++      {
++          drawlessNoLegalTerminalFound =
++              has_drawless_no_legal_terminal_move(pos);
++          drawlessNoLegalTerminalChecked = true;
++      }
++      if (drawlessNoLegalTerminalFound)
++          skipQuiets = false;
++
++      move = mp.next_move(skipQuiets);
++      if (move == MOVE_NONE)
++          break;
++
+       assert(is_ok(move));
+ 
+       if (move == excludedMove)
+@@ -1161,6 +1263,9 @@ moves_loop: // When in check, search starts from here
+       if (!rootNode && !pos.legal(move))
+           continue;
+ 
++      drawlessImmediateTerminalMove =
++          drawlessPolicyFrontier && creates_drawless_immediate_terminal(pos, move);
++
+       ss->moveCount = ++moveCount;
+ 
+       if (rootNode && thisThread == Threads.main() && Time.elapsed() > 3000 && is_uci_dialect(CurrentProtocol))
+@@ -1179,9 +1284,24 @@ moves_loop: // When in check, search starts from here
+       newDepth = depth - 1;
+ 
+       // Step 13. Pruning at shallow depth (~200 Elo)
+-      if (  !rootNode
++      const bool shallowPruningCandidate =
++             !rootNode
++          && !drawlessFiftyBoundary
+           && (pos.non_pawn_material(us) || pos.count<ALL_PIECES>(us) == pos.count<PAWN>(us))
+-          && bestValue > VALUE_TB_LOSS_IN_MAX_PLY)
++          && bestValue > VALUE_TB_LOSS_IN_MAX_PLY;
++
++      // Outside the sparse material-policy frontier, a move can still end the
++      // game by leaving the opponent with no legal reply. Classify only when
++      // Step 13 would otherwise prune this move, keeping the exact checkmate /
++      // stalemate rule ahead of history, futility, move-count, and SEE gates.
++      if (   shallowPruningCandidate
++          && !drawlessPolicyFrontier
++          && !drawlessImmediateTerminalMove
++          && drawlessHistoryDependent)
++          drawlessImmediateTerminalMove =
++              creates_drawless_no_legal_terminal(pos, move);
++
++      if (shallowPruningCandidate && !drawlessImmediateTerminalMove)
+       {
+           // Skip quiet moves if movecount exceeds our FutilityMoveCount threshold
+           moveCountPruning = moveCount >= futility_move_count(improving, depth, pos);
+@@ -1537,7 +1657,7 @@ moves_loop: // When in check, search starts from here
+         ss->ttPv = ss->ttPv && (ss+1)->ttPv;
+ 
+     // Write gathered information in transposition table
+-    if (!drawlessRepetition && !excludedMove && !(rootNode && thisThread->pvIdx))
++    if (!drawlessHistoryDependent && !excludedMove && !(rootNode && thisThread->pvIdx))
+         tte->save(posKey, value_to_tt(bestValue, ss->ply), ss->ttPv,
+                   bestValue >= beta ? BOUND_LOWER :
+                   PvNode && bestMove ? BOUND_EXACT : BOUND_UPPER,
+@@ -1589,7 +1709,15 @@ moves_loop: // When in check, search starts from here
+     if (pos.is_game_end(gameResult, ss->ply))
+         return gameResult;
+ 
+-    const bool drawlessRepetition = pos.uses_drawless_forced_repetition();
++    // RulesContractV1 gives checkmate and the configured stalemate result
++    // absolute precedence. Its optional-game-end hook deliberately defers
++    // those positions to the search no-legal-move path, so qsearch must test
++    // the full legal set before a non-check node can return its stand-pat eval.
++    if (pos.uses_drawless_rules_v1() && !pos.has_legal_move())
++        return ss->inCheck ? pos.checkmate_value(ss->ply)
++                           : pos.stalemate_value(ss->ply);
++
++    const bool drawlessHistoryDependent = pos.uses_drawless_rules_v1();
+     Move forcedRepetitionMove = MOVE_NONE;
+     if (pos.all_legal_moves_complete_drawless_repetition(forcedRepetitionMove))
+     {
+@@ -1601,13 +1729,71 @@ moves_loop: // When in check, search starts from here
+         }
+         return pos.drawless_forced_repetition_value(ss->ply);
+     }
++    const bool drawlessRepetitionCandidate =
++        drawlessHistoryDependent && pos.has_repeated();
++
++    // Ordinary qsearch omits quiet non-captures and quiet pawn moves. At the
++    // enabled 50-move boundary those moves can decide the game immediately,
++    // so search the full legal set for exactly this one boundary ply.
++    if (pos.drawless_fifty_boundary())
++    {
++        const MoveList<LEGAL> legalMoves(pos);
++        if (!legalMoves.size())
++            return ss->inCheck ? pos.checkmate_value(ss->ply)
++                               : pos.stalemate_value(ss->ply);
++
++        Value boundaryBest = -VALUE_INFINITE;
++        for (Move boundaryMove : legalMoves)
++        {
++            const bool boundaryCapture = pos.capture_or_promotion(boundaryMove);
++            ss->currentMove = boundaryMove;
++            ss->continuationHistory = &thisThread->continuationHistory[ss->inCheck]
++                                                                      [boundaryCapture]
++                                                                      [history_slot(pos.moved_piece(boundaryMove))]
++                                                                      [to_sq(boundaryMove)];
++            if (PvNode)
++                (ss+1)->pv[0] = MOVE_NONE;
++
++            pos.do_move(boundaryMove, st);
++            Value childResult;
++            Value boundaryValue;
++            if (pos.is_game_end(childResult, ss->ply + 1))
++                boundaryValue = -childResult;
++            else if (!MoveList<LEGAL>(pos).size())
++                boundaryValue = -(pos.checkers() ? pos.checkmate_value(ss->ply + 1)
++                                                  : pos.stalemate_value(ss->ply + 1));
++            else
++                boundaryValue = -qsearch<nodeType>(pos, ss+1, -beta, -alpha, depth - 1);
++            pos.undo_move(boundaryMove);
++
++            if (Threads.stop.load(std::memory_order_relaxed))
++                return VALUE_ZERO;
++
++            if (boundaryValue > boundaryBest)
++            {
++                boundaryBest = boundaryValue;
++                if (boundaryValue > alpha)
++                {
++                    if (PvNode)
++                        update_pv(ss->pv, boundaryMove, (ss+1)->pv);
++                    if (boundaryValue >= beta)
++                        return boundaryValue;
++                    alpha = boundaryValue;
++                }
++            }
++        }
++        return boundaryBest;
++    }
++
++    const bool drawlessPolicyCandidate =
++        pos.drawless_policy_terminal_move_candidate();
+ 
+     // Check for maximum ply reached
+     if (ss->ply >= MAX_PLY)
+         return !ss->inCheck ? evaluate(pos) : VALUE_DRAW;
+ 
+     // Safeguard against too deep recursions in quiescence search
+-    if (depth < DEPTH_QS_MAX && !ss->inCheck)
++    if (depth < DEPTH_QS_MAX && !ss->inCheck && !drawlessPolicyCandidate)
+         return evaluate(pos);
+ 
+     assert(0 <= ss->ply && ss->ply < MAX_PLY);
+@@ -1621,7 +1807,7 @@ moves_loop: // When in check, search starts from here
+     posKey = pos.key();
+     bool ttProbeHit;
+     tte = TT.probe(posKey, ttProbeHit);
+-    ss->ttHit = ttProbeHit && !drawlessRepetition;
++    ss->ttHit = ttProbeHit && !drawlessHistoryDependent;
+     ttValue = ss->ttHit ? value_from_tt(tte->value(), ss->ply, pos.rule50_count()) : VALUE_NONE;
+     ttMove = ttProbeHit ? tte->move() : MOVE_NONE;
+     pvHit = ss->ttHit && tte->is_pv();
+@@ -1660,21 +1846,106 @@ moves_loop: // When in check, search starts from here
+             (ss-1)->currentMove != MOVE_NULL ? evaluate(pos)
+                                              : -(ss-1)->staticEval;
+ 
+-        // Stand pat. Return immediately if static value is at least beta
++        futilityBase = bestValue + 155;
++    }
++
++    // Quiescence normally omits quiet moves and can prune captures by count,
++    // history, futility, or SEE. Classify every legal move for an immediate
++    // no-legal-reply terminal; on the sparse material-policy topology, also
++    // evaluate every other immediate RulesContractV1 outcome (including
++    // intersecting repetition terminals). Remember the terminal moves so the
++    // ordinary MovePicker path never searches one twice.
++    std::vector<Move> drawlessTerminalMoves;
++    size_t drawlessLegalCount = 0;
++    Value drawlessTerminalBest = -VALUE_INFINITE;
++    Move drawlessTerminalBestMove = MOVE_NONE;
++    if (drawlessHistoryDependent)
++    {
++        for (Move terminalMove : MoveList<LEGAL>(pos))
++        {
++            ++drawlessLegalCount;
++            const bool terminalCapture = pos.capture_or_promotion(terminalMove);
++            ss->currentMove = terminalMove;
++            ss->continuationHistory = &thisThread->continuationHistory[ss->inCheck]
++                                                                      [terminalCapture]
++                                                                      [history_slot(pos.moved_piece(terminalMove))]
++                                                                      [to_sq(terminalMove)];
++            if (PvNode)
++                (ss+1)->pv[0] = MOVE_NONE;
++
++            pos.do_drawless_probe_move(terminalMove, st);
++            Value terminalValue = -VALUE_INFINITE;
++            Value childResult;
++            bool childTerminal =
++                (   drawlessRepetitionCandidate
++                 || (drawlessPolicyCandidate && terminalCapture))
++                && pos.is_game_end(childResult, ss->ply + 1);
++            if (childTerminal)
++                terminalValue = -childResult;
++            else if (!pos.has_legal_move())
++            {
++                // A no-legal-move result has absolute precedence and is
++                // deliberately deferred by is_optional_game_end().
++                childTerminal = true;
++                terminalValue = -(pos.checkers() ? pos.checkmate_value(ss->ply + 1)
++                                                  : pos.stalemate_value(ss->ply + 1));
++            }
++            pos.undo_move(terminalMove);
++
++            if (Threads.stop.load(std::memory_order_relaxed))
++                return VALUE_ZERO;
++            if (!childTerminal)
++                continue;
++
++            drawlessTerminalMoves.push_back(terminalMove);
++            if (terminalValue > drawlessTerminalBest)
++            {
++                drawlessTerminalBest = terminalValue;
++                drawlessTerminalBestMove = terminalMove;
++            }
++
++            if (terminalValue > bestValue)
++            {
++                bestValue = terminalValue;
++                if (terminalValue > alpha)
++                {
++                    bestMove = terminalMove;
++                    if (PvNode)
++                        update_pv(ss->pv, terminalMove, (ss+1)->pv);
++                    if (terminalValue >= beta)
++                        return terminalValue;
++                    alpha = terminalValue;
++                }
++            }
++        }
++
++        // If every legal move ends the game, stand-pat is not an available
++        // alternative and the exact best terminal result is authoritative.
++        if (drawlessTerminalMoves.size() == drawlessLegalCount)
++        {
++            if (PvNode)
++            {
++                ss->pv[0] = drawlessTerminalBestMove;
++                ss->pv[1] = MOVE_NONE;
++            }
++            return drawlessTerminalBest;
++        }
++    }
++
++    if (!ss->inCheck)
++    {
++        // Stand pat only after immediate policy terminals have had a chance to
++        // beat the static value or cut the node.
+         if (bestValue >= beta)
+         {
+-            // Save gathered info in transposition table
+-            if (!drawlessRepetition && !ss->ttHit)
++            if (!drawlessHistoryDependent && !ss->ttHit)
+                 tte->save(posKey, value_to_tt(bestValue, ss->ply), false, BOUND_LOWER,
+-                          DEPTH_NONE, MOVE_NONE, ss->staticEval);
+-
++                          DEPTH_NONE, bestMove, ss->staticEval);
+             return bestValue;
+         }
+ 
+         if (PvNode && bestValue > alpha)
+             alpha = bestValue;
+-
+-        futilityBase = bestValue + 155;
+     }
+ 
+     const PieceToHistory* contHist[] = { (ss-1)->continuationHistory, (ss-2)->continuationHistory,
+@@ -1696,6 +1967,10 @@ moves_loop: // When in check, search starts from here
+     {
+       assert(is_ok(move));
+ 
++      if (std::find(drawlessTerminalMoves.begin(), drawlessTerminalMoves.end(), move)
++          != drawlessTerminalMoves.end())
++          continue;
++
+       givesCheck = pos.gives_check(move);
+       captureOrPromotion = pos.capture_or_promotion(move);
+ 
+@@ -1794,7 +2069,7 @@ moves_loop: // When in check, search starts from here
+     }
+ 
+     // Save gathered info in transposition table
+-    if (!drawlessRepetition)
++    if (!drawlessHistoryDependent)
+         tte->save(posKey, value_to_tt(bestValue, ss->ply), pvHit,
+                   bestValue >= beta ? BOUND_LOWER :
+                   PvNode && bestValue > oldAlpha  ? BOUND_EXACT : BOUND_UPPER,
+@@ -2140,13 +2415,20 @@ bool RootMove::extract_ponder_from_tt(Position& pos) {
+         return false;
+ 
+     pos.do_move(pv[0], st);
+-    TTEntry* tte = TT.probe(pos.key(), ttHit);
++    Value drawlessResult;
++    const bool drawlessTerminal =
++        pos.uses_drawless_rules_v1()
++        && (pos.is_game_end(drawlessResult, 1) || !pos.has_legal_move());
+ 
+-    if (ttHit)
++    if (!drawlessTerminal)
+     {
+-        Move m = tte->move(); // Local copy to be SMP safe
+-        if (MoveList<LEGAL>(pos).contains(m))
+-            pv.push_back(m);
++        TTEntry* tte = TT.probe(pos.key(), ttHit);
++        if (ttHit)
++        {
++            Move m = tte->move(); // Local copy to be SMP safe
++            if (MoveList<LEGAL>(pos).contains(m))
++                pv.push_back(m);
++        }
+     }
+ 
+     pos.undo_move(pv[0]);
+@@ -2161,6 +2443,14 @@ void Tablebases::rank_root_moves(Position& pos, Search::RootMoves& rootMoves) {
+     Cardinality = int(Options["SyzygyProbeLimit"]);
+     bool dtz_available = true;
+ 
++    // Syzygy encodes orthodox chess only. Custom variants can share an 8x8
++    // piece set while having incompatible terminal and history semantics.
++    if (Options["UCI_Variant"] != "chess")
++    {
++        Cardinality = 0;
++        return;
++    }
++
+     // Tables with fewer pieces than SyzygyProbeLimit are searched with
+     // ProbeDepth == DEPTH_ZERO
+     if (Cardinality > MaxCardinality)

@@ -411,6 +411,70 @@ data class BoardScreenState(
 )
 
 object BoardPresenter {
+    /** Builds a non-interactive board for a reviewed prefix of a completed game. */
+    fun presentReview(
+        initialFen: String,
+        moves: List<UciMove>,
+        humanSide: Side,
+        orientation: BoardOrientation = BoardOrientation.forSide(humanSide),
+        theme: BoardTheme = BoardThemes.DEFAULT,
+        pieceSet: PieceSet = PieceSets.MODERN_FLAT,
+    ): BoardScreenState {
+        val position = ChessAdapter.replay(initialFen, moves)
+        val interaction = BoardInteractionState(
+            positionMarker = position.fen(),
+            orientation = orientation,
+        )
+        val lastMove = moves.lastOrNull()?.let(ChessMove::fromUci)
+        val checkedKing = if (ChessRules.isInCheck(position)) {
+            position.pieces().single { (_, piece) ->
+                piece.side == position.sideToMove && piece.type == PieceType.KING
+            }.first
+        } else {
+            null
+        }
+        val cells = buildList {
+            for (row in 0..7) for (column in 0..7) {
+                val square = orientation.squareAt(row, column)
+                val piece = position[square]
+                add(SquareView(
+                    square = square,
+                    displayRow = row,
+                    displayColumn = column,
+                    piece = piece?.let { PieceView(it.side, it.type, pieceSet.assetKey(it)) },
+                    selected = false,
+                    target = null,
+                    lastMove = lastMove?.let { square == it.from || square == it.to } == true,
+                    inCheck = checkedKing == square,
+                    threatened = false,
+                    accessibility = SquareAccessibilityFacts(
+                        square = square,
+                        piece = piece,
+                        target = null,
+                        inCheck = checkedKing == square,
+                        threatened = false,
+                    ),
+                ))
+            }
+        }
+        return BoardScreenState(
+            positionMarker = position.fen(),
+            plyCount = moves.size,
+            humanSide = humanSide,
+            sideToMove = position.sideToMove,
+            cells = cells,
+            interaction = interaction,
+            interactive = false,
+            preselectionEnabled = false,
+            phase = CoordinatorPhase.COMPLETED,
+            status = BoardStatus.COMPLETED,
+            theme = theme,
+            pieceSet = pieceSet,
+            promotionPrompt = null,
+            moveMotion = null,
+        )
+    }
+
     fun present(
         snapshot: CoordinatorSnapshot,
         config: GameConfig,

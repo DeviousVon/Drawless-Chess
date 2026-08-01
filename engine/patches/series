@@ -1,2 +1,4 @@
 0001-drawless-forced-repetition-v1.patch
 0002-fix-negative-elo-rounding.patch
+0003-drawless-rules-v1-native-parity.patch
+0004-preserve-drawless-deeper-search-boundaries.patch

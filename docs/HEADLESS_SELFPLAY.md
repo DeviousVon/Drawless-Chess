@@ -44,6 +44,13 @@ Run commands from PowerShell 7 at the repository root:
 Use `--no-build` only after an unchanged build has passed validation. The runner still checks the
 artifact hashes and source manifests before starting a game.
 
+Campaign configuration schema 2 requires `bareKing=continue|loses`. The selected value is part of
+the exact `RulesContractV1` carried to the engine and the campaign fingerprint, so a root with one
+bare king is terminal only under `loses`. Puzzle-candidate and puzzle-verification records are also
+schema 2 and include the bare-king policy in their rule maps and deterministic IDs. Schema-v1
+campaigns, candidates, and verifications are intentionally incompatible: migrate the configuration
+and rerun, re-mine, or re-verify instead of combining old and new evidence.
+
 ## Controlled duration soak
 
 The Windows supervisor runs complete production-budget same-level and adjacent-level rounds until
@@ -156,7 +163,20 @@ Do not interpret or expand a campaign unless all of these pass in order:
 The harness makes no Play Console changes, signs no Android bundle, and does not change the app's
 version or release track.
 
-## Verification recorded July 16, 2026
+## Patch-v2 validation recorded July 29, 2026
+
+The full WSL `--validate-only` lane passed after rebuilding the exact patch-v2 Linux engine and
+Kotlin runner. It verified locked artifact identities, the runner tests, every exact rule fixture,
+and all shipped schema-2 campaign configurations. The configuration, report, puzzle-candidate,
+and puzzle-verification paths all carry `bareKing`; locale-neutral fingerprints remain stable, and
+schema-v1 evidence is rejected instead of being mixed into a v2 run. The soak supervisor's
+production-profile validation also requires the schema-2 bare-king value. This checkpoint is
+harness validation, not a new soak-duration or strength-calibration result.
+
+## Historical verification recorded July 16, 2026
+
+This evidence predates the schema-v2 bare-king field and current patch-v2 native identity. It is
+retained as historical harness/soak evidence, not proof for the current candidate.
 
 - Production core: 225 Kotlin tests passed.
 - Native integration: pinned-source structure plus JNI lifecycle, identity, rules, search, and

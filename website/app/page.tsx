@@ -10,11 +10,12 @@ import {
 export const metadata: Metadata = {
   title: "Every game has a winner",
   description:
-    "Offline chess with decisive no-draw rules, seven illustrated opponents, and no ads or tracking.",
+    "Preview the next closed-test update: eight opponents and Game Review Beta, powered on-device by Drawless-tuned Fairy-Stockfish.",
   alternates: { canonical: "/" },
 };
 
 const opponents = [
+  { id: "adaptive", name: "Vesper", level: "Adaptive" },
   { id: "learner", name: "Mira", level: "Learner" },
   { id: "casual", name: "Theo", level: "Casual" },
   { id: "challenger", name: "Rhea", level: "Challenger" },
@@ -55,25 +56,26 @@ export default function Home() {
             <h1 id="hero-title">Every game has a winner.</h1>
             <p className="hero-lede">
               Familiar chess, reworked to replace routine draws with decisive
-              results. Play seven illustrated opponents completely offline—no
-              account, ads, or tracking.
+              results. The next closed-test update adds Vesper as the eighth
+              opponent and Game Review Beta, powered on your device by the
+              Drawless-tuned Fairy-Stockfish engine—no account, ads, or tracking.
             </p>
             <div className="button-row">
               <a className="button button-primary" href="#beta">
-                Join the beta
+                Join the closed test
               </a>
-              <a className="button button-secondary" href="#rules">
-                How Drawless works
+              <a className="button button-secondary" href="#review">
+                Preview Game Review
               </a>
             </div>
             <div className="trust-row" aria-label="Product highlights">
               <span>Android</span>
               <span>Single player</span>
-              <span>Completely offline</span>
+              <span>Drawless-tuned Fairy-Stockfish</span>
             </div>
             <p className="release-note">
               <span className="status-dot" aria-hidden="true" /> Closed Android
-              beta now open
+              test open · major update in preparation
             </p>
           </div>
 
@@ -96,7 +98,6 @@ export default function Home() {
                 />
               </picture>
             </div>
-            <div className="visual-tag visual-tag-top">Actual app screen</div>
             <div className="visual-tag visual-tag-bottom">
               <span aria-hidden="true">♟</span> Material decides after 50 moves
             </div>
@@ -107,21 +108,90 @@ export default function Home() {
           <div className="section-shell proof-strip-inner">
             <span>Checkmate still wins</span>
             <span>Five board themes</span>
-            <span>Seven opponent levels</span>
-            <span>Games save locally</span>
+            <span>Eight opponents</span>
+            <span>On-device Game Review</span>
+          </div>
+        </section>
+
+        <section className="section review-section" id="review" aria-labelledby="review-title">
+          <div className="section-shell review-layout">
+            <div className="review-copy">
+              <p className="eyebrow">Next major update · Game Review Beta</p>
+              <h2 id="review-title">The game ends. The learning starts.</h2>
+              <p className="review-lede">
+                Immediately after the result, the Drawless-tuned Fairy-Stockfish
+                engine analyzes your decisions with the exact rules you played.
+                Everything runs on your device—there is no game upload or cloud
+                analysis. Reviews are not saved as a review history.
+              </p>
+              <ol className="review-feature-list">
+                <li>
+                  <span aria-hidden="true">01</span>
+                  <div>
+                    <h3>Grades focused on your choices</h3>
+                    <p>
+                      See Best, Good, Inaccuracy, Mistake, and Blunder grades
+                      for the decisions you controlled.
+                    </p>
+                  </div>
+                </li>
+                <li>
+                  <span aria-hidden="true">02</span>
+                  <div>
+                    <h3>Better moves, with context</h3>
+                    <p>
+                      Compare stronger alternatives, short suggested lines,
+                      and the engine evaluation from your side.
+                    </p>
+                  </div>
+                </li>
+                <li>
+                  <span aria-hidden="true">03</span>
+                  <div>
+                    <h3>Replay the turning points</h3>
+                    <p>
+                      Step through every position, jump between issues, flip
+                      the board, and follow the better-move arrow.
+                    </p>
+                  </div>
+                </li>
+              </ol>
+            </div>
+
+            <figure className="review-preview">
+              <div className="review-screenshot-frame">
+                <picture>
+                  <source
+                    type="image/webp"
+                    srcSet="/media/game-review-360.webp 360w, /media/game-review-720.webp 720w"
+                    sizes="(max-width: 760px) calc(100vw - 60px), 452px"
+                  />
+                  <img
+                    src="/media/game-review-720.webp"
+                    width="720"
+                    height="1100"
+                    alt="Drawless Chess Game Review Beta on the Imperial Marble board, grading f3 as a Blunder, recommending c4, and showing the c4 Nc6 Nc3 e5 line, evaluation, and better-move arrow."
+                    loading="lazy"
+                    decoding="async"
+                  />
+                </picture>
+              </div>
+              <figcaption>Game Review remains in beta · current Android test build</figcaption>
+            </figure>
           </div>
         </section>
 
         <section className="section section-shell beta-section" id="beta" aria-labelledby="beta-title">
           <div className="beta-panel">
             <div className="beta-copy">
-              <p className="eyebrow">Closed Android beta</p>
+              <p className="eyebrow">Closed Android test</p>
               <h2 id="beta-title">Play it before launch.</h2>
               <p>
-                Help shape Drawless Chess while the public release is in
-                preparation. Beta access takes two quick steps.
+                The current Play build remains in the closed test. The major
+                update with Vesper and Game Review Beta is still in preparation
+                for that track. Access takes two quick steps.
               </p>
-              <span className="beta-badge">Temporary beta access</span>
+              <span className="beta-badge">Current build on Play · major update next</span>
             </div>
             <div className="beta-flow">
               <ol className="beta-steps">
@@ -139,7 +209,7 @@ export default function Home() {
                     rel="noreferrer"
                     aria-label="Join the testing group (opens in a new tab)"
                   >
-                    Join the testing group <span aria-hidden="true">↗</span>
+                    Join the closed test <span aria-hidden="true">↗</span>
                   </a>
                 </li>
                 <li className="beta-step">
@@ -147,16 +217,16 @@ export default function Home() {
                   <h3>Install from Google Play</h3>
                   <p>
                     After joining, open the private Play listing with that same
-                    account and install the beta.
+                    account and install the current test build.
                   </p>
                   <a
                     className="button button-gold"
                     href={BETA_DOWNLOAD_URL}
                     target="_blank"
                     rel="noreferrer"
-                    aria-label="Download the beta from Google Play (opens in a new tab)"
+                    aria-label="Install the current test build from Google Play (opens in a new tab)"
                   >
-                    Download the beta <span aria-hidden="true">↗</span>
+                    Install the current test build <span aria-hidden="true">↗</span>
                   </a>
                 </li>
               </ol>
@@ -235,7 +305,10 @@ export default function Home() {
             <article>
               <span className="feature-mark" aria-hidden="true">C</span>
               <h3>Keep your momentum</h3>
-              <p>Resume, hints, undo, rematches, local records, and streaks.</p>
+              <p>
+                Resume, hints, undo, rematches, local records, and streaks. Launch
+                Game Review from the completed result; reviews are not saved as a history.
+              </p>
             </article>
           </div>
         </section>
@@ -243,8 +316,8 @@ export default function Home() {
         <section className="section section-shell opponents-section" id="opponents" aria-labelledby="opponents-title">
           <div className="split-heading">
             <div>
-              <p className="eyebrow">Seven opponents</p>
-              <h2 id="opponents-title">From Learner to Grandmaster.</h2>
+              <p className="eyebrow">Eight opponents</p>
+              <h2 id="opponents-title">Meet Vesper. Then climb the ranks.</h2>
             </div>
             <p>
               Each illustrated opponent has a distinct playing strength and
@@ -351,11 +424,12 @@ export default function Home() {
           <p className="eyebrow">Drawless Chess for Android</p>
           <h2 id="cta-title">Ready when the position isn’t.</h2>
           <p>
-            The public release is still in preparation, but the closed beta is
-            open now. Join with the Google account you use in the Play Store.
+            The public release is still in preparation. The current Play build
+            remains in the closed test, with the major update coming to that
+            track next. Join with the Google account you use in the Play Store.
           </p>
           <div className="button-row button-row-center">
-            <a className="button button-primary" href="#beta">Join the beta</a>
+            <a className="button button-primary" href="#beta">Join the closed test</a>
             <a className="button button-secondary" href={SOURCE_URL}>View the source</a>
           </div>
         </section>

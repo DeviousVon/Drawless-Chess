@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "patchVersion": 1,
+  "patchVersion": 2,
   "upstream": {
     "repository": "https://github.com/fairy-stockfish/Fairy-Stockfish.git",
     "commit": "fb78cb561aa01708338e35b3dc3b65a42149a3c4",
@@ -20,6 +20,18 @@
       "file": "0002-fix-negative-elo-rounding.patch",
       "sha256": "79c2db61e316366ab4d2c5f298bd6fb4419a15222161c13036f95676e71031f3",
       "resultTree": "80208e5f35549b88505df983e4bc0f7621083fd4"
+    },
+    {
+      "order": 3,
+      "file": "0003-drawless-rules-v1-native-parity.patch",
+      "sha256": "cf13597420c6a95e8e137bd5acb306387d9c6c57b53e3000b9609fab3aa64d9b",
+      "resultTree": "4d5381d09738cbe93ce9df23dff2ca357e269b39"
+    },
+    {
+      "order": 4,
+      "file": "0004-preserve-drawless-deeper-search-boundaries.patch",
+      "sha256": "22c8327ed64a2d7711695d372d817a6e037bca5fdbfc24ad812c1e869e59bedd",
+      "resultTree": "bf58452cf6bb2254050e7aa442d2b23f3664aaec"
     }
   ],
   "activation": {
@@ -29,7 +41,34 @@
   },
   "binaryIdentity": {
     "option": "Drawless Patch Version",
-    "uciDeclaration": "option name Drawless Patch Version type spin default 1 min 1 max 1"
+    "uciDeclaration": "option name Drawless Patch Version type spin default 2 min 2 max 2"
+  },
+  "rulesContractV1": {
+    "presetOption": "UCI_Variant",
+    "presetValues": ["drawless", "escape"],
+    "deadPositionOption": {
+      "name": "Drawless Dead Position",
+      "default": "material-victory",
+      "values": ["material-victory", "final-capture-victory"]
+    },
+    "fiftyMoveOption": {
+      "name": "Drawless Fifty Move",
+      "default": "material-victory",
+      "values": ["disabled", "completing-player-loses", "forced-move-exception", "material-victory"]
+    },
+    "bareKingOption": {
+      "name": "Drawless Bare King",
+      "default": "bare-king-loses",
+      "values": ["continue", "bare-king-loses"]
+    },
+    "fixed": {
+      "schemaVersion": 1,
+      "repetitionThreshold": 3,
+      "completingPlayerLosesRepetition": true,
+      "forcedRepetitionException": true,
+      "materialValues": {"pawn": 1, "knight": 3, "bishop": 3, "rook": 5, "queen": 9}
+    },
+    "terminalPrecedence": ["no-legal-move", "repetition", "bare-king", "known-dead-position", "fifty-move"]
   },
   "transpositionTablePolicy": "move-ordering-only-no-bound-read-or-write",
   "license": "GPL-3.0-or-later"

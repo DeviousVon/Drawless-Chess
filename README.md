@@ -16,8 +16,8 @@ The design and release controls are documented here:
 - `docs/ADR-003-ANDROID-ENGINE-RUNTIME.md` — accepted JNI runtime and GPL release boundary.
 - `docs/NATIVE_ENGINE.md` — pinned patch, native package boundary, verification, and release gates.
 - `docs/ANDROID_MACHINE_VERIFICATION.md` — pinned Android toolchain and device evidence gate.
-- `docs/NEXT_RELEASE_GATES.md` — mandatory code, localization, optimization, version, and Play
-  country-targeting gates for the release after `0.2.0`.
+- `docs/NEXT_RELEASE_GATES.md` — mandatory code, localization, optimization, version, upgrade,
+  and Play country-targeting gates for current and later releases.
 - `contracts/` — language-neutral JSON contracts for rules and saved games.
 
 The Android foundation lives under `android/` and includes a dependency-free Kotlin
@@ -39,7 +39,10 @@ See `docs/BOARD_PRESENTATION.md`.
 The Compose application adds Quick Play, custom/advanced setup, a first-run rules guide,
 Room resume, clocks, SAN history, gestures, original code-native pieces, sampled close-board
 move/capture sounds, five persisted visual themes, post-game results, rematches, and local
-career statistics backed by immutable completed-game records. Its verified and unverified
+  career statistics backed by immutable completed-game records. From the current completed-game
+  result, players can immediately open a beta Game Review with move grades, better-move
+  suggestions, short principal variations, and an interactive move-by-move board replay. Review
+  output is not persisted as a history. Its verified and unverified
 boundaries are documented in `docs/COMPOSE_APP.md`.
 
 The production engine-facing core now adds strict UCI parsing, lifecycle and timeout
@@ -49,16 +52,18 @@ boundary. See `docs/ENGINE_RUNTIME.md`.
 
 The forced-repetition exception is an actual pinned Fairy-Stockfish patch with both-color
 parity and history isolation. The Android `:engine` module contains the in-process JNI
-runtime, and the app selects it by default without silent fallback. The native host gate
-and real Android instrumentation now pass: packaged JNI load, forced-repetition search,
-close, and sequential restart were exercised independently on an API-36 x86-64 emulator
-and an API-33 ARM64 physical tablet. See
+runtime, and the app selects it by default without silent fallback. Gameplay and hint work use
+the main app process; Game Review binds to a dedicated `:review_engine` app process so its
+process-global native state and coordinator launch gate are not shared with live play. Current
+patch-v2 focused instrumentation passes on the API-36 x86-64 emulator and the R6 ARM64 tablet.
+Exact clean, optimized 1.0.0 candidate verification on both designated physical devices remains
+a release gate. See
 `docs/FORCED_REPETITION_PATCH.md`, `docs/NATIVE_ENGINE.md`, and
 `docs/ADR-003-ANDROID-ENGINE-RUNTIME.md`.
 
 The project includes a checksum-locked Gradle 9.4.1 wrapper and a stable API-36 machine
-gate. The required x86-64 emulator and ARM64 physical-device runs have both passed for the
-current private-test checkpoint. Windows users can reproduce the same evidence gate
+gate. Historical x86-64 emulator and ARM64 physical-device runs are retained as private-test
+evidence; they do not substitute for an exact 1.0.0 candidate run. Windows users can reproduce the gate
 directly in PowerShell 7—without WSL—using
 `pwsh -NoProfile -NonInteractive -ExecutionPolicy Bypass -File scripts/android-machine-verify.ps1`.
 The Windows gate accepts a complete stable build JDK 17 or 21, including Android Studio's
@@ -67,34 +72,27 @@ SDK/JDK setup and commands for both host lanes are in `docs/ANDROID_MACHINE_VERI
 
 ## Current verification checkpoint
 
-- `npm test` passes 37 JavaScript contract and adjudication tests.
-- `npm run test:kotlin` passes 223 JVM/core-and-endpoint tests.
-- `npm run test:audio` is a required gate over all 104 sampled effects: encoded and decoded
-  uniqueness, hashes, source pins, duration bounds, silence/clipping, format, and CC0/MIT notices.
-- The native engine instrumentation passes once on each runtime ABI: an Android 16/API-36
-  x86-64 emulator and an Android 13/API-33 ARM64 tablet.
-- The accepted 51-test app instrumentation suite passes twice from fresh processes against the
-  exact clean APK pair on the tablet, emulator, and Pixel 9 Pro XL. The targeted forfeit flow
-  also passes independently on all three. The tests load
-  every effect through Android `MediaExtractor` and `SoundPool`. The suite covers
-  Room restore/stale-write protection, rapid game replacement, native hint then bot analysis,
-  responsive layouts, options, captures/history, themes/pieces, rematch, completion feedback,
-  versioned game scoring, stable opponent identity across ladder changes, immutable completed-game
-  history, Room v1-to-v2 migration, and career stats.
-- The tested debug APK is 17,709,024 bytes with SHA-256
-  `25a252a21b65a768c19b74e1dfecdb4ee7af2093ee0761c9fa06e3c85d0b87ff`; the exact acceptance
-  test APK used for the 51-test device runs is 1,355,590 bytes with SHA-256
-  `79d308e03b858b7ae500574ace19287336aef98fdf801037b9e8c7ccb9c75d0b`. The later
-  screenshot-only instrumentation harness leaves the app APK unchanged and produces a
-  1,470,750-byte test APK with SHA-256
-  `41e14c71596c5946aa9e2bb073e31823efcf86f4478cda758059e1ba652aae0c`; its deterministic
-  capture flow and the complete 51-test suite both pass on the emulator and tablet. The debug app is
-  installed on the tablet under its separate debug package, with the production package preserved.
-  The current unsigned release APK builds successfully at 12,736,428 bytes with SHA-256
-  `e4b2215919e220d9e6e21159c6987b16ea0f7f3049b5659bdb0dffcf77e71bda`.
+- `npm test` passes 42 JavaScript contract and adjudication tests.
+- `npm run test:kotlin` passes 357 JVM/core-and-endpoint tests.
+- `npm run test:audio` verifies all 103 sampled effects and 18 retained sources, including
+  decoded uniqueness, hashes, source pins, duration bounds, silence/clipping, format, and notices.
+- The complete host release suite passes licensing, UI structure, localization, engine parity,
+  pinned native-source integrity, and Android structure gates.
+- The patch-v2 fifty-move/Game Review instrumentation passes on the API-36 x86-64 emulator and
+  the R6 ARM64 tablet. The designated Pixel is still required for the exact candidate device gate.
+- A same-search JNI strength harness passed 332 games and 3,320 decisions across the emulator and
+  R6 with zero native bestmove, ponder, legality, or strength/configuration mismatches. It covered
+  all eight visible opponents plus adaptive, custom, historical-Elo, and raw-Skill boundaries; it
+  was adapter evidence, not an Elo calibration or a Pixel run.
+- Bob accepted gameplay responsiveness, review latency, and difficulty consistency as RC1 on debug
+  APK SHA-256 `634F1F3B334D0E04FC7C15CDF6A4F22E541A990B6EF27B3F309F2237B0DEE173`, installed and launched on
+  the Pixel and R6. That APK came from the earlier 355-test tree and does not verify the later
+  `GameCoordinator` changes in the current 357-test worktree.
+- Older APK hashes and 51-test device runs remain historical engineering evidence in the detailed
+  verification documents; they are not presented as evidence for 1.0.0.
 
-These are engineering artifacts, not a public release. Distribution authorization remains
-false, and no signed APK/AAB is claimed.
+No signed 1.0.0 APK/AAB is claimed until the exact source, signing-certificate, and both-device
+release gates pass.
 
 ## Run the rules tests
 
@@ -144,7 +142,7 @@ source for the exact binary.
 Create the whole-project source archive only from the exact release tree:
 
 ```bash
-npm run bundle:source -- release/drawless-chess-0.3.0-source.tar.gz
+npm run bundle:source -- release/drawless-chess-1.0.0-source.tar.gz
 ```
 
 The archive includes the complete prepared Fairy-Stockfish checkout and all Drawless

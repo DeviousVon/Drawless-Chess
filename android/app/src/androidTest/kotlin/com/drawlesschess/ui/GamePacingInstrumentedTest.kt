@@ -7,6 +7,7 @@ import com.drawlesschess.core.Side
 import com.drawlesschess.core.TimeControl
 import com.drawlesschess.core.chess.ChessPosition
 import com.drawlesschess.core.coordinator.GameConfig
+import com.drawlesschess.core.engine.BotDifficultyCatalog
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -47,6 +48,17 @@ class GamePacingInstrumentedTest {
     }
 
     @Test
+    fun quickPlayDrawsAFreshSideAndCanResolveToEitherAssignment() {
+        val opponent = BotDifficultyCatalog.named("challenger")
+        val selection = quickPlaySetup(opponent)
+
+        assertEquals(StartingColor.RANDOM, selection.startingColor)
+        assertEquals(opponent, selection.botLevel)
+        assertEquals(Side.WHITE, selection.resolveForNewGame { true }.humanSide)
+        assertEquals(Side.BLACK, selection.resolveForNewGame { false }.humanSide)
+    }
+
+    @Test
     fun resumedConcreteSideDoesNotRerollOnRematch() {
         val checkpointConfig = GameConfig(
             gameId = "resume-black",
@@ -68,5 +80,25 @@ class GamePacingInstrumentedTest {
         assertEquals(Side.BLACK, resumed.humanSide)
         assertEquals(StartingColor.BLACK, resumed.rematchSelection.startingColor)
         assertEquals(0, randomCalls)
+    }
+
+    @Test
+    fun resumedAdaptiveGameKeepsItsIdentityAndFrozenStrength() {
+        val checkpointConfig = GameConfig(
+            gameId = "adaptive-resume",
+            initialFen = ChessPosition.START_FEN,
+            rules = SetupSelection().rules(),
+            mode = GameMode.CASUAL,
+            timeControl = TimeControl.Untimed,
+            humanSide = Side.WHITE,
+            engineStrength = EngineStrength.ApproximateElo(973),
+            engineLimits = EngineLimits(moveTimeMillis = 350),
+            opponentLevelId = BotDifficultyCatalog.ADAPTIVE_LEVEL_ID,
+        )
+
+        val resumed = checkpointConfig.toSetupSelection()
+
+        assertEquals(BotDifficultyCatalog.ADAPTIVE_LEVEL_ID, resumed.botLevel.id)
+        assertEquals(973, resumed.botLevel.approximateElo)
     }
 }

@@ -31,8 +31,7 @@ fun main(arguments: Array<String>) {
     val clips = linkedMapOf(
         "piece_move" to renderMoveSound(capture = false),
         "piece_capture" to renderMoveSound(capture = true),
-        "capture_crush" to renderCaptureCrushSound(),
-        "check_tick" to renderCheckTickSound(),
+        "check_mechanical" to renderCheckMechanicalSound(),
         "victory_fireworks" to renderCompletionSequence(CompletionEffectTimeline.Victory),
         "defeat_glass" to renderCompletionSequence(CompletionEffectTimeline.Defeat),
     )
@@ -87,8 +86,8 @@ fun main(arguments: Array<String>) {
 private fun validate(clips: Map<String, ShortArray>, metrics: List<AudioMetrics>) {
     check(renderMoveSound(capture = false).contentEquals(clips.getValue("piece_move")))
     check(renderMoveSound(capture = true).contentEquals(clips.getValue("piece_capture")))
-    check(renderCaptureCrushSound().contentEquals(clips.getValue("capture_crush")))
-    check(renderCheckTickSound().contentEquals(clips.getValue("check_tick")))
+    check(renderCaptureCrushSound().contentEquals(clips.getValue("piece_capture")))
+    check(renderCheckMechanicalSound().contentEquals(clips.getValue("check_mechanical")))
     check(renderCompletionSequence(CompletionEffectTimeline.Victory).contentEquals(clips.getValue("victory_fireworks")))
     check(renderCompletionSequence(CompletionEffectTimeline.Defeat).contentEquals(clips.getValue("defeat_glass")))
 
@@ -96,21 +95,19 @@ private fun validate(clips: Map<String, ShortArray>, metrics: List<AudioMetrics>
         check(metric.durationSeconds in 0.45..2.20) { "Unexpected duration for ${metric.name}" }
         check(metric.peak in 0.65..0.85) { "Unexpected peak for ${metric.name}" }
         check(metric.rms >= 0.035) { "Near-silent output for ${metric.name}" }
-        if (metric.name != "check_tick") {
+        if (metric.name != "check_mechanical") {
             check(metric.nonSilentPercent >= 60.0) { "Sparse/silent output for ${metric.name}" }
         } else {
-            check(metric.nonSilentPercent in 8.0..35.0) { "Check cue does not read as discrete ticks" }
+            check(metric.nonSilentPercent in 35.0..90.0) { "Check cue does not read as one mechanical action" }
         }
         check(metric.clippedSamples == 0) { "Clipped output for ${metric.name}" }
         check(metric.brightness in 0.65..1.40) { "Unexpected spectrum for ${metric.name}" }
     }
     val byName = metrics.associateBy(AudioMetrics::name)
     check(byName.getValue("piece_capture").rms > byName.getValue("piece_move").rms * 1.45)
-    check(byName.getValue("capture_crush").rms > byName.getValue("piece_move").rms * 1.35)
     check(byName.getValue("victory_fireworks").brightness > byName.getValue("defeat_glass").brightness * 1.08)
     check(abs(normalizedCorrelation(clips.getValue("piece_move"), clips.getValue("piece_capture"))) < 0.20)
-    check(abs(normalizedCorrelation(clips.getValue("piece_move"), clips.getValue("capture_crush"))) < 0.20)
-    check(abs(normalizedCorrelation(clips.getValue("piece_move"), clips.getValue("check_tick"))) < 0.12)
+    check(abs(normalizedCorrelation(clips.getValue("piece_move"), clips.getValue("check_mechanical"))) < 0.12)
     check(abs(normalizedCorrelation(clips.getValue("victory_fireworks"), clips.getValue("defeat_glass"))) < 0.20)
 }
 

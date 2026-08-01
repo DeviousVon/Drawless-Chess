@@ -62,18 +62,18 @@ internal object SampledSoundCatalog {
         get() = moves[16]
 
     val captures = intArrayOf(
-        R.raw.chess_capture_wood_01,
-        R.raw.chess_capture_wood_02,
-        R.raw.chess_capture_wood_03,
-        R.raw.chess_capture_wood_04,
-        R.raw.chess_capture_wood_05,
-        R.raw.chess_capture_wood_06,
-        R.raw.chess_capture_wood_07,
-        R.raw.chess_capture_wood_08,
-        R.raw.chess_capture_wood_09,
-        R.raw.chess_capture_wood_10,
-        R.raw.chess_capture_wood_11,
-        R.raw.chess_capture_wood_12,
+        R.raw.chess_capture_crush_01,
+        R.raw.chess_capture_crush_02,
+        R.raw.chess_capture_crush_03,
+        R.raw.chess_capture_crush_04,
+        R.raw.chess_capture_crush_05,
+        R.raw.chess_capture_crush_06,
+        R.raw.chess_capture_crush_07,
+        R.raw.chess_capture_crush_08,
+        R.raw.chess_capture_crush_09,
+        R.raw.chess_capture_crush_10,
+        R.raw.chess_capture_crush_11,
+        R.raw.chess_capture_crush_12,
     )
 
     val castles = intArrayOf(
@@ -118,12 +118,10 @@ internal object SampledSoundCatalog {
         R.raw.chess_glass_shards_03,
     )
 
-    val checkAccents = intArrayOf(
-        R.raw.chess_check_crystal_01,
-        R.raw.chess_check_crystal_02,
-        R.raw.chess_check_crystal_03,
-        R.raw.chess_check_crystal_04,
-    )
+    // Ordinary check, en-passant, and checkmate each have a single authored identity.
+    val check = R.raw.chess_check_mechanical_02
+    val enPassant = R.raw.chess_en_passant_brick_01
+    val checkmate = R.raw.chess_checkmate_stone_01
 
     val promotions = intArrayOf(
         R.raw.chess_promotion_01,
@@ -157,5 +155,23 @@ internal object SampledSoundCatalog {
         R.raw.chess_undo_03,
     )
 
-    val all = arrayOf(moves, captures, castles, fireworkLow, fireworkMid, fireworkHigh, glassImpact, glassFracture, glassShards, checkAccents, promotions, hints, lowTime, gameStart, undo).flatMap { it.asIterable() }.distinct().toIntArray()
+    val all = arrayOf(
+        moves,
+        captures,
+        castles,
+        fireworkLow,
+        fireworkMid,
+        fireworkHigh,
+        glassImpact,
+        glassFracture,
+        glassShards,
+        intArrayOf(check),
+        intArrayOf(enPassant),
+        intArrayOf(checkmate),
+        promotions,
+        hints,
+        lowTime,
+        gameStart,
+        undo,
+    ).flatMap { it.asIterable() }.distinct().toIntArray()
 }

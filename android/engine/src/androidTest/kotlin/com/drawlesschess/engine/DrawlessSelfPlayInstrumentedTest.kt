@@ -97,8 +97,8 @@ class DrawlessSelfPlayInstrumentedTest {
             .put("report_path", report.absolutePath)
             .put(
                 "interpretation",
-                "Stalemate/repetition searches are variant-aware; dead-position and " +
-                    "50-move policies are app-adjudicated after policy-blind engine search.",
+                "Every RulesContractV1 policy and its terminal precedence is applied inside " +
+                    "native search; app adjudication independently confirms each played move.",
             )
         report.appendText(summary.toString() + "\n", Charsets.UTF_8)
         Log.i(LOG_TAG, summary.toString())
@@ -253,10 +253,15 @@ class DrawlessSelfPlayInstrumentedTest {
                 .put("drawless_patch", BuildConfig.DRAWLESS_PATCH_VERSION)
                 .put("bridge_abi", BuildConfig.NATIVE_BRIDGE_ABI_VERSION))
             .put("engine_rule_awareness", JSONObject()
+                .put("rules_contract_schema", 1)
+                .put("search_branch_scope", "full")
                 .put("stalemate", true)
                 .put("repetition", true)
-                .put("dead_position_policy", false)
-                .put("fifty_move_policy", false))
+                .put("bare_king_policy", true)
+                .put("dead_position_policy", true)
+                .put("fifty_move_policy", true)
+                .put("material_tie_break", true)
+                .put("terminal_precedence", true))
         report.writeText(header.toString() + "\n", Charsets.UTF_8)
         return report
     }

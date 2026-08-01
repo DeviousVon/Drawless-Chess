@@ -12,7 +12,9 @@
     <string name="action_dismiss">Fechar</string>
     <string name="action_try_again">Tentar novamente</string>
     <string name="action_home">Início</string>
+    <string name="action_quick_play">Partida rápida</string>
     <string name="action_rematch">Revanche</string>
+    <string name="action_review_game">Analisar partida</string>
     <string name="action_keep_playing">Continuar jogando</string>
     <string name="action_theme">Tema</string>
     <string name="label_white">Brancas</string>
@@ -61,10 +63,10 @@
     <string name="rules_fifty_move">• Após 50 lances sem movimento de peão ou captura, os pontos de material decidem o vencedor.</string>
     <string name="action_got_it">Entendi</string>
     <string name="license_title">Software de código aberto</string>
-    <string name="license_body">Drawless Chess é licenciado sob a GNU GPL versão 3 ou posterior. O áudio amostrado inclui gravações de xadrez CC0 de JJTaynos e mh2o, fogos de artifício CC0 de Rudmer_Rotteveel e gravações ion.sound de Denis Ineshin sob licença MIT. O código-fonte correspondente exato e os avisos de terceiros acompanham a versão oficial v%1$s.</string>
+    <string name="license_body">Drawless Chess é licenciado sob a GNU GPL versão 3 ou posterior. O motor executado no aparelho é uma versão modificada do Fairy-Stockfish, derivado do Stockfish e distribuído sob GPL-3.0-or-later. O áudio amostrado inclui gravações de xadrez CC0 de JJTaynos e mh2o, fogos de artifício CC0 de Rudmer_Rotteveel e gravações ion.sound de Denis Ineshin sob licença MIT. O código-fonte correspondente exato e os avisos de terceiros acompanham a versão oficial v%1$s.</string>
     <string name="license_view_source">Ver código-fonte</string>
     <string name="privacy_title">Privacidade</string>
-    <string name="privacy_body">Drawless Chess funciona totalmente offline. A BB_Games não coleta, transmite, compartilha nem vende dados pessoais. Partidas salvas, histórico de partidas concluídas, estatísticas locais e configurações ficam armazenados no seu dispositivo e podem ser incluídos nos backups do Android se você os ativar; a BB_Games não pode acessar esses backups. Dúvidas sobre privacidade: realitymaster@protonmail.ch</string>
+    <string name="privacy_body">Drawless Chess funciona totalmente offline. A BB_Games não coleta, transmite, compartilha nem vende dados pessoais. Partidas salvas, histórico de partidas concluídas, estatísticas locais e configurações ficam armazenados no seu dispositivo e podem ser incluídos nos backups do Android se você os ativar; a BB_Games não pode acessar esses backups. Dúvidas sobre privacidade: support@drawlesschess.com</string>
     <string name="privacy_view_policy">Ver política</string>
 
     <!-- Configuração da partida -->
@@ -116,6 +118,10 @@
     <string name="opponent_lucian_epithet">Grande mestre cortês</string>
     <string name="opponent_lucian_name">Lucian</string>
     <string name="opponent_lucian_personality">Econômico nas palavras, generoso na vitória e concentrado desde o primeiro lance.</string>
+    <string name="opponent_vesper_name">Vesper</string>
+    <string name="opponent_vesper_epithet">Sua nêmesis</string>
+    <string name="opponent_vesper_personality">Vesper observa você, não esquece nada e sempre retorna com um plano.</string>
+    <string name="difficulty_adaptive">Adaptativo</string>
     <string name="difficulty_learner">Aprendiz</string>
     <string name="difficulty_casual">Casual</string>
     <string name="difficulty_challenger">Desafiante</string>
@@ -130,6 +136,9 @@
     <string name="difficulty_description_expert">Jogo preciso e incisivo para jogadores experientes.</string>
     <string name="difficulty_description_master">Um desafio estratégico exigente.</string>
     <string name="difficulty_description_grandmaster">O adversário mais forte disponível.</string>
+    <string name="difficulty_description_adaptive">Ajusta-se ao seu nível atual e evolui após cada partida sem ajuda.</string>
+    <string name="adaptive_status_provisional">Descobrindo seu nível · perto de %1$d · %2$d/10 partidas</string>
+    <string name="adaptive_status_matched">Adaptado a cerca de %1$d</string>
 
     <!-- Temas -->
     <string name="theme_choose">Escolha um tema</string>
@@ -239,6 +248,56 @@
     <string name="game_material_score">Pontuação %1$d</string>
     <string name="game_none">Nenhuma</string>
     <string name="game_promote_pawn">Promover peão</string>
+
+    <!-- Análise da partida (beta) -->
+    <string name="review_title">Análise da partida</string>
+    <string name="review_beta">Beta</string>
+    <string name="review_analyzing">Analisando seus lances…</string>
+    <string name="review_progress">Seus lances analisados: %1$d de %2$d</string>
+    <string name="review_progress_accessibility">Análise dos seus lances %1$d%% concluída</string>
+    <string name="review_complete">Análise concluída</string>
+    <string name="review_complete_body">Seus lances: %1$d. Lances avaliados: %2$d.</string>
+    <string name="review_summary_title">Sua análise</string>
+    <string name="review_summary_player_side">Você (%1$s)</string>
+    <string name="review_summary_graded">Lances avaliados: %1$d</string>
+    <string name="review_summary_grade_count">%1$s: %2$d</string>
+    <string name="review_summary_grade_badge">%1$s %2$d</string>
+    <string name="review_my_mistakes">Revisar meus erros</string>
+    <string name="review_opponent_context_label">Lance do adversário</string>
+    <string name="review_opponent_context_body">Exibido para dar contexto. Apenas seus lances são avaliados.</string>
+    <string name="review_better_move_arrow_accessibility">Seta da melhor jogada de %1$s para %2$s</string>
+    <string name="review_failed">Análise indisponível</string>
+    <string name="review_failed_body">O motor não conseguiu concluir esta análise.</string>
+    <string name="review_cancelled">Análise interrompida</string>
+    <string name="review_cancelled_body">Os lances já analisados continuam visíveis. Analise novamente para concluir a revisão.</string>
+    <string name="review_cancel_analysis">Interromper análise</string>
+    <string name="review_retry">Analisar novamente</string>
+    <string name="review_move_position">Lance %1$d de %2$d</string>
+    <string name="review_previous_issue">Erro anterior</string>
+    <string name="review_previous">Lance anterior</string>
+    <string name="review_next">Próximo lance</string>
+    <string name="review_next_issue">Próximo erro</string>
+    <string name="review_moves">Lances da partida</string>
+    <string name="review_starting_position">Posição inicial</string>
+    <string name="review_choose_move">Escolha um lance para ver a análise.</string>
+    <string name="review_waiting">Aguardando análise…</string>
+    <string name="review_better_move">Era melhor jogar %1$s.</string>
+    <string name="review_suggested_line">Linha sugerida: %1$s</string>
+    <string name="review_evaluation">Avaliação para as %1$s: %2$s</string>
+    <string name="review_grade_best">Melhor</string>
+    <string name="review_grade_good">Bom</string>
+    <string name="review_grade_inaccuracy">Imprecisão</string>
+    <string name="review_grade_mistake">Erro</string>
+    <string name="review_grade_blunder">Erro grave</string>
+    <string name="review_grade_unreviewed">Não analisado</string>
+    <string name="review_grade_best_explanation">Este lance alcançou o melhor resultado disponível.</string>
+    <string name="review_grade_good_explanation">Esta foi uma escolha forte.</string>
+    <string name="review_grade_inaccuracy_explanation">Isso cedeu uma pequena parte da vantagem.</string>
+    <string name="review_grade_mistake_explanation">Isso deu ao adversário uma oportunidade importante.</string>
+    <string name="review_grade_blunder_explanation">Isso mudou a partida de forma significativa.</string>
+    <string name="review_move_title_white">%1$d. %2$s</string>
+    <string name="review_move_title_black">%1$d… %2$s</string>
+    <string name="review_move_accessibility">%1$s. %2$s. %3$s.</string>
     <string name="piece_queen">dama</string>
     <string name="piece_rook">torre</string>
     <string name="piece_bishop">bispo</string>
@@ -306,7 +365,7 @@
     <string name="result_dead_position_material">O xeque-mate se tornou impossível, então a regra de material decidiu o vencedor.</string>
     <string name="result_dead_position_material_score">O xeque-mate se tornou impossível. As brancas tinham %1$d pontos de material e as pretas %2$d, então %3$s venceu pela regra de material.</string>
     <string name="result_dead_position_material_tie">O xeque-mate se tornou impossível com o material empatado em %1$d pontos para cada lado. Pela regra de material, venceu quem fez o lance final: %2$s.</string>
-    <string name="result_dead_position_final_capture">A captura final tornou o xeque-mate impossível. Pela regra Final Capture, venceu o jogador que fez essa captura.</string>
+    <string name="result_dead_position_final_capture">Essa jogada tornou o xeque-mate impossível. Pela regra Final Capture, venceu o jogador que fez essa jogada.</string>
     <string name="result_bare_king">%1$s ficou apenas com o rei, então %2$s venceu.</string>
     <string name="result_timeout">O tempo acabou.</string>
     <string name="result_resignation">A partida terminou por desistência.</string>

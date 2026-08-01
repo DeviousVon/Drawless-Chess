@@ -1,6 +1,6 @@
 # Third-party notices
 
-This file records the third-party material in the Drawless Chess 0.3.0 release
+This file records the third-party material in the Drawless Chess 1.0.0 release
 checkpoint. The exact resolved Android runtime inventory is generated from
 Gradle and recorded in `release/reports/release-sbom.cdx.json`.
 
@@ -18,11 +18,20 @@ The Android application links the modified engine in process. Drawless Chess has
 therefore adopted GPL-3.0-or-later for the combined application; it does not rely
 on the JNI boundary to avoid the engine's copyleft terms.
 
-## JavaScript engine proof of concept
+## JavaScript chess runtimes
 
 The repository's non-Android experiment directly depends on
 `fairy-stockfish-nnue.wasm` 1.1.11 and `ffish-es6` 0.7.9. The npm lockfile reports
 GPL-3.0 for both. These packages do not define the native Android source identity.
+
+The deployed casual web game directly uses `ffish-es6` 0.7.9 for local legal move
+generation. Its npm registry identity is SHA-512
+`UcXkfJUkbJrDI6NzQ9eorcPQ+qMw01bsaDXkW7J68ekDECGyinbZsAryzfx/iwK6oSAUSzgkbwBfEm2PNLT7Hw==`,
+and its corresponding upstream Fairy-Stockfish source revision is
+`efb3193d0029c4d125a1b19964667f6ba7454bbc`. The web controller applies the
+project's Drawless adjudication contract outside that library and labels its
+separate lightweight opponent as Web Casual; it is not the patched Android
+engine identity.
 
 ## Android release runtime
 
@@ -56,12 +65,15 @@ identified below. See `docs/AUDIO_PROVENANCE.md`.
 
 ## Sampled chess audio — CC0-1.0
 
-Move, capture, and castling effects derive from:
+Move and castling effects derive from:
 
 - “Chess Pieces Move (Close)” by JJTaynos:
   <https://freesound.org/people/JJTaynos/sounds/733927/>
 - “chess_move_on_alabaster.wav” by mh2o:
   <https://freesound.org/people/mh2o/sounds/351518/>
+
+Capture effects derive from “stonehit1.wav” by aerror, a stereo field recording of a
+stone hitting rocks: <https://freesound.org/people/aerror/sounds/350750/>.
 
 Victory fireworks derive from genuine pyrotechnic recordings by Rudmer_Rotteveel:
 
@@ -69,9 +81,20 @@ Victory fireworks derive from genuine pyrotechnic recordings by Rudmer_Rotteveel
 - “Whistle and Explosion Single_Firework”:
   <https://freesound.org/people/Rudmer_Rotteveel/sounds/336008/>
 
-All four source pages designate the recordings Creative Commons Zero 1.0. CC0
-does not require attribution, but the identities, retained HQ preview files and
-hashes, original-download identities, and processing descriptions are preserved
+The check cue derives from “Pump Action Shotgun Reload” by AugustSandberg:
+<https://freesound.org/people/AugustSandberg/sounds/508746/>. The retained original
+is a CC0 24-bit/96 kHz stereo WAV; only the recorded action cycle is used, with no
+gunshot.
+
+The dedicated en-passant and checkmate cues derive from original lossless WAVs by
+discofield:
+
+- “Brick crash”: <https://freesound.org/people/discofield/sounds/711656/>
+- “Stone crash”: <https://freesound.org/people/discofield/sounds/711657/>
+
+All eight source pages designate the recordings Creative Commons Zero 1.0. CC0
+does not require attribution, but the identities, retained source files and hashes,
+original-download identities, and processing descriptions are preserved
 under `docs/audio/`. The complete CC0 legal text is in
 `docs/audio/licenses/CC0-1.0.txt` in the corresponding source distribution.
 

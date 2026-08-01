@@ -2,7 +2,7 @@
 
 ## CC0 chess recordings
 
-Move, capture, and castling families use two recording sets published under Creative Commons
+Move and castling families use two recording sets published under Creative Commons
 Zero 1.0. CC0 permits copying, modification, commercial use, and redistribution without an
 attribution condition. Attribution remains here for auditability.
 
@@ -20,6 +20,14 @@ attribution condition. Attribution remains here for auditability.
 The previously imported el_boss “Piece Slide.mp3” was rejected after listening review and is no
 longer retained or referenced by any runtime asset.
 
+## CC0 stone capture recording
+
+Capture cues use **“stonehit1.wav”** by aerror:
+<https://freesound.org/people/aerror/sounds/350750/>. Freesound describes it as a recording of a
+stone hitting rocks and publishes it under CC0. The retained input is the public HQ stereo MP3
+preview selected by the product owner; the exact CDN URL, SHA-256, original WAV identity, source
+metadata, and processing recipe are pinned in `audio_manifest.json`.
+
 ## CC0 firework recordings
 
 Victory cues use genuine pyrotechnics recorded by Rudmer_Rotteveel with a Tascam DR-05:
@@ -32,6 +40,21 @@ Both Freesound pages designate the recordings CC0. The retained inputs are the p
 previews heard during product review; exact CDN hashes, source metadata, and original WAV download
 identities are pinned in `audio_manifest.json`. Runtime assets isolate natural onsets/tails and
 never substitute household snaps, corks, cans, or camera sounds.
+
+## CC0 en-passant and checkmate recordings
+
+The dedicated en-passant and checkmate cues use two original lossless WAV recordings by
+discofield:
+
+- **“Brick crash”**: <https://freesound.org/people/discofield/sounds/711656/>
+- **“Stone crash”**: <https://freesound.org/people/discofield/sounds/711657/>
+
+Both Freesound pages designate the recordings CC0. The repository retains the exact original
+44.1 kHz, 16-bit stereo WAVs downloaded by the product owner, rather than lossy web previews.
+Their source-page and original-download URLs, SHA-256 hashes, metadata, and deterministic
+processing recipes are pinned in `audio_manifest.json`. Runtime processing preserves each full
+audible event, removes only trailing silence, and applies short boundary fades plus loudness and
+true-peak mastering.
 
 The complete CC0 1.0 legal text is in `licenses/CC0-1.0.txt`.
 
@@ -52,12 +75,15 @@ repeated in root `THIRD_PARTY_NOTICES.md`, which is bundled inside release APKs 
 
 ## Processing and runtime
 
-`scripts/audio/rebuild_lossless_audio.ps1` documents the exact move, capture, castling, firework,
-glass, and UI-cue recipes. Runtime variations use trimming, fades, gain staging, restrained
-filtering, micro-offset physical layering, and preserved stereo where the retained source is
-stereo. They use no slide/sweep, pitch shift, procedural oscillator/noise renderer, or household
+`scripts/audio/rebuild_lossless_audio.ps1` documents the exact move, stone-crush capture,
+en-passant, castling, checkmate, firework, glass, and UI-cue recipes. Runtime variations use
+trimming, fades, gain staging, restrained filtering, micro-offset physical layering, and
+preserved stereo where the retained source is
+stereo. Runtime captures are short cuts of the recorded stone event and contain no normal-move
+contact layer. The sampled pack uses no procedural oscillator/noise renderer or household
 firework substitute.
 
-`GameSoundPlayer` preloads the compact library with Android `SoundPool`, expires stale requests,
+`GameSoundPlayer` preloads the compact library with Android `SoundPool`, uses deterministic
+physical-model move/capture/check fallbacks until those samples are ready, expires stale requests,
 honors the persisted mute setting, cancels result cues on lifecycle exit, and keeps all three
 glass layers from the same numbered variant.

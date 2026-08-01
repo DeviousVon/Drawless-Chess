@@ -43,12 +43,28 @@ data class EngineLimits(
     }
 }
 
+/** Root-side outcome counts reported by UCI, normally expressed per thousand positions. */
+data class EngineWdl(
+    val wins: Int,
+    val draws: Int,
+    val losses: Int,
+) {
+    init {
+        require(wins >= 0 && draws >= 0 && losses >= 0)
+        require(wins + draws + losses > 0) { "WDL evidence cannot be empty" }
+    }
+}
+
 data class PrincipalVariation(
     val scoreCentipawns: Int?,
     val mateIn: Int?,
     val moves: List<UciMove>,
     val rank: Int = 1,
     val bound: EngineScoreBound = EngineScoreBound.EXACT,
+    val wdl: EngineWdl? = null,
+    val depth: Int? = null,
+    /** False only for the compatibility fallback emitted when no scored PV was received. */
+    val evidenceAvailable: Boolean = true,
 ) {
     init {
         require((scoreCentipawns == null) xor (mateIn == null)) {
@@ -56,6 +72,7 @@ data class PrincipalVariation(
         }
         require(moves.isNotEmpty()) { "A variation requires at least one move" }
         require(rank >= 1) { "Variation rank must be positive" }
+        require(depth == null || depth >= 0) { "Variation depth cannot be negative" }
     }
 }
 

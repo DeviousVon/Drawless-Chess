@@ -11,13 +11,23 @@ import com.drawlesschess.core.coordinator.*
 import com.drawlesschess.core.presentation.*
 import com.drawlesschess.core.engine.BotDifficultyCatalog
 import com.drawlesschess.core.engine.BotMovePacingEngine
+import com.drawlesschess.core.engine.GameReviewProgress
+import com.drawlesschess.core.engine.GameReviewPlanner
+import com.drawlesschess.core.engine.GameReviewResult
+import com.drawlesschess.core.engine.GameReviewRunner
 import com.drawlesschess.core.engine.NamedBotLevel
+import com.drawlesschess.core.engine.ReviewedMove
 import com.drawlesschess.engine.AndroidFairyEngineFactory
 import com.drawlesschess.engine.AndroidUciTimeoutScheduler
+import com.drawlesschess.review.IsolatedReviewEngine
 import java.util.UUID
 import java.util.concurrent.CopyOnWriteArraySet
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 data class SetupSelection(
     val preset: RulesContractV1.Preset = RulesContractV1.Preset.DRAWLESS,
@@ -33,6 +43,31 @@ data class SetupSelection(
         RulesContractV1.Preset.ESCAPE -> RulesContractV1.escape(deadPosition, fiftyMove)
     }
 }
+
+/**
+ * Runtime-owned review state. Keeping the engine job here lets the UI detach during an
+ * activity recreation without throwing away analysis that has already completed.
+ */
+internal sealed interface RuntimeGameReviewState {
+    data class Analyzing(
+        val progress: GameReviewProgress? = null,
+        val partialMoves: Map<Int, ReviewedMove> = emptyMap(),
+    ) : RuntimeGameReviewState
+    data class Complete(val result: GameReviewResult) : RuntimeGameReviewState
+    data class Cancelled(
+        val progress: GameReviewProgress? = null,
+        val partialMoves: Map<Int, ReviewedMove> = emptyMap(),
+    ) : RuntimeGameReviewState
+    data class Failed(
+        val error: Throwable,
+        val partialMoves: Map<Int, ReviewedMove> = emptyMap(),
+    ) : RuntimeGameReviewState
+}
+
+internal data class RuntimeReviewPrefetchDiagnostics(
+    val rootCandidateMovesByPly: Map<Int, Set<UciMove>>,
+    val adjacentFallbackPlies: Set<Int>,
+)
 
 class GameRuntime private constructor(
     private val config: GameConfig,
@@ -54,10 +89,37 @@ class GameRuntime private constructor(
         scheduler = movePacingScheduler,
         delayMillis = GamePacing.OPPONENT_MOVE_DELAY_MILLIS,
     )
-    internal val opponentLevel: NamedBotLevel = BotDifficultyCatalog.displayLevel(
-        explicitLevelId = config.opponentLevelId,
-        strength = config.engineStrength,
+    private val reviewEngine = IsolatedReviewEngine(uiContext)
+    private val reviewLock = Any()
+    private val reviewPreparationExecutor = Executors.newSingleThreadExecutor()
+    private val reviewEngineSubmissions = AtomicInteger(0)
+    private val reviewRunner = GameReviewRunner(
+        object : ChessEngine {
+            override fun analyze(
+                request: EngineRequest,
+                onResult: (Result<EngineResponse>) -> Unit,
+            ): EngineCancellation {
+                reviewEngineSubmissions.incrementAndGet()
+                return reviewEngine.analyze(request, onResult)
+            }
+        },
     )
+    private var reviewGeneration = 0L
+    private var activeReviewCancellation: EngineCancellation? = null
+    private val reviewState = MutableStateFlow<RuntimeGameReviewState?>(null)
+    internal val opponentLevel: NamedBotLevel = if (
+        config.opponentLevelId == BotDifficultyCatalog.ADAPTIVE_LEVEL_ID
+    ) {
+        BotDifficultyCatalog.adaptiveLevel(
+            (config.engineStrength as? EngineStrength.ApproximateElo)?.elo
+                ?: BotDifficultyCatalog.ADAPTIVE_STARTING_ELO,
+        )
+    } else {
+        BotDifficultyCatalog.displayLevel(
+            explicitLevelId = config.opponentLevelId,
+            strength = config.engineStrength,
+        )
+    }
     private val timeSource = CoordinatorTimeSource {
         TimeReading(SystemClock.elapsedRealtime(), System.currentTimeMillis())
     }
@@ -74,6 +136,7 @@ class GameRuntime private constructor(
                 initialAssistance = AssistanceCounts(
                     threatIndication = threatIndicationEnabled,
                 ),
+                reviewEngine = reviewEngine,
             )
         } else {
             GameCoordinator.restore(
@@ -83,9 +146,12 @@ class GameRuntime private constructor(
                 timeSource,
                 idSource,
                 botMovePresentationDelayMillis = GamePacing.PIECE_MOVE_ANIMATION_MILLIS.toLong(),
+                reviewEngine = reviewEngine,
             )
         }
     } catch (error: Throwable) {
+        runCatching { reviewPreparationExecutor.shutdownNow() }
+        runCatching { reviewEngine.close() }
         runCatching { engineProvision.engine.close() }
         runCatching { movePacingScheduler.close() }
         throw error
@@ -98,8 +164,9 @@ class GameRuntime private constructor(
         initialTheme: BoardTheme = BoardThemes.DEFAULT,
         resolvedHumanSide: Side = selection.startingColor.resolve(),
         threatIndicationEnabled: Boolean = false,
+        adaptiveElo: Int = BotDifficultyCatalog.ADAPTIVE_STARTING_ELO,
     ) : this(
-        selection.gameConfig(resolvedHumanSide),
+        selection.gameConfig(resolvedHumanSide, adaptiveElo),
         null,
         applicationContext,
         checkpointSink,
@@ -161,10 +228,218 @@ class GameRuntime private constructor(
     override fun close() {
         if (closed.compareAndSet(false, true)) {
             modelInvalidationListeners.clear()
+            val reviewCancellation = synchronized(reviewLock) {
+                reviewGeneration++
+                activeReviewCancellation.also { activeReviewCancellation = null }
+            }
+            runCatching { reviewCancellation?.cancel() }
+            reviewPreparationExecutor.shutdownNow()
             runCatching { coordinator.close() }
+            runCatching { reviewEngine.close() }
             runCatching { engineProvision.engine.close() }
             runCatching { movePacingScheduler.close() }
         }
+    }
+
+    internal fun reviewCheckpoint(): CoordinatorCheckpoint = coordinator.checkpoint().also {
+        require(it.outcome != null) { "Game review is available only after a completed game" }
+    }
+
+    /** Keeps isolated speculative review work aligned with the visible game lifecycle. */
+    internal fun setGameForeground(foreground: Boolean) {
+        if (closed.get()) return
+        coordinator.setReviewPrefetchEnabled(foreground)
+    }
+
+    internal fun gameReviewState(): StateFlow<RuntimeGameReviewState?> {
+        check(!closed.get()) { "Game runtime is closed" }
+        val checkpoint = reviewCheckpoint()
+        var generationToStart: Long? = null
+        synchronized(reviewLock) {
+            check(!closed.get()) { "Game runtime is closed" }
+            if (reviewState.value == null) {
+                reviewState.value = RuntimeGameReviewState.Analyzing()
+                generationToStart = ++reviewGeneration
+            }
+        }
+        generationToStart?.let { generation -> scheduleGameReview(checkpoint, generation) }
+        return reviewState.asStateFlow()
+    }
+
+    /** Starts final review work behind the result presentation, before the user opens Review. */
+    internal fun prepareGameReview() {
+        gameReviewState()
+    }
+
+    internal fun currentGameReviewState(): RuntimeGameReviewState? = reviewState.value
+
+    /** Counts only non-seeded engine work submitted by the final-review runner. */
+    internal fun reviewEngineSubmissionCount(): Int = reviewEngineSubmissions.get()
+
+    internal fun reviewPrefetchDiagnostics(): RuntimeReviewPrefetchDiagnostics =
+        RuntimeReviewPrefetchDiagnostics(
+            rootCandidateMovesByPly = coordinator.completedReviewPrefetchRoots().associate { seed ->
+                seed.key.ply to seed.response.variations.mapNotNullTo(linkedSetOf()) { variation ->
+                    variation.moves.firstOrNull()
+                }
+            },
+            adjacentFallbackPlies = coordinator.completedReviewPrefetchAdjacentRoots()
+                .mapTo(linkedSetOf()) { seed -> seed.key.rootKey.ply },
+        )
+
+    internal fun cancelGameReview() {
+        val cancellation: EngineCancellation?
+        synchronized(reviewLock) {
+            val current = reviewState.value as? RuntimeGameReviewState.Analyzing ?: return
+            reviewGeneration++
+            cancellation = activeReviewCancellation
+            activeReviewCancellation = null
+            reviewState.value = RuntimeGameReviewState.Cancelled(
+                progress = current.progress,
+                partialMoves = current.partialMoves,
+            )
+        }
+        runCatching { cancellation?.cancel() }
+    }
+
+    internal fun restartGameReview() {
+        check(!closed.get()) { "Game runtime is closed" }
+        val checkpoint = reviewCheckpoint()
+        val previous: EngineCancellation?
+        val generation: Long
+        synchronized(reviewLock) {
+            check(!closed.get()) { "Game runtime is closed" }
+            generation = ++reviewGeneration
+            previous = activeReviewCancellation
+            activeReviewCancellation = null
+            reviewState.value = RuntimeGameReviewState.Analyzing()
+        }
+        runCatching { previous?.cancel() }
+        scheduleGameReview(checkpoint, generation)
+    }
+
+    private fun scheduleGameReview(checkpoint: CoordinatorCheckpoint, generation: Long) {
+        try {
+            reviewPreparationExecutor.execute { startGameReview(checkpoint, generation) }
+        } catch (error: java.util.concurrent.RejectedExecutionException) {
+            synchronized(reviewLock) {
+                if (!closed.get() && generation == reviewGeneration &&
+                    reviewState.value is RuntimeGameReviewState.Analyzing
+                ) {
+                    reviewState.value = RuntimeGameReviewState.Failed(error)
+                }
+            }
+        }
+    }
+
+    private fun startGameReview(checkpoint: CoordinatorCheckpoint, generation: Long) {
+        fun isCurrentAttempt() = synchronized(reviewLock) {
+            !closed.get() && generation == reviewGeneration &&
+                reviewState.value is RuntimeGameReviewState.Analyzing
+        }
+        if (!isCurrentAttempt()) return
+
+        val completedSynchronously = AtomicBoolean(false)
+        val cancellation = try {
+            val plan = GameReviewPlanner.playerPlan(
+                gameId = checkpoint.config.gameId,
+                initialFen = checkpoint.config.initialFen,
+                moves = checkpoint.moves,
+                rules = checkpoint.config.rules,
+                playerSide = checkpoint.config.humanSide,
+            )
+            val prefetchedByKey = coordinator.completedReviewPrefetchRoots().associateBy { it.key }
+            val compatibleSeeds = plan.roots.mapNotNull { root -> prefetchedByKey[root.key] }
+            val prefetchedAdjacentByRootAndMove = coordinator.completedReviewPrefetchAdjacentRoots()
+                .associateBy { seed -> seed.key.rootKey to seed.key.playedMove }
+            val compatibleAdjacentSeeds = plan.roots.mapNotNull { root ->
+                val playedMove = plan.gameMoves[root.ply - 1]
+                prefetchedAdjacentByRootAndMove[root.key to playedMove]
+            }
+            Log.d(
+                REVIEW_LOG_TAG,
+                "Starting player review roots=${plan.roots.size} " +
+                    "seededRoots=${compatibleSeeds.size} " +
+                    "seededAdjacent=${compatibleAdjacentSeeds.size}",
+            )
+            if (!isCurrentAttempt()) return
+            reviewRunner.reviewPlayerMoves(
+                gameId = checkpoint.config.gameId,
+                initialFen = checkpoint.config.initialFen,
+                moves = checkpoint.moves,
+                rules = checkpoint.config.rules,
+                outcome = requireNotNull(checkpoint.outcome),
+                playerSide = checkpoint.config.humanSide,
+                preparedPlan = plan,
+                seededRoots = compatibleSeeds,
+                seededAdjacentRoots = compatibleAdjacentSeeds,
+                onMoveReviewed = { completedMove ->
+                    synchronized(reviewLock) {
+                        val current = reviewState.value as? RuntimeGameReviewState.Analyzing
+                        if (!closed.get() && generation == reviewGeneration && current != null) {
+                            reviewState.value = current.copy(
+                                partialMoves = current.partialMoves +
+                                    (completedMove.move.ply to completedMove.move),
+                            )
+                        }
+                    }
+                },
+                onProgress = { progress ->
+                    synchronized(reviewLock) {
+                        val current = reviewState.value as? RuntimeGameReviewState.Analyzing
+                        if (!closed.get() && generation == reviewGeneration && current != null) {
+                            reviewState.value = current.copy(progress = progress)
+                        }
+                    }
+                },
+                onResult = { result ->
+                    completedSynchronously.set(true)
+                    synchronized(reviewLock) {
+                        if (!closed.get() && generation == reviewGeneration) {
+                            activeReviewCancellation = null
+                            reviewState.value = result.fold(
+                                onSuccess = { RuntimeGameReviewState.Complete(it) },
+                                onFailure = { error ->
+                                    Log.e(REVIEW_LOG_TAG, "Game review failed", error)
+                                    RuntimeGameReviewState.Failed(
+                                        error = error,
+                                        partialMoves = (
+                                            reviewState.value as? RuntimeGameReviewState.Analyzing
+                                        )?.partialMoves.orEmpty(),
+                                    )
+                                },
+                            )
+                        }
+                    }
+                },
+            )
+        } catch (error: Throwable) {
+            completedSynchronously.set(true)
+            synchronized(reviewLock) {
+                if (!closed.get() && generation == reviewGeneration) {
+                    activeReviewCancellation = null
+                    Log.e(REVIEW_LOG_TAG, "Game review could not start", error)
+                    reviewState.value = RuntimeGameReviewState.Failed(
+                        error = error,
+                        partialMoves = (
+                            reviewState.value as? RuntimeGameReviewState.Analyzing
+                        )?.partialMoves.orEmpty(),
+                    )
+                }
+            }
+            return
+        }
+        val cancelImmediately = synchronized(reviewLock) {
+            if (closed.get() || generation != reviewGeneration || completedSynchronously.get() ||
+                reviewState.value !is RuntimeGameReviewState.Analyzing
+            ) {
+                true
+            } else {
+                activeReviewCancellation = cancellation
+                false
+            }
+        }
+        if (cancelImmediately) cancellation.cancel()
     }
 
     /**
@@ -216,6 +491,7 @@ class GameRuntime private constructor(
     private companion object {
         const val ENGINE_LOG_TAG = "DrawlessChessEngine"
         const val HINT_LOG_TAG = "DrawlessChessHint"
+        const val REVIEW_LOG_TAG = "DrawlessChessReview"
     }
 }
 
@@ -308,14 +584,20 @@ private class DevelopmentChessEngine : ManagedChessEngineDelegate {
     }
 }
 
-private fun SetupSelection.gameConfig(resolvedHumanSide: Side): GameConfig = GameConfig(
+private fun SetupSelection.gameConfig(resolvedHumanSide: Side, adaptiveElo: Int): GameConfig = GameConfig(
     gameId = UUID.randomUUID().toString(),
     initialFen = ChessPosition.START_FEN,
     rules = rules(),
     mode = mode,
     timeControl = timeControl,
     humanSide = resolvedHumanSide,
-    engineStrength = EngineStrength.ApproximateElo(botLevel.approximateElo),
+    engineStrength = EngineStrength.ApproximateElo(
+        if (botLevel.id == BotDifficultyCatalog.ADAPTIVE_LEVEL_ID) {
+            BotDifficultyCatalog.clampElo(adaptiveElo)
+        } else {
+            botLevel.approximateElo
+        },
+    ),
     engineLimits = EngineLimits(moveTimeMillis = 350),
     opponentLevelId = botLevel.id,
 )

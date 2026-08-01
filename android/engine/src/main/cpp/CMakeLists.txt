@@ -180,6 +180,10 @@ target_compile_options(drawless_fairy PRIVATE
     -Wcast-qual
     -fno-exceptions
     -fno-strict-aliasing
+    # The separately packaged test app exercises real analysis budgets. Keep
+    # assertions and debug symbols, but do not ship an O0 chess engine to the
+    # physical-device review loop.
+    $<$<CONFIG:Debug>:-O2>
 )
 
 target_compile_definitions(drawless_fairy PRIVATE

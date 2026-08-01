@@ -15,6 +15,7 @@ const textExtensions = new Set([
   ".svg",
   ".txt",
   ".webmanifest",
+  ".wasm",
   ".xml",
 ]);
 const imageExtensions = new Set([
@@ -344,8 +345,18 @@ async function verifyMarkupAndReferences(releaseRoot, files) {
     if (runtimePattern.test(source)) throw new Error(`Runtime endpoint or marker in ${relative}.`);
 
     if (extension === ".html") {
-      if (/<script\b/i.test(source)) throw new Error(`Script tag is not allowed in ${relative}.`);
-      if (/<link\b[^>]*\brel\s*=\s*["'][^"']*modulepreload/i.test(source)) {
+      const isInteractivePlayRoute = relative === "play/index.html";
+      if (!isInteractivePlayRoute && /<script\b/i.test(source)) {
+        throw new Error(`Script tag is not allowed in ${relative}.`);
+      }
+      if (isInteractivePlayRoute) {
+        const scripts = [...source.matchAll(/<script\b[^>]*\bsrc\s*=\s*["']([^"']+)["'][^>]*>/gi)];
+        if (scripts.length !== 1 || !scripts[0][1].startsWith("/play/assets/") ||
+            !/\btype\s*=\s*["']module["']/i.test(scripts[0][0])) {
+          throw new Error("play/index.html must load exactly one local module entry under /play/assets/.");
+        }
+      }
+      if (!isInteractivePlayRoute && /<link\b[^>]*\brel\s*=\s*["'][^"']*modulepreload/i.test(source)) {
         throw new Error(`Module preload is not allowed in ${relative}.`);
       }
       const titles = [...source.matchAll(/<title\b[^>]*>([\s\S]*?)<\/title\s*>/gi)];
@@ -400,6 +411,7 @@ function verifyNoRuntimePayloads(releaseRoot, files) {
   for (const file of files) {
     const relative = toPosix(path.relative(releaseRoot, file));
     if (/[.](?:rsc|m?js)(?:[.]gz)?$/i.test(relative)) {
+      if (/^play\/assets\/[^/]+[.]js(?:[.]gz)?$/i.test(relative)) continue;
       throw new Error(`Runtime payload is not allowed: ${relative}`);
     }
   }
@@ -511,11 +523,14 @@ async function main() {
   await verifyGzipSiblings(files);
   const measurements = await verifyBudgets(releaseRoot, files);
   const metadata = JSON.parse(await readFile(path.join(releaseRoot, "release.json"), "utf8"));
-  if (metadata.artifact !== "drawlesschess-openbsd-static" || metadata.schemaVersion !== 1) {
+  if (metadata.artifact !== "drawlesschess-openbsd-static" || metadata.schemaVersion !== 2) {
     throw new Error("release.json has an unsupported artifact type or schema version.");
   }
   if (metadata.frameworkMarkup?.stripped !== true || metadata.clientComponents?.length !== 0) {
     throw new Error("Release was not prepared as a zero-client-component static artifact.");
+  }
+  if (JSON.stringify(metadata.interactiveRoutes) !== JSON.stringify(["/play/"])) {
+    throw new Error("release.json has an unexpected interactive-route boundary.");
   }
 
   console.log(

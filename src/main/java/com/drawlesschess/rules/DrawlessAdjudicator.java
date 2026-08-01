@@ -30,12 +30,8 @@ public final class DrawlessAdjudicator {
 
         if (p.deadPosition()) {
             if (rules.deadPositionPolicy() == DeadPositionPolicy.FINAL_CAPTURE_VICTORY) {
-                if (!p.moveWasCapture()) {
-                    throw new IllegalStateException(
-                            "Final-capture adjudication requires the transition move to be a capture");
-                }
                 return GameOutcome.win(EndReason.DEAD_POSITION_FINAL_CAPTURE, p.mover(),
-                        p.mover() + " wins by making the final meaningful capture");
+                        p.mover() + " wins by creating the known-dead position");
             }
 
             Side winner;

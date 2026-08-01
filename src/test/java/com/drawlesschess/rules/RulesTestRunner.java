@@ -35,9 +35,9 @@ public final class RulesTestRunner {
         test("final capture policy rewards capturing mover", () -> winner(
                 Ruleset.drawless(DeadPositionPolicy.FINAL_CAPTURE_VICTORY, FiftyMovePolicy.DISABLED),
                 pos(Side.WHITE).deadPosition(true).moveWasCapture(true).material(0, 9)) == Side.WHITE);
-        test("final capture policy rejects a non-capture transition", () -> throwsState(() -> outcome(
+        test("final capture policy awards a non-capturing dead-position creator", () -> winner(
                 Ruleset.drawless(DeadPositionPolicy.FINAL_CAPTURE_VICTORY, FiftyMovePolicy.DISABLED),
-                pos(Side.WHITE).deadPosition(true).moveWasCapture(false))));
+                pos(Side.WHITE).deadPosition(true).moveWasCapture(false)) == Side.WHITE);
         test("50-move completion defeats mover", () -> winner(DRAWLESS,
                 pos(Side.WHITE).halfmoveClock(100)) == Side.BLACK);
         test("disabled 50-move policy continues", () -> !outcome(

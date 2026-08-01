@@ -356,8 +356,9 @@ require_text "$ENGINE_BUILD" 'androidTestImplementation("androidx.test.ext:junit
 require_text "$INSTRUMENTED_TEST" '@RunWith(AndroidJUnit4::class)'
 require_text "$INSTRUMENTED_TEST" '@Test'
 require_text "$INSTRUMENTED_TEST" 'fun forcedRepetitionSearchClosesAndRestartsSequentially()'
-require_text "$INSTRUMENTED_TEST" 'val first = factory.create()'
-require_text "$INSTRUMENTED_TEST" 'val second = factory.create()'
+require_text "$INSTRUMENTED_TEST" 'factory.create().close()'
+require_text "$INSTRUMENTED_TEST" 'repeat(2) { index ->'
+require_text "$INSTRUMENTED_TEST" 'factory.create().use { engine ->'
 require_text "$INSTRUMENTED_TEST" 'h8g8'
 
 require_text "$APK_GATE" 'Usage: scripts/native-verify-apk.sh APP_DEBUG.apk APP_RELEASE.apk ENGINE_TEST.apk ENGINE_DEBUG.aar ENGINE_RELEASE.aar TEST_ABI [MANIFEST.json]'

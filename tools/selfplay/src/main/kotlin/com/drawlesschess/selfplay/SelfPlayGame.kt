@@ -1,5 +1,6 @@
 package com.drawlesschess.selfplay
 
+import com.drawlesschess.core.BareKingPolicy
 import com.drawlesschess.core.GameSession
 import com.drawlesschess.core.FiftyMovePolicy
 import com.drawlesschess.core.PositionFacts
@@ -9,6 +10,7 @@ import com.drawlesschess.core.chess.ChessAdapter
 import com.drawlesschess.core.chess.ChessPosition
 import com.drawlesschess.core.chess.ChessRules
 import com.drawlesschess.core.chess.DeadPositionDetector
+import com.drawlesschess.core.chess.PieceType
 import com.drawlesschess.core.chess.RepetitionKey
 import com.drawlesschess.core.chess.SanNotation
 import java.util.concurrent.TimeUnit
@@ -75,9 +77,13 @@ internal fun replayOpening(config: SelfPlayConfig, job: SelfPlayJob): ReplayedOp
             "maxPlies=${config.maxPlies} must leave room for an engine move"
     }
     var position = ChessPosition.fromFen(job.initialFen)
+    require(!ChessRules.isInCheck(position, position.sideToMove.opposite())) {
+        "Opening for ${job.jobId} is retro-illegal: the side that just moved remains in check"
+    }
     require(
         ChessRules.legalMoves(position).isNotEmpty() &&
             !DeadPositionDetector.isKnownDead(position) &&
+            (config.bareKing != BareKingPolicy.BARE_KING_LOSES || !hasOneBareKing(position)) &&
             (config.fiftyMove == FiftyMovePolicy.DISABLED || position.halfmoveClock < 100),
     ) { "Opening for ${job.jobId} starts from a terminal position" }
     var session = GameSession.newGame(
@@ -119,11 +125,20 @@ internal fun replayOpening(config: SelfPlayConfig, job: SelfPlayJob): ReplayedOp
     )
 }
 
+private fun hasOneBareKing(position: ChessPosition): Boolean = position.pieces()
+    .asSequence()
+    .map { (_, piece) -> piece }
+    .filter { piece -> piece.type != PieceType.KING }
+    .map { piece -> piece.side }
+    .toSet()
+    .size == 1
+
 object SelfPlayJobs {
     fun create(config: SelfPlayConfig): List<SelfPlayJob> = when (config.jobSource) {
         JobSource.SINGLE -> single(config)
         JobSource.SAME_LEVEL -> CampaignJobFactory.sameLevel(config)
         JobSource.ADJACENT -> CampaignJobFactory.adjacent(config)
+        JobSource.RELEASE_CAMPAIGN -> CampaignJobFactory.releaseCampaign(config)
     }
 
     private fun single(config: SelfPlayConfig): List<SelfPlayJob> = if (config.pairColors) {

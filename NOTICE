@@ -38,8 +38,10 @@ Third-party material
   POM license evidence are in release/reports/release-sbom.cdx.json. All 115
   resolved modules at this checkpoint are Apache-2.0; the complete terms are in
   APACHE-2.0.txt. Their upstream notices remain authoritative.
-* Sampled chess-piece recordings by JJTaynos and mh2o, and genuine firework recordings
-  by Rudmer_Rotteveel, are used under CC0-1.0. Additional physical recordings from
+* Sampled chess-piece recordings by JJTaynos and mh2o, a stone-impact recording by
+  aerror, genuine firework recordings by Rudmer_Rotteveel, the pump-action recording
+  by AugustSandberg, and brick/stone crash recordings by discofield are used under
+  CC0-1.0. Additional physical recordings from
   ion.sound 3.0.7 by Denis Ineshin are used under the MIT License. Exact sources,
   hashes, processing descriptions, and complete terms are recorded under docs/audio
   and in THIRD_PARTY_NOTICES.md.
@@ -54,14 +56,16 @@ Original visual material and sampled audio
 The code-native chess-piece drawings, launcher icon vectors, supporting color
 resources, and fictional opponent identities under android/app/src/main are
 original project material and are covered by the Drawless Chess
-GPL-3.0-or-later grant. The seven opponent portraits were generated specifically
+GPL-3.0-or-later grant. The eight opponent portraits were generated specifically
 for this project with OpenAI's image-generation tool and without third-party
 reference imagery. Their full-resolution masters, final prompts, derivation
 details, and hashes are retained under artwork/opponents; to the extent copyright
 or related rights subsist in those outputs, they are included in the same grant.
-Move, capture, and castling sounds are processed only from the CC0 chess contacts;
-fireworks are processed only from the CC0 pyrotechnic recordings. Glass-crack and
-reserved UI sounds also use identified MIT recordings. All ship as mono 48 kHz
+Move and castling sounds are processed only from the CC0 chess contacts; captures use
+the selected CC0 recording of a stone striking rocks, en passant and checkmate use the
+CC0 Brick and Stone crash recordings, fireworks use the CC0 pyrotechnic recordings,
+and the check cue uses a CC0 pump-action recording. Glass-crack and reserved
+UI sounds also use identified MIT recordings. All ship as stereo 48 kHz
 Ogg/Vorbis resources. The third-party recordings retain their original licenses;
 Drawless Chess modifications and catalog code are covered by the project grant to
 the extent applicable. Design and audit details are in docs/AUDIO_PROVENANCE.md.

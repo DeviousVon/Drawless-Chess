@@ -1,7 +1,9 @@
 # Play Console declaration recommendations
 
-These are draft answers for the inspected `com.drawlesschess` version `0.3.0` build. Match
-them to the current Console wording, and revisit every answer if the app changes.
+These are candidate answers for the planned `com.drawlesschess` version `1.0.0`
+(`versionCode` 4) closed-test update. Match them to the current Console wording and re-audit
+the exact signed App Bundle. The live Play build remains `0.3.0` (`versionCode` 3) in Closed
+testing — Alpha, with six testers shown on July 30, 2026.
 
 ## Ads
 
@@ -66,9 +68,9 @@ PEGI, or regional result in the listing.
 ## Data Safety and privacy
 
 - Use the answers in [`data-safety.md`](data-safety.md).
-- Privacy-policy draft: [`../PRIVACY.md`](../PRIVACY.md).
-- The privacy URL must be public, stable, non-PDF, and accessible without signing in before
-  it is entered in Console.
+- Privacy-policy source: [`../PRIVACY.md`](../PRIVACY.md).
+- Listing privacy URL: **https://drawlesschess.com/privacy/**. It must remain public, stable,
+  non-PDF, and accessible without signing in.
 
 ## Other App content questions
 
@@ -85,10 +87,13 @@ PEGI, or regional result in the listing.
 
 - App or game: **Game**.
 - Category: **Board**.
-- Primary experience: offline single-player chess against the built-in engine.
+- Primary experience: offline single-player chess against eight illustrated opponents,
+  including the Adaptive Vesper, with an immediate post-game Game Review Beta powered by
+  the Drawless-tuned, on-device Fairy-Stockfish engine. Reviews are not saved as a history.
 - Package ID: `com.drawlesschess`.
 - Developer display name: **BB_Games**.
-- Public support email: **realitymaster@protonmail.ch**.
+- Public support email: **support@drawlesschess.com**.
+- Website: **https://drawlesschess.com**.
 
 ## Items that still require real Console output or owner action
 
@@ -98,6 +103,8 @@ PEGI, or regional result in the listing.
   selected one-time paid listing.
 - Final target-audience confirmation.
 - IARC rating generated from the completed questionnaire.
-- Public privacy-policy URL verification.
-- Exact release AAB review and Play pre-launch report.
-- Closed-test opt-ins, elapsed testing period, real feedback, and production-access review.
+- Signed-out verification of `https://drawlesschess.com/privacy/`.
+- Exact `1.0.0` release AAB review and Play pre-launch report.
+- Upload and rollout of `1.0.0` to the closed track. The active `0.3.0` Alpha and its six
+  testers do not by themselves prove the required tester threshold, elapsed testing
+  period, feedback quality, or production-access eligibility.

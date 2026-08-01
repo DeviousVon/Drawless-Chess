@@ -13,7 +13,9 @@
     <string name="action_dismiss">Dismiss</string>
     <string name="action_try_again">Try again</string>
     <string name="action_home">Home</string>
+    <string name="action_quick_play">Quick Play</string>
     <string name="action_rematch">Rematch</string>
+    <string name="action_review_game">Review game</string>
     <string name="action_keep_playing">Keep playing</string>
     <string name="action_theme">Theme</string>
     <string name="label_white">White</string>
@@ -62,10 +64,10 @@
     <string name="rules_fifty_move">• After 50 moves without a pawn move or capture, material points decide the winner.</string>
     <string name="action_got_it">Got it</string>
     <string name="license_title">Open-source software</string>
-    <string name="license_body">Drawless Chess is licensed under GNU GPL version 3 or later. Sampled audio includes CC0 chess recordings by JJTaynos and mh2o, CC0 fireworks by Rudmer_Rotteveel, and MIT-licensed ion.sound recordings by Denis Ineshin. Exact corresponding source and third-party notices accompany the official v%1$s release.</string>
+    <string name="license_body">Drawless Chess is licensed under GNU GPL version 3 or later. Its on-device engine is modified Fairy-Stockfish, derived from Stockfish, under GPL-3.0-or-later. Sampled audio includes CC0 chess recordings by JJTaynos and mh2o, CC0 fireworks by Rudmer_Rotteveel, and MIT-licensed ion.sound recordings by Denis Ineshin. Exact corresponding source and third-party notices accompany the official v%1$s release.</string>
     <string name="license_view_source">View source</string>
     <string name="privacy_title">Privacy</string>
-    <string name="privacy_body">Drawless Chess works entirely offline. BB_Games does not collect, transmit, share, or sell personal data. Saved games, completed-game history, local statistics, and settings are stored on your device and may be included in Android backups if you enable them; BB_Games cannot access those backups. Privacy questions: realitymaster@protonmail.ch</string>
+    <string name="privacy_body">Drawless Chess works entirely offline. BB_Games does not collect, transmit, share, or sell personal data. Saved games, completed-game history, local statistics, and settings are stored on your device and may be included in Android backups if you enable them; BB_Games cannot access those backups. Privacy questions: support@drawlesschess.com</string>
     <string name="privacy_view_policy">View policy</string>
 
     <!-- Game setup -->
@@ -118,6 +120,10 @@
     <string name="opponent_lucian_epithet">Courteous grandmaster</string>
     <string name="opponent_lucian_name">Lucian</string>
     <string name="opponent_lucian_personality">Sparse with words, generous in victory, and focused from the first move.</string>
+    <string name="opponent_vesper_name">Vesper</string>
+    <string name="opponent_vesper_epithet">Your Nemesis</string>
+    <string name="opponent_vesper_personality">Vesper watches, remembers, and always returns prepared.</string>
+    <string name="difficulty_adaptive">Adaptive</string>
     <string name="difficulty_learner">Learner</string>
     <string name="difficulty_casual">Casual</string>
     <string name="difficulty_challenger">Challenger</string>
@@ -132,6 +138,9 @@
     <string name="difficulty_description_expert">Sharp, accurate play for experienced players.</string>
     <string name="difficulty_description_master">A demanding strategic challenge.</string>
     <string name="difficulty_description_grandmaster">The strongest available opponent.</string>
+    <string name="difficulty_description_adaptive">Matches your current strength and evolves after each unassisted game.</string>
+    <string name="adaptive_status_provisional">Finding your level · near %1$d · %2$d/10 games</string>
+    <string name="adaptive_status_matched">Matched near %1$d</string>
 
     <!-- Themes -->
     <string name="theme_choose">Choose a theme</string>
@@ -243,6 +252,56 @@
     <string name="game_material_score">Score %1$d</string>
     <string name="game_none">None</string>
     <string name="game_promote_pawn">Promote pawn</string>
+
+    <!-- Game review beta -->
+    <string name="review_title">Game review</string>
+    <string name="review_beta">Beta</string>
+    <string name="review_analyzing">Analyzing your moves…</string>
+    <string name="review_progress">Your moves reviewed: %1$d of %2$d</string>
+    <string name="review_progress_accessibility">Your move review, %1$d%% complete</string>
+    <string name="review_complete">Review complete</string>
+    <string name="review_complete_body">Your moves: %1$d. Moves graded: %2$d.</string>
+    <string name="review_summary_title">Your review</string>
+    <string name="review_summary_player_side">You (%1$s)</string>
+    <string name="review_summary_graded">Moves graded: %1$d</string>
+    <string name="review_summary_grade_count">%1$s: %2$d</string>
+    <string name="review_summary_grade_badge">%1$s %2$d</string>
+    <string name="review_my_mistakes">Review my mistakes</string>
+    <string name="review_opponent_context_label">Opponent move</string>
+    <string name="review_opponent_context_body">Shown for context. Only your moves are graded.</string>
+    <string name="review_better_move_arrow_accessibility">Better move arrow from %1$s to %2$s</string>
+    <string name="review_failed">Review unavailable</string>
+    <string name="review_failed_body">The engine couldn’t finish this review.</string>
+    <string name="review_cancelled">Analysis stopped</string>
+    <string name="review_cancelled_body">Completed move reviews remain visible. Analyze again to finish the review.</string>
+    <string name="review_cancel_analysis">Stop analysis</string>
+    <string name="review_retry">Analyze again</string>
+    <string name="review_move_position">Move %1$d of %2$d</string>
+    <string name="review_previous_issue">Previous mistake</string>
+    <string name="review_previous">Previous move</string>
+    <string name="review_next">Next move</string>
+    <string name="review_next_issue">Next mistake</string>
+    <string name="review_moves">Game moves</string>
+    <string name="review_starting_position">Starting position</string>
+    <string name="review_choose_move">Choose a move to see its review.</string>
+    <string name="review_waiting">Waiting for analysis…</string>
+    <string name="review_better_move">Better was %1$s.</string>
+    <string name="review_suggested_line">Suggested line: %1$s</string>
+    <string name="review_evaluation">Evaluation for %1$s: %2$s</string>
+    <string name="review_grade_best">Best</string>
+    <string name="review_grade_good">Good</string>
+    <string name="review_grade_inaccuracy">Inaccuracy</string>
+    <string name="review_grade_mistake">Mistake</string>
+    <string name="review_grade_blunder">Blunder</string>
+    <string name="review_grade_unreviewed">Not analyzed</string>
+    <string name="review_grade_best_explanation">This move achieved the best available result.</string>
+    <string name="review_grade_good_explanation">This was a strong choice.</string>
+    <string name="review_grade_inaccuracy_explanation">This gave away a small part of the advantage.</string>
+    <string name="review_grade_mistake_explanation">This gave the opponent a meaningful opportunity.</string>
+    <string name="review_grade_blunder_explanation">This changed the game significantly.</string>
+    <string name="review_move_title_white">%1$d. %2$s</string>
+    <string name="review_move_title_black">%1$d… %2$s</string>
+    <string name="review_move_accessibility">%1$s. %2$s. %3$s.</string>
     <string name="piece_queen">queen</string>
     <string name="piece_rook">rook</string>
     <string name="piece_bishop">bishop</string>
@@ -310,7 +369,7 @@
     <string name="result_dead_position_material">Checkmate became impossible, so the material rule decided the winner.</string>
     <string name="result_dead_position_material_score">Checkmate became impossible. White had %1$d material points and Black had %2$d, so %3$s won under the material rule.</string>
     <string name="result_dead_position_material_tie">Checkmate became impossible with material tied at %1$d points each. Under the material rule, the player who made the final move—%2$s—won.</string>
-    <string name="result_dead_position_final_capture">The final capture made checkmate impossible. Under the Final Capture rule, the player who made that capture won.</string>
+    <string name="result_dead_position_final_capture">That move made checkmate impossible. Under the Final Capture rule, the player who made the move won.</string>
     <string name="result_bare_king">%1$s had only a king remaining, so %2$s won.</string>
     <string name="result_timeout">Time expired.</string>
     <string name="result_resignation">The game ended by resignation.</string>

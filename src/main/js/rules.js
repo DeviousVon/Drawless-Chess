@@ -102,9 +102,8 @@ export function adjudicate(rules, p) {
 
   if (p.deadPosition) {
     if (rules.deadPosition === DeadPositionPolicy.FINAL_CAPTURE_VICTORY) {
-      if (!p.moveWasCapture) throw new Error("Final-capture adjudication requires a capture transition");
       return win(EndReason.DEAD_POSITION_FINAL_CAPTURE, p.mover,
-        `${p.mover} wins by making the final meaningful capture`);
+        `${p.mover} wins by creating the known-dead position`);
     }
     const winner = p.whiteMaterial > p.blackMaterial ? Side.WHITE
       : p.blackMaterial > p.whiteMaterial ? Side.BLACK : p.mover;

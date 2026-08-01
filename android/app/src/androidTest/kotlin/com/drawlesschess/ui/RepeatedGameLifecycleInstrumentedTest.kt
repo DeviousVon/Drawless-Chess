@@ -1,5 +1,6 @@
 package com.drawlesschess.ui
 
+import android.os.SystemClock
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertIsDisplayed
@@ -18,8 +19,13 @@ import androidx.test.core.app.ApplicationProvider
 import com.drawlesschess.DrawlessApplication
 import com.drawlesschess.MainActivity
 import com.drawlesschess.R
+import com.drawlesschess.core.engine.REVIEW_ANALYSIS_VERSION
+import com.drawlesschess.core.engine.REVIEW_EVIDENCE_SCHEMA_VERSION
+import com.drawlesschess.core.engine.ReviewGradingPolicy
+import com.drawlesschess.core.engine.ReviewScoreSource
 import com.drawlesschess.core.presentation.BoardThemes
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -130,7 +136,8 @@ class RepeatedGameLifecycleInstrumentedTest {
         compose.onNodeWithTag("selected_opponent_casual").fetchSemanticsNode()
         compose.onNodeWithTag("selected_opponent_name").assertTextEquals("Theo")
 
-        compose.onNodeWithTag("opponent_picker").performScrollToIndex(6)
+        val grandmasterIndex = OpponentProfiles.all.indexOfFirst { it.level.id == "grandmaster" }
+        compose.onNodeWithTag("opponent_picker").performScrollToIndex(grandmasterIndex)
         compose.onNodeWithTag("opponent_option_grandmaster").performClick().assertIsSelected()
         compose.onNodeWithTag("selected_opponent_grandmaster").fetchSemanticsNode()
         compose.onNodeWithTag("selected_opponent_name").assertTextEquals("Lucian")
@@ -168,6 +175,163 @@ class RepeatedGameLifecycleInstrumentedTest {
     }
 
     @Test
+    fun completedGameOffersWorkingQuickPlayWithoutReturningHome() {
+        dismissRulesGuideIfShown()
+        waitForText("Quick Play")
+        startWhiteCustomGame()
+
+        compose.onNodeWithTag("resign_button").performClick()
+        waitForText("Resign this game?")
+        compose.onNodeWithText("Resign game").performClick()
+        waitForText("Defeat")
+
+        compose.onNodeWithTag("post_game_quick_play").performClick()
+        waitForText("Save & exit")
+        waitForText("Theo")
+        assertTrue(compose.onAllNodesWithText("Defeat").fetchSemanticsNodes().isEmpty())
+        assertTrue(
+            compose.onAllNodesWithText("Forfeit current game?").fetchSemanticsNodes().isEmpty(),
+        )
+        assertTrue(compose.onAllNodesWithTag("home_quick_play").fetchSemanticsNodes().isEmpty())
+    }
+
+    @Test
+    fun completedGameRunsANativeReviewAndReturnsToTheResult() {
+        assertFalse(
+            "Native review smoke must not use the development engine",
+            com.drawlesschess.BuildConfig.USE_DEVELOPMENT_ENGINE,
+        )
+        dismissRulesGuideIfShown()
+        waitForText("Quick Play")
+        startWhiteCustomGame()
+
+        compose.onNodeWithTag("board_square_e2").performClick()
+        compose.onNodeWithTag("board_square_e4").performClick()
+        waitForStatus(R.string.status_your_turn, timeoutMillis = 20_000L)
+
+        compose.onNodeWithTag("resign_button").performClick()
+        waitForText("Resign this game?")
+        compose.onNodeWithText("Resign game").performClick()
+        waitForText("Defeat")
+
+        compose.onNodeWithTag("post_game_review").performClick()
+        waitForText("Game review")
+        val runtimeBeforeRecreation = requireNotNull(
+            ViewModelProvider(compose.activity)[DrawlessAppViewModel::class.java].runtime,
+        )
+        compose.waitUntil(timeoutMillis = 30_000L) {
+            when (val state = runtimeBeforeRecreation.gameReviewState().value) {
+                is RuntimeGameReviewState.Analyzing ->
+                    (state.progress?.completedPositions ?: 0) >= 1
+                is RuntimeGameReviewState.Complete -> true
+                else -> false
+            }
+        }
+        val stateBeforeRecreation = runtimeBeforeRecreation.gameReviewState().value
+        val completedBeforeRecreation =
+            (stateBeforeRecreation as? RuntimeGameReviewState.Analyzing)
+                ?.progress?.completedPositions ?: 0
+
+        compose.activityRule.scenario.recreate()
+        waitForText("Game review")
+        val runtimeAfterRecreation = requireNotNull(
+            ViewModelProvider(compose.activity)[DrawlessAppViewModel::class.java].runtime,
+        )
+        assertTrue(
+            "Activity recreation replaced the runtime that owns the active review",
+            runtimeBeforeRecreation === runtimeAfterRecreation,
+        )
+        compose.waitUntil(timeoutMillis = 30_000L) {
+            when (val state = runtimeAfterRecreation.gameReviewState().value) {
+                is RuntimeGameReviewState.Analyzing ->
+                    stateBeforeRecreation is RuntimeGameReviewState.Analyzing &&
+                        (state.progress?.completedPositions ?: 0) >= completedBeforeRecreation
+                is RuntimeGameReviewState.Complete -> true
+                else -> false
+            }
+        }
+        compose.waitUntil(timeoutMillis = 30_000L) {
+            compose.onAllNodesWithText("Review complete").fetchSemanticsNodes().isNotEmpty()
+        }
+        val completedReview = runtimeAfterRecreation.gameReviewState().value
+            as? RuntimeGameReviewState.Complete
+            ?: error("Native review did not publish its completed evidence")
+        assertEquals(REVIEW_EVIDENCE_SCHEMA_VERSION, completedReview.result.evidenceSchemaVersion)
+        assertEquals(REVIEW_ANALYSIS_VERSION, completedReview.result.analysisVersion)
+        assertEquals(ReviewGradingPolicy.CURRENT.version, completedReview.result.gradingPolicyVersion)
+        assertTrue(
+            "Native review did not retain all three MultiPV candidates",
+            completedReview.result.moves.all { move -> move.evidence?.lines?.size == 3 },
+        )
+        assertTrue(
+            "Native review did not retain depth-tagged WDL evidence",
+            completedReview.result.moves.flatMap { move -> move.evidence?.lines.orEmpty() }
+                .any { line -> line.source == ReviewScoreSource.WDL && line.depth != null },
+        )
+        compose.onNodeWithTag("review_move_1").fetchSemanticsNode()
+        compose.onNodeWithTag("review_move_2").fetchSemanticsNode()
+
+        compose.onNodeWithTag("review_back").performClick()
+        waitForText("Defeat")
+    }
+
+    @Test
+    fun idleAnalysisMakesAnOffMultiPvReviewReadyBeforeTheReviewTap() {
+        assertFalse(
+            "Native review latency test must not use the development engine",
+            com.drawlesschess.BuildConfig.USE_DEVELOPMENT_ENGINE,
+        )
+        dismissRulesGuideIfShown()
+        waitForText("Quick Play")
+        startWhiteCustomGame()
+        val runtime = requireNotNull(
+            ViewModelProvider(compose.activity)[DrawlessAppViewModel::class.java].runtime,
+        )
+
+        compose.waitUntil(timeoutMillis = 20_000L) {
+            runtime.reviewPrefetchDiagnostics().rootCandidateMovesByPly[1]?.isNotEmpty() == true
+        }
+        val candidates = requireNotNull(
+            runtime.reviewPrefetchDiagnostics().rootCandidateMovesByPly[1],
+        )
+        val played = listOf("a2a3", "h2h3", "b2b3", "g2g3", "a2a4", "h2h4")
+            .map { value -> com.drawlesschess.core.UciMove(value) }
+            .first { it !in candidates }
+        compose.onNodeWithTag("board_square_${played.value.substring(0, 2)}").performClick()
+        compose.onNodeWithTag("board_square_${played.value.substring(2, 4)}").performClick()
+        waitForStatus(R.string.status_your_turn, timeoutMillis = 20_000L)
+
+        compose.waitUntil(timeoutMillis = 20_000L) {
+            1 in runtime.reviewPrefetchDiagnostics().adjacentFallbackPlies
+        }
+        val finalReviewSubmissionsBeforeGameEnd = runtime.reviewEngineSubmissionCount()
+        compose.onNodeWithTag("resign_button").performClick()
+        waitForText("Resign this game?")
+        compose.onNodeWithText("Resign game").performClick()
+        waitForText("Defeat")
+
+        // GameRoute must have started and completed the fully seeded review before navigation.
+        compose.waitUntil(timeoutMillis = 5_000L) {
+            runtime.currentGameReviewState() is RuntimeGameReviewState.Complete
+        }
+        val complete = runtime.currentGameReviewState() as RuntimeGameReviewState.Complete
+        assertEquals(
+            "Final review submitted new engine work instead of consuming the in-game cache",
+            finalReviewSubmissionsBeforeGameEnd,
+            runtime.reviewEngineSubmissionCount(),
+        )
+        assertTrue(complete.result.moves.single().evidence?.usedAdjacentFallback == true)
+
+        val openStarted = SystemClock.elapsedRealtime()
+        compose.onNodeWithTag("post_game_review").performClick()
+        waitForText("Game review")
+        waitForText("Review complete")
+        val openMillis = SystemClock.elapsedRealtime() - openStarted
+        println("WARM_REVIEW_OPEN_MILLIS=$openMillis")
+        assertTrue("A fully prepared review took ${openMillis}ms to open", openMillis < 2_000L)
+    }
+
+    @Test
     fun completedResultSurvivesActivityRecreationWithoutReplayingCelebration() {
         dismissRulesGuideIfShown()
         waitForText("Quick Play")
@@ -200,6 +364,7 @@ class RepeatedGameLifecycleInstrumentedTest {
             waitForText("Score: 0 / 100")
             compose.onNodeWithTag("post_game_feedback").fetchSemanticsNode()
             compose.onNodeWithText("Home").fetchSemanticsNode()
+            compose.onNodeWithText("Quick Play").fetchSemanticsNode()
             compose.onNodeWithText("Rematch").fetchSemanticsNode()
             assertTrue(
                 "Activity recreation replayed the one-shot completion effect",
@@ -220,7 +385,7 @@ class RepeatedGameLifecycleInstrumentedTest {
 
         compose.onNodeWithText("Privacy").performScrollTo().performClick()
         waitForText("Drawless Chess works entirely offline", substring = true)
-        waitForText("realitymaster@protonmail.ch", substring = true)
+        waitForText("support@drawlesschess.com", substring = true)
         waitForText("View policy")
 
         compose.onNodeWithText("Close").performClick()
@@ -276,6 +441,9 @@ class RepeatedGameLifecycleInstrumentedTest {
         compose.onNodeWithText("Custom game").performClick()
         waitForText("Start game")
         compose.onNodeWithTag("play_as_white").performClick().assertIsSelected()
+        // These tests exercise native session reuse and saved-game lifecycle behavior. Keep
+        // their opponent deterministic; Vesper's async rating lifecycle has dedicated coverage.
+        compose.onNodeWithTag("opponent_option_casual").performClick().assertIsSelected()
         compose.onNodeWithText("Start game").performClick()
         confirmForfeitIfShown()
         waitForText("Save & exit")

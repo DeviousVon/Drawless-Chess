@@ -107,12 +107,42 @@
       "local_sha256": "1dccdc34ed60da946284ca988cc582993a356129fb18be516eecc08a80fbfeec"
     },
     "snap": {
-      "title": "ion.sound snap.mp3",
+      "title": "ion.sound snap.mp3 (retained for mechanical-check rollback)",
       "author": "Denis Ineshin",
       "license": "MIT",
       "source": "https://github.com/IonDen/ion.sound/blob/74d51c5bd14be428f06b3afb5e40125b8e407fbc/sounds/snap.mp3",
       "upstream_git_blob_sha1": "8a004685cd0ed8ced54ff173898ae73aa1b5f6f7",
       "local_sha256": "127f81f3512fa4535574857bd13d9dd05acf1660c0d323f3f2da6a5b9bfb9e89"
+    },
+    "august_shotgun_pump": {
+      "title": "Pump Action Shotgun Reload",
+      "author": "AugustSandberg",
+      "license": "CC0-1.0",
+      "source": "https://freesound.org/s/508746/",
+      "original_download": "https://freesound.org/people/AugustSandberg/sounds/508746/download/508746__augustsandberg__pump-action-shotgun-reload.wav",
+      "original_metadata": "WAV, 19.904 seconds, 96000 Hz, 24-bit stereo",
+      "retained_representation": "Original lossless Freesound WAV downloaded by the product owner",
+      "local_sha256": "1089ff464cecce6185236569767ea624123ae1bfa05351811b8c829e7d1b9434"
+    },
+    "discofield_brick_crash": {
+      "title": "Brick crash",
+      "author": "discofield",
+      "license": "CC0-1.0",
+      "source": "https://freesound.org/people/discofield/sounds/711656/",
+      "original_download": "https://freesound.org/people/discofield/sounds/711656/download/711656__discofield__brick-crash.wav",
+      "original_metadata": "WAV, 2.041678 seconds, 44100 Hz, 16-bit stereo",
+      "retained_representation": "Original lossless Freesound WAV downloaded by the product owner",
+      "local_sha256": "d6a90aae61d4d216cc0c2900e6a941230f5ad07bcee3a4b272786447b40ea21f"
+    },
+    "discofield_stone_crash": {
+      "title": "Stone crash",
+      "author": "discofield",
+      "license": "CC0-1.0",
+      "source": "https://freesound.org/people/discofield/sounds/711657/",
+      "original_download": "https://freesound.org/people/discofield/sounds/711657/download/711657__discofield__stone-crash.wav",
+      "original_metadata": "WAV, 2.500000 seconds, 44100 Hz, 16-bit stereo",
+      "retained_representation": "Original lossless Freesound WAV downloaded by the product owner",
+      "local_sha256": "5a91523c53b04d22c5b38fea41c4f1ba22d3ec64fc4b3ff954a6f378504c1afe"
     },
     "mh2o_alabaster": {
       "title": "chess_move_on_alabaster.wav — Freesound HQ preview",
@@ -125,6 +155,18 @@
       "original_metadata": "WAV, 0.072 seconds, 8000 Hz, 16-bit mono",
       "retained_representation": "Public Freesound HQ MP3 preview auditioned by the product owner",
       "local_sha256": "c13803890bd531fee08b167e780b0a7bab2c4e21b1b232366b8df3860792b25b"
+    },
+    "aerror_stonehit1": {
+      "title": "stonehit1.wav — Freesound HQ preview",
+      "author": "aerror",
+      "license": "CC0-1.0",
+      "source": "https://freesound.org/people/aerror/sounds/350750/",
+      "original_download": "https://freesound.org/people/aerror/sounds/350750/download/350750__aerror__stonehit1.wav",
+      "source_preview": "https://cdn.freesound.org/previews/350/350750_2472895-hq.mp3",
+      "source_preview_sha256": "3395dc9a8b8c554d7316d1995f6c44fb053d128c5bb8f4456bd5f166d6cb58df",
+      "original_metadata": "WAV, 3.524 seconds, 44100 Hz, 32-bit stereo",
+      "retained_representation": "Public Freesound HQ MP3 preview selected by the product owner",
+      "local_sha256": "3395dc9a8b8c554d7316d1995f6c44fb053d128c5bb8f4456bd5f166d6cb58df"
     },
     "rudmer_firework_pops": {
       "title": "2 Firework pops — Freesound HQ preview",
@@ -154,7 +196,9 @@
   "counts": {
     "capture": 12,
     "castle": 6,
-    "check": 4,
+    "check": 1,
+    "checkmate": 1,
+    "en_passant": 1,
     "firework_high": 2,
     "firework_low": 2,
     "firework_mid": 2,
@@ -720,146 +764,124 @@
       "processing": "High-quality 48 kHz stereo Vorbis q8 master from genuine chess contacts; aligned transient, restrained body layer, full contact tail, and loudness/true-peak mastering. No synthesis or pitch shift."
     },
     {
-      "file": "chess_capture_wood_01.ogg",
+      "file": "chess_capture_crush_01.ogg",
       "category": "capture",
-      "duration_seconds": 0.36,
-      "sha256": "d3ed2418fd6cfe4b1185b94e919185c99ed45585a18f8dc43fd4bbb9f8b61b1b",
+      "duration_seconds": 0.468,
+      "sha256": "b9a1fa1343f8a26ed854690c2331709a39637e957cc8fbfcc905813a6b2f1281",
       "sources": [
-        "disk_drop_1",
-        "disk_drop_4",
-        "disk_drop_2"
+        "aerror_stonehit1"
       ],
-      "processing": "High-quality 48 kHz stereo Vorbis q8 two-action capture from recorded piece removal and placement contacts with natural board body and mastered impact. No procedural audio."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 responsive capture cue cut from a CC0 field recording of a stone striking and crushing rocks; source stereo and granular fracture texture are preserved with subtle EQ variation and loudness/true-peak mastering. No normal-move contact is layered."
     },
     {
-      "file": "chess_capture_wood_02.ogg",
+      "file": "chess_capture_crush_02.ogg",
       "category": "capture",
-      "duration_seconds": 0.36,
-      "sha256": "50d6e8f455675483617aea87f41550f8cd301a77136b1294ab49746b0b441085",
+      "duration_seconds": 0.468,
+      "sha256": "bda8fbce3ce349dd32cea26c2446a2be041a2e5309edc80cd556ebf246c6654b",
       "sources": [
-        "disk_drop_2",
-        "disk_drop_5",
-        "disk_drop_3"
+        "aerror_stonehit1"
       ],
-      "processing": "High-quality 48 kHz stereo Vorbis q8 two-action capture from recorded piece removal and placement contacts with natural board body and mastered impact. No procedural audio."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 responsive capture cue cut from a CC0 field recording of a stone striking and crushing rocks; source stereo and granular fracture texture are preserved with subtle EQ variation and loudness/true-peak mastering. No normal-move contact is layered."
     },
     {
-      "file": "chess_capture_wood_03.ogg",
+      "file": "chess_capture_crush_03.ogg",
       "category": "capture",
-      "duration_seconds": 0.36,
-      "sha256": "51e80f0e1ebfac97ef49062b6b0c01684fc31178cdd111c1f9c680fe7aae6bed",
+      "duration_seconds": 0.468,
+      "sha256": "20ceadbe912a2131c09fc197361f9f1503ca402b21e650dda72fd307d3f882e5",
       "sources": [
-        "disk_drop_3",
-        "disk_drop_1",
-        "disk_drop_4"
+        "aerror_stonehit1"
       ],
-      "processing": "High-quality 48 kHz stereo Vorbis q8 two-action capture from recorded piece removal and placement contacts with natural board body and mastered impact. No procedural audio."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 responsive capture cue cut from a CC0 field recording of a stone striking and crushing rocks; source stereo and granular fracture texture are preserved with subtle EQ variation and loudness/true-peak mastering. No normal-move contact is layered."
     },
     {
-      "file": "chess_capture_wood_04.ogg",
+      "file": "chess_capture_crush_04.ogg",
       "category": "capture",
-      "duration_seconds": 0.36,
-      "sha256": "bd136d88ff501ed13ded4abe889638d8d8957bc98b7ee7b0a06c702f5e95f64e",
+      "duration_seconds": 0.468,
+      "sha256": "7a5ad8db051344af5a67d4cd656a35fcf24abc4130fcbc9c0df60532e8e488a8",
       "sources": [
-        "disk_drop_4",
-        "disk_drop_1",
-        "disk_drop_5"
+        "aerror_stonehit1"
       ],
-      "processing": "High-quality 48 kHz stereo Vorbis q8 two-action capture from recorded piece removal and placement contacts with natural board body and mastered impact. No procedural audio."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 responsive capture cue cut from a CC0 field recording of a stone striking and crushing rocks; source stereo and granular fracture texture are preserved with subtle EQ variation and loudness/true-peak mastering. No normal-move contact is layered."
     },
     {
-      "file": "chess_capture_wood_05.ogg",
+      "file": "chess_capture_crush_05.ogg",
       "category": "capture",
-      "duration_seconds": 0.36,
-      "sha256": "5d05281e973b615e8dd5e903f207283471597b353cc01c30be2f80f5bd4e2c48",
+      "duration_seconds": 0.468,
+      "sha256": "b11c5afbceb4c00ad23c4772087e104fa322b5ee5865f8dcfd88ba2e277fd8b4",
       "sources": [
-        "disk_drop_5",
-        "disk_drop_2"
+        "aerror_stonehit1"
       ],
-      "processing": "High-quality 48 kHz stereo Vorbis q8 two-action capture from recorded piece removal and placement contacts with natural board body and mastered impact. No procedural audio."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 responsive capture cue cut from a CC0 field recording of a stone striking and crushing rocks; source stereo and granular fracture texture are preserved with subtle EQ variation and loudness/true-peak mastering. No normal-move contact is layered."
     },
     {
-      "file": "chess_capture_wood_06.ogg",
+      "file": "chess_capture_crush_06.ogg",
       "category": "capture",
-      "duration_seconds": 0.36,
-      "sha256": "e6d9c5ade2f215c0f1b540ed96b9538393086bbc16534514260099e2bfd895f9",
+      "duration_seconds": 0.468,
+      "sha256": "9050301761b450e7e924340eacb931aec2c3b7b6e622b29b20b82478e8aba45e",
       "sources": [
-        "disk_drop_2",
-        "disk_drop_3",
-        "disk_drop_1"
+        "aerror_stonehit1"
       ],
-      "processing": "High-quality 48 kHz stereo Vorbis q8 two-action capture from recorded piece removal and placement contacts with natural board body and mastered impact. No procedural audio."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 responsive capture cue cut from a CC0 field recording of a stone striking and crushing rocks; source stereo and granular fracture texture are preserved with subtle EQ variation and loudness/true-peak mastering. No normal-move contact is layered."
     },
     {
-      "file": "chess_capture_wood_07.ogg",
+      "file": "chess_capture_crush_07.ogg",
       "category": "capture",
-      "duration_seconds": 0.36,
-      "sha256": "1262bcb940ad87fb13db1af9ac891abe8543abb478ff66789ad92a2760f8697a",
+      "duration_seconds": 0.48,
+      "sha256": "f081f8d7aa79a9b13956beab2a7693f52794f159877c196918d79bde97ef9732",
       "sources": [
-        "disk_drop_2",
-        "disk_drop_5",
-        "disk_drop_3"
+        "aerror_stonehit1"
       ],
-      "processing": "High-quality 48 kHz stereo Vorbis q8 two-action capture from recorded piece removal and placement contacts with natural board body and mastered impact. No procedural audio."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 responsive capture cue cut from a CC0 field recording of a stone striking and crushing rocks; source stereo and granular fracture texture are preserved with subtle EQ variation and loudness/true-peak mastering. No normal-move contact is layered."
     },
     {
-      "file": "chess_capture_wood_08.ogg",
+      "file": "chess_capture_crush_08.ogg",
       "category": "capture",
-      "duration_seconds": 0.36,
-      "sha256": "fe7a211a417e0be77c92171bfa814bbf3eec7c5ff6226900ff8e2d3c03ec89f2",
+      "duration_seconds": 0.48,
+      "sha256": "ad454db69e11fe927172293b3c6cf81e532e2100b3f97a1b6f7af6bb0f9c9fb4",
       "sources": [
-        "disk_drop_3",
-        "disk_drop_1",
-        "disk_drop_4"
+        "aerror_stonehit1"
       ],
-      "processing": "High-quality 48 kHz stereo Vorbis q8 two-action capture from recorded piece removal and placement contacts with natural board body and mastered impact. No procedural audio."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 responsive capture cue cut from a CC0 field recording of a stone striking and crushing rocks; source stereo and granular fracture texture are preserved with subtle EQ variation and loudness/true-peak mastering. No normal-move contact is layered."
     },
     {
-      "file": "chess_capture_wood_09.ogg",
+      "file": "chess_capture_crush_09.ogg",
       "category": "capture",
-      "duration_seconds": 0.36,
-      "sha256": "4b8e5c2b3a7397d46f7536b0775053235c81cdfebdf0d4679981757a516a00b5",
+      "duration_seconds": 0.48,
+      "sha256": "6c7d8bc1c8503535a1c6021ce0d3f4d39c8ab681f22c48ddc30fee307dff28f3",
       "sources": [
-        "disk_drop_4",
-        "disk_drop_1",
-        "disk_drop_5"
+        "aerror_stonehit1"
       ],
-      "processing": "High-quality 48 kHz stereo Vorbis q8 two-action capture from recorded piece removal and placement contacts with natural board body and mastered impact. No procedural audio."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 responsive capture cue cut from a CC0 field recording of a stone striking and crushing rocks; source stereo and granular fracture texture are preserved with subtle EQ variation and loudness/true-peak mastering. No normal-move contact is layered."
     },
     {
-      "file": "chess_capture_wood_10.ogg",
+      "file": "chess_capture_crush_10.ogg",
       "category": "capture",
-      "duration_seconds": 0.36,
-      "sha256": "385f320f4ca7f6515cf18fc3619cd575526689de27e8aafac809464c88a97256",
+      "duration_seconds": 0.48,
+      "sha256": "87ba2e7928e68a7b68e805c03638925b15a9b4968b029a9d4b76291ff05d65c7",
       "sources": [
-        "disk_drop_5",
-        "disk_drop_2"
+        "aerror_stonehit1"
       ],
-      "processing": "High-quality 48 kHz stereo Vorbis q8 two-action capture from recorded piece removal and placement contacts with natural board body and mastered impact. No procedural audio."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 responsive capture cue cut from a CC0 field recording of a stone striking and crushing rocks; source stereo and granular fracture texture are preserved with subtle EQ variation and loudness/true-peak mastering. No normal-move contact is layered."
     },
     {
-      "file": "chess_capture_wood_11.ogg",
+      "file": "chess_capture_crush_11.ogg",
       "category": "capture",
-      "duration_seconds": 0.36,
-      "sha256": "75c55f6fa3f2a3b8a7b32bf9c39f999520b36cbe8a442ffc1a4165536d94c44c",
+      "duration_seconds": 0.48,
+      "sha256": "31b6a2cfb228054221c12f44a3634a1ce5293ada383656791fc8ae6038a390b1",
       "sources": [
-        "disk_drop_2",
-        "disk_drop_3",
-        "disk_drop_1"
+        "aerror_stonehit1"
       ],
-      "processing": "High-quality 48 kHz stereo Vorbis q8 two-action capture from recorded piece removal and placement contacts with natural board body and mastered impact. No procedural audio."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 responsive capture cue cut from a CC0 field recording of a stone striking and crushing rocks; source stereo and granular fracture texture are preserved with subtle EQ variation and loudness/true-peak mastering. No normal-move contact is layered."
     },
     {
-      "file": "chess_capture_wood_12.ogg",
+      "file": "chess_capture_crush_12.ogg",
       "category": "capture",
-      "duration_seconds": 0.36,
-      "sha256": "8deca0005d3b16d53bfd14e5e0e10b06fa0c20565fb434c0eefcdb3a96a38407",
+      "duration_seconds": 0.48,
+      "sha256": "adc6fc90d7bbe9da6651abc8859c7ff661da7dae54b74ba1d702854cee428899",
       "sources": [
-        "disk_drop_1",
-        "disk_drop_4",
-        "disk_drop_2"
+        "aerror_stonehit1"
       ],
-      "processing": "High-quality 48 kHz stereo Vorbis q8 two-action capture from recorded piece removal and placement contacts with natural board body and mastered impact. No procedural audio."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 responsive capture cue cut from a CC0 field recording of a stone striking and crushing rocks; source stereo and granular fracture texture are preserved with subtle EQ variation and loudness/true-peak mastering. No normal-move contact is layered."
     },
     {
       "file": "chess_castle_wood_01.ogg",
@@ -1086,44 +1108,34 @@
       "processing": "High-quality 48 kHz stereo Vorbis q8 recorded falling-glass tail with preserved source ambience and long natural fade."
     },
     {
-      "file": "chess_check_crystal_01.ogg",
+      "file": "chess_check_mechanical_02.ogg",
       "category": "check",
-      "duration_seconds": 0.22,
-      "sha256": "6b34eb279fa8938a3dcad3cb73f4e88be6c51f35efb579972ed421ac3833ad36",
+      "duration_seconds": 1.22,
+      "sha256": "028805fbd050c9a938e0ee3186d1cf60cdfabb000b6035c28324fed7862461c8",
       "sources": [
-        "glass"
+        "august_shotgun_pump"
       ],
-      "processing": "High-quality 48 kHz stereo Vorbis q8 cue cut from a recorded glass tick; replaces the procedural two-tone check cue."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 check cue cut from a genuine CC0 pump-action shotgun cycle recorded losslessly at 24-bit/96 kHz stereo; action only, with no gunshot."
     },
     {
-      "file": "chess_check_crystal_02.ogg",
-      "category": "check",
-      "duration_seconds": 0.22,
-      "sha256": "d37c04067d24c64d5e47bba286d456247dc729a94696790d2ec2add32033f4c5",
+      "file": "chess_en_passant_brick_01.ogg",
+      "category": "en_passant",
+      "duration_seconds": 1.52,
+      "sha256": "eff059c13dba6f0e9e3859c79936703d8bfa2322f4688e614b329630e38980e0",
       "sources": [
-        "glass"
+        "discofield_brick_crash"
       ],
-      "processing": "High-quality 48 kHz stereo Vorbis q8 cue cut from a recorded glass tick; replaces the procedural two-tone check cue."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 en-passant cue preserving the complete audible CC0 brick-crash event while removing its trailing silence; source stereo is retained with restrained filtering, short boundary fades, and loudness/true-peak mastering."
     },
     {
-      "file": "chess_check_crystal_03.ogg",
-      "category": "check",
-      "duration_seconds": 0.22,
-      "sha256": "1ae078097b11317ed40dfc71a0b96f6fb3dd67a1d9848ac0f839d51067c092a7",
+      "file": "chess_checkmate_stone_01.ogg",
+      "category": "checkmate",
+      "duration_seconds": 1.82,
+      "sha256": "83970184e3a0bddd6042279331fc4af3a1d40cdc74c4429037bacb674fd77d7a",
       "sources": [
-        "glass"
+        "discofield_stone_crash"
       ],
-      "processing": "High-quality 48 kHz stereo Vorbis q8 cue cut from a recorded glass tick; replaces the procedural two-tone check cue."
-    },
-    {
-      "file": "chess_check_crystal_04.ogg",
-      "category": "check",
-      "duration_seconds": 0.22,
-      "sha256": "749879943d2c1a43d1839a9bd0cc0594cf0097032a974297ee7f41b11f49d19a",
-      "sources": [
-        "glass"
-      ],
-      "processing": "High-quality 48 kHz stereo Vorbis q8 cue cut from a recorded glass tick; replaces the procedural two-tone check cue."
+      "processing": "High-quality 48 kHz stereo Vorbis q8 checkmate cue preserving the complete audible CC0 stone-crash event while removing its trailing silence; source stereo and impact tail are retained with restrained filtering, short boundary fades, and loudness/true-peak mastering."
     },
     {
       "file": "chess_promotion_01.ogg",

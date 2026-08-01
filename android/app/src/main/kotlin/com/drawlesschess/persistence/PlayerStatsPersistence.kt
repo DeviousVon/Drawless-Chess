@@ -12,6 +12,9 @@ import com.drawlesschess.core.TimeControl
 import com.drawlesschess.core.coordinator.CoordinatorCheckpoint
 import com.drawlesschess.core.coordinator.GameConfig
 import com.drawlesschess.core.engine.BotDifficultyCatalog
+import com.drawlesschess.core.engine.OfflineElo
+import com.drawlesschess.core.engine.OfflineRating
+import com.drawlesschess.core.engine.RatedResult
 import java.util.UUID
 import org.json.JSONArray
 
@@ -183,7 +186,87 @@ internal data class PlayerStatistics(
     val bestWinStreak: Int,
     val unassistedWins: Int,
     val opponents: List<OpponentStatistics>,
+    val adaptiveRating: Int = BotDifficultyCatalog.ADAPTIVE_STARTING_ELO,
+    val adaptiveGamesPlayed: Int = 0,
 )
+
+internal object AdaptiveRatingHistory {
+    const val NAMESPACE = "adaptive-v1"
+    const val POOL = "overall"
+    const val OPPONENT_STABLE_ID = "bot:adaptive"
+
+    fun current(games: List<CompletedGameEntity>): OfflineRating {
+        val eligible = games.filter {
+            it.ratingNamespace == NAMESPACE &&
+                it.ratingPool == POOL &&
+                it.playerRatingBefore != null &&
+                it.playerRatingAfter != null
+        }.sortedBy(CompletedGameEntity::completionSequence)
+        return OfflineRating(
+            rating = eligible.lastOrNull()?.playerRatingAfter
+                ?: BotDifficultyCatalog.ADAPTIVE_STARTING_ELO,
+            gamesPlayed = eligible.size,
+        )
+    }
+
+    fun update(current: OfflineRating, opponentElo: Int, playerWon: Boolean): OfflineRating =
+        OfflineElo.update(
+            current = current,
+            opponentElo = opponentElo,
+            result = if (playerWon) RatedResult.WIN else RatedResult.LOSS,
+        )
+
+    /**
+     * Rating snapshots are derived history, so the database assigns them while holding the same
+     * transaction that appends the completed game. This keeps two store instances, retries, and
+     * process-recovery backfills from observing or advancing an intermediate rating.
+     */
+    fun withCurrentSnapshot(
+        candidate: CompletedGameEntity,
+        current: OfflineRating,
+    ): CompletedGameEntity {
+        if (!candidate.isEligibleAdaptiveResult()) return candidate.withoutRatingSnapshot()
+        val opponentElo = requireNotNull(candidate.opponentExactElo) {
+            "An adaptive opponent must preserve its frozen Elo"
+        }
+        val updated = update(
+            current = current,
+            opponentElo = opponentElo,
+            playerWon = candidate.result == RESULT_WIN,
+        )
+        return candidate.copy(
+            ratingNamespace = NAMESPACE,
+            ratingPool = POOL,
+            playerRatingBefore = current.rating,
+            playerRatingAfter = updated.rating,
+        )
+    }
+
+    /** Reuses only database-derived columns so an exact retry can be compared idempotently. */
+    fun withStoredSnapshot(
+        candidate: CompletedGameEntity,
+        stored: CompletedGameEntity,
+    ): CompletedGameEntity = candidate.copy(
+        ratingNamespace = stored.ratingNamespace,
+        ratingPool = stored.ratingPool,
+        playerRatingBefore = stored.playerRatingBefore,
+        playerRatingAfter = stored.playerRatingAfter,
+    )
+
+    private fun CompletedGameEntity.isEligibleAdaptiveResult(): Boolean =
+        opponentStableId == OPPONENT_STABLE_ID &&
+            hintCount == 0 &&
+            undoCount == 0 &&
+            pauseCount == 0 &&
+            !threatIndicationEnabled
+
+    private fun CompletedGameEntity.withoutRatingSnapshot(): CompletedGameEntity = copy(
+        ratingNamespace = null,
+        ratingPool = null,
+        playerRatingBefore = null,
+        playerRatingAfter = null,
+    )
+}
 
 internal object CompletedGameRecordFactory {
     fun from(
@@ -201,7 +284,6 @@ internal object CompletedGameRecordFactory {
         )
         val opponent = opponentIdentity(config)
         val time = config.timeControl
-
         return CompletedGameEntity(
             gameId = config.gameId,
             localProfileId = localProfileId,
@@ -251,7 +333,7 @@ internal object CompletedGameRecordFactory {
             scoreThreatPenalty = score.threatIndicationPenalty,
             // The core scoring contract is authoritative; breakdown columns explain that value.
             scoreFinalPoints = score.points,
-            // Reserved for rated play; casual games cannot truthfully supply these snapshots.
+            // Assigned by the Room transaction from the preceding durable history chain.
             ratingNamespace = null,
             ratingPool = null,
             playerRatingBefore = null,
@@ -259,22 +341,36 @@ internal object CompletedGameRecordFactory {
         )
     }
 
-    private fun opponentIdentity(config: GameConfig): OpponentIdentity = when (val strength = config.engineStrength) {
-        is EngineStrength.ApproximateElo -> {
-            val namedLevelId = BotDifficultyCatalog.namedOrNull(config.opponentLevelId)?.id
-            OpponentIdentity(
-                stableId = namedLevelId?.let { "bot:$it" } ?: "bot:elo:${strength.elo}",
+    private fun opponentIdentity(config: GameConfig): OpponentIdentity {
+        val strength = config.engineStrength
+        if (config.opponentLevelId == BotDifficultyCatalog.ADAPTIVE_LEVEL_ID) {
+            require(strength is EngineStrength.ApproximateElo) {
+                "An adaptive opponent must freeze an approximate Elo for the game"
+            }
+            return OpponentIdentity(
+                stableId = AdaptiveRatingHistory.OPPONENT_STABLE_ID,
                 exactElo = strength.elo,
                 strengthKind = STRENGTH_APPROXIMATE_ELO,
                 strengthValue = strength.elo,
             )
         }
-        is EngineStrength.SkillLevel -> OpponentIdentity(
-            stableId = "bot:skill:${strength.level}",
-            exactElo = null,
-            strengthKind = STRENGTH_SKILL_LEVEL,
-            strengthValue = strength.level,
-        )
+        return when (strength) {
+            is EngineStrength.ApproximateElo -> {
+                val namedLevelId = BotDifficultyCatalog.namedOrNull(config.opponentLevelId)?.id
+                OpponentIdentity(
+                    stableId = namedLevelId?.let { "bot:$it" } ?: "bot:elo:${strength.elo}",
+                    exactElo = strength.elo,
+                    strengthKind = STRENGTH_APPROXIMATE_ELO,
+                    strengthValue = strength.elo,
+                )
+            }
+            is EngineStrength.SkillLevel -> OpponentIdentity(
+                stableId = "bot:skill:${strength.level}",
+                exactElo = null,
+                strengthKind = STRENGTH_SKILL_LEVEL,
+                strengthValue = strength.level,
+            )
+        }
     }
 }
 
@@ -317,6 +413,7 @@ internal object PlayerStatisticsCalculator {
                     .thenBy { it.opponentStableId },
             )
 
+        val adaptive = AdaptiveRatingHistory.current(games)
         return PlayerStatistics(
             localProfileId = profile.localProfileId,
             displayName = profile.displayName,
@@ -339,6 +436,8 @@ internal object PlayerStatisticsCalculator {
                     game.scoreThreatPenalty == 0
             },
             opponents = opponents,
+            adaptiveRating = adaptive.rating,
+            adaptiveGamesPlayed = adaptive.gamesPlayed,
         )
     }
 

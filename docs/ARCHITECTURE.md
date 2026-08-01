@@ -21,7 +21,7 @@ Architecture version: 1
 | `core:chess` | Legal moves, check state, canonical repetition keys, dead-position facts | `core:model` |
 | `engine:api` | Asynchronous engine request/result contract | `core:model`, `core:rules` |
 | `engine:fairy` | Strict UCI session, JVM-neutral native byte transport, composition, and variant configuration | `engine:api` |
-| `engine:android` | Provisional JNI `NativeEnginePort`, native package, asset verification, and timeout scheduling | `engine:fairy`, Android runtime APIs |
+| `engine:android` | JNI `NativeEnginePort`, native package, asset verification, and timeout scheduling | `engine:fairy`, Android runtime APIs |
 | `data` | Saved games, ratings, statistics, preferences | Core contracts |
 | `app` | Compose UI, navigation, state holders, Android lifecycle | All public module APIs |
 | `monetization` | Billing, ad eligibility, cosmetic entitlements | Entitlement API only |
@@ -49,10 +49,12 @@ For the production engine path, `NativeFairyEngineSession` presents `ChessEngine
 coordinator and composes two lower layers. `FairyUciEngine` owns UCI state, request
 correlation, timeouts, and Drawless patch compatibility. `SerializedNativeUciTransport`
 owns bounded line/byte I/O, FIFO write serialization, and terminal transport state.
-`JniFairyEnginePort` supplies bytes through the accepted in-process private-test bridge.
-The core seam remains neutral so a separately controlled process can replace JNI for
-future reliability or isolation work; the whole application is GPL-3.0-or-later, so this
-seam is not treated as a licensing workaround.
+`JniFairyEnginePort` supplies bytes through the accepted in-process JNI bridge. Gameplay and hints
+use one such session in the main app process. `IsolatedReviewEngine` binds to
+`ReviewEngineService` in `:review_engine`, where a second session owns separate process-global
+Fairy state; its Android `Messenger` boundary still exposes only `ChessEngine` requests and
+responses to the app. The whole application is GPL-3.0-or-later, so this operational isolation is
+not treated as a licensing boundary or workaround.
 
 This is unidirectional data flow: state flows to UI; user events flow to a state holder.
 
@@ -61,6 +63,10 @@ This is unidirectional data flow: state flows to UI; user events flow to a state
 - Exactly one authoritative game session mutates a game at a time.
 - Engine work is cancellable and tagged with `gameId`, `positionId`, and `requestId`.
 - A move is committed only if the response still matches the current `positionId`.
+- Gameplay and review use separate native singletons and coordinator invocation gates; review
+  startup, IPC, or cancellation publication cannot occupy the gameplay launch gate.
+- A `BOT_MOVE` response preserves the raw native `bestmove` and `ponder`. Its rank-one MultiPV
+  snapshot is evidence and cannot replace the limited-strength gameplay choice.
 - Clock time is derived from a monotonic time source, not accumulated UI callbacks.
 - Lifecycle pauses do not pause rated games.
 - Database writes occur after every committed move, never only when leaving the board.
@@ -93,7 +99,8 @@ This is unidirectional data flow: state flows to UI; user events flow to a state
 6. Compose tests: board interaction, adaptive layouts, accessibility.
 7. Device tests: supported ABIs, process death, low-memory and tablet behavior.
 
-The JVM gate includes 25 native-transport tests, including two composition tests
+The current JVM/core-and-endpoint gate passes 357 tests. It includes 25 native-transport tests,
+including two composition tests
 through `NativeFairyEngineSession`. They prove the port contract, framing, serialization,
 failure propagation, artifact metadata, and strict UCI integration. Nine further tests
 exercise the managed JNI port and exact static-native ABI contract. A host-native gate

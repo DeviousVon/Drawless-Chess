@@ -1,5 +1,6 @@
 package com.drawlesschess.selfplay
 
+import com.drawlesschess.core.BareKingPolicy
 import com.drawlesschess.core.GameSession
 import com.drawlesschess.core.RulesContractV1
 import com.drawlesschess.core.UciMove
@@ -42,6 +43,7 @@ internal fun runPuzzlePipelineTests(): Int {
             "event" to "run_header",
             "run_fingerprint" to fingerprint,
             "report_schema_version" to REPORT_SCHEMA_VERSION,
+            "config_schema_version" to SelfPlayConfig.SCHEMA_VERSION,
             "engine_sha256" to engineHash,
             "variants_sha256" to variantsHash,
             "runtime_sha256" to runtimeHash,
@@ -49,6 +51,7 @@ internal fun runPuzzlePipelineTests(): Int {
                 "variant" to "drawless",
                 "deadPosition" to "material_victory",
                 "fiftyMove" to "disabled",
+                "bareKing" to "bare_king_loses",
             ),
         )
         val game = linkedMapOf<String, Any?>(
@@ -92,6 +95,8 @@ internal fun runPuzzlePipelineTests(): Int {
         check(terminal.movesBefore == moves.dropLast(1).map { it.value })
         check(terminal.candidateFen == timeline[timeline.lastIndex - 1])
         check(terminal.solutionMove == "d8h4")
+        check(terminal.rules.bareKing == BareKingPolicy.BARE_KING_LOSES)
+        check(terminal.rules.contract.bareKing == BareKingPolicy.BARE_KING_LOSES)
         check(terminal.expectedEndReason == outcome.reason)
         check(terminal.expectedWinner == outcome.winner)
         check(
@@ -108,13 +113,32 @@ internal fun runPuzzlePipelineTests(): Int {
         check(forced.sourcePly == 2 && forced.sourceScoreMate == 3)
         check(forced.expectedEndReason == null)
 
+        val continueRules = terminal.rules.copy(bareKing = BareKingPolicy.CONTINUE)
+        val continueId = candidateId(
+            terminal.kind,
+            continueRules,
+            terminal.initialFen,
+            terminal.movesBefore,
+            terminal.candidateFen,
+            terminal.solutionMove,
+        )
+        check(continueId != terminal.candidateId) {
+            "Bare-king policy must participate in puzzle candidate identity"
+        }
+        val continueCandidate = PuzzleCandidate.fromMap(
+            terminal.copy(candidateId = continueId, rules = continueRules).toMap(),
+        )
+        check(continueCandidate.rules.bareKing == BareKingPolicy.CONTINUE)
+        check(continueCandidate.rules.contract.bareKing == BareKingPolicy.CONTINUE)
+        check(PUZZLE_CANDIDATE_SCHEMA_VERSION == 2 && PUZZLE_VERIFICATION_SCHEMA_VERSION == 2)
+
         check(runCatching { PuzzleMiner.mine(listOf(report), output) }.isFailure) {
             "Miner overwrote an existing candidate file without --replace"
         }
         val replaced = PuzzleMiner.mine(listOf(report), output, replace = true)
         check(replaced.uniqueCandidates == 2)
         PuzzleCandidateReader.read(output)
-        return 14
+        return 20
     } finally {
         if (Files.exists(temporary)) {
             Files.walk(temporary).use { paths ->

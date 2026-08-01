@@ -12,7 +12,9 @@
     <string name="action_dismiss">Ignorer</string>
     <string name="action_try_again">Réessayer</string>
     <string name="action_home">Accueil</string>
+    <string name="action_quick_play">Partie rapide</string>
     <string name="action_rematch">Revanche</string>
+    <string name="action_review_game">Analyser la partie</string>
     <string name="action_keep_playing">Continuer à jouer</string>
     <string name="action_theme">Thème</string>
     <string name="label_white">Blancs</string>
@@ -61,10 +63,10 @@
     <string name="rules_fifty_move">• Après 50 coups sans mouvement de pion ni capture, les points de matériel déterminent le vainqueur.</string>
     <string name="action_got_it">Compris</string>
     <string name="license_title">Logiciel open source</string>
-    <string name="license_body">Drawless Chess est proposé sous licence GNU GPL version 3 ou ultérieure. Les extraits audio comprennent des enregistrements d’échecs CC0 de JJTaynos et mh2o, des feux d’artifice CC0 de Rudmer_Rotteveel et des enregistrements ion.sound de Denis Ineshin sous licence MIT. Le code source correspondant exact et les mentions relatives aux tiers accompagnent la version officielle v%1$s.</string>
+    <string name="license_body">Drawless Chess est proposé sous licence GNU GPL version 3 ou ultérieure. Son moteur exécuté sur l’appareil est une version modifiée de Fairy-Stockfish, dérivée de Stockfish et distribuée sous GPL-3.0-or-later. Les extraits audio comprennent des enregistrements d’échecs CC0 de JJTaynos et mh2o, des feux d’artifice CC0 de Rudmer_Rotteveel et des enregistrements ion.sound de Denis Ineshin sous licence MIT. Le code source correspondant exact et les mentions relatives aux tiers accompagnent la version officielle v%1$s.</string>
     <string name="license_view_source">Voir le code source</string>
     <string name="privacy_title">Confidentialité</string>
-    <string name="privacy_body">Drawless Chess fonctionne entièrement hors ligne. BB_Games ne collecte, ne transmet, ne partage et ne vend aucune donnée personnelle. Les parties enregistrées, l’historique des parties terminées, les statistiques locales et les paramètres sont stockés sur votre appareil et peuvent être inclus dans les sauvegardes Android si vous les activez ; BB_Games ne peut pas accéder à ces sauvegardes. Questions sur la confidentialité : realitymaster@protonmail.ch</string>
+    <string name="privacy_body">Drawless Chess fonctionne entièrement hors ligne. BB_Games ne collecte, ne transmet, ne partage et ne vend aucune donnée personnelle. Les parties enregistrées, l’historique des parties terminées, les statistiques locales et les paramètres sont stockés sur votre appareil et peuvent être inclus dans les sauvegardes Android si vous les activez ; BB_Games ne peut pas accéder à ces sauvegardes. Questions sur la confidentialité : support@drawlesschess.com</string>
     <string name="privacy_view_policy">Voir la politique</string>
 
     <!-- Game setup -->
@@ -116,6 +118,10 @@
     <string name="opponent_lucian_epithet">Grand maître courtois</string>
     <string name="opponent_lucian_name">Lucian</string>
     <string name="opponent_lucian_personality">Peu loquace, généreux dans la victoire et concentré dès le premier coup.</string>
+    <string name="opponent_vesper_name">Vesper</string>
+    <string name="opponent_vesper_epithet">Votre némésis</string>
+    <string name="opponent_vesper_personality">Vesper vous observe, n’oublie rien et revient toujours avec un plan.</string>
+    <string name="difficulty_adaptive">Adaptatif</string>
     <string name="difficulty_learner">Débutant</string>
     <string name="difficulty_casual">Détente</string>
     <string name="difficulty_challenger">Challenger</string>
@@ -130,6 +136,9 @@
     <string name="difficulty_description_expert">Un jeu précis et incisif pour les joueurs expérimentés.</string>
     <string name="difficulty_description_master">Un défi stratégique exigeant.</string>
     <string name="difficulty_description_grandmaster">L’adversaire disponible le plus redoutable.</string>
+    <string name="difficulty_description_adaptive">S’adapte à votre niveau actuel et évolue après chaque partie jouée sans aide.</string>
+    <string name="adaptive_status_provisional">Évaluation de votre niveau · environ %1$d · %2$d/10 parties</string>
+    <string name="adaptive_status_matched">Adapté à environ %1$d</string>
 
     <!-- Themes -->
     <string name="theme_choose">Choisissez un thème</string>
@@ -239,6 +248,56 @@
     <string name="game_material_score">Score %1$d</string>
     <string name="game_none">Aucune</string>
     <string name="game_promote_pawn">Promouvoir le pion</string>
+
+    <!-- Analyse de partie (bêta) -->
+    <string name="review_title">Analyse de la partie</string>
+    <string name="review_beta">Bêta</string>
+    <string name="review_analyzing">Analyse de vos coups…</string>
+    <string name="review_progress">Vos coups analysés : %1$d sur %2$d</string>
+    <string name="review_progress_accessibility">Analyse de vos coups terminée à %1$d%%</string>
+    <string name="review_complete">Analyse terminée</string>
+    <string name="review_complete_body">Vos coups : %1$d. Coups évalués : %2$d.</string>
+    <string name="review_summary_title">Votre analyse</string>
+    <string name="review_summary_player_side">Vous (%1$s)</string>
+    <string name="review_summary_graded">Coups évalués : %1$d</string>
+    <string name="review_summary_grade_count">%1$s : %2$d</string>
+    <string name="review_summary_grade_badge">%1$s %2$d</string>
+    <string name="review_my_mistakes">Revoir mes erreurs</string>
+    <string name="review_opponent_context_label">Coup de l’adversaire</string>
+    <string name="review_opponent_context_body">Affiché pour le contexte. Seuls vos coups sont évalués.</string>
+    <string name="review_better_move_arrow_accessibility">Flèche du meilleur coup de %1$s vers %2$s</string>
+    <string name="review_failed">Analyse indisponible</string>
+    <string name="review_failed_body">Le moteur n’a pas pu terminer cette analyse.</string>
+    <string name="review_cancelled">Analyse arrêtée</string>
+    <string name="review_cancelled_body">Les coups déjà analysés restent visibles. Relancez l’analyse pour la terminer.</string>
+    <string name="review_cancel_analysis">Arrêter l’analyse</string>
+    <string name="review_retry">Analyser à nouveau</string>
+    <string name="review_move_position">Coup %1$d sur %2$d</string>
+    <string name="review_previous_issue">Erreur précédente</string>
+    <string name="review_previous">Coup précédent</string>
+    <string name="review_next">Coup suivant</string>
+    <string name="review_next_issue">Erreur suivante</string>
+    <string name="review_moves">Coups de la partie</string>
+    <string name="review_starting_position">Position initiale</string>
+    <string name="review_choose_move">Choisissez un coup pour afficher son analyse.</string>
+    <string name="review_waiting">En attente de l’analyse…</string>
+    <string name="review_better_move">Un meilleur coup était %1$s.</string>
+    <string name="review_suggested_line">Variante suggérée : %1$s</string>
+    <string name="review_evaluation">Évaluation pour les %1$s : %2$s</string>
+    <string name="review_grade_best">Meilleur</string>
+    <string name="review_grade_good">Bon</string>
+    <string name="review_grade_inaccuracy">Imprécision</string>
+    <string name="review_grade_mistake">Erreur</string>
+    <string name="review_grade_blunder">Gaffe</string>
+    <string name="review_grade_unreviewed">Non analysé</string>
+    <string name="review_grade_best_explanation">Ce coup a obtenu le meilleur résultat possible.</string>
+    <string name="review_grade_good_explanation">C’était un choix solide.</string>
+    <string name="review_grade_inaccuracy_explanation">Ce coup a cédé une petite partie de l’avantage.</string>
+    <string name="review_grade_mistake_explanation">Ce coup a donné une réelle occasion à l’adversaire.</string>
+    <string name="review_grade_blunder_explanation">Ce coup a considérablement changé la partie.</string>
+    <string name="review_move_title_white">%1$d. %2$s</string>
+    <string name="review_move_title_black">%1$d… %2$s</string>
+    <string name="review_move_accessibility">%1$s. %2$s. %3$s.</string>
     <string name="piece_queen">dame</string>
     <string name="piece_rook">tour</string>
     <string name="piece_bishop">fou</string>
@@ -306,7 +365,7 @@
     <string name="result_dead_position_material">L’échec et mat est devenu impossible ; la règle du matériel a donc déterminé le vainqueur.</string>
     <string name="result_dead_position_material_score">L’échec et mat est devenu impossible. Les Blancs avaient %1$d points de matériel et les Noirs %2$d ; %3$s a donc gagné selon la règle du matériel.</string>
     <string name="result_dead_position_material_tie">L’échec et mat est devenu impossible, avec %1$d points de matériel de chaque côté. Selon la règle du matériel, le joueur ayant joué le dernier coup—%2$s—a gagné.</string>
-    <string name="result_dead_position_final_capture">La dernière capture a rendu l’échec et mat impossible. Selon la règle Final Capture, le joueur ayant effectué cette capture a gagné.</string>
+    <string name="result_dead_position_final_capture">Ce coup a rendu l’échec et mat impossible. Selon la règle Final Capture, le joueur qui a joué ce coup a gagné.</string>
     <string name="result_bare_king">Il ne restait que le roi à %1$s, donc %2$s a gagné.</string>
     <string name="result_timeout">Le temps est écoulé.</string>
     <string name="result_resignation">La partie s’est terminée par un abandon.</string>

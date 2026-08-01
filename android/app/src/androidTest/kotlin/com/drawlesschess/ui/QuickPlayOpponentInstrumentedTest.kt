@@ -2,12 +2,15 @@ package com.drawlesschess.ui
 
 import android.content.Context
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToIndex
 import androidx.test.core.app.ApplicationProvider
+import com.drawlesschess.R
 import com.drawlesschess.core.engine.BotDifficultyCatalog
 import com.drawlesschess.core.engine.NamedBotLevel
 import org.junit.Assert.assertEquals
@@ -19,12 +22,15 @@ class QuickPlayOpponentInstrumentedTest {
     val compose = createComposeRule()
 
     @Test
-    fun opponentDialogOffersTheFullDifficultyLadder() {
+    fun opponentDialogOffersAdaptiveAndTheFullDifficultyLadder() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
         val selected = mutableStateOf(BotDifficultyCatalog.named("casual"))
         compose.setContent {
             DrawlessTheme {
                 QuickPlayOpponentDialog(
                     selectedLevel = selected.value,
+                    adaptiveRating = 973,
+                    adaptiveGamesPlayed = 4,
                     onSelected = { selected.value = it },
                     onDismiss = {},
                 )
@@ -32,7 +38,19 @@ class QuickPlayOpponentInstrumentedTest {
         }
 
         compose.onNodeWithTag("opponent_option_casual").assertIsSelected()
-        compose.onNodeWithTag("opponent_picker").performScrollToIndex(6)
+        compose.onNodeWithTag("opponent_picker").performScrollToIndex(0)
+        compose.onNodeWithTag("opponent_option_adaptive")
+            .performClick()
+            .assertIsSelected()
+        compose.runOnIdle {
+            assertEquals(BotDifficultyCatalog.adaptiveLevel(), selected.value)
+        }
+        compose.onNodeWithText(
+            context.getString(R.string.adaptive_status_provisional, 973, 4),
+        ).assertIsDisplayed()
+
+        val grandmasterIndex = OpponentProfiles.all.indexOfFirst { it.level.id == "grandmaster" }
+        compose.onNodeWithTag("opponent_picker").performScrollToIndex(grandmasterIndex)
         compose.onNodeWithTag("opponent_option_grandmaster")
             .performClick()
             .assertIsSelected()
@@ -53,6 +71,12 @@ class QuickPlayOpponentInstrumentedTest {
             store.save(BotDifficultyCatalog.named("grandmaster"))
             assertEquals(
                 BotDifficultyCatalog.named("grandmaster"),
+                QuickPlayPreferenceStore(context, preferencesName).load(),
+            )
+
+            store.save(BotDifficultyCatalog.adaptiveLevel(973))
+            assertEquals(
+                BotDifficultyCatalog.adaptiveLevel(),
                 QuickPlayPreferenceStore(context, preferencesName).load(),
             )
 

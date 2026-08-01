@@ -1,7 +1,8 @@
 # First Compose application checkpoint
 
-Status: app runtime, JNI engine, Room resume flow, Android builds, x86-64 emulator, and
-ARM64 physical-device execution verified for private testing
+Status: app runtime, JNI engine, Room resume flow, and Android builds implemented; historical
+patch-v1 device execution is verified, while the exact patch-v2 candidate still needs both-device
+proof
 
 ## Toolchain declarations
 
@@ -26,11 +27,19 @@ Official references:
 4. Drawless defaults with Escape and dead-position variants under Advanced Rules.
 5. A bare king loses immediately; after 50 moves without a pawn move or capture, material points decide. Dead-position and third-repetition adjudication remain.
 6. Untimed, 3-minute, 5-minute, 10-minute, and 15+10 clocks.
-7. Random player side by default, with White or Black choices, and seven descriptive opponent levels.
+7. Random player side by default, with White or Black choices, seven fixed-strength opponents,
+   and the Adaptive Vesper opponent.
 8. Responsive game screen, durable Room-backed Resume, post-game result, Home, and Rematch.
 9. Five full visual themes with home and in-game selection plus relaunch persistence.
 10. A dedicated Options screen with persisted sound, board-coordinate, result-effect, and
     threat-indication preferences.
+11. A post-game Game Review beta with exact contract-v1 native rule search, cancellable
+    progress, move grades, better-move and short-line suggestions, evaluation display,
+    board replay/flip controls, and a retained Back path to the completed result. Review is
+    available only from the current result and is not persisted as a review history. The result
+    screen also keeps Quick Play and Rematch available without returning home. Foreground review
+    pre-analysis runs through a review-only engine in the dedicated `:review_engine` process, so
+    its native singleton and launch gate are separate from gameplay and hints.
 
 The game screen renders:
 
@@ -56,6 +65,11 @@ The game screen renders:
 - Device-local player statistics derived from immutable, idempotent completed-game records:
   completed games, wins/losses, win percentage, average game score, current/best win streak,
   unassisted wins, and opponent-level breakdowns. Game score remains separate from Elo.
+- A non-interactive review board with starting/previous/next controls, selectable SAN move rows,
+  player-only text-and-symbol grades that do not rely on color, neutral opponent context, and a
+  translucent, orientation-aware better-move arrow. Streamed player results merge into the full
+  timeline without moving the selection. The review remains usable at 200% font scale and
+  announces player-only progress in 25% milestones.
 
 Medium portrait tablets keep the board stacked above the controls so the 600 dp breakpoint
 does not collapse the board. Landscape/expanded layouts use a side panel only when at least a
@@ -75,9 +89,9 @@ does not collapse the board. Landscape/expanded layouts use a side panel only wh
   structure.
 - The structure gate requires `:app` to depend on `:engine`, verifies the factory API,
   and rejects a release configuration that can select the development bot.
-- `npm run test:kotlin` passes 223 tests at this checkpoint. This includes the core,
-  native transport, and fake-native JNI-port lifecycle suites; it is not an Android
-  binary or device test.
+- The current Kotlin core harness passes 357 tests covering the core, exact rule-policy bridge,
+  native transport, and fake-native JNI-port lifecycle suites; it is not an Android binary or
+  device test.
 
 ## Engine selection and visible failure behavior
 
@@ -86,6 +100,11 @@ builds and release builds. The factory installs the packaged variant configurati
 private app storage, verifies its locked SHA-256, creates the in-process JNI port, and
 owns the UCI timeout scheduler. Native diagnostics go to Logcat under
 `DrawlessChessEngine`.
+
+The engine adapter requires Drawless patch interface v2. Every request selects Drawless or Escape
+and explicitly sends the saved game's dead-position, 50-move, and bare-king policies; immutable
+repetition and 1/3/3/5/9 material rules are validated rather than approximated. `GameSession`
+remains authoritative for the recorded result and replays every retained review line.
 
 The legal-move-only `DevelopmentChessEngine` remains available solely for deliberate UI
 development. It must be selected when making a debug build:
@@ -149,14 +168,20 @@ The suite verifies:
   setup with Escape kept under Advanced Rules;
 - a completed-game Rematch flow; and
 - deterministic two-second-plus finish timing and cue ordering; and
-- all 104 sampled resources, Android decoding/SoundPool loading, non-repeating shuffle cycles,
+- all 103 sampled resources, Android decoding/SoundPool loading, non-repeating shuffle cycles,
   and mute/stop/close safety.
 
-A separate host-driven physical-phone acceptance run has also covered force-stop,
-relaunch, and Resume. Fresh Windows-native machine runs passed on API-36 x86-64 and API-37
-ARM64 with patched tree `80208e5f35549b88505df983e4bc0f7621083fd4`; both manifests
-identify the same rebuilt artifacts. These remain private engineering artifacts, not signed
-release evidence, and distribution authorization remains false.
+A separate host-driven physical-phone acceptance run has also covered force-stop, relaunch, and
+Resume. The retained Windows-native machine runs used historical patch-v1 tree
+`80208e5f35549b88505df983e4bc0f7621083fd4`; they prove the JNI/device workflow but not current
+patch-v2 tree `bf58452cf6bb2254050e7aa442d2b23f3664aaec`. Fresh v2 artifact and runtime-ABI evidence is
+required for the current candidate. All such builds remain private engineering artifacts, not
+signed release evidence, and distribution authorization remains false.
+
+The Final Capture result explanation now says that the terminal **move** made checkmate impossible
+in English, German, French, Latin American Spanish, and Brazilian Portuguese. This keeps the
+player-facing explanation correct for the quiet bishop/knight-underpromotion fallback as well as
+for an actual last capture.
 
 Async hint completion explicitly invalidates the Compose model on the UI coroutine scope.
 This prevents a completed result from being lost if coordinator polling observes the return

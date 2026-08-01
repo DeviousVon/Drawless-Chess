@@ -657,7 +657,7 @@ Pass:
 
 - Exact signed AAB, source archive, listings, screenshots, declarations, prices, and countries all
   agree.
-- The optimized candidate passes clean install and `0.2.0` upgrade testing on the required device
+- The optimized candidate passes clean install and Play-delivered `0.3.0` upgrade testing on the required device
   and locale matrix.
 - The owner approves the exact final Console diff.
 

@@ -1,6 +1,7 @@
 package com.drawlesschess.selfplay
 
 import java.nio.file.Path
+import java.util.Locale
 import java.util.concurrent.ExecutorCompletionService
 import java.util.concurrent.Executors
 import java.util.concurrent.Future
@@ -71,7 +72,7 @@ private fun validateConfig(configPath: Path) {
         Json.encode(
             linkedMapOf(
                 "event" to "selfplay_config_validated",
-                "job_source" to config.jobSource.name.lowercase().replace('_', '-'),
+                "job_source" to config.jobSource.name.lowercase(Locale.ROOT).replace('_', '-'),
                 "jobs" to jobs.size,
                 "distinct_openings" to jobs.map(SelfPlayJob::openingId).toSet().size,
                 "validated_opening_positions" to distinctOpenings,

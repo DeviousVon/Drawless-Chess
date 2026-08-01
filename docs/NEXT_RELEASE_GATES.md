@@ -1,16 +1,16 @@
 # Drawless Chess next-release gates
 
-**Recorded:** July 15, 2026; last audited July 18, 2026
-**Applies to:** the first release after `0.2.0` and every later Play release
+**Recorded:** July 15, 2026; last audited July 31, 2026
+**Applies to:** the `1.0.0` release after Play-delivered `0.3.0` and every later Play release
 **Rule:** do not submit, roll out, or invite international testers until every applicable hard
 gate below has evidence and the owner approves the exact Play Console changes.
 
 ## Current Play state
 
-Read-only inspection on July 15, 2026 showed that **Closed testing - Alpha** targets only the
-United States. Application localization does not change track availability. Expanding the
-countries/regions on the actual testing track is therefore a hard release gate, not an assumed
-side effect of translated resources.
+Read-only inspection on July 30, 2026 showed that **Closed testing - Alpha** serves 56 of 177
+available regions. Application localization does not change track availability. Any further
+country/region expansion on the actual testing track remains an explicit release decision, not an
+assumed side effect of translated resources.
 
 ## Hard gates outside Play Console
 
@@ -27,7 +27,10 @@ side effect of translated resources.
 - [ ] Test English, French, German, Latin American Spanish, and Brazilian Portuguese on the
   supported phone/tablet matrix. Include long-text layout, large font, TalkBack, locale switching,
   process restart, Quick Play, custom games, save/resume, results, and statistics.
-- [ ] Test an upgrade from the Play-delivered `0.2.0` package to the exact next candidate without
+  The physical API-33 tablet locale/layout/200%-font/TalkBack portion passed on July 21, 2026;
+  see `docs/TABLET_LOCALE_ACCESSIBILITY_MATRIX.md`. The phone portion and remaining end-to-end
+  save/resume flows keep this combined gate open.
+- [ ] Test an upgrade from the Play-delivered `0.3.0` package to the exact `1.0.0` candidate without
   losing saved games, settings, statistics, or engine functionality.
 - [ ] Verify the exact AAB's language splits, both supported ABIs, native library loading, 16 KB
   compatibility, permissions, package identity, and version identity.
@@ -72,8 +75,20 @@ side effect of translated resources.
   Drawless-rule edge positions. The final 5,000 consecutive games must have zero crashes, illegal
   moves, corrupt reports, or incorrect adjudications, followed by one 24-hour soak of the frozen
   release-candidate artifacts.
+
+  The attempted 24-hour stability soak `release-default-clean24h-20260730T203150Z` stopped after
+  3,670 seconds when its round-three zero-work-resume check correctly detected that
+  `GameCoordinator.kt` had changed underneath the run. Before that harness failure, 360 games
+  completed with zero self-play failures and three capped/censored results. This is useful partial
+  native/rules evidence, but it is not a 24-hour result and does not verify the later Android
+  adapter, APK/AAB, or device behavior. Restart the soak from an immutable frozen release commit.
 - [ ] Run the new build and haptic behavior on the physical Pixel and tablet. Emulator evidence is
   useful but cannot verify the feel or strength of real vibration hardware.
+
+  Debug APK SHA-256 `634F1F3B334D0E04FC7C15CDF6A4F22E541A990B6EF27B3F309F2237B0DEE173`
+  was installed and launched on both designated devices and received owner RC1 acceptance, but it
+  came from the earlier 355-test tree. Later coordinator changes mean it cannot close the exact
+  optimized-candidate or haptic gate for the current 357-test worktree.
 - [ ] Owner confirms the launch price. Current evidence supports retaining **$3.99** for launch,
   then testing **$4.99** only after a stable measurement window; do not change the Play price as
   part of this engineering work.

@@ -301,7 +301,7 @@ internal fun registerNativeBridgeTests(suite: TestSuite) {
         val session = NativeFairyEngineSession(
             port = port,
             timeoutScheduler = scheduler,
-            build = FairyEngineBuild("native-test", 1),
+            build = FairyEngineBuild("native-test", 2),
         )
         assertThat(port.writes.isEmpty())
         port.started()
@@ -313,6 +313,15 @@ internal fun registerNativeBridgeTests(suite: TestSuite) {
         var response: EngineResponse? = null
         session.analyze(nativeRequest()) { response = it.getOrThrow() }
         assertThat(port.writes.any { it == "setoption name UCI_Variant value drawless\n" })
+        assertThat(port.writes.any {
+            it == "setoption name Drawless Dead Position value material-victory\n"
+        })
+        assertThat(port.writes.any {
+            it == "setoption name Drawless Fifty Move value material-victory\n"
+        })
+        assertThat(port.writes.any {
+            it == "setoption name Drawless Bare King value bare-king-loses\n"
+        })
         assertThat(port.writes.last() == "isready\n")
         port.stdout("readyok\n".toByteArray())
         assertThat(port.writes.takeLast(2) == listOf("position startpos\n", "go movetime 100\n"))
@@ -327,8 +336,8 @@ internal fun registerNativeBridgeTests(suite: TestSuite) {
         val session = NativeFairyEngineSession(
             port = port,
             timeoutScheduler = RecordingNativeTimeoutScheduler(),
-            build = FairyEngineBuild("native-test", 1),
-            uciPolicy = UciSessionPolicy(requiredDrawlessPatchVersion = 1),
+            build = FairyEngineBuild("native-test", 2),
+            uciPolicy = UciSessionPolicy(requiredDrawlessPatchVersion = 2),
         )
         port.started()
         port.stdout(nativeHandshake().toByteArray())
@@ -353,7 +362,10 @@ private fun nativeHandshake() = """
     option name Skill Level type spin default 20 min -20 max 20
     option name UCI_LimitStrength type check default false
     option name UCI_Elo type spin default 1350 min 500 max 2850
-    option name Drawless Patch Version type spin default 1 min 1 max 1
+    option name Drawless Patch Version type spin default 2 min 2 max 2
+    option name Drawless Dead Position type combo default material-victory var material-victory var final-capture-victory
+    option name Drawless Fifty Move type combo default material-victory var disabled var completing-player-loses var forced-move-exception var material-victory
+    option name Drawless Bare King type combo default bare-king-loses var continue var bare-king-loses
     uciok
 """.trimIndent() + "\n"
 
@@ -376,7 +388,7 @@ private fun nativeArtifact(abi: AndroidNativeAbi, seed: String): NativeEngineArt
 private fun nativeManifest(artifacts: List<NativeEngineArtifact>) = NativeEngineManifest(
     engineId = "fairy-stockfish",
     buildId = "drawless-test-build",
-    drawlessPatchVersion = 1,
+    drawlessPatchVersion = 2,
     minimumAndroidApi = 26,
     artifacts = artifacts,
 )

@@ -14,6 +14,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
@@ -35,8 +36,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.drawlesschess.BuildConfig
 import com.drawlesschess.core.*
 import com.drawlesschess.core.presentation.BoardTheme
+import com.drawlesschess.core.engine.BotDifficultyCatalog
 import com.drawlesschess.core.engine.NamedBotLevel
 import com.drawlesschess.R
 import java.math.RoundingMode
@@ -80,6 +83,10 @@ internal fun DrawlessApp(viewModel: DrawlessAppViewModel, soundPlayer: GameSound
             BackHandler(onBack = viewModel::leaveSetup)
             SetupScreen(
                 selection = viewModel.setupSelection,
+                adaptiveRating = (viewModel.playerStatsState as? PlayerStatsState.Ready)
+                    ?.statistics?.adaptiveRating ?: BotDifficultyCatalog.ADAPTIVE_STARTING_ELO,
+                adaptiveGamesPlayed = (viewModel.playerStatsState as? PlayerStatsState.Ready)
+                    ?.statistics?.adaptiveGamesPlayed ?: 0,
                 onSelectionChanged = viewModel::updateSetupSelection,
                 onBack = viewModel::leaveSetup,
                 onStart = viewModel::startNewGame,
@@ -127,8 +134,31 @@ internal fun DrawlessApp(viewModel: DrawlessAppViewModel, soundPlayer: GameSound
                         onShowThemes = { showThemePicker = true },
                         onShowOptions = { showInGameOptions = true },
                         onExit = viewModel::exitGame,
+                        onReview = viewModel::showGameReview,
+                        onQuickPlay = viewModel::postGameQuickPlay,
                         onRematch = viewModel::rematchGame,
                         onGameCompleted = viewModel::completedGameRecorded,
+                    )
+                }
+            }
+        }
+        AppRoute.REVIEW -> {
+            val runtime = viewModel.runtime
+            if (runtime == null) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+            } else {
+                BackHandler(onBack = viewModel::leaveGameReview)
+                CompositionLocalProvider(
+                    LocalDrawlessVisualTheme provides
+                        DrawlessVisualThemes.fromBoardTheme(viewModel.selectedTheme),
+                ) {
+                    GameReviewRoute(
+                        runtime = runtime,
+                        preferences = viewModel.gamePreferences,
+                        selectedTheme = viewModel.selectedTheme,
+                        onBack = viewModel::leaveGameReview,
                     )
                 }
             }
@@ -415,6 +445,10 @@ private fun HomeScreen(
     if (showQuickPlayOpponentPicker) {
         QuickPlayOpponentDialog(
             selectedLevel = quickPlayOpponentLevel,
+            adaptiveRating = (playerStatsState as? PlayerStatsState.Ready)
+                ?.statistics?.adaptiveRating ?: BotDifficultyCatalog.ADAPTIVE_STARTING_ELO,
+            adaptiveGamesPlayed = (playerStatsState as? PlayerStatsState.Ready)
+                ?.statistics?.adaptiveGamesPlayed ?: 0,
             onSelected = onQuickPlayOpponentChanged,
             onDismiss = { showQuickPlayOpponentPicker = false },
         )
@@ -543,7 +577,8 @@ private fun LicenseDialog(onDismiss: () -> Unit) {
             TextButton(
                 onClick = {
                     uriHandler.openUri(
-                        "https://github.com/DeviousVon/Drawless-Chess/releases/tag/v0.3.0",
+                        "https://github.com/DeviousVon/Drawless-Chess/releases/tag/" +
+                            "v${BuildConfig.VERSION_NAME}",
                     )
                 },
             ) {
@@ -567,7 +602,7 @@ private fun PrivacyDialog(onDismiss: () -> Unit) {
             TextButton(
                 onClick = {
                     uriHandler.openUri(
-                        "https://github.com/DeviousVon/Drawless-Chess/blob/main/PRIVACY.md",
+                        "https://drawlesschess.com/privacy/",
                     )
                 },
             ) {
@@ -580,6 +615,8 @@ private fun PrivacyDialog(onDismiss: () -> Unit) {
 @Composable
 private fun SetupScreen(
     selection: SetupSelection,
+    adaptiveRating: Int,
+    adaptiveGamesPlayed: Int,
     onSelectionChanged: (SetupSelection) -> Unit,
     onBack: () -> Unit,
     onStart: (SetupSelection) -> Unit,
@@ -669,6 +706,8 @@ private fun SetupScreen(
             SetupSection(stringResource(R.string.setup_opponent)) {
                 OpponentPicker(
                     selectedLevel = selection.botLevel,
+                    adaptiveRating = adaptiveRating,
+                    adaptiveGamesPlayed = adaptiveGamesPlayed,
                     onSelected = { level -> onSelectionChanged(selection.copy(botLevel = level)) },
                 )
             }
@@ -730,11 +769,19 @@ private fun SetupScreen(
 @Composable
 private fun OpponentPicker(
     selectedLevel: com.drawlesschess.core.engine.NamedBotLevel,
+    adaptiveRating: Int,
+    adaptiveGamesPlayed: Int,
     onSelected: (com.drawlesschess.core.engine.NamedBotLevel) -> Unit,
 ) {
-    val selectedProfile = OpponentProfiles.forLevel(selectedLevel)
+    val selectedProfile = OpponentProfiles.forLevel(
+        if (selectedLevel.id == BotDifficultyCatalog.ADAPTIVE_LEVEL_ID) {
+            BotDifficultyCatalog.adaptiveLevel(adaptiveRating)
+        } else {
+            selectedLevel
+        },
+    )
     LazyRow(
-        modifier = Modifier.fillMaxWidth().testTag("opponent_picker"),
+        modifier = Modifier.fillMaxWidth().selectableGroup().testTag("opponent_picker"),
         contentPadding = PaddingValues(horizontal = 2.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
@@ -746,7 +793,7 @@ private fun OpponentPicker(
             )
         }
     }
-    OpponentDetailCard(selectedProfile)
+    OpponentDetailCard(selectedProfile, adaptiveGamesPlayed)
 }
 
 @Composable
@@ -813,7 +860,7 @@ private fun OpponentChoiceCard(
 }
 
 @Composable
-private fun OpponentDetailCard(profile: OpponentProfile) {
+private fun OpponentDetailCard(profile: OpponentProfile, adaptiveGamesPlayed: Int = 0) {
     Surface(
         modifier = Modifier
             .fillMaxWidth()
@@ -854,6 +901,22 @@ private fun OpponentDetailCard(profile: OpponentProfile) {
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                if (profile.level.id == BotDifficultyCatalog.ADAPTIVE_LEVEL_ID) {
+                    Text(
+                        if (adaptiveGamesPlayed < 10) {
+                            stringResource(
+                                R.string.adaptive_status_provisional,
+                                profile.level.approximateElo,
+                                adaptiveGamesPlayed,
+                            )
+                        } else {
+                            stringResource(R.string.adaptive_status_matched, profile.level.approximateElo)
+                        },
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
             }
         }
     }
@@ -863,6 +926,8 @@ private fun OpponentDetailCard(profile: OpponentProfile) {
 @Composable
 internal fun QuickPlayOpponentDialog(
     selectedLevel: NamedBotLevel,
+    adaptiveRating: Int = BotDifficultyCatalog.ADAPTIVE_STARTING_ELO,
+    adaptiveGamesPlayed: Int = 0,
     onSelected: (NamedBotLevel) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -875,7 +940,12 @@ internal fun QuickPlayOpponentDialog(
                 modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                OpponentPicker(selectedLevel = selectedLevel, onSelected = onSelected)
+                OpponentPicker(
+                    selectedLevel = selectedLevel,
+                    adaptiveRating = adaptiveRating,
+                    adaptiveGamesPlayed = adaptiveGamesPlayed,
+                    onSelected = onSelected,
+                )
             }
         },
         confirmButton = {

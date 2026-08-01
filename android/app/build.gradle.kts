@@ -103,13 +103,14 @@ fun requireReleaseSigning() {
     }
     if (releaseStoreFile?.isFile != true) {
         throw GradleException(
-            "Google Play upload keystore does not exist: ${releaseStoreFile?.absolutePath}",
+            "The configured Google Play upload keystore does not exist. " +
+                "Its local path was intentionally redacted.",
         )
     }
     if (!releaseStoreIsOutsideRepository) {
         throw GradleException(
-            "Google Play upload keystore must be stored outside the repository: " +
-                releaseStoreFile.absolutePath,
+            "Google Play upload keystore must be stored outside the repository. " +
+                "Its local path was intentionally redacted.",
         )
     }
 }
@@ -251,8 +252,8 @@ android {
         applicationId = "com.drawlesschess"
         minSdk = 26
         targetSdk = 36
-        versionCode = 3
-        versionName = "0.3.0"
+        versionCode = 4
+        versionName = "1.0.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         ndk {

@@ -1,6 +1,6 @@
 # Android and Kotlin foundation checkpoint
 
-Status: core contracts, Android/native packaging, and x86-64/ARM64 private-test runtimes verified
+Status: foundation implemented; historical ABI evidence retained; exact 1.0.0 two-device proof pending
 
 ## Toolchain baseline
 
@@ -18,9 +18,11 @@ Status: core contracts, Android/native packaging, and x86-64/ARM64 private-test 
 AGP 9.2 requires Gradle 9.4.1 and at least JDK 17. Both machine gates accept only complete,
 stable build-JDK majors 17 and 21, including Android Studio's bundled JBR 21, while project
 compatibility remains 17. The committed wrapper has run with Android Studio JBR 21,
-SDK/Build Tools 36, NDK 29, and CMake 3.22.1. Debug/release Android packages were built and
-audited, then exercised on an API-36 x86-64 emulator and API-33 ARM64 physical tablet. Device
-runtime API is independent from the stable compile/target API 36 baseline.
+SDK/Build Tools 36, NDK 29, and CMake 3.22.1. Historical debug/release packages were built,
+audited, and exercised on an API-36 x86-64 emulator and API-33 ARM64 physical tablet. Current
+patch-v2 focused instrumentation also passes on those ABIs, but the exact 1.0.0 candidate still
+requires both designated physical devices. Device runtime API is independent from the stable
+compile/target API 36 baseline.
 The Android-free Kotlin core is still compiled and executed directly as a faster gate.
 
 Official AGP release information:
@@ -98,14 +100,13 @@ The Kotlin-only gate is:
 npm run test:kotlin
 ```
 
-At this checkpoint that command passes 223 JVM/core-and-endpoint tests. Twenty-five target the
-native boundary specifically: line framing, bounded FIFO writes, backpressure, lifecycle
-and failure behavior, ABI/artifact metadata, `NativeFairyEngineSession` composition, and
-endpoint-crash propagation. Nine more exercise the managed JNI port lifecycle and exact
-static-native signature contract.
+At this checkpoint that command passes 357 JVM/core-and-endpoint tests, including line framing,
+bounded FIFO writes, backpressure, lifecycle and failure behavior, ABI/artifact metadata,
+`NativeFairyEngineSession` composition, endpoint-crash propagation, managed JNI lifecycle,
+Game Review evidence, and the exact static-native signature contract.
 
 The host-native gate also compiles the full patched engine and exercises the bridge core,
 rules advertisement, forced-repetition search, singleton, close, and restart. The separate
-Android machine gate now proves SDK/NDK/CMake compatibility, ART JNI loading, AAR/APK
-packaging, and runtime behavior on both supported ABIs. A signed release, App Bundle,
-sustained performance, and low-memory/native-crash testing remain open.
+Android machine gate proves SDK/NDK/CMake compatibility, ART JNI loading, AAR/APK packaging,
+and historical runtime behavior on both supported ABIs. The exact 1.0.0 Pixel run, signed App
+Bundle, sustained performance, and low-memory/native-crash testing remain open.

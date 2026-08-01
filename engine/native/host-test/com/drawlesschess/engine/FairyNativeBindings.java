@@ -54,7 +54,20 @@ public final class FairyNativeBindings {
             send(handle, "uci\n");
             output.await("uciok");
             output.requireLine(
-                "option name Drawless Patch Version type spin default 1 min 1 max 1"
+                "option name Drawless Patch Version type spin default 2 min 2 max 2"
+            );
+            output.requireLine(
+                "option name Drawless Dead Position type combo default material-victory " +
+                    "var material-victory var final-capture-victory"
+            );
+            output.requireLine(
+                "option name Drawless Fifty Move type combo default material-victory " +
+                    "var disabled var completing-player-loses var forced-move-exception " +
+                    "var material-victory"
+            );
+            output.requireLine(
+                "option name Drawless Bare King type combo default bare-king-loses " +
+                    "var continue var bare-king-loses"
             );
             output.requireSubstring("option name UCI_Variant", "var drawless");
             output.requireSubstring("option name UCI_Variant", "var escape");

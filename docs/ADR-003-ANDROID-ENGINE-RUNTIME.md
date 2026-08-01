@@ -4,10 +4,12 @@ Status: accepted; whole application selected as GPL-3.0-or-later; release eviden
 
 ## Decision
 
-Use an in-process JNI bridge to drive the pinned Fairy-Stockfish shared library during
-private Android testing. Keep the existing `NativeEnginePort` boundary so the runtime can
-still be replaced by a separately executed worker before release without changing chess
-law, UCI protocol, game coordination, or UI code.
+Use the narrow JNI bridge to drive the pinned Fairy-Stockfish shared library inside each Android
+process. Gameplay and hints own the main app process's engine session. Speculative and post-game
+review bind through Android `Messenger` IPC to `ReviewEngineService` in the dedicated
+`:review_engine` app process, whose own JNI session has separate Fairy process globals. Keep the
+existing `ChessEngine` and `NativeEnginePort` boundaries so chess law, UCI protocol, and UI code do
+not depend on which Android process owns the native session.
 
 The bridge follows these constraints:
 
@@ -22,6 +24,9 @@ The bridge follows these constraints:
   reaches EOF deterministically.
 - Fairy uses process-global state, so the native registry permits exactly one live engine
   session per app process. Sequential sessions receive new handles and are supported.
+- `IsolatedReviewEngine` accepts `REVIEW` requests only. Its client serialization and reply handling
+  run on a private worker looper, and the coordinator gives review calls an invocation gate
+  independent from gameplay.
 
 This follows Android's guidance to keep JNI narrow, minimize marshalling, keep asynchronous
 coordination in managed code, load packaged shared libraries with `System.loadLibrary`,
@@ -34,11 +39,23 @@ private storage, caps its size, verifies the locked SHA-256, syncs it, and makes
 read-only. `nativeCreate` reads that absolute path; `nativeStart` rejects any change
 between create and initialization.
 
-Before the first `uci` command, native initialization loads the configuration and verifies
-both Drawless and Escape, relative third-occurrence scoring, patch-v1 forced repetition,
-their opposing stalemate outcomes, and disabled native n-move adjudication. Therefore the
-initial `UCI_Variant` option already advertises both named rulesets. The normal UCI layer
-also requires the exact `Drawless Patch Version` declaration before launching a search.
+Before the first `uci` command, native initialization loads the configuration and verifies both
+Drawless and Escape, relative third-occurrence scoring, forced repetition, their opposing
+stalemate outcomes, and disabled native n-move adjudication. The UCI layer then requires
+`Drawless Patch Version` 2 and the exact combo declarations for `Drawless Dead Position`,
+`Drawless Fifty Move`, and `Drawless Bare King` before launching a search.
+
+For each request, Kotlin validates all immutable `RulesContractV1` invariants and sends the
+preset plus those three policies before `isready`. The native search applies the same conservative
+dead-position detector, material and last-capturer tie breakers, full-legal-set forced exceptions,
+and terminal precedence as `GameSession`; it does not infer a configurable policy from the
+installed variant defaults.
+
+The fourth ordered patch, `0004-preserve-drawless-deeper-search-boundaries.patch`, keeps that
+contract intact below the root. Immediate bare-king, known-dead, and 50-move outcomes bypass the
+main-search and quiescence filters that would otherwise omit them; this includes mixed terminal
+reply sets and quiet bishop/knight underpromotion. Search null moves cannot alter the app-visible
+clock or last-capturer history, and pseudo-only en-passant targets are removed from repetition keys.
 
 ## Failure behavior
 
@@ -49,8 +66,10 @@ also requires the exact `Drawless Patch Version` declaration before launching a 
 - No failure selects the development bot.
 - The old legal-move bot is available only through
   `-Pdrawless.useDevelopmentEngine=true` on a debug build. Release hardcodes the flag off.
-- A native memory error or abort can still terminate the whole app because JNI shares the
-  process. Device crash and low-memory testing are mandatory before release.
+- A native memory error or abort in the gameplay session can still terminate the main app process
+  because JNI shares that process. The same failure in `:review_engine` terminates or disconnects
+  the review service instead; the client fails outstanding review work closed and must not replace
+  or poison gameplay. Device crash and low-memory testing remain mandatory before release.
 
 ## Licensing consequence
 
@@ -76,18 +95,34 @@ The non-Android gates prove:
 - exact Kotlin static-native method names and types;
 - managed port startup, queued writes, stdout/stderr, close, startup interruption,
   failures, EOF, and termination deduplication;
-- the full native bridge core with the patched engine on Linux, including rules
-  advertisement, forced-repetition search, singleton rejection, clean close, and restart;
+- exact four-patch replay, locked source identity, both-ABI Android compilation, and host JNI
+  harness compilation;
+- a direct native-state harness for null-history ownership and legal-only en-passant keys; and
 - production app selection and release prohibition of the development bot.
 
-The real Android instrumentation smoke now passes independently on an API-36 x86-64
-emulator and API-33 ARM64 tablet. It verifies the packaged asset, ART JNI load,
-forced-repetition search, close, and sequential restart. The machine evidence separately
-records both compiled/package ABIs and the one runtime ABI exercised by each run; together
-the two passing manifests complete the intended runtime matrix.
+The current patch-v2 clean verifier has passed its exact four-patch replay, direct native-state
+harness, and full UCI acceptance matrix, including the beyond-frontier quiet-stalemate cases and
+node-neutral speculative-probe assertion.
 
-The accepted 51-test app suite passes twice from fresh processes against the exact clean APK pair
-on the API-33 ARM64 tablet, API-36 x86-64 emulator, and Pixel 9 Pro XL. The targeted forfeit
+On a GNU host, the optional native harness additionally covers the bridge core, rules
+advertisement, policy-discriminating searches, singleton rejection, clean close, and restart.
+The UCI acceptance matrix additionally guards deeper main/quiescence pruning, terminal-child
+ponder suppression, and the orthodox-only Syzygy root boundary.
+Without that toolchain, those behavioral claims must come from the exact Android libraries rather
+than from Java compilation alone.
+
+Patch-v2 Android instrumentation must pass independently on x86-64 and ARM64. It verifies the
+packaged asset identity, ART JNI load, exact option surface, policy-discriminating search, close,
+and sequential restart. Each machine manifest records both packaged ABIs and the runtime ABI
+actually exercised; an older patch-v1 manifest is not evidence for the current native bytes.
+
+The isolated review-engine class has passed its bind, request, result, cancellation, close, and
+distinct-process checks on the API-36 x86-64 emulator and R6 ARM64 tablet. Core concurrency tests
+also prove that a blocked review startup cannot block a gameplay launch or undo, while background
+disable and runtime close still drain unpublished review launches deterministically.
+
+The historical patch-v1 51-test app suite passes twice from fresh processes against its exact
+clean APK pair on the API-33 ARM64 tablet, API-36 x86-64 emulator, and Pixel 9 Pro XL. The targeted forfeit
 flow also passes independently on all three. Coverage includes stable opponent identity across
 ladder changes, confirmed-forfeit durability, rapid runtime replacement,
 a full-strength hint followed by a bot move through the same native session, deterministic

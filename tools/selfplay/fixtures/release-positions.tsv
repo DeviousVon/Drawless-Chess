@@ -1,0 +1,49 @@
+schema_version	position_id	category	name	initial_fen	moves	witness_move	expected_reason
+1	opening-start	opening	Starting position	rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1	-	-	-
+1	opening-open-e	opening	Open e-file	rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1	e2e4 e7e5 g1f3 b8c6	-	-
+1	opening-sicilian	opening	Sicilian Defense	rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1	e2e4 c7c5 g1f3 d7d6	-	-
+1	opening-french	opening	French Defense	rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1	e2e4 e7e6 d2d4 d7d5	-	-
+1	opening-queens-gambit	opening	Queen's Gambit	rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1	d2d4 d7d5 c2c4 e7e6	-	-
+1	opening-kings-indian	opening	King's Indian	rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1	d2d4 g8f6 c2c4 g7g6	-	-
+1	opening-english	opening	English Opening	rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1	c2c4 e7e5 b1c3 g8f6	-	-
+1	opening-reti	opening	Reti Opening	rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1	g1f3 d7d5 g2g3 g8f6	-	-
+1	opening-ruy-lopez	opening	Ruy Lopez	rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1	e2e4 e7e5 g1f3 b8c6 f1b5 a7a6	-	-
+1	opening-italian	opening	Italian Game	rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1	e2e4 e7e5 g1f3 b8c6 f1c4 f8c5	-	-
+1	opening-open-sicilian	opening	Open Sicilian	rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1	e2e4 c7c5 g1f3 b8c6 d2d4 c5d4 f3d4	-	-
+1	opening-caro-kann	opening	Caro-Kann Defense	rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1	e2e4 c7c6 d2d4 d7d5	-	-
+1	opening-nimzo-indian	opening	Nimzo-Indian Defense	rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1	d2d4 g8f6 c2c4 e7e6 b1c3 f8b4	-	-
+1	opening-modern-benoni	opening	Modern Benoni	rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1	d2d4 g8f6 c2c4 c7c5 d4d5 e7e6	-	-
+1	opening-dutch	opening	Dutch Defense	rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1	d2d4 f7f5 g1f3 g8f6	-	-
+1	opening-symmetrical-english	opening	Symmetrical English	rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1	c2c4 c7c5 b1c3 b8c6 g2g3 g7g6	-	-
+1	opening-kings-indian-attack	opening	King's Indian Attack	rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1	g1f3 g8f6 g2g3 g7g6 f1g2 f8g7	-	-
+1	opening-larsen	opening	Larsen Opening	rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1	b2b3 e7e5 c1b2 b8c6	-	-
+1	opening-bird	opening	Bird Opening	rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1	f2f4 d7d5 g1f3 g8f6	-	-
+1	opening-modern	opening	Modern Defense	rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1	e2e4 g7g6 d2d4 f8g7	-	-
+1	opening-scandinavian	opening	Scandinavian Defense	rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1	e2e4 d7d5 e4d5 d8d5 b1c3 d5d8	-	-
+1	opening-alekhine	opening	Alekhine Defense	rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1	e2e4 g8f6 e4e5 f6d5 d2d4 d7d6	-	-
+1	opening-veresov	opening	Veresov Opening	rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1	d2d4 d7d5 b1c3 g8f6 c1g5	-	-
+1	opening-four-knights	opening	Four Knights Game	rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1	e2e4 e7e5 g1f3 b8c6 b1c3 g8f6	-	-
+1	endgame-pawn-race-a	endgame	Opposed pawn race	8/8/3k4/8/3P4/3K4/7p/8 w - - 0 1	-	-	-
+1	endgame-pawn-race-b	endgame	Wing pawn race	8/5pk1/8/4P3/8/5PK1/8/8 w - - 0 1	-	-	-
+1	endgame-rook-pawns	endgame	Rook and pawns	8/5pk1/6p1/8/8/6P1/5PK1/R6r w - - 0 1	-	-	-
+1	endgame-rook-bridge	endgame	Rook bridge position	3r4/8/3K4/3P4/8/8/4k2p/3R4 w - - 0 1	-	-	-
+1	endgame-queen-pawns	endgame	Queen and pawns	6k1/5pp1/8/8/8/8/5PP1/3Q2Kq w - - 0 1	-	-	-
+1	endgame-bishop-pawns	endgame	Bishop and pawns	6k1/5pp1/8/8/8/8/5PP1/2B3Kb w - - 0 1	-	-	-
+1	endgame-knight-pawns	endgame	Knight and pawns	6k1/5pp1/8/8/8/8/5PP1/2N3Kn w - - 0 1	-	-	-
+1	endgame-rook-minor	endgame	Rook and minor pieces	4k2r/5pp1/8/8/8/8/5PP1/R3K1N1 w Qk - 0 1	-	-	-
+1	endgame-bishop-knight	endgame	Bishop versus knight with pawns	6k1/5pp1/7n/8/8/2B5/5PP1/6K1 w - - 0 1	-	-	-
+1	endgame-connected-passers	endgame	Connected passed pawns	4k3/5pp1/8/8/8/8/2PP4/4K3 w - - 0 1	-	-	-
+1	endgame-opposite-wings	endgame	Opposite-wing pawns	4k3/p6p/8/8/8/8/P6P/4K3 w - - 0 1	-	-	-
+1	endgame-heavy-pieces	endgame	Heavy-piece ending	3q2k1/5pp1/7r/8/8/R7/5PP1/3Q2K1 w - - 0 1	-	-	-
+1	edge-repetition-black	edge	Avoidable repetition for Black	rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1	g1f3 g8f6 f3g1 f6g8 g1f3 g8f6 f3g1	f6g8	REPETITION
+1	edge-repetition-white	edge	Avoidable repetition for White	rnbqkbnr/pppppppp/8/8/8/5N2/PPPPPPPP/RNBQKB1R b KQkq - 1 1	g8f6 f3g1 f6g8 g1f3 g8f6 f3g1 f6g8	g1f3	REPETITION
+1	edge-forced-repetition-black	edge	Forced repetition for Black	6k1/7p/5Q2/8/8/8/8/6K1 w - - 0 1	f6f7 g8h8 f7f6 h8g8 f6f7 g8h8 f7f6	h8g8	REPETITION
+1	edge-forced-repetition-white	edge	Forced repetition for White	1k6/8/8/8/8/2q5/P7/1K6 b - - 0 1	c3c2 b1a1 c2c3 a1b1 c3c2 b1a1 c2c3	a1b1	REPETITION
+1	edge-fifty-material-white	edge	Material 50-move result for White	4k3/7p/8/8/8/8/P6R/4K3 w - - 99 1	-	h2h3	FIFTY_MOVE_LIMIT
+1	edge-fifty-material-black	edge	Material 50-move result for Black	4k3/p6r/8/8/8/8/7P/4K3 b - - 99 1	-	h7h6	FIFTY_MOVE_LIMIT
+1	edge-bare-king-white	edge	White creates a bare black king	4k3/8/8/8/3r4/4K3/8/3R4 w - - 0 1	-	e3d4	BARE_KING
+1	edge-bare-king-black	edge	Black creates a bare white king	3r4/8/4k3/3R4/8/8/8/4K3 b - - 0 1	-	e6d5	BARE_KING
+1	edge-dead-material-white	edge	White enters a known-dead material tie	4k3/8/8/8/3p4/4K3/7b/2B5 w - - 0 1	-	e3d4	DEAD_POSITION_MATERIAL
+1	edge-dead-material-black	edge	Black enters a known-dead material tie	6b1/7B/4k3/3P4/8/8/8/4K3 b - - 0 1	-	e6d5	DEAD_POSITION_MATERIAL
+1	edge-stalemate-black	edge	White stalemates Black with blocked material	k7/p7/P2K4/2Q5/8/8/8/8 w - - 0 1	-	c5c7	STALEMATE
+1	edge-stalemate-white	edge	Black stalemates White with blocked material	8/8/8/8/2q5/p2k4/P7/K7 b - - 0 1	-	c4c2	STALEMATE

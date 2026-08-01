@@ -5,6 +5,7 @@
 
 package com.drawlesschess.ui
 
+import android.os.SystemClock
 import android.widget.ImageView
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationVector1D
@@ -84,6 +85,7 @@ import kotlin.math.roundToInt
 private data class PendingCompletion(
     val result: GameResultView,
     val waitForAnimationPly: Int?,
+    val firstCueNotBeforeUptimeMillis: Long?,
 )
 
 @Composable
@@ -96,6 +98,8 @@ internal fun GameRoute(
     onShowThemes: () -> Unit,
     onShowOptions: () -> Unit,
     onExit: () -> Unit,
+    onReview: () -> Unit,
+    onQuickPlay: () -> Unit,
     onRematch: () -> Unit,
     onGameCompleted: () -> Unit,
 ) {
@@ -126,12 +130,21 @@ internal fun GameRoute(
         mutableStateOf(lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED))
     }
 
-    DisposableEffect(lifecycleOwner) {
+    DisposableEffect(lifecycleOwner, runtime) {
+        fun synchronizeForegroundState() {
+            val started = lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
+            lifecycleStarted = started
+            runtime.setGameForeground(started)
+        }
         val observer = LifecycleEventObserver { _, _ ->
-            lifecycleStarted = lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
+            synchronizeForegroundState()
         }
         lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+        synchronizeForegroundState()
+        onDispose {
+            runtime.setGameForeground(false)
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
     }
     DisposableEffect(soundPlayer) {
         onDispose(soundPlayer::stopAll)
@@ -152,8 +165,9 @@ internal fun GameRoute(
     val visiblePlyCount = model.history.plyCount()
     LaunchedEffect(soundPlayer, preferences.soundEnabled, visiblePlyCount, lifecycleStarted) {
         if (preferences.soundEnabled && lifecycleStarted && visiblePlyCount > soundedPlyCount) {
-            val latestSan = model.history.lastPlayedSan().orEmpty()
-            soundPlayer.playMove(latestSan)
+            model.history.lastPlayedEntry()?.let { entry ->
+                soundPlayer.playMove(entry.notation, entry.accessibility.enPassant)
+            }
         }
         soundedPlyCount = visiblePlyCount
     }
@@ -185,7 +199,14 @@ internal fun GameRoute(
         if (!preferences.soundEnabled || !lifecycleStarted) soundPlayer.stopAll()
     }
 
-    LaunchedEffect(model.board.phase, model.result, visiblePlyCount, lifecycleStarted) {
+    LaunchedEffect(
+        model.board.phase,
+        model.result,
+        visiblePlyCount,
+        lifecycleStarted,
+        preferences.soundEnabled,
+        preferences.celebrationEffectsEnabled,
+    ) {
         if (!lifecycleStarted) return@LaunchedEffect
         if (previousPhase != CoordinatorPhase.COMPLETED &&
             model.board.phase == CoordinatorPhase.COMPLETED
@@ -194,14 +215,31 @@ internal fun GameRoute(
                 val finalOpponentMovePly = model.board.moveMotion?.takeIf { motion ->
                     motion.ply == visiblePlyCount && motion.mover != model.board.humanSide
                 }?.ply
-                pendingCompletion = PendingCompletion(result, finalOpponentMovePly)
+                val firstCueNotBefore = if (
+                    result.reason == EndReason.CHECKMATE &&
+                    preferences.soundEnabled &&
+                    preferences.celebrationEffectsEnabled &&
+                    model.history.lastPlayedEntry()?.notation?.endsWith("#") == true
+                ) {
+                    SystemClock.uptimeMillis() + CHECKMATE_COMPLETION_FOLLOWUP_MILLIS
+                } else {
+                    null
+                }
+                pendingCompletion = PendingCompletion(
+                    result = result,
+                    waitForAnimationPly = finalOpponentMovePly,
+                    firstCueNotBeforeUptimeMillis = firstCueNotBefore,
+                )
             }
         }
         previousPhase = model.board.phase
     }
 
-    LaunchedEffect(controller, model.board.phase, model.result) {
-        if (model.board.phase == CoordinatorPhase.COMPLETED && model.result != null) {
+    LaunchedEffect(controller, model.board.phase, model.result, lifecycleStarted) {
+        if (lifecycleStarted && model.board.phase == CoordinatorPhase.COMPLETED && model.result != null) {
+            // Use the result/celebration interval to finish any analysis that could not be warmed
+            // during play. Opening Review then reuses this runtime-owned state instead of starting.
+            runtime.prepareGameReview()
             onGameCompleted()
         }
     }
@@ -210,6 +248,8 @@ internal fun GameRoute(
         pendingCompletion,
         completedMoveAnimationPly,
         lifecycleStarted,
+        preferences.soundEnabled,
+        preferences.celebrationEffectsEnabled,
         preferences.hapticFeedbackEnabled,
         gameHaptics,
     ) {
@@ -218,6 +258,18 @@ internal fun GameRoute(
             if (pending.waitForAnimationPly == null ||
                 completedMoveAnimationPly >= pending.waitForAnimationPly
             ) {
+                pending.firstCueNotBeforeUptimeMillis
+                    ?.takeIf {
+                        preferences.soundEnabled && preferences.celebrationEffectsEnabled
+                    }
+                    ?.let { target ->
+                        val delayMillis = completionOverlayDelayMillis(
+                            firstCueNotBeforeUptimeMillis = target,
+                            nowUptimeMillis = SystemClock.uptimeMillis(),
+                            spec = CompletionEffectTimeline.forResult(pending.result.playerWon),
+                        )
+                        if (delayMillis > 0L) delay(delayMillis)
+                    }
                 postGameResult = pending.result
                 completionEffect = pending.result.takeIf {
                     preferences.celebrationEffectsEnabled
@@ -254,11 +306,19 @@ internal fun GameRoute(
         onExit()
     }
     val rematchGame = {
-        pendingCompletion = null
-        postGameResult = null
-        completionEffect = null
+        // Keep the durable result UI visible while an adaptive rematch resolves its latest
+        // rating. The whole route is disposed when the replacement runtime succeeds.
         soundPlayer.stopAll()
         onRematch()
+    }
+    val quickPlayGame = {
+        // Keep the result visible until the replacement runtime is ready, matching rematch.
+        soundPlayer.stopAll()
+        onQuickPlay()
+    }
+    val reviewGame = {
+        soundPlayer.stopAll()
+        onReview()
     }
     val handleBoardEvent: (BoardEvent) -> Unit = { event ->
         val before = model
@@ -297,6 +357,8 @@ internal fun GameRoute(
                             ?.takeIf { it.latestGameId == runtime.gameId }
                             ?.averageScore,
                         onHome = exitGame,
+                        onReview = reviewGame,
+                        onQuickPlay = quickPlayGame,
                         onRematch = rematchGame,
                     )
                 }
@@ -523,6 +585,8 @@ internal fun PostGameBar(
     opponentName: String? = null,
     careerAverageGameScore: Double? = null,
     onHome: () -> Unit,
+    onReview: () -> Unit = {},
+    onQuickPlay: () -> Unit,
     onRematch: () -> Unit,
 ) {
     val headline = stringResource(if (result.playerWon) R.string.game_victory else R.string.game_defeat)
@@ -546,6 +610,7 @@ internal fun PostGameBar(
     BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
         val availableHeight = if (constraints.hasBoundedHeight) maxHeight else 420.dp
         val maximumBarHeight = minOf(420.dp, availableHeight * 0.62f)
+        val stackPrimaryActions = maxWidth < 480.dp
         Surface(
             modifier = Modifier.fillMaxWidth().heightIn(max = maximumBarHeight),
             color = container,
@@ -633,19 +698,43 @@ internal fun PostGameBar(
                         color = onContainer.copy(alpha = 0.82f),
                     )
                 }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    OutlinedButton(
-                        onClick = onHome,
-                        modifier = Modifier.weight(1f).testTag("post_game_home"),
-                    ) { Text(stringResource(R.string.action_home)) }
-                    Button(
-                        onClick = onRematch,
-                        modifier = Modifier.weight(1f).testTag("post_game_rematch"),
-                    ) { Text(stringResource(R.string.action_rematch)) }
+                Button(
+                    onClick = onReview,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 48.dp)
+                        .testTag("post_game_review"),
+                ) { Text(stringResource(R.string.action_review_game)) }
+                if (stackPrimaryActions) {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        FilledTonalButton(
+                            onClick = onQuickPlay,
+                            modifier = Modifier.fillMaxWidth().testTag("post_game_quick_play"),
+                        ) { Text(stringResource(R.string.action_quick_play)) }
+                        OutlinedButton(
+                            onClick = onRematch,
+                            modifier = Modifier.fillMaxWidth().testTag("post_game_rematch"),
+                        ) { Text(stringResource(R.string.action_rematch)) }
+                    }
+                } else {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        FilledTonalButton(
+                            onClick = onQuickPlay,
+                            modifier = Modifier.weight(1f).testTag("post_game_quick_play"),
+                        ) { Text(stringResource(R.string.action_quick_play)) }
+                        OutlinedButton(
+                            onClick = onRematch,
+                            modifier = Modifier.weight(1f).testTag("post_game_rematch"),
+                        ) { Text(stringResource(R.string.action_rematch)) }
+                    }
                 }
+                TextButton(
+                    onClick = onHome,
+                    modifier = Modifier.align(Alignment.CenterHorizontally).testTag("post_game_home"),
+                ) { Text(stringResource(R.string.action_home)) }
             }
         }
     }
@@ -1184,9 +1273,9 @@ internal fun SquareCell(
             .testTag("board_square_${cell.square.algebraic}")
             .semantics(mergeDescendants = true) {
                 contentDescription = squareDescription
-                role = Role.Button
+                if (inputEnabled) role = Role.Button
             }
-            .clickable(enabled = inputEnabled, onClick = onClick),
+            .then(if (inputEnabled) Modifier.clickable(onClick = onClick) else Modifier),
         contentAlignment = Alignment.Center,
     ) {
         if (showTargets && cell.target == TargetKind.QUIET) {
@@ -1812,9 +1901,6 @@ private fun PromotionDialog(
 private fun List<MoveHistoryRow>.plyCount(): Int = sumOf { row ->
     (if (row.white == null) 0 else 1) + (if (row.black == null) 0 else 1)
 }
-
-private fun List<MoveHistoryRow>.lastPlayedSan(): String? =
-    lastOrNull()?.let { row -> row.black ?: row.white }?.notation
 
 private fun List<MoveHistoryRow>.lastPlayedEntry(): MoveHistoryEntry? =
     lastOrNull()?.let { row -> row.black ?: row.white }

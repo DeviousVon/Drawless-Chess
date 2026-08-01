@@ -12,9 +12,9 @@ Cantidad de caracteres: 14 de 30.
 
 ## Descripción breve
 
-`Ajedrez sin conexión con reglas decisivas, siete niveles y sin anuncios.`
+`Ajedrez offline decisivo: ocho rivales y análisis de partida Beta.`
 
-Cantidad de caracteres: 72 de 80.
+Cantidad de caracteres: 66 de 80.
 
 ## Descripción completa
 
@@ -30,14 +30,14 @@ Drawless Chess adapta las reglas conocidas del ajedrez para reemplazar los final
 • Después de 50 movimientos sin mover un peón ni hacer una captura, los puntos de material deciden quién gana.
 
 JUEGA COMPLETAMENTE SIN CONEXIÓN
-Enfréntate al motor de ajedrez integrado sin cuenta, conexión a internet ni emparejamiento en línea. Elige entre siete niveles descriptivos de oponente, desde Aprendiz hasta Gran maestro.
+Enfréntate al motor Fairy-Stockfish ajustado para Drawless, que funciona por completo en tu dispositivo, sin cuenta, conexión a internet ni emparejamiento en línea. Elige entre ocho oponentes ilustrados: siete niveles fijos, desde Aprendiz hasta Gran maestro, y Vesper, el rival Adaptativo que se ajusta a tu nivel actual y evoluciona después de cada partida sin ayudas.
 
 ADAPTA LA PARTIDA A TU GUSTO
 Empieza al instante con Partida rápida, que elige tu bando al azar de forma predeterminada, o personaliza tu bando, oponente, reglas y reloj. Juega sin reloj, elige partidas de 3, 5 o 10 minutos, o usa el ritmo 15+10. La variante opcional Escape cambia cómo se decide el ahogado.
 
 CREADO PARA PARTIDAS REALES
 • Guardado local automático y opción para reanudar
-• Siete oponentes ilustrados con distintas fuerzas de juego y personalidades
+• Ocho oponentes ilustrados, incluido Vesper con fuerza Adaptativa
 • Mueve las piezas con toques o arrastrándolas, con indicación de movimientos legales
 • Seguimiento de piezas capturadas, puntuación de material e historial de movimientos con piezas
 • Indicación opcional de amenazas para aprender a jugar de forma más segura
@@ -47,6 +47,9 @@ CREADO PARA PARTIDAS REALES
 • Efectos claros de victoria y derrota con sonidos muestreados sincronizados
 • Diseños para teléfonos y tablets
 
+ANALIZA LA PARTIDA QUE ACABAS DE JUGAR
+Desde el resultado de una partida terminada, abre Análisis de la partida (Beta) para ver calificaciones de tus jugadas, alternativas mejores, variantes breves y una repetición del tablero jugada a jugada. El motor Fairy-Stockfish ajustado para Drawless realiza todo el análisis en tu dispositivo; no se sube la partida ni se analiza en la nube. Los análisis no se guardan como historial.
+
 CINCO TEMAS DIFERENTES
 Alterna entre Mármol imperial, Arenisca del desierto, Pizarra glaciar, Cobre con verdín y Geoda de amatista. Tu elección queda guardada en el dispositivo.
 
@@ -55,20 +58,20 @@ Sin cuenta. Sin anuncios. Sin análisis de uso ni seguimiento. Sin compras dentr
 
 SOFTWARE DE CÓDIGO ABIERTO
 Drawless Chess se distribuye bajo la licencia GNU GPL versión 3 o posterior. El código fuente y los avisos del proyecto están disponibles en:
-https://github.com/DeviousVon/Drawless-Chess/releases/tag/v0.3.0
+https://github.com/DeviousVon/Drawless-Chess/releases/tag/v1.0.0
 ```
 
-Cantidad de caracteres: 2,586 de 4,000.
+Cantidad de caracteres: 3,304 de 4,000, incluidos los saltos de línea.
 
 ## Notas de la versión
 
-Borrador para la versión `0.3.0`:
+Borrador para la versión `1.0.0` (`versionCode` 4):
 
 ```text
-Te damos la bienvenida a Drawless Chess. Juega partidas decisivas sin conexión contra siete oponentes ilustrados, con Partida rápida de bando al azar o reglas y relojes personalizados. Consulta capturas, material, historial de movimientos, rachas y puntuaciones; usa indicación opcional de amenazas, pistas, deshacer, cinco temas, sonidos realistas del tablero, revanchas y efectos claros de victoria o derrota. Sin cuenta, anuncios, análisis de uso ni compras dentro de la app.
+Actualización mayor: Vesper es el octavo oponente. El modo Adaptativo se ajusta a tu nivel y evoluciona tras cada partida sin ayudas. Al terminar, abre de inmediato Análisis de la partida (Beta) para ver calificaciones de tus jugadas, alternativas mejores, variantes breves y el tablero. El motor Fairy-Stockfish ajustado para Drawless analiza todo en tu dispositivo. Los análisis no se guardan como historial.
 ```
 
-Cantidad de caracteres: 478 de 500.
+Cantidad de caracteres: 410 de 500.
 
 ## Recomendaciones de metadatos
 
@@ -76,8 +79,8 @@ Cantidad de caracteres: 478 de 500.
 - Categoría: **Juegos de mesa**
 - Idioma de esta ficha: **Español (Latinoamérica) — es-419**
 - Etiquetas sugeridas, si aparecen en la lista actual de Play Console: **Ajedrez**, **Estrategia**, **Un jugador** y **Sin conexión**. Seleccionar únicamente etiquetas disponibles en la lista vigente de Google.
-- Correo electrónico de asistencia: **realitymaster@protonmail.ch**
-- Sitio web: dejar en blanco hasta elegir un sitio público mantenido del proyecto o del desarrollador; se puede usar el repositorio de GitHub si Play Console lo acepta.
+- Correo electrónico de asistencia: **support@drawlesschess.com**
+- Sitio web: **https://drawlesschess.com**
 - El lenguaje de marketing evita afirmaciones no verificables sobre clasificación, Elo, ser “el mejor” o estar listo para producción.
 
 ## Notas para revisión obligatoria

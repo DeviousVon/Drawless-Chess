@@ -268,6 +268,7 @@ object RunIdentityFactory {
         config.openingsPath?.let { fixtureHashes["openings"] = sha256(it) }
         config.ladderLevelsPath?.let { fixtureHashes["ladder_levels"] = sha256(it) }
         config.adjacentMatchupsPath?.let { fixtureHashes["adjacent_matchups"] = sha256(it) }
+        config.releasePositionsPath?.let { fixtureHashes["release_positions"] = sha256(it) }
         val digest = MessageDigest.getInstance("SHA-256")
         config.fingerprintFields().toSortedMap().forEach { (key, value) ->
             digest.update(key.toByteArray(StandardCharsets.UTF_8))

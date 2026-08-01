@@ -1,6 +1,9 @@
 # Closed-test kit
 
-Status: **template only; no enrollment, opt-ins, test period, or feedback are claimed**
+Status as of July 30, 2026: **`0.3.0` (`versionCode` 3) is active in Closed testing —
+Alpha, and Play Console shows six testers.** This kit does not claim that the
+required continuous test period, tester threshold, feedback, or production-access criteria
+have been satisfied.
 
 For a new personal developer account, follow the current requirement shown in Play Console.
 The working release plan is to keep at least 12 testers opted in to the closed test for 14
@@ -8,11 +11,11 @@ continuous days before applying for production access. Recruit 15–18 people as
 because merely inviting someone does not count as an opt-in and a tester may leave.
 
 Keep tester email addresses, Google Group membership, promo codes, and identifiable
-feedback outside the public repository. The owner does not need to collect tester addresses
-in advance: create a self-enrollment Google Group, configure that one group address on the
-closed track, and share the Group page plus Play opt-in link only after the release is
-published. Testers join with the Google account used by Play Store. Use "Anyone on the web
-can join" or approval-based "Anyone can ask" according to the owner's preference.
+feedback outside the public repository. The `0.3.0` Alpha is already published; use the
+current private Group and Play opt-in links for ongoing recruitment. If the enrollment model
+changes, a self-enrollment Google Group can avoid collecting tester addresses in advance.
+Testers join with the Google account used by Play Store. Use "Anyone on the web can join" or
+approval-based "Anyone can ask" according to the owner's preference.
 
 ## Tester invitation template
 
@@ -31,7 +34,7 @@ Drawless Chess is an offline single-player chess game with decisive no-draw rule
    [CLOSED-TEST OPT-IN LINK]
 3. Choose to become a tester, then install Drawless Chess from the Play Store link shown there.
 4. Stay opted in until [TEST END DATE]. You do not need to play every day, but please play several games during the test.
-5. Send feedback to realitymaster@protonmail.ch using the short template below.
+5. Send feedback to support@drawlesschess.com using the short template below.
 
 [IF THE APP IS PAID: Redeem this one-time promo code privately before installing: PROMO-CODE. Please do not share it.]
 
@@ -55,7 +58,12 @@ covers phones, tablets, older supported Android versions, and current Android ve
 - Finish or resign a game, observe the result feedback, then start a rematch or a completely
   new second game. Confirm there is no "Engine session has failed" message.
 - Play as White and as Black.
-- Try at least two bot levels, including one lower and one higher level.
+- Try at least two fixed-strength opponents, including one lower and one higher level.
+- Try Vesper, the eighth opponent, in Adaptive mode. Confirm its displayed strength is clear
+  and that only completed, unassisted games are described as changing the local rating.
+- After a completed game, open Game Review Beta from the result screen. Check player-move
+  grades, a better-move suggestion, a short line, board navigation/flip, and the Back path to
+  the result. The analysis must remain on-device; do not expect a saved review-history entry.
 - Try untimed play and one clock option.
 - Exercise Hint, Undo, Pause/Resume, Flip, and Resign.
 - Try tap-to-move and drag-to-move, including a capture and, if practical, promotion.

@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.test.platform.app.InstrumentationRegistry
 import com.drawlesschess.R
+import com.drawlesschess.core.engine.BotDifficultyCatalog
 import com.drawlesschess.persistence.OpponentStatistics
 import com.drawlesschess.persistence.PlayerStatistics
 import java.math.RoundingMode
@@ -150,6 +151,47 @@ class PlayerStatsScreenInstrumentedTest {
                 context.getString(R.string.difficulty_casual),
             ),
         ).performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun adaptiveOpponentUsesVesperIdentityAndLatestFrozenStrength() {
+        val context = targetContext()
+        val statistics = sampleStatistics().copy(
+            opponents = listOf(
+                OpponentStatistics(
+                    opponentStableId = "bot:${BotDifficultyCatalog.ADAPTIVE_LEVEL_ID}",
+                    opponentExactElo = 973,
+                    completedGames = 4,
+                    wins = 2,
+                    losses = 2,
+                    winPercentage = 50.0,
+                    averageScore = 49.5,
+                ),
+            ),
+            adaptiveRating = 997,
+            adaptiveGamesPlayed = 4,
+        )
+        compose.setContent {
+            DrawlessTheme {
+                PlayerStatsScreen(
+                    state = PlayerStatsState.Ready(statistics),
+                    onBack = {},
+                    onRetry = {},
+                )
+            }
+        }
+
+        compose.onNodeWithText(
+            context.getString(
+                R.string.game_title_summary,
+                context.getString(R.string.opponent_vesper_name),
+                context.getString(R.string.difficulty_adaptive),
+            ),
+        ).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText(
+            context.getString(R.string.stats_latest_strength, 973),
+            substring = true,
+        ).assertIsDisplayed()
     }
 
     private fun sampleStatistics(): PlayerStatistics = PlayerStatistics(
