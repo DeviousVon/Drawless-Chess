@@ -1,0 +1,7 @@
+interface:
+  display_name: "Drawless GitHub Release"
+  short_description: "Publish verified Drawless Chess GitHub releases"
+  default_prompt: "Use $drawless-github-release to publish and verify the current Drawless Chess release on GitHub."
+
+policy:
+  allow_implicit_invocation: true
