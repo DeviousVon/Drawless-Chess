@@ -1,0 +1,7 @@
+interface:
+  display_name: "Drawless Google Play Release"
+  short_description: "Publish verified Drawless Chess Play releases"
+  default_prompt: "Use $drawless-google-play-release to upload, submit, and verify the current Drawless Chess release on Google Play."
+
+policy:
+  allow_implicit_invocation: true
