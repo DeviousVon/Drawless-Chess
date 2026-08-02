@@ -1,7 +1,7 @@
 # Drawless Chess go-live status
 
-Status as of July 31, 2026: **Bob has accepted the hash-scoped debug build below as RC1 for
-gameplay responsiveness, review latency, and difficulty consistency; the exact clean, optimized
+Status as of August 2, 2026: **The local frozen release candidate includes the final beta
+correction that renders a requested hint as a visual move arrow; the exact clean, optimized
 1.0.0 Android candidate/device proof and public production release remain blocked.**
 
 Google Play closed testing currently serves 0.3.0 (`versionCode` 3) on the Alpha track; six testers
@@ -10,7 +10,7 @@ and the standard price is still awaiting final approval. The authorized upload k
 and must be reused as-is. Never generate, rotate, replace, or reset that key or certificate without
 Bob's explicit authorization for that exact action.
 
-The current RC1 worktree is being frozen for GitHub publication. Every artifact and device claim
+The current RC1 worktree is frozen locally for final publication preparation. Every artifact and device claim
 below is scoped to its recorded source or binary identity; neither a branch name nor an older APK
 silently verifies a later commit. The July 14 test-harness APK's emulator/tablet suite and
 independent repository review are complete, but those artifacts predate the patch-v2 engine
@@ -70,6 +70,20 @@ candidate.
   launch, engine verification, and upgrade checks on the designated Pixel phone and R6 tablet.
   Game Review remains labeled Beta. Its engine Gate 1 closes only after that exact candidate proof;
   evidence Gate 0 and experience/persistence/exit Gates 2-5 remain open.
+
+## Frozen hint correction
+
+- A successful hint now carries the engine-validated best move into the gameplay board and draws
+  the same from-square/to-square arrow used by Game Review. The existing localized hint message
+  remains available as supporting text; the arrow clears when the position changes or assistance is
+  replaced.
+- The shared arrow renderer, core hint state, localized accessibility descriptions, controller
+  assertions, and Compose coverage are included in this frozen candidate. The focused Compose test
+  passed on the API-36 emulator; the debug artifact used for that check was
+  `C:\src\android\app\build\outputs\apk\debug\app-debug.apk`, SHA-256
+  `E6E92B83C6E2332160499C552CCBBF83E9BBA659F0D4D21739EAF5EE1C6BE999`.
+- That artifact was installed and launched only on `emulator-5554` during this correction. The
+  designated physical Pixel and R6 device gate remains open until both are visible and verified.
 
 ## Completed in the July 14 readiness baseline
 

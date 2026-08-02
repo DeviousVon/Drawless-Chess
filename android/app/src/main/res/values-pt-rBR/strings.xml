@@ -266,6 +266,7 @@
     <string name="review_opponent_context_label">Lance do adversário</string>
     <string name="review_opponent_context_body">Exibido para dar contexto. Apenas seus lances são avaliados.</string>
     <string name="review_better_move_arrow_accessibility">Seta da melhor jogada de %1$s para %2$s</string>
+    <string name="hint_move_arrow_accessibility">Seta da dica de %1$s para %2$s</string>
     <string name="review_failed">Análise indisponível</string>
     <string name="review_failed_body">O motor não conseguiu concluir esta análise.</string>
     <string name="review_cancelled">Análise interrompida</string>

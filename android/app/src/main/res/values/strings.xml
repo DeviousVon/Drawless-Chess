@@ -270,6 +270,7 @@
     <string name="review_opponent_context_label">Opponent move</string>
     <string name="review_opponent_context_body">Shown for context. Only your moves are graded.</string>
     <string name="review_better_move_arrow_accessibility">Better move arrow from %1$s to %2$s</string>
+    <string name="hint_move_arrow_accessibility">Hint move arrow from %1$s to %2$s</string>
     <string name="review_failed">Review unavailable</string>
     <string name="review_failed_body">The engine couldn’t finish this review.</string>
     <string name="review_cancelled">Analysis stopped</string>

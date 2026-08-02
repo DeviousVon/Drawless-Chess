@@ -70,6 +70,7 @@ class GameScreenController(
 ) {
     private var theme = initialTheme
     private var pieceSet = initialPieceSet
+    private var hintMove: BoardMoveArrow? = null
     private var interaction = BoardInteractionState.initial(
         ChessPosition.fromFen(coordinator.snapshot().currentFen),
         config.humanSide,
@@ -87,6 +88,7 @@ class GameScreenController(
             theme = theme,
             pieceSet = pieceSet,
             threatIndicationEnabled = threatIndicationEnabled,
+            hintMove = hintMove,
         )
         val timeline = timeline(snapshot.session.moves)
         interaction = board.interaction
@@ -132,7 +134,10 @@ class GameScreenController(
         val reduction = BoardInteractionReducer.reduce(context, interaction, event)
         interaction = reduction.state
         val action = reduction.action
-        if (action is BoardAction.SubmitMove) runUiAction { coordinator.playHuman(action.move) }
+        if (action is BoardAction.SubmitMove) {
+            hintMove = null
+            runUiAction { coordinator.playHuman(action.move) }
+        }
         return model()
     }
 
@@ -152,6 +157,7 @@ class GameScreenController(
 
     @Synchronized
     fun undo(): GameScreenModel {
+        hintMove = null
         runUiAction { coordinator.undoLastHumanTurn() }
         return model()
     }
@@ -159,6 +165,7 @@ class GameScreenController(
     @Synchronized
     fun hint(): GameScreenModel {
         runUiAction {
+            hintMove = null
             val snapshot = coordinator.snapshot()
             onEffect(GameUiEffect.RequestHintAnalysis(snapshot.session.positionId, snapshot.currentFen))
         }
@@ -167,12 +174,14 @@ class GameScreenController(
 
     @Synchronized
     fun resign(): GameScreenModel {
+        hintMove = null
         runUiAction { coordinator.resignHuman() }
         return model()
     }
 
     @Synchronized
     fun retryBot(): GameScreenModel {
+        hintMove = null
         runUiAction { coordinator.retryBot() }
         return model()
     }
@@ -197,6 +206,15 @@ class GameScreenController(
 
     @Synchronized
     fun showMessage(message: String): GameScreenModel {
+        hintMove = null
+        transientNotice = GameNotice.External(message)
+        return model()
+    }
+
+    @Synchronized
+    fun showHint(message: String, move: UciMove): GameScreenModel {
+        val parsed = ChessMove.fromUci(move)
+        hintMove = BoardMoveArrow(parsed.from, parsed.to)
         transientNotice = GameNotice.External(message)
         return model()
     }
