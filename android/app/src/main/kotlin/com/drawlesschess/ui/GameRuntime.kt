@@ -203,16 +203,22 @@ class GameRuntime private constructor(
                     coordinator.requestHint(effect.positionId) { result ->
                         if (closed.get()) return@requestHint
                         Log.d(HINT_LOG_TAG, "Hint analysis completed success=${result.isSuccess}")
-                        val message = runCatching {
+                        runCatching {
                             result.fold(
-                                onSuccess = { response -> hintMessage(uiContext, effect.currentFen, response) },
-                                onFailure = { uiContext.getString(R.string.hint_unavailable) },
+                                onSuccess = { response ->
+                                    createdController.showHint(
+                                        message = hintMessage(uiContext, effect.currentFen, response),
+                                        move = response.bestMove,
+                                    )
+                                },
+                                onFailure = {
+                                    createdController.showMessage(uiContext.getString(R.string.hint_unavailable))
+                                },
                             )
-                        }.getOrElse { error ->
+                        }.onFailure { error ->
                             Log.e(HINT_LOG_TAG, "Hint result could not be presented", error)
-                            uiContext.getString(R.string.hint_unavailable)
+                            createdController.showMessage(uiContext.getString(R.string.hint_unavailable))
                         }
-                        createdController.showMessage(message)
                         publishModelInvalidation()
                         Log.d(HINT_LOG_TAG, "Hint message published")
                     }

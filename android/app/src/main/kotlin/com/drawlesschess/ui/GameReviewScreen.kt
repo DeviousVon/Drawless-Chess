@@ -2,7 +2,6 @@
 
 package com.drawlesschess.ui
 
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -49,10 +48,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
@@ -85,6 +81,7 @@ import com.drawlesschess.core.engine.ReviewMoveQuality
 import com.drawlesschess.core.engine.ReviewSideSummary
 import com.drawlesschess.core.engine.ReviewedMove
 import com.drawlesschess.core.presentation.BoardOrientation
+import com.drawlesschess.core.presentation.BoardMoveArrow
 import com.drawlesschess.core.presentation.BoardPresenter
 import com.drawlesschess.core.presentation.BoardScreenState
 import com.drawlesschess.core.presentation.BoardTheme
@@ -95,7 +92,6 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.roundToInt
-import kotlin.math.sqrt
 
 internal enum class ReviewAnalysisUiStatus {
     ANALYZING,
@@ -117,14 +113,7 @@ internal enum class ReviewMoveRole {
     OPPONENT_CONTEXT,
 }
 
-internal data class ReviewBetterMoveArrow(
-    val from: Square,
-    val to: Square,
-) {
-    init {
-        require(from != to) { "A review arrow must connect two different squares" }
-    }
-}
+internal typealias ReviewBetterMoveArrow = BoardMoveArrow
 
 internal data class ReviewMoveUi(
     /** One-based half-move index. This remains unambiguous for nonstandard starting FENs. */
@@ -581,89 +570,25 @@ private fun ReviewChessBoard(
             showCoordinates = showCoordinates,
             onMoveAnimationFinished = {},
         )
-        arrow?.let { BetterMoveArrowOverlay(model, it) }
-    }
-}
-
-@Composable
-private fun BetterMoveArrowOverlay(
-    board: BoardScreenState,
-    arrow: ReviewBetterMoveArrow,
-) {
-    val (fromCell, toCell) = reviewArrowDisplayCells(board, arrow)
-    val arrowColor = MaterialTheme.colorScheme.primary
-    val outlineColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.78f)
-    val description = stringResource(
-        R.string.review_better_move_arrow_accessibility,
-        arrow.from.algebraic,
-        arrow.to.algebraic,
-    )
-    Canvas(
-        Modifier
-            .fillMaxSize()
-            .testTag("review_better_move_arrow")
-            .clearAndSetSemantics { contentDescription = description },
-    ) {
-        val squarePixels = size.width / 8f
-        fun center(row: Int, column: Int): Offset = Offset(
-            (column + 0.5f) * squarePixels,
-            (row + 0.5f) * squarePixels,
-        )
-
-        val from = center(fromCell.displayRow, fromCell.displayColumn)
-        val destination = center(toCell.displayRow, toCell.displayColumn)
-        val dx = destination.x - from.x
-        val dy = destination.y - from.y
-        val length = sqrt(dx * dx + dy * dy)
-        if (length <= 0f) return@Canvas
-
-        val unitX = dx / length
-        val unitY = dy / length
-        val start = Offset(
-            from.x + unitX * squarePixels * 0.13f,
-            from.y + unitY * squarePixels * 0.13f,
-        )
-        val end = Offset(
-            destination.x - unitX * squarePixels * 0.24f,
-            destination.y - unitY * squarePixels * 0.24f,
-        )
-        val headLength = squarePixels * 0.24f
-        val headHalfWidth = squarePixels * 0.16f
-        val headBase = Offset(
-            end.x - unitX * headLength,
-            end.y - unitY * headLength,
-        )
-        val headOne = Offset(
-            headBase.x - unitY * headHalfWidth,
-            headBase.y + unitX * headHalfWidth,
-        )
-        val headTwo = Offset(
-            headBase.x + unitY * headHalfWidth,
-            headBase.y - unitX * headHalfWidth,
-        )
-        val outlineWidth = squarePixels * 0.12f
-        val arrowWidth = squarePixels * 0.075f
-
-        drawLine(outlineColor, start, end, outlineWidth, cap = StrokeCap.Round)
-        drawLine(outlineColor, end, headOne, outlineWidth, cap = StrokeCap.Round)
-        drawLine(outlineColor, end, headTwo, outlineWidth, cap = StrokeCap.Round)
-        drawLine(arrowColor.copy(alpha = 0.72f), start, end, arrowWidth, cap = StrokeCap.Round)
-        drawLine(arrowColor.copy(alpha = 0.72f), end, headOne, arrowWidth, cap = StrokeCap.Round)
-        drawLine(arrowColor.copy(alpha = 0.72f), end, headTwo, arrowWidth, cap = StrokeCap.Round)
-        drawCircle(
-            color = arrowColor.copy(alpha = 0.72f),
-            radius = squarePixels * 0.10f,
-            center = from,
-            style = Stroke(width = arrowWidth * 0.65f),
-        )
+        arrow?.let {
+            MoveArrowOverlay(
+                board = model,
+                arrow = it,
+                testTag = "review_better_move_arrow",
+                description = stringResource(
+                    R.string.review_better_move_arrow_accessibility,
+                    it.from.algebraic,
+                    it.to.algebraic,
+                ),
+            )
+        }
     }
 }
 
 internal fun reviewArrowDisplayCells(
     board: BoardScreenState,
     arrow: ReviewBetterMoveArrow,
-) = board.cells.single { it.square == arrow.from } to
-    board.cells.single { it.square == arrow.to }
+) = moveArrowDisplayCells(board, arrow)
 
 @Composable
 private fun ReviewPanel(

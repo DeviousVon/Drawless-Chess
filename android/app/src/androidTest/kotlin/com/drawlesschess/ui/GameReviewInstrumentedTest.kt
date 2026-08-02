@@ -46,6 +46,7 @@ import com.drawlesschess.core.engine.ReviewMoveQuality
 import com.drawlesschess.core.engine.ReviewSideSummary
 import com.drawlesschess.core.engine.ReviewedMove
 import com.drawlesschess.core.presentation.BoardOrientation
+import com.drawlesschess.core.presentation.BoardMoveArrow
 import com.drawlesschess.core.presentation.BoardPresenter
 import com.drawlesschess.core.presentation.BoardThemes
 import com.drawlesschess.core.presentation.ControlPlacement
@@ -349,6 +350,33 @@ class GameReviewInstrumentedTest {
         assertEquals(7 - whiteTo.displayColumn, blackTo.displayColumn)
         assertEquals(Square.parse("b1"), whiteFrom.square)
         assertEquals(Square.parse("c3"), whiteTo.square)
+    }
+
+    @Test
+    fun gameplayHintArrowUsesTheSameVisualOverlayAsReview() {
+        val board = BoardPresenter.presentReview(
+            initialFen = ChessPosition.START_FEN,
+            moves = emptyList(),
+            humanSide = Side.WHITE,
+        ).copy(
+            hintMove = BoardMoveArrow(Square.parse("e2"), Square.parse("e4")),
+        )
+
+        compose.setContent {
+            DrawlessTheme {
+                ChessBoard(
+                    model = board,
+                    boardSizeDp = 320,
+                    onEvent = {},
+                    showCoordinates = true,
+                    onMoveAnimationFinished = {},
+                )
+            }
+        }
+
+        compose.onNodeWithTag("hint_move_arrow", useUnmergedTree = true)
+            .assertContentDescriptionEquals("Hint move arrow from e2 to e4")
+            .assertIsDisplayed()
     }
 
     @Test

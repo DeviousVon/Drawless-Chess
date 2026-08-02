@@ -266,6 +266,7 @@
     <string name="review_opponent_context_label">Coup de l’adversaire</string>
     <string name="review_opponent_context_body">Affiché pour le contexte. Seuls vos coups sont évalués.</string>
     <string name="review_better_move_arrow_accessibility">Flèche du meilleur coup de %1$s vers %2$s</string>
+    <string name="hint_move_arrow_accessibility">Flèche de l’indice de %1$s vers %2$s</string>
     <string name="review_failed">Analyse indisponible</string>
     <string name="review_failed_body">Le moteur n’a pas pu terminer cette analyse.</string>
     <string name="review_cancelled">Analyse arrêtée</string>

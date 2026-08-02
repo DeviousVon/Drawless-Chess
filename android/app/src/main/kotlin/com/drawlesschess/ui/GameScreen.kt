@@ -1154,6 +1154,19 @@ internal fun ChessBoard(
             }
         }
 
+        model.hintMove?.let { hint ->
+            MoveArrowOverlay(
+                board = model,
+                arrow = hint,
+                testTag = "hint_move_arrow",
+                description = stringResource(
+                    R.string.hint_move_arrow_accessibility,
+                    hint.from.algebraic,
+                    hint.to.algebraic,
+                ),
+            )
+        }
+
         if (animationRunning) {
             MovingPieces(moveToAnimate, model.cells, boardPixels, boardSizeDp, moveProgress)
         }

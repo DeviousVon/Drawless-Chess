@@ -266,6 +266,7 @@
     <string name="review_opponent_context_label">Jugada del rival</string>
     <string name="review_opponent_context_body">Se muestra como contexto. Solo se califican tus jugadas.</string>
     <string name="review_better_move_arrow_accessibility">Flecha de mejor jugada de %1$s a %2$s</string>
+    <string name="hint_move_arrow_accessibility">Flecha de pista de %1$s a %2$s</string>
     <string name="review_failed">Análisis no disponible</string>
     <string name="review_failed_body">El motor no pudo terminar este análisis.</string>
     <string name="review_cancelled">Análisis detenido</string>
