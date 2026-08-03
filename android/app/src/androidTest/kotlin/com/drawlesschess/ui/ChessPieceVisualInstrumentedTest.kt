@@ -53,7 +53,7 @@ class ChessPieceVisualInstrumentedTest {
             DrawlessTheme {
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     sizes.forEach { size ->
-                        listOf(PieceType.BISHOP, PieceType.PAWN, PieceType.KING).forEach { type ->
+                        listOf(PieceType.BISHOP, PieceType.PAWN, PieceType.KING, PieceType.QUEEN).forEach { type ->
                             ChessPiece(
                                 side = Side.WHITE,
                                 type = type,
@@ -73,16 +73,15 @@ class ChessPieceVisualInstrumentedTest {
             val bishop = compose.onNodeWithTag("bishop_$size").captureToImage().asAndroidBitmap()
             val pawn = compose.onNodeWithTag("pawn_$size").captureToImage().asAndroidBitmap()
             val king = compose.onNodeWithTag("king_$size").captureToImage().asAndroidBitmap()
+            val queen = compose.onNodeWithTag("queen_$size").captureToImage().asAndroidBitmap()
             val bishopMask = silhouette(bishop, background.toArgb())
             val pawnMask = silhouette(pawn, background.toArgb())
+            val kingMask = silhouette(king, background.toArgb())
+            val queenMask = silhouette(queen, background.toArgb())
 
             assertNoEdgeClipping(bishopMask, bishop.width, bishop.height)
             assertNoTopOrSideClipping(pawnMask, pawn.width, pawn.height)
-            assertNoTopOrSideClipping(
-                silhouette(king, background.toArgb()),
-                king.width,
-                king.height,
-            )
+            assertNoTopOrSideClipping(kingMask, king.width, king.height)
 
             val bishopTop = firstOccupiedRow(bishopMask, bishop.width, bishop.height)
             val pawnTop = firstOccupiedRow(pawnMask, pawn.width, pawn.height)
@@ -97,26 +96,48 @@ class ChessPieceVisualInstrumentedTest {
             )
 
             // Ignore the common weighted base and compare the identifying crown/neck/collar.
-            val overlap = intersectionOverUnion(
-                bishopMask,
-                pawnMask,
-                width = bishop.width,
-                comparedHeight = (bishop.height * 0.68f).toInt(),
-            )
+            val comparedHeight = (bishop.height * 0.68f).toInt()
+            val overlap = intersectionOverUnion(bishopMask, pawnMask, bishop.width, comparedHeight)
             assertTrue("The ${size}dp bishop/pawn silhouettes are too similar: IoU=$overlap", overlap < 0.72)
 
+            // The supplied king remains separated from the bishop and pawn in silhouette alone.
+            // The approved queen silhouette is intentionally retained; its four outlined jewels
+            // provide the additional cue and therefore receive their own compact-raster gate.
+            val kingBishopOverlap = intersectionOverUnion(kingMask, bishopMask, king.width, comparedHeight)
+            val kingPawnOverlap = intersectionOverUnion(kingMask, pawnMask, king.width, comparedHeight)
+            val kingQueenOverlap = intersectionOverUnion(kingMask, queenMask, king.width, comparedHeight)
+            assertTrue(
+                "The ${size}dp king/bishop silhouettes are too similar: IoU=$kingBishopOverlap",
+                kingBishopOverlap < 0.72,
+            )
+            assertTrue(
+                "The ${size}dp king/pawn silhouettes are too similar: IoU=$kingPawnOverlap",
+                kingPawnOverlap < 0.72,
+            )
             val detailPixels = countNearColor(bishop, palette.whiteDetail.toArgb(), tolerance = 54)
             val kingAccentPixels = countNearColor(king, palette.whiteKingAccent.toArgb(), tolerance = 54)
+            val queenJewelPixels = countNearColor(
+                queen,
+                palette.whiteQueenAccent.toArgb(),
+                tolerance = 54,
+            )
             Log.i(
                 "ChessPieceVisual",
                 "size_dp=$size pixels=${bishop.width} bishop_top=$bishopTop pawn_top=$pawnTop " +
                     "bishop_collar=$bishopCollar pawn_stem=$pawnStem upper_iou=$overlap " +
-                    "bishop_detail_pixels=$detailPixels king_accent_pixels=$kingAccentPixels",
+                    "king_bishop_iou=$kingBishopOverlap king_pawn_iou=$kingPawnOverlap " +
+                    "king_queen_iou=$kingQueenOverlap " +
+                    "bishop_detail_pixels=$detailPixels king_accent_pixels=$kingAccentPixels " +
+                    "queen_jewel_pixels=$queenJewelPixels",
             )
             assertTrue("The ${size}dp bishop mitre cut disappeared", detailPixels >= size / 2)
             assertTrue(
-                "The ${size}dp king lost its colored cross: pixels=$kingAccentPixels",
+                "The ${size}dp king lost its accent circlet band: pixels=$kingAccentPixels",
                 kingAccentPixels >= maxOf(4, size / 4),
+            )
+            assertTrue(
+                "The ${size}dp queen lost its colored crown jewels: pixels=$queenJewelPixels",
+                queenJewelPixels >= maxOf(4, size / 4),
             )
         }
     }
@@ -134,7 +155,7 @@ class ChessPieceVisualInstrumentedTest {
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     Text(
-                        "Bishop · pawn · king legibility",
+                        "Piece legibility · colored queen jewel trial",
                         color = Color(0xFFF2F5F6),
                         style = MaterialTheme.typography.titleSmall,
                     )
@@ -280,7 +301,12 @@ private fun EvidenceThemeSection(visualTheme: DrawlessVisualTheme) {
         listOf(Side.WHITE, Side.BLACK).forEach { side ->
             Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                 listOf(14, 18, 24).forEach { size ->
-                    listOf(PieceType.BISHOP, PieceType.PAWN, PieceType.KING).forEach { type ->
+                    listOf(
+                        PieceType.BISHOP,
+                        PieceType.PAWN,
+                        PieceType.KING,
+                        PieceType.QUEEN,
+                    ).forEach { type ->
                         ChessPiece(
                             side = side,
                             type = type,
@@ -312,6 +338,18 @@ private fun EvidenceThemeSection(visualTheme: DrawlessVisualTheme) {
                     ) {
                         ChessPiece(side, type, Modifier.fillMaxSize().padding(3.dp))
                     }
+                }
+            }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            listOf(Side.WHITE, Side.BLACK).forEach { side ->
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .background(if (side == Side.WHITE) darkSquare else lightSquare),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    ChessPiece(side, PieceType.QUEEN, Modifier.fillMaxSize().padding(3.dp))
                 }
             }
         }

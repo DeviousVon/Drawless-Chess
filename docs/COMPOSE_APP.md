@@ -39,7 +39,9 @@ Official references:
     available only from the current result and is not persisted as a review history. The result
     screen also keeps Quick Play and Rematch available without returning home. Foreground review
     pre-analysis runs through a review-only engine in the dedicated `:review_engine` process, so
-    its native singleton and launch gate are separate from gameplay and hints.
+    its native singleton and launch gate are separate from gameplay and hints. Exact completed
+    pre-analysis roots are persisted with the active-game checkpoint and restored across Resume;
+    stale analysis versions, branches, or engine builds are discarded without blocking the game.
 
 The game screen renders:
 
