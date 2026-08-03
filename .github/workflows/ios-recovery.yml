@@ -46,8 +46,8 @@ jobs:
           java -version
           node --version
 
-      - name: Install XcodeGen
-        run: brew install xcodegen
+      - name: Install validation tools
+        run: brew install ripgrep xcodegen
 
       - name: Recreate and verify pinned Fairy-Stockfish source
         run: bash scripts/native-fetch-fairy.sh
