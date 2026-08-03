@@ -1,0 +1,109 @@
+name: iOS recovery build
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - codex/ios-recovery-20260803
+  pull_request:
+    paths:
+      - ".github/workflows/ios-recovery.yml"
+      - "android/core/**"
+      - "android/engine/**"
+      - "engine/**"
+      - "ios-engine/**"
+      - "iosApp/**"
+      - "multiplatform/**"
+      - "scripts/*ios*"
+      - "scripts/*kmp*"
+      - "scripts/native-*"
+      - "package.json"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-recovery-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    runs-on: macos-26
+    timeout-minutes: 120
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.2.app/Contents/Developer
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Report pinned host tools
+        run: |
+          set -euo pipefail
+          sw_vers
+          xcodebuild -version
+          /usr/libexec/java_home -v 21
+          java -version
+          node --version
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Recreate and verify pinned Fairy-Stockfish source
+        run: bash scripts/native-fetch-fairy.sh
+
+      - name: Run iOS structure checks
+        run: npm run test:ios-structure
+
+      - name: Run shared-core JVM tests
+        run: npm run test:kmp
+
+      - name: Build and test Apple shared core
+        run: npm run test:kmp:apple
+
+      - name: Regenerate Apple resources and Xcode project
+        run: |
+          set -euo pipefail
+          bash scripts/sync-ios-assets.sh
+          node scripts/sync-ios-localizations.mjs
+          npm run ios:generate
+
+      - name: Build unsigned simulator app
+        env:
+          DRAWLESS_IOS_DESTINATION: generic/platform=iOS Simulator
+          DRAWLESS_IOS_DERIVED_DATA: ${{ github.workspace }}/build/xcode-derived
+        run: npm run ios:build:simulator
+
+      - name: Boot iOS 26.2 test simulator
+        run: |
+          set -euo pipefail
+          device_id="$(xcrun simctl create \
+            'Drawless CI iPhone' \
+            'com.apple.CoreSimulator.SimDeviceType.iPhone-16e' \
+            'com.apple.CoreSimulator.SimRuntime.iOS-26-2')"
+          xcrun simctl boot "$device_id"
+          xcrun simctl bootstatus "$device_id" -b
+          echo "DRAWLESS_IOS_SIMULATOR_ID=$device_id" >> "$GITHUB_ENV"
+
+      - name: Run SwiftUI integration tests
+        run: npm run ios:test:ui
+
+      - name: Check generated Apple files are reproducible
+        run: git diff --exit-code -- iosApp
+
+      - name: Upload unsigned simulator app
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: drawless-chess-ios-simulator
+          path: build/xcode-derived/Build/Products/Debug-iphonesimulator/Drawless Chess.app
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Remove CI simulator
+        if: always()
+        run: |
+          if [[ -n "${DRAWLESS_IOS_SIMULATOR_ID:-}" ]]; then
+            xcrun simctl shutdown "$DRAWLESS_IOS_SIMULATOR_ID" || true
+            xcrun simctl delete "$DRAWLESS_IOS_SIMULATOR_ID" || true
+          fi

@@ -4,14 +4,21 @@ set -euo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"
 bash "$root/scripts/generate-ios-project.sh"
 
-device_id="${DRAWLESS_IOS_SIMULATOR_ID:-}"
-if [[ -z "$device_id" ]]; then
-  device_id="$(xcrun simctl list devices booted | sed -n 's/.*(\([0-9A-F-]\{36\}\)) (Booted).*/\1/p' | head -1)"
+destination="${DRAWLESS_IOS_DESTINATION:-}"
+if [[ -z "$destination" ]]; then
+  device_id="${DRAWLESS_IOS_SIMULATOR_ID:-}"
+  if [[ -z "$device_id" ]]; then
+    device_id="$(xcrun simctl list devices booted | sed -n 's/.*(\([0-9A-F-]\{36\}\)) (Booted).*/\1/p' | head -1)"
+  fi
+  if [[ -n "$device_id" ]]; then
+    destination="platform=iOS Simulator,id=$device_id"
+  else
+    destination="generic/platform=iOS Simulator"
+  fi
 fi
-[[ -n "$device_id" ]] || {
-  echo "Boot an iOS simulator or set DRAWLESS_IOS_SIMULATOR_ID" >&2
-  exit 1
-}
+
+derived_data="${DRAWLESS_IOS_DERIVED_DATA:-$root/build/xcode-derived}"
+echo "Building unsigned iOS host for $destination"
 
 xcodebuild \
   -quiet \
@@ -19,6 +26,7 @@ xcodebuild \
   -scheme DrawlessChess \
   -configuration Debug \
   -sdk iphonesimulator \
-  -destination "platform=iOS Simulator,id=$device_id" \
+  -destination "$destination" \
+  -derivedDataPath "$derived_data" \
   CODE_SIGNING_ALLOWED=NO \
   build
