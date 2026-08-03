@@ -1,8 +1,9 @@
 # Drawless Chess go-live status
 
-Status as of August 2, 2026: **The local frozen release candidate includes the final beta
-correction that renders a requested hint as a visual move arrow; the exact clean, optimized
-1.0.0 Android candidate/device proof and public production release remain blocked.**
+Status as of August 3, 2026: **The local RC1 source includes the visual hint correction,
+durable exact Game Review prefetch across Save & exit/Resume, and the owner-approved piece
+legibility correction. The exact clean, optimized 1.0.0 Android candidate/device proof and
+public production release remain blocked.**
 
 Google Play closed testing currently serves 0.3.0 (`versionCode` 3) on the Alpha track; six testers
 were opted in when the Console was inspected on July 30. The owner selected a one-time paid listing,
@@ -38,7 +39,7 @@ candidate.
 - The clean Linux x86-64 source/patch verifier passes exact replay, the direct native-state harness,
   and the full UCI acceptance matrix, including both-color quiet stalemates beyond the sparse
   material frontier and the node-neutral speculative-probe assertion.
-- The Kotlin core harness currently passes 357 tests. Full WSL headless `--validate-only` also
+- The Kotlin core harness currently passes 362 tests. Full WSL headless `--validate-only` also
   passes with the rebuilt patch-v2 engine and runner. Headless campaign, puzzle-candidate, and
   puzzle-verification schemas are version 2 and include the bare-king policy in rule fingerprints;
   the soak supervisor requires the schema-2 bare-king value, and older schema-v1 material must be
@@ -82,8 +83,27 @@ candidate.
   passed on the API-36 emulator; the debug artifact used for that check was
   `C:\src\android\app\build\outputs\apk\debug\app-debug.apk`, SHA-256
   `E6E92B83C6E2332160499C552CCBBF83E9BBA659F0D4D21739EAF5EE1C6BE999`.
-- That artifact was installed and launched only on `emulator-5554` during this correction. The
-  designated physical Pixel and R6 device gate remains open until both are visible and verified.
+- The focused hint-arrow test later passed on the API-36 emulator, Pixel 9 Pro XL, and R6 tablet.
+  That evidence remains scoped to the frozen hint commit; the later combined RC1 still requires
+  exact-candidate proof on both designated physical devices.
+
+## August 3 RC1 additions
+
+- The supplied king uses its approved three-point crown and colored circlet band on Android and
+  the Web Casual board. Its path is locked as approved.
+- The original queen silhouette is retained. Its four crown jewels now use outlined, theme-aware
+  accent colors: the white queen uses the bright theme accent and the black queen uses crimson.
+  The owner approved this exact visual after reviewing the R6 evidence sheet.
+- Compact 14/18/24dp tests retain the king-vs-bishop and king-vs-pawn silhouette gates and require
+  the queen jewel accent to survive rasterization. The focused two-test visual class passes on the
+  API-36 emulator and R6 tablet.
+- Version identity remains `1.0.0` with `versionCode` 4. The debug candidate was installed and
+  launched on the emulator and R6; the Pixel was disconnected, so the exact two-device gate remains
+  open.
+- Completed foreground Game Review roots and adjacent fallback evidence are persisted immediately
+  with exact history, rules, request, response, analysis-version, and embedded-engine identity
+  validation. Compatible evidence survives Save & exit/Resume without another native search;
+  stale or incompatible evidence is discarded without blocking the saved game.
 
 ## Completed in the July 14 readiness baseline
 

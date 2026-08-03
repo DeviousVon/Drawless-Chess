@@ -213,9 +213,18 @@ activity attaches to the same work without cancelling or duplicating it. Only th
 summary is derived for presentation; the app intentionally does not display an accuracy percentage
 until a separate formula is calibrated and versioned.
 
+Every completed speculative root or adjacent fallback is also revisioned into the active Room
+checkpoint immediately. Saved-game Resume regenerates the expected root keys from canonical move
+history and restores only byte-for-byte semantic key matches whose response came from the embedded
+engine build. Unknown evidence/analysis versions, malformed entries, stale branches, and engine
+build changes discard only the optional cache; they never make the playable game unavailable.
+Current-position evidence is persisted before the player moves, and unfinished historical fallback
+work is reconstructed from restored roots. This does not persist a completed post-game review or
+make review history available after starting another game.
+
 This first review remains deliberately labeled Beta even though patch v2 now evaluates the exact
 `RulesContractV1` throughout native search. Rule parity removes one correctness blocker; it does
-not supply constrained-root Evidence V2, calibrated accuracy, durable review/history storage, or
+not supply constrained-root Evidence V2, calibrated accuracy, durable completed-review/history storage, or
 the complete retry, process-death, accessibility, localization, and device acceptance matrix.
 The app must not present a time-limited local engine review as a tablebase-like verdict.
 

@@ -3,6 +3,7 @@ package com.drawlesschess.engine
 import android.content.Context
 import com.drawlesschess.core.ChessEngine
 import com.drawlesschess.core.EngineCancellation
+import com.drawlesschess.core.EngineIdentity
 import com.drawlesschess.core.EngineRequest
 import com.drawlesschess.core.EngineResponse
 import com.drawlesschess.core.engine.FairyEngineBuild
@@ -53,15 +54,24 @@ class AndroidFairyEngineFactory(
         }
     }
 
-    private fun buildId(): String = buildString {
-        append("fairy-")
-        append(BuildConfig.FAIRY_UPSTREAM_REVISION.take(12))
-        append("-tree-")
-        append(BuildConfig.FAIRY_PATCHED_TREE.take(12))
-        append("-patch-")
-        append(BuildConfig.DRAWLESS_PATCH_VERSION)
-        append("-bridge-")
-        append(BuildConfig.NATIVE_BRIDGE_ABI_VERSION)
+    private fun buildId(): String = embeddedBuildId()
+
+    companion object {
+        /** Exact embedded build identity used to reject stale durable review evidence. */
+        fun embeddedBuildId(): String = buildString {
+            append("fairy-")
+            append(BuildConfig.FAIRY_UPSTREAM_REVISION.take(12))
+            append("-tree-")
+            append(BuildConfig.FAIRY_PATCHED_TREE.take(12))
+            append("-patch-")
+            append(BuildConfig.DRAWLESS_PATCH_VERSION)
+            append("-bridge-")
+            append(BuildConfig.NATIVE_BRIDGE_ABI_VERSION)
+        }
+
+        fun acceptsPersistedReviewEvidence(identity: EngineIdentity): Boolean =
+            identity.build == embeddedBuildId() &&
+                identity.drawlessPatch == BuildConfig.DRAWLESS_PATCH_VERSION
     }
 }
 

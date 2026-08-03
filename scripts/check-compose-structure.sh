@@ -68,7 +68,7 @@ review_screen="$root/android/app/src/main/kotlin/com/drawlesschess/ui/GameReview
 rg -Fq 'enum class ReviewMoveRole' "$review_screen"
 rg -Fq 'ReviewMoveRole.OPPONENT_CONTEXT' "$review_screen"
 rg -Fq 'ReviewBetterMoveArrow(best.from, best.to)' "$review_screen"
-rg -Fq 'testTag("review_better_move_arrow")' "$review_screen"
+rg -Fq 'testTag = "review_better_move_arrow"' "$review_screen"
 rg -Fq 'reviewResult?.moves?.associateBy' "$review_screen"
 rg -Fq 'partialMoves = reviewedByPly' "$review_screen"
 if rg -n 'roleTag = "opponent"|review_summary_opponent' "$review_screen"; then

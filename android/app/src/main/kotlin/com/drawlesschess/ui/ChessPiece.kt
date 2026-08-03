@@ -33,6 +33,7 @@ private data class PieceRasterKey(
     val outline: Color,
     val detail: Color,
     val kingAccent: Color,
+    val queenAccent: Color,
 )
 
 private val pieceRasterCache = object : LruCache<PieceRasterKey, ImageBitmap>(PIECE_RASTER_CACHE_KIB) {
@@ -53,9 +54,10 @@ internal fun ChessPiece(
     val outline = if (side == Side.WHITE) palette.whiteOutline else palette.blackOutline
     val detail = if (side == Side.WHITE) palette.whiteDetail else palette.blackDetail
     val kingAccent = if (side == Side.WHITE) palette.whiteKingAccent else palette.blackKingAccent
-    val raster = remember(side, type, fill, outline, detail, kingAccent) {
+    val queenAccent = if (side == Side.WHITE) palette.whiteQueenAccent else palette.blackQueenAccent
+    val raster = remember(side, type, fill, outline, detail, kingAccent, queenAccent) {
         pieceRaster(
-            key = PieceRasterKey(side, type, fill, outline, detail, kingAccent),
+            key = PieceRasterKey(side, type, fill, outline, detail, kingAccent, queenAccent),
             geometry = geometry,
         )
     }
@@ -77,8 +79,9 @@ internal fun chessPieceRaster(
     val outline = if (side == Side.WHITE) palette.whiteOutline else palette.blackOutline
     val detail = if (side == Side.WHITE) palette.whiteDetail else palette.blackDetail
     val kingAccent = if (side == Side.WHITE) palette.whiteKingAccent else palette.blackKingAccent
+    val queenAccent = if (side == Side.WHITE) palette.whiteQueenAccent else palette.blackQueenAccent
     return pieceRaster(
-        key = PieceRasterKey(side, type, fill, outline, detail, kingAccent),
+        key = PieceRasterKey(side, type, fill, outline, detail, kingAccent, queenAccent),
         geometry = pieceGeometry(type),
     )
 }
@@ -104,6 +107,7 @@ private fun pieceRaster(
                 outline = key.outline,
                 detail = key.detail,
                 kingAccent = key.kingAccent,
+                queenAccent = key.queenAccent,
             )
         }
     }
@@ -118,6 +122,7 @@ private fun DrawScope.drawPiece(
     outline: Color,
     detail: Color,
     kingAccent: Color,
+    queenAccent: Color,
 ) {
     val shape = geometry.shape
     drawPath(shape, outline, style = Stroke(width = 7f))
@@ -126,17 +131,24 @@ private fun DrawScope.drawPiece(
 
     when (type) {
         PieceType.KING -> {
-            // The colored, outlined cross keeps the king distinct from the bishop at a glance.
-            drawLine(outline, Offset(50f, 5f), Offset(50f, 29f), strokeWidth = 8f)
-            drawLine(outline, Offset(40f, 14f), Offset(60f, 14f), strokeWidth = 8f)
-            drawLine(kingAccent, Offset(50f, 5f), Offset(50f, 29f), strokeWidth = 4.5f)
-            drawLine(kingAccent, Offset(40f, 14f), Offset(60f, 14f), strokeWidth = 4.5f)
+            // The identifying mark is the notched crown in kingPath(), not anything drawn on top:
+            // an applied cross is under a pixel of ink at 14dp, where the notches still read. The
+            // accent fills the circlet band so it holds its color at the same size.
+            drawRect(kingAccent, topLeft = Offset(25f, 40f), size = Size(50f, 12f))
+            drawLine(outline, Offset(25f, 40f), Offset(75f, 40f), strokeWidth = 2.2f)
+            drawCircle(detail, 2.6f, Offset(35f, 46f))
+            drawCircle(detail, 2.6f, Offset(65f, 46f))
         }
         PieceType.QUEEN -> {
-            drawCircle(detail, 3.4f, Offset(27f, 18f))
-            drawCircle(detail, 3.4f, Offset(42f, 13f))
-            drawCircle(detail, 3.4f, Offset(58f, 13f))
-            drawCircle(detail, 3.4f, Offset(73f, 18f))
+            listOf(
+                Offset(27f, 18f),
+                Offset(42f, 13f),
+                Offset(58f, 13f),
+                Offset(73f, 18f),
+            ).forEach { center ->
+                drawCircle(outline, 4.2f, center)
+                drawCircle(queenAccent, 2.8f, center)
+            }
         }
         PieceType.BISHOP -> {
             // The recessed mitre cut and separate, wide shoulder are readable silhouette
@@ -290,14 +302,20 @@ private fun queenPath() = Path().apply {
     close()
 }
 
+// A three-point circlet whose sides flare outward. Points of comparable height read as a crown;
+// an outsized center point reads as a cone, which is how the dome-and-cross king was mistaken for
+// the bishop. The crown reaches y=14 so the king finishes just above the queen's y=18 peak.
 private fun kingPath() = Path().apply {
-    moveTo(50f, 25f)
-    cubicTo(36f, 25f, 29f, 35f, 34f, 47f)
-    cubicTo(37f, 54f, 40f, 58f, 36f, 64f)
-    lineTo(31f, 74f)
-    lineTo(69f, 74f)
-    lineTo(64f, 64f)
-    cubicTo(60f, 58f, 63f, 54f, 66f, 47f)
-    cubicTo(71f, 35f, 64f, 25f, 50f, 25f)
+    moveTo(34f, 74f)
+    cubicTo(33f, 65f, 37f, 58f, 41f, 53f)
+    lineTo(24f, 53f)
+    lineTo(23f, 20f)
+    lineTo(35f, 36f)
+    lineTo(50f, 14f)
+    lineTo(65f, 36f)
+    lineTo(77f, 20f)
+    lineTo(76f, 53f)
+    lineTo(59f, 53f)
+    cubicTo(63f, 58f, 67f, 65f, 66f, 74f)
     close()
 }

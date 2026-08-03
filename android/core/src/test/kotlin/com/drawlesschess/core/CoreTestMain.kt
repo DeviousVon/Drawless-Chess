@@ -865,6 +865,103 @@ fun main() {
         assertThat(fixture.coordinator.snapshot().phase == CoordinatorPhase.HUMAN_TURN)
         assertThat(fixture.coordinator.snapshot().engineError == null)
     }
+    suite.test("completed review prefetch is persisted immediately and survives saved-game restore") {
+        val fixture = coordinatorFixture()
+        fixture.coordinator.setReviewPrefetchEnabled(true)
+        fixture.engine.respond(fixture.engine.requests.single(), "e2e4")
+
+        val durable = fixture.sink.saved.last()
+        assertThat(durable.moves.isEmpty())
+        assertThat(durable.reviewPrefetchRoots.size == 1)
+        assertThat(durable.revision == 1L)
+        fixture.coordinator.close()
+
+        val restoredEngine = FakeChessEngine()
+        val restored = GameCoordinator.restore(
+            checkpoint = durable,
+            engine = restoredEngine,
+            checkpointSink = FakeCheckpointSink(),
+            timeSource = fixture.time,
+            idSource = FakeCoordinatorIds(),
+        )
+        try {
+            restored.start()
+            restored.setReviewPrefetchEnabled(true)
+            assertThat(restored.completedReviewPrefetchRoots() == durable.reviewPrefetchRoots)
+            assertThat(
+                restoredEngine.requests.isEmpty(),
+                "The exact current root was searched again after saved-game restore",
+            )
+        } finally {
+            restored.close()
+        }
+    }
+    suite.test("played review roots and adjacent evidence survive saved-game restore") {
+        val fixture = coordinatorFixture()
+        fixture.coordinator.setReviewPrefetchEnabled(true)
+        fixture.engine.respond(fixture.engine.requests.single(), "d2d4")
+        fixture.coordinator.playHuman(UciMove("e2e4"))
+        fixture.engine.respond(fixture.engine.requests.last(), "e7e5")
+        fixture.engine.respond(fixture.engine.requests.last(), "g1f3")
+        val adjacent = fixture.engine.requests.last()
+        assertThat(adjacent.request.moves.map { it.value } == listOf("e2e4"))
+        fixture.engine.respond(adjacent, "e7e5")
+
+        val durable = fixture.coordinator.checkpoint()
+        assertThat(durable.reviewPrefetchRoots.size == 2)
+        assertThat(durable.reviewPrefetchAdjacentRoots.size == 1)
+        fixture.coordinator.close()
+
+        val restoredEngine = FakeChessEngine()
+        val restored = GameCoordinator.restore(
+            checkpoint = durable,
+            engine = restoredEngine,
+            checkpointSink = FakeCheckpointSink(),
+            timeSource = fixture.time,
+            idSource = FakeCoordinatorIds(),
+        )
+        try {
+            restored.start()
+            restored.setReviewPrefetchEnabled(true)
+            assertThat(restored.completedReviewPrefetchRoots() == durable.reviewPrefetchRoots)
+            assertThat(
+                restored.completedReviewPrefetchAdjacentRoots() ==
+                    durable.reviewPrefetchAdjacentRoots,
+            )
+            assertThat(
+                restoredEngine.requests.isEmpty(),
+                "Restored exact roots or their completed fallback were searched again",
+            )
+        } finally {
+            restored.close()
+        }
+    }
+    suite.test("saved-game restore rejects review evidence from a different exact game key") {
+        val fixture = coordinatorFixture()
+        fixture.coordinator.setReviewPrefetchEnabled(true)
+        fixture.engine.respond(fixture.engine.requests.single(), "e2e4")
+        val stale = fixture.coordinator.checkpoint().copy(
+            config = fixture.coordinator.checkpoint().config.copy(gameId = "different-game"),
+        )
+        fixture.coordinator.close()
+
+        val restoredEngine = FakeChessEngine()
+        val restored = GameCoordinator.restore(
+            checkpoint = stale,
+            engine = restoredEngine,
+            checkpointSink = FakeCheckpointSink(),
+            timeSource = fixture.time,
+            idSource = FakeCoordinatorIds(),
+        )
+        try {
+            restored.start()
+            restored.setReviewPrefetchEnabled(true)
+            assertThat(restored.completedReviewPrefetchRoots().isEmpty())
+            assertThat(restoredEngine.requests.single().request.purpose == EnginePurpose.REVIEW)
+        } finally {
+            restored.close()
+        }
+    }
     suite.test("idle review prefetch warms an off-MultiPV played-position fallback after the current root") {
         val fixture = coordinatorFixture()
         fixture.coordinator.setReviewPrefetchEnabled(true)

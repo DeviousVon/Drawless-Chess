@@ -21,6 +21,7 @@ Implemented behaviors:
 - Timeout adjudication for either human or bot.
 - Checkpoint persistence after every committed state change.
 - Replay-verified recovery after process death.
+- Exact review-prefetch evidence recovery after saved-game Resume.
 - Checkpoint tamper and consistency checks.
 
 ## Clock model
@@ -75,6 +76,14 @@ The Room row carries query/guard columns plus a versioned JSON encoding of the c
 `CoordinatorCheckpoint`. Reads use the same executor, validate duplicated row metadata, decode
 strict enum discriminators, and then pass through `GameCoordinator.restore` for replay, FEN,
 clock, result, and assistance validation.
+
+Completed review-prefetch roots and played-position fallbacks are immutable checkpoint evidence.
+Each accepted result advances the checkpoint revision and is written immediately, so leaving before
+the next move does not discard it. Resume regenerates the expected player roots from canonical UCI
+history and reuses only exact matches for game, ply, initial FEN, move prefix, rules, position,
+analysis versions, strength, limits, purpose, response identity, and embedded engine build. Unknown,
+truncated, stale, or incompatible review evidence is ignored without making the playable save
+unavailable. This active-game cache is distinct from completed-review history persistence.
 
 Threat indication is recorded once as game-level assistance when the game is created. It is
 therefore preserved across process death and cannot become an unrecorded aid during a future

@@ -1,6 +1,8 @@
 package com.drawlesschess.core.coordinator
 
 import com.drawlesschess.core.*
+import com.drawlesschess.core.engine.SeededGameReviewAdjacentRoot
+import com.drawlesschess.core.engine.SeededGameReviewRoot
 import com.drawlesschess.core.engine.BotDifficultyCatalog
 
 data class GameConfig(
@@ -192,7 +194,23 @@ data class CoordinatorCheckpoint(
     val clock: CoordinatorClock,
     val moveClocks: List<MoveClockSnapshot>,
     val assistance: AssistanceCounts,
-)
+    val reviewPrefetchRoots: List<SeededGameReviewRoot> = emptyList(),
+    val reviewPrefetchAdjacentRoots: List<SeededGameReviewAdjacentRoot> = emptyList(),
+) {
+    init {
+        require(reviewPrefetchRoots.map { it.key }.distinct().size == reviewPrefetchRoots.size) {
+            "Checkpoint contains duplicate review roots"
+        }
+        require(
+            reviewPrefetchAdjacentRoots.map { it.key }.distinct().size ==
+                reviewPrefetchAdjacentRoots.size,
+        ) { "Checkpoint contains duplicate adjacent review roots" }
+        require(
+            (reviewPrefetchRoots.map { it.response.engine } +
+                reviewPrefetchAdjacentRoots.map { it.response.engine }).distinct().size <= 1,
+        ) { "Checkpoint review evidence came from different engine builds" }
+    }
+}
 
 /**
  * Converts a live checkpoint into the terminal loss used when its player deliberately starts

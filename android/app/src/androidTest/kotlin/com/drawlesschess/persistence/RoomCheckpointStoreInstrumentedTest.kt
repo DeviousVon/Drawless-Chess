@@ -12,6 +12,7 @@ import com.drawlesschess.core.BareKingPolicy
 import com.drawlesschess.core.DeadPositionPolicy
 import com.drawlesschess.core.EndReason
 import com.drawlesschess.core.EngineCancellation
+import com.drawlesschess.core.EngineIdentity
 import com.drawlesschess.core.EngineLimits
 import com.drawlesschess.core.EngineRequest
 import com.drawlesschess.core.EngineResponse
@@ -19,6 +20,7 @@ import com.drawlesschess.core.EngineStrength
 import com.drawlesschess.core.FiftyMovePolicy
 import com.drawlesschess.core.GameMode
 import com.drawlesschess.core.GameOutcome
+import com.drawlesschess.core.PrincipalVariation
 import com.drawlesschess.core.RulesContractV1
 import com.drawlesschess.core.Side
 import com.drawlesschess.core.TimeControl
@@ -36,6 +38,7 @@ import com.drawlesschess.core.coordinator.GameCoordinator
 import com.drawlesschess.core.coordinator.MoveClockSnapshot
 import com.drawlesschess.core.coordinator.TimeReading
 import com.drawlesschess.core.engine.BotDifficultyCatalog
+import com.drawlesschess.core.engine.GameReviewPlanner
 import com.drawlesschess.core.engine.OfflineElo
 import com.drawlesschess.core.engine.OfflineRating
 import com.drawlesschess.core.engine.RatedResult
@@ -58,12 +61,34 @@ import org.junit.runner.RunWith
 class RoomCheckpointStoreInstrumentedTest {
     @Test
     fun codecRoundTripPreservesTheExactCoordinatorCheckpoint() {
-        val checkpoint = checkpoint(gameId = "codec-game", revision = 7)
+        val checkpoint = withReviewPrefetch(checkpoint(gameId = "codec-game", revision = 7))
         val entity = CoordinatorCheckpointCodec.encode(checkpoint, updatedAtEpochMillis = 99_000L)
 
         val decoded = CoordinatorCheckpointCodec.decode(entity)
         assertEquals(checkpoint, decoded)
+        assertEquals(1, decoded.reviewPrefetchRoots.size)
+        assertEquals(1, decoded.reviewPrefetchAdjacentRoots.size)
         assertTrue(decoded.assistance.threatIndication)
+        val unknownReviewVersion = JSONObject(entity.payloadJson).apply {
+            getJSONObject("reviewPrefetch").put("analysisVersion", 999)
+        }
+        val withoutUnknownReview = CoordinatorCheckpointCodec.decode(
+            entity.copy(payloadJson = unknownReviewVersion.toString()),
+        )
+        assertEquals(checkpoint.moves, withoutUnknownReview.moves)
+        assertTrue(withoutUnknownReview.reviewPrefetchRoots.isEmpty())
+        assertTrue(withoutUnknownReview.reviewPrefetchAdjacentRoots.isEmpty())
+        val preReviewPayload = JSONObject(entity.payloadJson).apply { remove("reviewPrefetch") }
+        val preReviewDecoded = CoordinatorCheckpointCodec.decode(
+            entity.copy(payloadJson = preReviewPayload.toString()),
+        )
+        assertEquals(
+            checkpoint.copy(
+                reviewPrefetchRoots = emptyList(),
+                reviewPrefetchAdjacentRoots = emptyList(),
+            ),
+            preReviewDecoded,
+        )
         val legacyPayload = JSONObject(entity.payloadJson).apply {
             getJSONObject("assistance").remove("threatIndication")
         }
@@ -225,7 +250,7 @@ class RoomCheckpointStoreInstrumentedTest {
     fun fileBackedDatabaseReopensAndRestoresThroughTheCoordinatorAuthority() {
         val context = ApplicationProvider.getApplicationContext<Context>()
         context.deleteDatabase(REOPEN_DATABASE)
-        val checkpoint = checkpoint(gameId = "restore-game", revision = 4)
+        val checkpoint = withReviewPrefetch(checkpoint(gameId = "restore-game", revision = 4))
         val firstDatabase = Room.databaseBuilder(
             context,
             DrawlessDatabase::class.java,
@@ -269,6 +294,11 @@ class RoomCheckpointStoreInstrumentedTest {
             assertEquals(checkpoint, decoded)
             assertEquals(checkpoint.config.gameId, coordinator.snapshot().session.gameId)
             assertEquals(checkpoint.currentFen, coordinator.snapshot().currentFen)
+            assertEquals(checkpoint.reviewPrefetchRoots, coordinator.completedReviewPrefetchRoots())
+            assertEquals(
+                checkpoint.reviewPrefetchAdjacentRoots,
+                coordinator.completedReviewPrefetchAdjacentRoots(),
+            )
             assertEquals(1, engine.analysisCalls.get())
         } finally {
             secondStore.closeForTest()
@@ -1031,6 +1061,53 @@ class RoomCheckpointStoreInstrumentedTest {
                 reason = EndReason.RESIGNATION,
             ),
             assistance = assistance,
+        )
+    }
+
+    private fun withReviewPrefetch(checkpoint: CoordinatorCheckpoint): CoordinatorCheckpoint {
+        val root = GameReviewPlanner.playerRoot(
+            requestId = "${checkpoint.config.gameId}-durable-root",
+            gameId = checkpoint.config.gameId,
+            initialFen = checkpoint.config.initialFen,
+            moves = emptyList(),
+            rules = checkpoint.config.rules,
+        )
+        val engine = EngineIdentity("fairy-stockfish", "durable-test-build", 2)
+        val rootResponse = EngineResponse(
+            requestId = root.request.requestId,
+            gameId = root.request.gameId,
+            positionId = root.request.positionId,
+            bestMove = UciMove("d2d4"),
+            ponderMove = null,
+            depth = 8,
+            nodes = 1_000,
+            variations = listOf(
+                PrincipalVariation(20, null, listOf(UciMove("d2d4"))),
+            ),
+            engine = engine,
+        )
+        val playedMove = checkpoint.moves.first()
+        val adjacent = GameReviewPlanner.adjacentRoot(
+            requestId = "${checkpoint.config.gameId}-durable-adjacent",
+            root = root,
+            playedMove = playedMove,
+        )
+        val adjacentResponse = EngineResponse(
+            requestId = adjacent.request.requestId,
+            gameId = adjacent.request.gameId,
+            positionId = adjacent.request.positionId,
+            bestMove = UciMove("e7e5"),
+            ponderMove = null,
+            depth = 8,
+            nodes = 1_100,
+            variations = listOf(
+                PrincipalVariation(10, null, listOf(UciMove("e7e5"))),
+            ),
+            engine = engine,
+        )
+        return checkpoint.copy(
+            reviewPrefetchRoots = listOf(root.seed(rootResponse)),
+            reviewPrefetchAdjacentRoots = listOf(adjacent.seed(adjacentResponse)),
         )
     }
 
