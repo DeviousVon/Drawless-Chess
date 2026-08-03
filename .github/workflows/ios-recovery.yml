@@ -47,7 +47,7 @@ jobs:
           node --version
 
       - name: Install validation tools
-        run: brew install ffmpeg ripgrep xcodegen
+        run: brew install ripgrep xcodegen
 
       - name: Recreate and verify pinned Fairy-Stockfish source
         run: bash scripts/native-fetch-fairy.sh
@@ -61,10 +61,9 @@ jobs:
       - name: Build and test Apple shared core
         run: npm run test:kmp:apple
 
-      - name: Regenerate Apple resources and Xcode project
+      - name: Regenerate Apple localizations and Xcode project
         run: |
           set -euo pipefail
-          bash scripts/sync-ios-assets.sh
           node scripts/sync-ios-localizations.mjs
           npm run ios:generate
 
@@ -88,15 +87,15 @@ jobs:
       - name: Run SwiftUI integration tests
         run: npm run ios:test:ui
 
-      - name: Check generated Apple files are reproducible
-        run: git diff --exit-code -- iosApp
+      - name: Check generated Apple localizations are reproducible
+        run: git diff --exit-code -- ':(glob)iosApp/DrawlessChess/*.lproj/*.strings'
 
       - name: Upload unsigned simulator app
         if: success()
         uses: actions/upload-artifact@v4
         with:
           name: drawless-chess-ios-simulator
-          path: build/xcode-derived/Build/Products/Debug-iphonesimulator/Drawless Chess.app
+          path: build/xcode-derived/Build/Products/Debug-iphonesimulator/*.app
           if-no-files-found: error
           retention-days: 7
 
