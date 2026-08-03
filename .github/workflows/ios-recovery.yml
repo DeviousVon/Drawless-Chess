@@ -47,7 +47,7 @@ jobs:
           node --version
 
       - name: Install validation tools
-        run: brew install ripgrep xcodegen
+        run: brew install ffmpeg ripgrep xcodegen
 
       - name: Recreate and verify pinned Fairy-Stockfish source
         run: bash scripts/native-fetch-fairy.sh
