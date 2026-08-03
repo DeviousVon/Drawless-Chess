@@ -833,6 +833,7 @@
 					"@loader_path/Frameworks",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.drawlesschess.uitests;
+				PRODUCT_NAME = DrawlessChessUITests;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_TARGET_NAME = DrawlessChess;
@@ -851,6 +852,7 @@
 					"@loader_path/Frameworks",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.drawlesschess.uitests;
+				PRODUCT_NAME = DrawlessChessUITests;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_TARGET_NAME = DrawlessChess;

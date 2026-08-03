@@ -59,6 +59,7 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.drawlesschess.uitests
+        PRODUCT_NAME: DrawlessChessUITests
         TEST_TARGET_NAME: DrawlessChess
         GENERATE_INFOPLIST_FILE: YES
     dependencies:
