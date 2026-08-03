@@ -76,8 +76,14 @@ javac_major="${javac_version%%.*}"
 [[ "$java_major" == 17 || "$java_major" == 21 ]] \
   || die "headless runner requires JDK 17 or 21, found $java_version"
 
-mapfile -d '' -t core_sources < <(find "$CORE_ROOT" -type f -name '*.kt' -print0 | sort -z)
-mapfile -d '' -t runner_sources < <(find "$RUNNER_ROOT" -type f -name '*.kt' -print0 | sort -z)
+core_sources=()
+while IFS= read -r -d '' source; do
+  core_sources+=("$source")
+done < <(find "$CORE_ROOT" -type f -name '*.kt' -print0 | sort -z)
+runner_sources=()
+while IFS= read -r -d '' source; do
+  runner_sources+=("$source")
+done < <(find "$RUNNER_ROOT" -type f -name '*.kt' -print0 | sort -z)
 ((${#core_sources[@]} > 0)) || die 'no core Kotlin sources were found'
 ((${#runner_sources[@]} > 0)) || die 'no runner Kotlin sources were found'
 production_sources=("${core_sources[@]}" "${runner_sources[@]}")
@@ -144,7 +150,10 @@ build_jar \
   "$BUILD_ROOT/drawless-selfplay.sources.sha256" \
   "${production_sources[@]}"
 
-mapfile -d '' -t test_sources < <(
+test_sources=()
+while IFS= read -r -d '' source; do
+  test_sources+=("$source")
+done < <(
   if [[ -d "$TEST_ROOT" ]]; then
     find "$TEST_ROOT" -type f -name '*.kt' -print0 | sort -z
   fi

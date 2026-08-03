@@ -39,6 +39,19 @@
 #include "variant.h"
 #include "xboard.h"
 
+#if defined(DRAWLESS_APPLE_BRIDGE)
+#include <chrono>
+#include <map>
+
+#include "drawless_fairy.h"
+#endif
+
+#if defined(__GNUC__)
+#define DRAWLESS_BRIDGE_EXPORT __attribute__((visibility("default")))
+#else
+#define DRAWLESS_BRIDGE_EXPORT
+#endif
+
 namespace {
 
 using namespace Stockfish;
@@ -649,6 +662,202 @@ bool close_session(std::uint64_t handle, std::string* error) {
   session->close();
   return true;
 }
+
+#if defined(DRAWLESS_APPLE_BRIDGE)
+class AppleTimeoutScheduler final {
+ public:
+  AppleTimeoutScheduler() : worker_(&AppleTimeoutScheduler::run, this) {}
+
+  AppleTimeoutScheduler(const AppleTimeoutScheduler&) = delete;
+  AppleTimeoutScheduler& operator=(const AppleTimeoutScheduler&) = delete;
+
+  ~AppleTimeoutScheduler() {
+    {
+      std::lock_guard<std::mutex> lock(mutex_);
+      stopping_ = true;
+      pending_.clear();
+    }
+    changed_.notify_all();
+    if (worker_.joinable())
+      worker_.join();
+  }
+
+  std::uint64_t schedule(std::uint64_t delay_millis,
+                         drawless_fairy_timeout_callback callback,
+                         void* context) {
+    if (callback == nullptr)
+      return 0;
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (stopping_)
+      return 0;
+    std::uint64_t handle = next_handle_++;
+    if (handle == 0)
+      handle = next_handle_++;
+    pending_.emplace(handle, Item{
+        std::chrono::steady_clock::now() + std::chrono::milliseconds(delay_millis),
+        callback,
+        context,
+        false,
+    });
+    changed_.notify_all();
+    return handle;
+  }
+
+  bool cancel(std::uint64_t handle) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    const auto found = pending_.find(handle);
+    if (found == pending_.end())
+      return false;
+    found->second.cancelled = true;
+    found->second.due = std::chrono::steady_clock::now();
+    changed_.notify_all();
+    return true;
+  }
+
+  void drain() {
+    std::unique_lock<std::mutex> lock(mutex_);
+    drained_.wait(lock, [this] { return pending_.empty() && active_callbacks_ == 0; });
+  }
+
+ private:
+  struct Item {
+    std::chrono::steady_clock::time_point due;
+    drawless_fairy_timeout_callback callback;
+    void* context;
+    bool cancelled;
+  };
+
+  void run() {
+    std::unique_lock<std::mutex> lock(mutex_);
+    while (!stopping_) {
+      if (pending_.empty()) {
+        drained_.notify_all();
+        changed_.wait(lock, [this] { return stopping_ || !pending_.empty(); });
+        continue;
+      }
+
+      const auto next = std::min_element(
+          pending_.begin(), pending_.end(),
+          [](const auto& left, const auto& right) {
+            return left.second.due < right.second.due;
+          });
+      const auto due = next->second.due;
+      if (std::chrono::steady_clock::now() < due) {
+        changed_.wait_until(lock, due);
+        continue;
+      }
+
+      const Item item = next->second;
+      pending_.erase(next);
+      ++active_callbacks_;
+      lock.unlock();
+      item.callback(item.context, item.cancelled ? 0 : 1);
+      lock.lock();
+      --active_callbacks_;
+      if (pending_.empty() && active_callbacks_ == 0)
+        drained_.notify_all();
+    }
+  }
+
+  std::mutex mutex_;
+  std::condition_variable changed_;
+  std::condition_variable drained_;
+  std::map<std::uint64_t, Item> pending_;
+  std::uint64_t next_handle_ = 1;
+  std::size_t active_callbacks_ = 0;
+  bool stopping_ = false;
+  std::thread worker_;
+};
+
+AppleTimeoutScheduler g_apple_timeout_scheduler;
+
+void copy_apple_error(const std::string& error, char* destination, std::size_t capacity) {
+  if (destination == nullptr || capacity == 0)
+    return;
+  const std::size_t count = std::min(error.size(), capacity - 1);
+  std::memcpy(destination, error.data(), count);
+  destination[count] = '\0';
+}
+
+extern "C" {
+
+DRAWLESS_BRIDGE_EXPORT drawless_fairy_handle drawless_fairy_create(
+    const char* variant_config_path, char* error_buffer, std::size_t error_capacity) {
+  std::string error;
+  if (variant_config_path == nullptr) {
+    error = "Variant configuration path must not be null";
+    copy_apple_error(error, error_buffer, error_capacity);
+    return 0;
+  }
+  const auto handle = create_session(variant_config_path, &error);
+  copy_apple_error(error, error_buffer, error_capacity);
+  return handle;
+}
+
+DRAWLESS_BRIDGE_EXPORT std::int32_t drawless_fairy_start(
+    drawless_fairy_handle handle, char* error_buffer, std::size_t error_capacity) {
+  std::string error;
+  const bool started = start_session(handle, &error);
+  copy_apple_error(error, error_buffer, error_capacity);
+  return started ? 1 : 0;
+}
+
+DRAWLESS_BRIDGE_EXPORT std::int64_t drawless_fairy_write(
+    drawless_fairy_handle handle, const std::uint8_t* bytes, std::size_t length,
+    char* error_buffer, std::size_t error_capacity) {
+  std::string error;
+  const auto count = write_session(
+      handle, reinterpret_cast<const char*>(bytes), length, &error);
+  copy_apple_error(error, error_buffer, error_capacity);
+  return error.empty() ? static_cast<std::int64_t>(count) : -2;
+}
+
+std::int64_t apple_read(
+    drawless_fairy_handle handle, std::uint8_t* bytes, std::size_t length,
+    bool standard_error, char* error_buffer, std::size_t error_capacity) {
+  std::string error;
+  const auto count = read_session(
+      handle, reinterpret_cast<char*>(bytes), length, standard_error, &error);
+  copy_apple_error(error, error_buffer, error_capacity);
+  return error.empty() ? static_cast<std::int64_t>(count) : -2;
+}
+
+DRAWLESS_BRIDGE_EXPORT std::int64_t drawless_fairy_read(
+    drawless_fairy_handle handle, std::uint8_t* bytes, std::size_t length,
+    char* error_buffer, std::size_t error_capacity) {
+  return apple_read(handle, bytes, length, false, error_buffer, error_capacity);
+}
+
+DRAWLESS_BRIDGE_EXPORT std::int64_t drawless_fairy_read_error(
+    drawless_fairy_handle handle, std::uint8_t* bytes, std::size_t length,
+    char* error_buffer, std::size_t error_capacity) {
+  return apple_read(handle, bytes, length, true, error_buffer, error_capacity);
+}
+
+DRAWLESS_BRIDGE_EXPORT std::int32_t drawless_fairy_close(
+    drawless_fairy_handle handle, char* error_buffer, std::size_t error_capacity) {
+  std::string error;
+  const bool closed = close_session(handle, &error);
+  copy_apple_error(error, error_buffer, error_capacity);
+  return closed ? 1 : 0;
+}
+
+DRAWLESS_BRIDGE_EXPORT std::uint64_t drawless_fairy_timeout_schedule(
+    std::uint64_t delay_millis, drawless_fairy_timeout_callback callback, void* context) {
+  return g_apple_timeout_scheduler.schedule(delay_millis, callback, context);
+}
+
+DRAWLESS_BRIDGE_EXPORT std::int32_t drawless_fairy_timeout_cancel(
+    std::uint64_t timeout_handle) {
+  return g_apple_timeout_scheduler.cancel(timeout_handle) ? 1 : 0;
+}
+
+DRAWLESS_BRIDGE_EXPORT void drawless_fairy_timeout_drain() {
+  g_apple_timeout_scheduler.drain();
+}
+
+}  // extern "C"
+#endif
 
 #if !defined(DRAWLESS_HOST_BRIDGE_TEST)
 void throw_java(JNIEnv* environment, const char* class_name, const std::string& message) {

@@ -1,0 +1,79 @@
+name: DrawlessChess
+
+options:
+  bundleIdPrefix: com.drawlesschess
+  deploymentTarget:
+    iOS: "15.0"
+  xcodeVersion: "26.2"
+
+settings:
+  base:
+    MARKETING_VERSION: "1.0.0"
+    CURRENT_PROJECT_VERSION: "1"
+    SWIFT_VERSION: "6.0"
+    CODE_SIGN_STYLE: Automatic
+    DEVELOPMENT_TEAM: CJF2JVS342
+
+targets:
+  DrawlessChess:
+    type: application
+    platform: iOS
+    deploymentTarget: "15.0"
+    sources:
+      - path: DrawlessChess
+      - path: ../engine/variants.ini
+        buildPhase: resources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.drawlesschess
+        PRODUCT_NAME: Drawless Chess
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: Drawless Chess
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: YES
+        INFOPLIST_KEY_UISupportedInterfaceOrientations: "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
+        TARGETED_DEVICE_FAMILY: "1,2"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ENABLE_USER_SCRIPT_SANDBOXING: NO
+        CODE_SIGNING_ALLOWED[sdk=iphonesimulator*]: NO
+    preBuildScripts:
+      - name: Build shared Kotlin framework
+        basedOnDependencyAnalysis: false
+        script: |
+          if [ "YES" = "$OVERRIDE_KOTLIN_BUILD_IDE_SUPPORTED" ]; then
+            echo "Skipping duplicate Kotlin framework build"
+            exit 0
+          fi
+          "$SRCROOT/../scripts/xcode-build-kmp.sh"
+    dependencies:
+      - framework: ../multiplatform/shared-core/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)/DrawlessShared.framework
+        embed: false
+
+  DrawlessChessUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    deploymentTarget: "15.0"
+    sources:
+      - path: DrawlessChessUITests
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.drawlesschess.uitests
+        TEST_TARGET_NAME: DrawlessChess
+        GENERATE_INFOPLIST_FILE: YES
+    dependencies:
+      - target: DrawlessChess
+
+schemes:
+  DrawlessChess:
+    build:
+      targets:
+        DrawlessChess: all
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - DrawlessChessUITests
+    archive:
+      config: Release

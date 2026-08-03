@@ -13,10 +13,10 @@ import com.drawlesschess.core.engine.GameReviewRoot
 import com.drawlesschess.core.engine.GameReviewRootKey
 import com.drawlesschess.core.engine.SeededGameReviewAdjacentRoot
 import com.drawlesschess.core.engine.SeededGameReviewRoot
-import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent.locks.ReentrantLock
-import kotlin.concurrent.withLock
+import kotlin.concurrent.atomics.AtomicBoolean
+import kotlin.concurrent.atomics.ExperimentalAtomicApi
 
+@OptIn(ExperimentalAtomicApi::class)
 class GameCoordinator private constructor(
     private val config: GameConfig,
     private val engine: ChessEngine,
@@ -54,9 +54,9 @@ class GameCoordinator private constructor(
         require(botMovePresentationDelayMillis >= 0) { "Bot move presentation delay must not be negative" }
     }
 
-    private val lock = Any()
-    private val engineInvocationLock = ReentrantLock()
-    private val reviewInvocationLock = ReentrantLock()
+    private val lock = ConcurrentLock()
+    private val engineInvocationLock = ConcurrentLock()
+    private val reviewInvocationLock = ConcurrentLock()
     private val reviewSharesGameplayEngine = reviewEngine === engine
     private var session = initialSession
     private var position = initialPosition
@@ -82,7 +82,7 @@ class GameCoordinator private constructor(
     private var engineError: String? = null
 
     fun start() {
-        synchronized(lock) {
+        lock.withLock {
             check(!closed) { "Coordinator is closed" }
             if (started) return
             started = true
@@ -94,7 +94,7 @@ class GameCoordinator private constructor(
     }
 
     fun close() {
-        val cancellation = synchronized(lock) {
+        val cancellation = lock.withLock {
             if (closed) return
             closed = true
             clearActiveEngineLocked()
@@ -102,7 +102,7 @@ class GameCoordinator private constructor(
         cancelAndDrainAllEngineLaunches(cancellation)
     }
 
-    fun snapshot(): CoordinatorSnapshot = synchronized(lock) {
+    fun snapshot(): CoordinatorSnapshot = lock.withLock {
         val phase = phaseLocked()
         CoordinatorSnapshot(
             revision = revision,
@@ -122,7 +122,7 @@ class GameCoordinator private constructor(
      * speculative request. Completed roots are returned only after exact request/revision checks.
      */
     fun setReviewPrefetchEnabled(enabled: Boolean) {
-        val cancellation = synchronized(lock) {
+        val cancellation = lock.withLock {
             if (closed) return
             reviewPrefetchEnabled = enabled
             if (!enabled && activeRequestPurpose == EnginePurpose.REVIEW) {
@@ -145,12 +145,12 @@ class GameCoordinator private constructor(
     }
 
     /** Immutable exact roots completed during foreground play, for the post-game runner. */
-    fun completedReviewPrefetchRoots(): List<SeededGameReviewRoot> = synchronized(lock) {
+    fun completedReviewPrefetchRoots(): List<SeededGameReviewRoot> = lock.withLock {
         reviewPrefetchRootsByKey.values.toList()
     }
 
     /** Immutable exact fallback searches completed during otherwise-idle foreground play. */
-    fun completedReviewPrefetchAdjacentRoots(): List<SeededGameReviewAdjacentRoot> = synchronized(lock) {
+    fun completedReviewPrefetchAdjacentRoots(): List<SeededGameReviewAdjacentRoot> = lock.withLock {
         reviewPrefetchAdjacentRootsByKey.values.toList()
     }
 
@@ -160,7 +160,7 @@ class GameCoordinator private constructor(
         var clockExpired = false
         var prefetchCancellation: EngineCancellation? = null
         try {
-            synchronized(lock) {
+            lock.withLock {
                 requireStartedLocked()
                 require(session.outcome == null) { "Game is complete" }
                 require(!clock.paused) { "Game is paused" }
@@ -200,7 +200,7 @@ class GameCoordinator private constructor(
 
     fun tick() {
         var clockExpired = false
-        val cancellation = synchronized(lock) {
+        val cancellation = lock.withLock {
             if (!started || closed || session.outcome != null || clock.paused) return
             if (expireClockLocked(timeSource.now())) {
                 clockExpired = true
@@ -214,7 +214,7 @@ class GameCoordinator private constructor(
 
     fun pause() {
         val cancellation: EngineCancellation?
-        synchronized(lock) {
+        lock.withLock {
             requireStartedLocked()
             require(config.mode == GameMode.CASUAL) { "Rated games cannot be paused" }
             require(session.outcome == null) { "Game is complete" }
@@ -230,7 +230,7 @@ class GameCoordinator private constructor(
     }
 
     fun resume() {
-        synchronized(lock) {
+        lock.withLock {
             requireStartedLocked()
             require(config.mode == GameMode.CASUAL) { "Rated games cannot be paused" }
             require(clock.paused) { "Game is not paused" }
@@ -244,7 +244,7 @@ class GameCoordinator private constructor(
 
     fun markHintUsed() {
         val cancellation: EngineCancellation?
-        synchronized(lock) {
+        lock.withLock {
             requireStartedLocked()
             require(config.mode == GameMode.CASUAL) { "Rated games cannot use hints" }
             require(session.outcome == null) { "Game is complete" }
@@ -276,7 +276,7 @@ class GameCoordinator private constructor(
             engineInvocationLock.withLock hintLaunch@{
                 var prefetchCancellation: EngineCancellation? = null
                 val request = try {
-                    synchronized(lock) {
+                    lock.withLock {
                         requireStartedLocked()
                         require(config.mode == GameMode.CASUAL) { "Rated games cannot use hints" }
                         require(session.outcome == null) { "Game is complete" }
@@ -317,7 +317,7 @@ class GameCoordinator private constructor(
                 val cancellation = try {
                     engine.analyze(request) { result -> handleHintResult(request, result, onResult) }
                 } catch (error: Throwable) {
-                    val shouldDeliver = synchronized(lock) {
+                    val shouldDeliver = lock.withLock {
                         if (activeRequestId != request.requestId || activeRequestPurpose != EnginePurpose.HINT) {
                             false
                         } else {
@@ -332,7 +332,7 @@ class GameCoordinator private constructor(
                 }
 
                 var cancelImmediately = false
-                synchronized(lock) {
+                lock.withLock {
                     if (activeRequestId == request.requestId && activeRequestPurpose == EnginePurpose.HINT) {
                         activeCancellation = cancellation
                     } else {
@@ -355,7 +355,7 @@ class GameCoordinator private constructor(
 
     fun undoLastHumanTurn() {
         val cancellation: EngineCancellation?
-        synchronized(lock) {
+        lock.withLock {
             requireStartedLocked()
             require(config.mode == GameMode.CASUAL) { "Rated games cannot undo" }
             require(session.outcome == null) { "Game is complete" }
@@ -383,7 +383,7 @@ class GameCoordinator private constructor(
 
     fun resignHuman() {
         val cancellation: EngineCancellation?
-        synchronized(lock) {
+        lock.withLock {
             requireStartedLocked()
             require(session.outcome == null) { "Game is complete" }
             val outcome = GameOutcome(
@@ -401,7 +401,7 @@ class GameCoordinator private constructor(
     }
 
     fun retryBot() {
-        synchronized(lock) {
+        lock.withLock {
             requireStartedLocked()
             require(session.outcome == null && session.sideToMove != config.humanSide)
             require(engineError != null) { "The bot has not failed" }
@@ -412,11 +412,11 @@ class GameCoordinator private constructor(
         launchBotIfNeeded()
     }
 
-    fun checkpoint(): CoordinatorCheckpoint = synchronized(lock) { checkpointLocked() }
+    fun checkpoint(): CoordinatorCheckpoint = lock.withLock { checkpointLocked() }
 
     private fun launchBotIfNeeded() {
         engineInvocationLock.withLock engineLaunch@{
-            val request = synchronized(lock) {
+            val request = lock.withLock {
                 if (!started || closed || session.outcome != null || clock.paused ||
                     session.sideToMove == config.humanSide || activeRequestId != null || engineError != null) {
                     return@engineLaunch
@@ -438,7 +438,7 @@ class GameCoordinator private constructor(
             val cancellation = try {
                 engine.analyze(request) { result -> handleEngineResult(request, result) }
             } catch (error: Throwable) {
-                synchronized(lock) {
+                lock.withLock {
                     if (activeRequestId == request.requestId) {
                         activeRequestId = null
                         activeRequestPurpose = null
@@ -451,7 +451,7 @@ class GameCoordinator private constructor(
                 return@engineLaunch
             }
             var cancelImmediately = false
-            synchronized(lock) {
+            lock.withLock {
                 if (activeRequestId == request.requestId) {
                     activeCancellation = cancellation
                 } else {
@@ -463,9 +463,9 @@ class GameCoordinator private constructor(
     }
 
     private fun handleEngineResult(request: EngineRequest, result: Result<EngineResponse>) {
-        synchronized(lock) {
+        lock.withLock {
             if (closed || activeRequestId != request.requestId || activeRequestPurpose != EnginePurpose.BOT_MOVE ||
-                session.outcome != null || clock.paused) return@synchronized
+                session.outcome != null || clock.paused) return@withLock
             activeRequestId = null
             activeRequestPurpose = null
             activeCancellation = null
@@ -473,16 +473,16 @@ class GameCoordinator private constructor(
                 engineError = error.message ?: error::class.simpleName ?: "Engine failure"
                 revision++
                 persistLocked()
-                return@synchronized
+                return@withLock
             }
             if (!response.matches(request) || session.positionId != request.positionId) {
                 engineError = "Engine response identity does not match the active position"
                 revision++
                 persistLocked()
-                return@synchronized
+                return@withLock
             }
             val now = timeSource.now()
-            if (expireClockLocked(now)) return@synchronized
+            if (expireClockLocked(now)) return@withLock
             try {
                 val transition = ChessAdapter.transition(position, response.bestMove)
                 val after = ChessRules.apply(position, response.bestMove)
@@ -508,13 +508,13 @@ class GameCoordinator private constructor(
     ) {
         var delivery: Result<EngineResponse>? = null
         var handled = false
-        synchronized(lock) {
+        lock.withLock {
             if (closed || activeRequestId != request.requestId || activeRequestPurpose != EnginePurpose.HINT ||
-                session.outcome != null || clock.paused || session.positionId != request.positionId) return@synchronized
+                session.outcome != null || clock.paused || session.positionId != request.positionId) return@withLock
 
             handled = true
             clearActiveEngineLocked()
-            if (expireClockLocked(timeSource.now())) return@synchronized
+            if (expireClockLocked(timeSource.now())) return@withLock
 
             val validatedResult = result.fold(
                 onSuccess = { response ->
@@ -546,12 +546,12 @@ class GameCoordinator private constructor(
         // or test double must never hold the gameplay gate needed by a move, hint, bot, or undo.
         // The shared gate remains only for callers which explicitly supply one engine for both.
         val invocationLock = if (reviewSharesGameplayEngine) engineInvocationLock else reviewInvocationLock
-        if (!invocationLock.tryLock()) return
+        if (!invocationLock.tryAcquire()) return
         val retryAfterStaleLaunch: Boolean
         try {
             retryAfterStaleLaunch = launchPreparedReviewPrefetch()
         } finally {
-            invocationLock.unlock()
+            invocationLock.release()
         }
         // A separate review engine can finish publishing its cancellation after gameplay has
         // already reached the next player position. Restore that newest eligible root now.
@@ -577,7 +577,7 @@ class GameCoordinator private constructor(
                 )
             }
         } catch (_: Throwable) {
-            synchronized(lock) {
+            lock.withLock {
                 if (activeRequestId == request.requestId &&
                     activeRequestPurpose == EnginePurpose.REVIEW
                 ) {
@@ -587,7 +587,7 @@ class GameCoordinator private constructor(
             return false
         }
 
-        val cancelImmediately = synchronized(lock) {
+        val cancelImmediately = lock.withLock {
             if (activeRequestId == request.requestId &&
                 activeRequestPurpose == EnginePurpose.REVIEW &&
                 activeReviewPrefetchRoot === root && activeReviewPrefetchAdjacentRoot === adjacent &&
@@ -603,8 +603,8 @@ class GameCoordinator private constructor(
         // Synchronous completion legitimately clears the active slot before analyze returns.
         // Retry only for a continuation which lost the gate, or when some *other* action made
         // this launch stale while its handle was pending. A synchronous failure must not loop.
-        return continuationRequested.get() ||
-            (cancelImmediately && !callbackAccepted.get())
+        return continuationRequested.load() ||
+            (cancelImmediately && !callbackAccepted.load())
     }
 
     /**
@@ -613,7 +613,7 @@ class GameCoordinator private constructor(
      * historical reconstruction.
      */
     private fun prepareReviewPrefetch(): PreparedReviewPrefetch? {
-        val rootPreparation = synchronized(lock) {
+        val rootPreparation = lock.withLock {
             if (!reviewPrefetchEligibleLocked()) return null
             ReviewRootPreparation(
                 requestId = idSource.nextId(),
@@ -631,7 +631,7 @@ class GameCoordinator private constructor(
             position = rootPreparation.position,
         )
 
-        val adjacentPreparation = synchronized(lock) {
+        val adjacentPreparation = lock.withLock {
             if (!reviewPrefetchEligibleLocked() || revision != rootPreparation.expectedRevision) return null
             reviewPrefetchRootKeysByPly[currentRoot.ply] = currentRoot.key
             if (currentRoot.key !in reviewPrefetchRootsByKey) {
@@ -649,7 +649,7 @@ class GameCoordinator private constructor(
             rootKey = candidate.rootKey,
             playedMove = candidate.playedMove,
         )
-        return synchronized(lock) {
+        return lock.withLock {
             if (!reviewPrefetchEligibleLocked() || revision != expectedRevision ||
                 candidate !in reviewAdjacentCandidates
             ) {
@@ -696,7 +696,7 @@ class GameCoordinator private constructor(
         val seededAdjacent = adjacent?.let { value -> result.mapCatching(value::seed).getOrNull() }
         var continuePrefetch = false
         val request = root?.request ?: requireNotNull(adjacent).request
-        synchronized(lock) {
+        lock.withLock {
             if (activeRequestPurpose != EnginePurpose.REVIEW ||
                 activeRequestId != request.requestId || activeReviewPrefetchRoot !== root ||
                 activeReviewPrefetchAdjacentRoot !== adjacent ||
@@ -704,7 +704,7 @@ class GameCoordinator private constructor(
             ) {
                 return
             }
-            callbackAccepted?.set(true)
+            callbackAccepted?.store(true)
             clearActiveEngineLocked()
             if (closed || !reviewPrefetchEnabled || revision != expectedRevision ||
                 session.outcome != null || clock.paused || session.sideToMove != config.humanSide
@@ -729,7 +729,7 @@ class GameCoordinator private constructor(
         // A completed current root uses only the first 350 ms of a long think. Continue with any
         // exact played-position fallback that remains from an earlier player move.
         if (continuePrefetch) {
-            continuationRequested?.set(true)
+            continuationRequested?.store(true)
             launchReviewPrefetchIfNeeded()
         }
     }

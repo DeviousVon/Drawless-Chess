@@ -19,6 +19,12 @@
     "test:engine": "node scripts/engine-poc.js",
     "test:audio": "pwsh -NoProfile -NonInteractive -File scripts/verify-sampled-audio.ps1 -RequireDecode",
     "test:kotlin": "bash scripts/test-kotlin.sh",
+    "test:kmp": "bash scripts/test-kmp.sh",
+    "test:kmp:apple": "bash scripts/test-kmp.sh --apple",
+    "ios:generate": "bash scripts/generate-ios-project.sh",
+    "ios:build:simulator": "bash scripts/build-ios-simulator.sh",
+    "ios:test:ui": "bash scripts/test-ios-ui.sh",
+    "ios:preview:board": "bash scripts/render-ios-board-preview.sh",
     "test:license": "bash scripts/license-validate-structure.sh",
     "test:native-structure": "bash scripts/native-validate-structure.sh",
     "test:native-source": "bash scripts/native-validate-structure.sh --require-source",
@@ -33,12 +39,13 @@
     "selfplay:diagnostic:adjacent": "bash scripts/headless-selfplay.sh --config tools/selfplay/config/adjacent-diagnostic.properties --output build/headless/runs/adjacent-diagnostic.jsonl",
     "puzzles:help": "bash scripts/headless-puzzles.sh --help",
     "test:ui-structure": "bash scripts/check-compose-structure.sh",
+    "test:ios-structure": "bash scripts/ios-validate-structure.sh",
     "test:localization": "node scripts/validate-localization.mjs",
     "test:android-structure": "bash scripts/android-validate-structure.sh",
     "test:android-machine": "bash scripts/android-machine-verify.sh",
     "test:android-machine:windows": "pwsh -NoProfile -NonInteractive -ExecutionPolicy Bypass -File scripts/android-machine-verify.ps1",
     "bundle:source": "bash scripts/source-bundle.sh",
-    "test:all": "npm test && npm run test:audio && npm run test:kotlin && npm run test:license && npm run test:ui-structure && npm run test:localization && npm run test:engine && npm run test:native-structure && npm run test:android-structure"
+    "test:all": "npm test && npm run test:audio && npm run test:kotlin && npm run test:license && npm run test:ui-structure && npm run test:ios-structure && npm run test:localization && npm run test:engine && npm run test:native-structure && npm run test:android-structure"
   },
   "dependencies": {
     "fairy-stockfish-nnue.wasm": "1.1.11",

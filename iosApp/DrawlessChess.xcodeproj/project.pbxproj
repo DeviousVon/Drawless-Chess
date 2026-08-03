@@ -1,0 +1,1011 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		00CFFFB89A4D38B9A5AAF333 /* chess_hint_02.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 826AE0D43A65C79B8CF404D1 /* chess_hint_02.m4a */; };
+		04DB47C0E7435AF57DE214F6 /* chess_move_wood_07.m4a in Resources */ = {isa = PBXBuildFile; fileRef = D7F8DBB2F7353ED313872BCF /* chess_move_wood_07.m4a */; };
+		0561D3C1E2D997282189EF2C /* chess_move_wood_30.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 8281A2DF005B340055275D9B /* chess_move_wood_30.m4a */; };
+		0A0EB6D1970D3F6F520E9616 /* chess_castle_wood_02.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 9003E5EF7D5FD708437F62EC /* chess_castle_wood_02.m4a */; };
+		0B601673778A0829BAE4E5ED /* chess_move_wood_21.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 92997B8D2DEDECC89E4F620F /* chess_move_wood_21.m4a */; };
+		0EFDE28485865EA9F5988512 /* chess_move_wood_46.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 66E3B042E1E89B370DD1AE3B /* chess_move_wood_46.m4a */; };
+		11E9B403B3F5F03C43D17FC1 /* chess_firework_low_02.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 8CC9EE24CAB16CF9C805A5DE /* chess_firework_low_02.m4a */; };
+		13943574478B03CE3ABE7610 /* chess_castle_wood_06.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 52FEF467928BEB9417FB9F23 /* chess_castle_wood_06.m4a */; };
+		13DF05DC9D4037CA6F0055E7 /* chess_game_start_01.m4a in Resources */ = {isa = PBXBuildFile; fileRef = FF9AED790C6081A7DE6A7735 /* chess_game_start_01.m4a */; };
+		15F576159981EB5F30DA1400 /* chess_capture_crush_02.m4a in Resources */ = {isa = PBXBuildFile; fileRef = F673C217CA24D5C5C89DAD37 /* chess_capture_crush_02.m4a */; };
+		187B3FE1C8FF324873952D3C /* chess_move_wood_49.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 5EE475968B72E37E84190505 /* chess_move_wood_49.m4a */; };
+		1C2A75D6595FCFCC4363D553 /* opponent_club.png in Resources */ = {isa = PBXBuildFile; fileRef = 605E30137CBA83B43372B582 /* opponent_club.png */; };
+		1E210BFF07C511FF999B7491 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B093DD983F6372EAD56B4B56 /* ContentView.swift */; };
+		21BB44F1FA6ECB0803DD1E9E /* chess_undo_02.m4a in Resources */ = {isa = PBXBuildFile; fileRef = C57B730F5BE3EC94B98B192D /* chess_undo_02.m4a */; };
+		24C4C69177D2CFB1674DB7FE /* DrawlessChessUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF4C47441AB975D4CDD96BE4 /* DrawlessChessUITests.swift */; };
+		278352E7FB45EE5F635572E2 /* chess_move_wood_01.m4a in Resources */ = {isa = PBXBuildFile; fileRef = FAF8E1257128DDCCD409E85D /* chess_move_wood_01.m4a */; };
+		27B685E18AEB81C7001F2E6B /* chess_capture_crush_01.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 286B527CB45D28C4C924AD96 /* chess_capture_crush_01.m4a */; };
+		2BE87B43928644739C496D50 /* chess_en_passant_brick_01.m4a in Resources */ = {isa = PBXBuildFile; fileRef = E184B492B0FB95710DC4978D /* chess_en_passant_brick_01.m4a */; };
+		31BBD1190C41445F67DDB68D /* chess_firework_high_02.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 058F8A832C3B17A62C866315 /* chess_firework_high_02.m4a */; };
+		31FAFDF1EDA71CC7DE3A3F65 /* chess_castle_wood_01.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 22B7C9A979F31148E583A96A /* chess_castle_wood_01.m4a */; };
+		32A384AA6C8D7A4AA47DF930 /* chess_move_wood_06.m4a in Resources */ = {isa = PBXBuildFile; fileRef = D86F01E10B0373F6FD92D885 /* chess_move_wood_06.m4a */; };
+		331705174B630B356F989059 /* chess_move_wood_02.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 6F9BA8F56EF551C8809F8E61 /* chess_move_wood_02.m4a */; };
+		35A67A1BAB5B10AE867C351E /* chess_hint_03.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 6B309E0F1F4F20134F03C098 /* chess_hint_03.m4a */; };
+		37E7E7026AF747BC3E81C5F9 /* chess_move_wood_36.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 0CE7EAC8C59188C3CD45E408 /* chess_move_wood_36.m4a */; };
+		3C9993819CA096D856E5CD88 /* chess_castle_wood_05.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 601A45B1A6E8D9ED7F2DD954 /* chess_castle_wood_05.m4a */; };
+		3FA10F311DF2C661216C0AEA /* chess_firework_mid_01.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 075DAE8A3802AE65F4ACA583 /* chess_firework_mid_01.m4a */; };
+		40B608EE8F851FCF71D31A2E /* chess_move_wood_04.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 2FC3DB49F2E9583987BEF8DD /* chess_move_wood_04.m4a */; };
+		4426BAE298937E7708272D92 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = A5B13CA1391D5F3B8ACB2C33 /* Localizable.strings */; };
+		45B1157E28DA5FB8C057550D /* chess_move_wood_25.m4a in Resources */ = {isa = PBXBuildFile; fileRef = C71F915C4C73CA3D00E38459 /* chess_move_wood_25.m4a */; };
+		46EA15672E61A470966A5BB5 /* chess_low_time_01.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 2A33479BC1840C1AD09A14D4 /* chess_low_time_01.m4a */; };
+		4878DAD9979DBE10421D76E9 /* DrawlessShared.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FD909917D6D141E2F4F28121 /* DrawlessShared.framework */; };
+		4BBEB1E8F04E8953A7B1AFAE /* chess_move_wood_19.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 198C12A2CF55B1FCDE5624E7 /* chess_move_wood_19.m4a */; };
+		4DFA644D68207D1D125974B7 /* chess_undo_01.m4a in Resources */ = {isa = PBXBuildFile; fileRef = AC0204508FFBC9FC8799482E /* chess_undo_01.m4a */; };
+		4E3291123B8AD59A33A1AF36 /* opponent_adaptive.png in Resources */ = {isa = PBXBuildFile; fileRef = E4EE161919014A24F5172E96 /* opponent_adaptive.png */; };
+		500E85568BB930619D853A8A /* chess_move_wood_14.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 41EBB9E98B26FA843E11FA91 /* chess_move_wood_14.m4a */; };
+		50FBA58ED2EFBEF6EDB51E59 /* chess_capture_crush_11.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 75F40A6D953AAADF86311ACC /* chess_capture_crush_11.m4a */; };
+		5217AC1E70FAB77311C10A53 /* GameFeedback.swift in Sources */ = {isa = PBXBuildFile; fileRef = 087318CA013ABB00A432730B /* GameFeedback.swift */; };
+		533D41A2ADD6CC671C2F0E63 /* variants.ini in Resources */ = {isa = PBXBuildFile; fileRef = DC0E870DEA1866DED6A004A7 /* variants.ini */; };
+		578E62217D2437F42C3108DE /* chess_glass_impact_02.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 5C859C0F9D5E5FA15DD49C74 /* chess_glass_impact_02.m4a */; };
+		596C19D5B6A26514028C2B12 /* chess_promotion_02.m4a in Resources */ = {isa = PBXBuildFile; fileRef = E03024B54CC80B26B732E9A5 /* chess_promotion_02.m4a */; };
+		5C1C02C52D58C7B6469F81E7 /* chess_capture_crush_09.m4a in Resources */ = {isa = PBXBuildFile; fileRef = C7B639E17C3BBB79E6FCAABB /* chess_capture_crush_09.m4a */; };
+		5D00BC7E2A9FA3177E4566EB /* chess_move_wood_41.m4a in Resources */ = {isa = PBXBuildFile; fileRef = E75DBFD0B44472CDD3633D93 /* chess_move_wood_41.m4a */; };
+		60C598DF37EED49257EA7AFA /* chess_promotion_04.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 375C81807AC1C3084762E602 /* chess_promotion_04.m4a */; };
+		623FB8CE86D86E04C4D593F1 /* chess_low_time_03.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 70B00C68E8768299B544918A /* chess_low_time_03.m4a */; };
+		627CE91DD1E39C6DB2AEE318 /* chess_checkmate_stone_01.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 217DA91ADA42F1D80C8DE6A7 /* chess_checkmate_stone_01.m4a */; };
+		63492B0F6A067150CB9D0DC5 /* chess_capture_crush_12.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 99A3BB9C4EA9AD58ACE7C71A /* chess_capture_crush_12.m4a */; };
+		64A475B8BB35A3AC9D8D05B5 /* chess_move_wood_09.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 08715872AE9E9CF300B6CE39 /* chess_move_wood_09.m4a */; };
+		66F2058025343C39A0D91FC0 /* chess_low_time_04.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 99DAA8915777875FA03D9BA9 /* chess_low_time_04.m4a */; };
+		685C9B499D5D80E4CAEBE537 /* opponent_learner.png in Resources */ = {isa = PBXBuildFile; fileRef = 9A3F9AD5C92A959527D955A1 /* opponent_learner.png */; };
+		7032D84B58CB6EA7ACE1225F /* chess_glass_shards_01.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 96C0CF3B6B78684B388E04E0 /* chess_glass_shards_01.m4a */; };
+		705764065F1B62840BB5F2E5 /* chess_glass_shards_02.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 1B2B57406C4B68E1A2152FDB /* chess_glass_shards_02.m4a */; };
+		70C82F4AA164D4631C03EDA4 /* opponent_challenger.png in Resources */ = {isa = PBXBuildFile; fileRef = 84DD402BF299CABA7EEA3C24 /* opponent_challenger.png */; };
+		711BD238EEA0B40ED7BCB41A /* chess_capture_crush_05.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 3D7E7F455065EB5A1378B92A /* chess_capture_crush_05.m4a */; };
+		726CD7232D4DBE8B427EE558 /* chess_firework_low_01.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 51DC4BCC0855D2BF59653AAA /* chess_firework_low_01.m4a */; };
+		782D9A95B74590049923E93B /* chess_castle_wood_04.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 57CFAA9E4819CCAE8AE547B3 /* chess_castle_wood_04.m4a */; };
+		78E0C87B4F5AD86440BD6459 /* chess_glass_impact_01.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 322C73B80098EE4554B36684 /* chess_glass_impact_01.m4a */; };
+		7A8FCE6BC5A0AE3A04F07B20 /* chess_glass_shards_03.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 4BD2FAA5059ECCF8C5ABE107 /* chess_glass_shards_03.m4a */; };
+		7AEE8588F0A5509AED0ED986 /* chess_firework_mid_02.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 3F43307CC6B72F72BBB3AD12 /* chess_firework_mid_02.m4a */; };
+		7CFC8F797A474B2D7C612C0E /* chess_promotion_03.m4a in Resources */ = {isa = PBXBuildFile; fileRef = A11CCF1B143E7B633EE7A83F /* chess_promotion_03.m4a */; };
+		7D8FD6C05A319C9DD274643D /* chess_move_wood_18.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 4C9AFC39B1A8F28BF4F2A97F /* chess_move_wood_18.m4a */; };
+		80B21A9A676E48ED966AAA0C /* chess_move_wood_12.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 17F0F505A491454AEB462DCC /* chess_move_wood_12.m4a */; };
+		81A6D87DCD28D3B01D12DB22 /* opponent_master.png in Resources */ = {isa = PBXBuildFile; fileRef = 834DC4E06F71B4043329FCCE /* opponent_master.png */; };
+		84AF1BCDA7AB7E78803C8059 /* chess_move_wood_48.m4a in Resources */ = {isa = PBXBuildFile; fileRef = A75EF3B27000A8D6082D1C76 /* chess_move_wood_48.m4a */; };
+		84CCA4478D30017D74BAC36F /* chess_move_wood_50.m4a in Resources */ = {isa = PBXBuildFile; fileRef = A9D40F5F883F8BB3DD833178 /* chess_move_wood_50.m4a */; };
+		88893A635E1E70038C4EF697 /* chess_move_wood_47.m4a in Resources */ = {isa = PBXBuildFile; fileRef = B788A6B248FB6F297A0E69B3 /* chess_move_wood_47.m4a */; };
+		899E8BEDB179A46AE182E42C /* chess_move_wood_23.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 715A5AB4FA6A9682F674E517 /* chess_move_wood_23.m4a */; };
+		8AAD5B14275AC80EF2949848 /* chess_move_wood_22.m4a in Resources */ = {isa = PBXBuildFile; fileRef = E912BCF03A686AC42810720F /* chess_move_wood_22.m4a */; };
+		8CFAE3CDB41628C9D1B39C6C /* chess_undo_03.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 3FAEB60DE41ED21640683C7C /* chess_undo_03.m4a */; };
+		8E0627656B2D976923D26174 /* chess_move_wood_44.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 458B1DD6FB14C6B717773437 /* chess_move_wood_44.m4a */; };
+		8ECE7F3B3CEEE1460CD90B2E /* chess_capture_crush_08.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 4A35A4073833D9CA59633602 /* chess_capture_crush_08.m4a */; };
+		90988A560CC8467A8E77235E /* DrawlessChessModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CD4148FA4230415A94862D0 /* DrawlessChessModel.swift */; };
+		93291DDA5CC6BC3F08DA554A /* chess_move_wood_15.m4a in Resources */ = {isa = PBXBuildFile; fileRef = CB2E1C4117F988861ED23D42 /* chess_move_wood_15.m4a */; };
+		943A5C21FEBBCBD72B3BC2FE /* chess_move_wood_17.m4a in Resources */ = {isa = PBXBuildFile; fileRef = F398B55D3B13A098DD9645BF /* chess_move_wood_17.m4a */; };
+		94F2DE63A3D735D84E18D74C /* chess_move_wood_33.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 1AF6E3D67F7D5205CE0C3818 /* chess_move_wood_33.m4a */; };
+		9A5DBD382067B3CE3F217B11 /* chess_move_wood_34.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 51E888094D5632960AE562CB /* chess_move_wood_34.m4a */; };
+		9B38F9CF063DFC07D3006AD3 /* chess_move_wood_03.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 2E30AC9F8B0C41DD21610B42 /* chess_move_wood_03.m4a */; };
+		9BFA332FB75C8AB558632E34 /* chess_hint_01.m4a in Resources */ = {isa = PBXBuildFile; fileRef = D8855200BF1A0E00C2F26ABF /* chess_hint_01.m4a */; };
+		9D0DCCE275636A176DB35080 /* chess_move_wood_31.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 883D00795BABB422665923C5 /* chess_move_wood_31.m4a */; };
+		A23211C6B75C070ACA859248 /* chess_move_wood_16.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 91AB7AA729FDFFF8FD642CA3 /* chess_move_wood_16.m4a */; };
+		A2CE63D0D6D102A3FA73097C /* chess_move_wood_08.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 4BF7679E22BA00ED893B0EA5 /* chess_move_wood_08.m4a */; };
+		A825CDB1ED0D2B9FF2E49898 /* chess_check_mechanical_02.m4a in Resources */ = {isa = PBXBuildFile; fileRef = AD74565EDACCC7F5998D4E63 /* chess_check_mechanical_02.m4a */; };
+		AA0763C013F8A10A5C573E65 /* chess_capture_crush_07.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 7084596B895D43D7C7ADEABB /* chess_capture_crush_07.m4a */; };
+		ACA1881BE56285EDCD4A4B45 /* chess_capture_crush_06.m4a in Resources */ = {isa = PBXBuildFile; fileRef = A814CAAE81E862C3D2CFCCA8 /* chess_capture_crush_06.m4a */; };
+		AD4626CB5DF8392206E520E2 /* opponent_expert.png in Resources */ = {isa = PBXBuildFile; fileRef = 1D822FBA199C58F1C2761DB5 /* opponent_expert.png */; };
+		AEE563E29038DC667C0DB074 /* chess_move_wood_39.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 609004B4F041AA613303CCF1 /* chess_move_wood_39.m4a */; };
+		AF743195F88F326624C950DA /* chess_move_wood_28.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 8568B6A4A018DD3C2DF1C222 /* chess_move_wood_28.m4a */; };
+		B4564C7091E4D739AB478B91 /* DrawlessChessApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9C6B8ECDB7F305977AEC053 /* DrawlessChessApp.swift */; };
+		B4AA4CD066622BF7D2073825 /* chess_move_wood_11.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 6146CCB301758E3CB2BBBB97 /* chess_move_wood_11.m4a */; };
+		B8ABFCE96138A8078D24612A /* chess_move_wood_29.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 2E44D8BE37BD78DD776E268A /* chess_move_wood_29.m4a */; };
+		B9C7C19D0D5E96540A8A5E43 /* chess_move_wood_20.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 7D2147AAB75974A3692754BA /* chess_move_wood_20.m4a */; };
+		BA6D309CEF39DE037BD4F9A8 /* chess_move_wood_27.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 5F0887239D07892E29FDFD3D /* chess_move_wood_27.m4a */; };
+		BC6BDC550E86C2FE0130F822 /* chess_promotion_01.m4a in Resources */ = {isa = PBXBuildFile; fileRef = E844159CB44A5DA6DACEB563 /* chess_promotion_01.m4a */; };
+		C0428A0FAB439BE5570DCE83 /* chess_glass_fracture_03.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 8B8068E97E0AAD45E028A507 /* chess_glass_fracture_03.m4a */; };
+		C1A47CA285EB31047E512667 /* chess_move_wood_26.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 298AD8562F8902B1441E0EAC /* chess_move_wood_26.m4a */; };
+		C3B6C785F38EDE49AD3970FC /* chess_move_wood_13.m4a in Resources */ = {isa = PBXBuildFile; fileRef = A38B27F0F8C6FDEFDF555FEC /* chess_move_wood_13.m4a */; };
+		C544DC8784B7389E8C4682C0 /* chess_capture_crush_03.m4a in Resources */ = {isa = PBXBuildFile; fileRef = D7766A9F5B4687192EC8BE57 /* chess_capture_crush_03.m4a */; };
+		C6868B164B05F9F0EC6D7CA3 /* chess_move_wood_35.m4a in Resources */ = {isa = PBXBuildFile; fileRef = D81D886638227579A9F66BAB /* chess_move_wood_35.m4a */; };
+		C85CE141566DE4A374B30973 /* chess_capture_crush_10.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 7A2F2DE0A126EC774FB94B57 /* chess_capture_crush_10.m4a */; };
+		C90E8C784D314F971227F729 /* chess_low_time_02.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 2E1253F2317AD589E5F96C82 /* chess_low_time_02.m4a */; };
+		C98277EC3137D3724399F6F6 /* chess_move_wood_40.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 7EDC5CB0296598CBA9EC7414 /* chess_move_wood_40.m4a */; };
+		CAA0FA7EABFA1D22DCDE2F3B /* chess_glass_fracture_02.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 50A390DBCC71A8EEB52A201E /* chess_glass_fracture_02.m4a */; };
+		CB98CAF4735BD4C17B7F0C6D /* opponent_grandmaster.png in Resources */ = {isa = PBXBuildFile; fileRef = B8FEE6D8DFBBF86C4395D169 /* opponent_grandmaster.png */; };
+		CCEA07645C008B8B63B7140A /* chess_move_wood_37.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 0219159533B6401EC8C6A47C /* chess_move_wood_37.m4a */; };
+		D241C32F76B2636CF646D031 /* chess_move_wood_05.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 728D5112791F7EAAA90FB018 /* chess_move_wood_05.m4a */; };
+		D3031FEFCF442C3B8CB8DD46 /* chess_glass_impact_03.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 04C11D0377B761810D786284 /* chess_glass_impact_03.m4a */; };
+		D572DC2CABF5345F55ADE619 /* chess_game_start_03.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 63FECD3CD014680F3DAC51F7 /* chess_game_start_03.m4a */; };
+		D993B852FCA67F7C7D5C370F /* ATTRIBUTION.properties in Resources */ = {isa = PBXBuildFile; fileRef = 91DDCCCA8C8B3D45A498CBE5 /* ATTRIBUTION.properties */; };
+		D9C146A8AF6C05BBCB97F63B /* chess_move_wood_42.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 8BB14B7DF14962BA50E07490 /* chess_move_wood_42.m4a */; };
+		DAB3126D9BFDB5F248F9BF1E /* home_hero_kings.png in Resources */ = {isa = PBXBuildFile; fileRef = 767238DB10CED952E3FD7768 /* home_hero_kings.png */; };
+		E2FF46EE51D69D70394AEA5D /* chess_glass_fracture_01.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 644DC58778586221250F1A60 /* chess_glass_fracture_01.m4a */; };
+		E353FF359B926A86C0354C39 /* BoardVisuals.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AA4401068FA2A4DC323F8C5 /* BoardVisuals.swift */; };
+		EA25D89B1486913998324D8E /* chess_move_wood_38.m4a in Resources */ = {isa = PBXBuildFile; fileRef = F91A2B0DEDA77AD326E04FA8 /* chess_move_wood_38.m4a */; };
+		EC6B2941D8368408E9A2B343 /* chess_move_wood_24.m4a in Resources */ = {isa = PBXBuildFile; fileRef = FFBAF22A684536C7AC1FF40D /* chess_move_wood_24.m4a */; };
+		ECA354188FEDB9C42954BCC2 /* chess_game_start_02.m4a in Resources */ = {isa = PBXBuildFile; fileRef = C547CD060394E26DBA04DE84 /* chess_game_start_02.m4a */; };
+		EE9F911C756B8294FD221921 /* chess_firework_high_01.m4a in Resources */ = {isa = PBXBuildFile; fileRef = FDE189579B69A6057309B752 /* chess_firework_high_01.m4a */; };
+		EF4F5A6DE2D0F2DD9078A8B9 /* chess_move_wood_43.m4a in Resources */ = {isa = PBXBuildFile; fileRef = E11FBFB170FFEE84EF57A3BB /* chess_move_wood_43.m4a */; };
+		F52C18043A58D866E7F6CF5D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 9F0426BB7894259D457E2EDB /* Assets.xcassets */; };
+		F5DBCD544036BB6DFCACD592 /* chess_capture_crush_04.m4a in Resources */ = {isa = PBXBuildFile; fileRef = B6ED04A23D1BA483C73817DD /* chess_capture_crush_04.m4a */; };
+		F89006B29491AE2C6146A8A1 /* chess_move_wood_32.m4a in Resources */ = {isa = PBXBuildFile; fileRef = D7DCAB146E697267E921478A /* chess_move_wood_32.m4a */; };
+		F8A92F115AAE0131F196F001 /* opponent_casual.png in Resources */ = {isa = PBXBuildFile; fileRef = F4F0C996337C39FFBFBD6981 /* opponent_casual.png */; };
+		FB2670A1245AF03B3771ECA9 /* chess_move_wood_45.m4a in Resources */ = {isa = PBXBuildFile; fileRef = D44734F8A5C029C0F0D1D6CE /* chess_move_wood_45.m4a */; };
+		FB9E1BB6C2515297F049956A /* chess_move_wood_10.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 25DD2F6770F78920FE47FB58 /* chess_move_wood_10.m4a */; };
+		FF99DCE04F50D2565824038B /* chess_castle_wood_03.m4a in Resources */ = {isa = PBXBuildFile; fileRef = A292A2DD774F1F9A4EF9971E /* chess_castle_wood_03.m4a */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		ABA30A3006EE660EBC26CD5A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 79CAFA469BF09437E6FA5264 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 3C31B5EEEE052B0FC5EF9032;
+			remoteInfo = DrawlessChess;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		0219159533B6401EC8C6A47C /* chess_move_wood_37.m4a */ = {isa = PBXFileReference; path = chess_move_wood_37.m4a; sourceTree = "<group>"; };
+		04C11D0377B761810D786284 /* chess_glass_impact_03.m4a */ = {isa = PBXFileReference; path = chess_glass_impact_03.m4a; sourceTree = "<group>"; };
+		058F8A832C3B17A62C866315 /* chess_firework_high_02.m4a */ = {isa = PBXFileReference; path = chess_firework_high_02.m4a; sourceTree = "<group>"; };
+		075DAE8A3802AE65F4ACA583 /* chess_firework_mid_01.m4a */ = {isa = PBXFileReference; path = chess_firework_mid_01.m4a; sourceTree = "<group>"; };
+		08715872AE9E9CF300B6CE39 /* chess_move_wood_09.m4a */ = {isa = PBXFileReference; path = chess_move_wood_09.m4a; sourceTree = "<group>"; };
+		087318CA013ABB00A432730B /* GameFeedback.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameFeedback.swift; sourceTree = "<group>"; };
+		0CE7EAC8C59188C3CD45E408 /* chess_move_wood_36.m4a */ = {isa = PBXFileReference; path = chess_move_wood_36.m4a; sourceTree = "<group>"; };
+		0F4AD7DFB3DE25DDB3F487DD /* fr */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = fr; path = fr.lproj/Localizable.strings; sourceTree = "<group>"; };
+		17F0F505A491454AEB462DCC /* chess_move_wood_12.m4a */ = {isa = PBXFileReference; path = chess_move_wood_12.m4a; sourceTree = "<group>"; };
+		198C12A2CF55B1FCDE5624E7 /* chess_move_wood_19.m4a */ = {isa = PBXFileReference; path = chess_move_wood_19.m4a; sourceTree = "<group>"; };
+		1AA4401068FA2A4DC323F8C5 /* BoardVisuals.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoardVisuals.swift; sourceTree = "<group>"; };
+		1AF6E3D67F7D5205CE0C3818 /* chess_move_wood_33.m4a */ = {isa = PBXFileReference; path = chess_move_wood_33.m4a; sourceTree = "<group>"; };
+		1B2B57406C4B68E1A2152FDB /* chess_glass_shards_02.m4a */ = {isa = PBXFileReference; path = chess_glass_shards_02.m4a; sourceTree = "<group>"; };
+		1D822FBA199C58F1C2761DB5 /* opponent_expert.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = opponent_expert.png; sourceTree = "<group>"; };
+		217DA91ADA42F1D80C8DE6A7 /* chess_checkmate_stone_01.m4a */ = {isa = PBXFileReference; path = chess_checkmate_stone_01.m4a; sourceTree = "<group>"; };
+		22B7C9A979F31148E583A96A /* chess_castle_wood_01.m4a */ = {isa = PBXFileReference; path = chess_castle_wood_01.m4a; sourceTree = "<group>"; };
+		25DD2F6770F78920FE47FB58 /* chess_move_wood_10.m4a */ = {isa = PBXFileReference; path = chess_move_wood_10.m4a; sourceTree = "<group>"; };
+		286B527CB45D28C4C924AD96 /* chess_capture_crush_01.m4a */ = {isa = PBXFileReference; path = chess_capture_crush_01.m4a; sourceTree = "<group>"; };
+		298AD8562F8902B1441E0EAC /* chess_move_wood_26.m4a */ = {isa = PBXFileReference; path = chess_move_wood_26.m4a; sourceTree = "<group>"; };
+		2A33479BC1840C1AD09A14D4 /* chess_low_time_01.m4a */ = {isa = PBXFileReference; path = chess_low_time_01.m4a; sourceTree = "<group>"; };
+		2E1253F2317AD589E5F96C82 /* chess_low_time_02.m4a */ = {isa = PBXFileReference; path = chess_low_time_02.m4a; sourceTree = "<group>"; };
+		2E30AC9F8B0C41DD21610B42 /* chess_move_wood_03.m4a */ = {isa = PBXFileReference; path = chess_move_wood_03.m4a; sourceTree = "<group>"; };
+		2E44D8BE37BD78DD776E268A /* chess_move_wood_29.m4a */ = {isa = PBXFileReference; path = chess_move_wood_29.m4a; sourceTree = "<group>"; };
+		2FC3DB49F2E9583987BEF8DD /* chess_move_wood_04.m4a */ = {isa = PBXFileReference; path = chess_move_wood_04.m4a; sourceTree = "<group>"; };
+		322C73B80098EE4554B36684 /* chess_glass_impact_01.m4a */ = {isa = PBXFileReference; path = chess_glass_impact_01.m4a; sourceTree = "<group>"; };
+		375C81807AC1C3084762E602 /* chess_promotion_04.m4a */ = {isa = PBXFileReference; path = chess_promotion_04.m4a; sourceTree = "<group>"; };
+		38B29F09AFBB7B8459E4669F /* es-419 */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "es-419"; path = "es-419.lproj/Localizable.strings"; sourceTree = "<group>"; };
+		3D7E7F455065EB5A1378B92A /* chess_capture_crush_05.m4a */ = {isa = PBXFileReference; path = chess_capture_crush_05.m4a; sourceTree = "<group>"; };
+		3F43307CC6B72F72BBB3AD12 /* chess_firework_mid_02.m4a */ = {isa = PBXFileReference; path = chess_firework_mid_02.m4a; sourceTree = "<group>"; };
+		3FAEB60DE41ED21640683C7C /* chess_undo_03.m4a */ = {isa = PBXFileReference; path = chess_undo_03.m4a; sourceTree = "<group>"; };
+		41EBB9E98B26FA843E11FA91 /* chess_move_wood_14.m4a */ = {isa = PBXFileReference; path = chess_move_wood_14.m4a; sourceTree = "<group>"; };
+		458B1DD6FB14C6B717773437 /* chess_move_wood_44.m4a */ = {isa = PBXFileReference; path = chess_move_wood_44.m4a; sourceTree = "<group>"; };
+		4A35A4073833D9CA59633602 /* chess_capture_crush_08.m4a */ = {isa = PBXFileReference; path = chess_capture_crush_08.m4a; sourceTree = "<group>"; };
+		4BD2FAA5059ECCF8C5ABE107 /* chess_glass_shards_03.m4a */ = {isa = PBXFileReference; path = chess_glass_shards_03.m4a; sourceTree = "<group>"; };
+		4BF7679E22BA00ED893B0EA5 /* chess_move_wood_08.m4a */ = {isa = PBXFileReference; path = chess_move_wood_08.m4a; sourceTree = "<group>"; };
+		4C9AFC39B1A8F28BF4F2A97F /* chess_move_wood_18.m4a */ = {isa = PBXFileReference; path = chess_move_wood_18.m4a; sourceTree = "<group>"; };
+		50A390DBCC71A8EEB52A201E /* chess_glass_fracture_02.m4a */ = {isa = PBXFileReference; path = chess_glass_fracture_02.m4a; sourceTree = "<group>"; };
+		51DC4BCC0855D2BF59653AAA /* chess_firework_low_01.m4a */ = {isa = PBXFileReference; path = chess_firework_low_01.m4a; sourceTree = "<group>"; };
+		51E888094D5632960AE562CB /* chess_move_wood_34.m4a */ = {isa = PBXFileReference; path = chess_move_wood_34.m4a; sourceTree = "<group>"; };
+		52A9CDB8E91411D8463BA2AC /* de */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = de; path = de.lproj/Localizable.strings; sourceTree = "<group>"; };
+		52FEF467928BEB9417FB9F23 /* chess_castle_wood_06.m4a */ = {isa = PBXFileReference; path = chess_castle_wood_06.m4a; sourceTree = "<group>"; };
+		57CFAA9E4819CCAE8AE547B3 /* chess_castle_wood_04.m4a */ = {isa = PBXFileReference; path = chess_castle_wood_04.m4a; sourceTree = "<group>"; };
+		5C859C0F9D5E5FA15DD49C74 /* chess_glass_impact_02.m4a */ = {isa = PBXFileReference; path = chess_glass_impact_02.m4a; sourceTree = "<group>"; };
+		5EE475968B72E37E84190505 /* chess_move_wood_49.m4a */ = {isa = PBXFileReference; path = chess_move_wood_49.m4a; sourceTree = "<group>"; };
+		5F0887239D07892E29FDFD3D /* chess_move_wood_27.m4a */ = {isa = PBXFileReference; path = chess_move_wood_27.m4a; sourceTree = "<group>"; };
+		601A45B1A6E8D9ED7F2DD954 /* chess_castle_wood_05.m4a */ = {isa = PBXFileReference; path = chess_castle_wood_05.m4a; sourceTree = "<group>"; };
+		605E30137CBA83B43372B582 /* opponent_club.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = opponent_club.png; sourceTree = "<group>"; };
+		609004B4F041AA613303CCF1 /* chess_move_wood_39.m4a */ = {isa = PBXFileReference; path = chess_move_wood_39.m4a; sourceTree = "<group>"; };
+		6146CCB301758E3CB2BBBB97 /* chess_move_wood_11.m4a */ = {isa = PBXFileReference; path = chess_move_wood_11.m4a; sourceTree = "<group>"; };
+		63FECD3CD014680F3DAC51F7 /* chess_game_start_03.m4a */ = {isa = PBXFileReference; path = chess_game_start_03.m4a; sourceTree = "<group>"; };
+		644DC58778586221250F1A60 /* chess_glass_fracture_01.m4a */ = {isa = PBXFileReference; path = chess_glass_fracture_01.m4a; sourceTree = "<group>"; };
+		66E3B042E1E89B370DD1AE3B /* chess_move_wood_46.m4a */ = {isa = PBXFileReference; path = chess_move_wood_46.m4a; sourceTree = "<group>"; };
+		6A8E86353A8982ADDAEF149D /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
+		6B309E0F1F4F20134F03C098 /* chess_hint_03.m4a */ = {isa = PBXFileReference; path = chess_hint_03.m4a; sourceTree = "<group>"; };
+		6CD4148FA4230415A94862D0 /* DrawlessChessModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DrawlessChessModel.swift; sourceTree = "<group>"; };
+		6F9BA8F56EF551C8809F8E61 /* chess_move_wood_02.m4a */ = {isa = PBXFileReference; path = chess_move_wood_02.m4a; sourceTree = "<group>"; };
+		7084596B895D43D7C7ADEABB /* chess_capture_crush_07.m4a */ = {isa = PBXFileReference; path = chess_capture_crush_07.m4a; sourceTree = "<group>"; };
+		70B00C68E8768299B544918A /* chess_low_time_03.m4a */ = {isa = PBXFileReference; path = chess_low_time_03.m4a; sourceTree = "<group>"; };
+		715A5AB4FA6A9682F674E517 /* chess_move_wood_23.m4a */ = {isa = PBXFileReference; path = chess_move_wood_23.m4a; sourceTree = "<group>"; };
+		728D5112791F7EAAA90FB018 /* chess_move_wood_05.m4a */ = {isa = PBXFileReference; path = chess_move_wood_05.m4a; sourceTree = "<group>"; };
+		75F40A6D953AAADF86311ACC /* chess_capture_crush_11.m4a */ = {isa = PBXFileReference; path = chess_capture_crush_11.m4a; sourceTree = "<group>"; };
+		767238DB10CED952E3FD7768 /* home_hero_kings.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = home_hero_kings.png; sourceTree = "<group>"; };
+		7A2F2DE0A126EC774FB94B57 /* chess_capture_crush_10.m4a */ = {isa = PBXFileReference; path = chess_capture_crush_10.m4a; sourceTree = "<group>"; };
+		7D2147AAB75974A3692754BA /* chess_move_wood_20.m4a */ = {isa = PBXFileReference; path = chess_move_wood_20.m4a; sourceTree = "<group>"; };
+		7EDC5CB0296598CBA9EC7414 /* chess_move_wood_40.m4a */ = {isa = PBXFileReference; path = chess_move_wood_40.m4a; sourceTree = "<group>"; };
+		826AE0D43A65C79B8CF404D1 /* chess_hint_02.m4a */ = {isa = PBXFileReference; path = chess_hint_02.m4a; sourceTree = "<group>"; };
+		8281A2DF005B340055275D9B /* chess_move_wood_30.m4a */ = {isa = PBXFileReference; path = chess_move_wood_30.m4a; sourceTree = "<group>"; };
+		834DC4E06F71B4043329FCCE /* opponent_master.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = opponent_master.png; sourceTree = "<group>"; };
+		84DD402BF299CABA7EEA3C24 /* opponent_challenger.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = opponent_challenger.png; sourceTree = "<group>"; };
+		8568B6A4A018DD3C2DF1C222 /* chess_move_wood_28.m4a */ = {isa = PBXFileReference; path = chess_move_wood_28.m4a; sourceTree = "<group>"; };
+		883D00795BABB422665923C5 /* chess_move_wood_31.m4a */ = {isa = PBXFileReference; path = chess_move_wood_31.m4a; sourceTree = "<group>"; };
+		8B8068E97E0AAD45E028A507 /* chess_glass_fracture_03.m4a */ = {isa = PBXFileReference; path = chess_glass_fracture_03.m4a; sourceTree = "<group>"; };
+		8BB14B7DF14962BA50E07490 /* chess_move_wood_42.m4a */ = {isa = PBXFileReference; path = chess_move_wood_42.m4a; sourceTree = "<group>"; };
+		8CC9EE24CAB16CF9C805A5DE /* chess_firework_low_02.m4a */ = {isa = PBXFileReference; path = chess_firework_low_02.m4a; sourceTree = "<group>"; };
+		9003E5EF7D5FD708437F62EC /* chess_castle_wood_02.m4a */ = {isa = PBXFileReference; path = chess_castle_wood_02.m4a; sourceTree = "<group>"; };
+		91AB7AA729FDFFF8FD642CA3 /* chess_move_wood_16.m4a */ = {isa = PBXFileReference; path = chess_move_wood_16.m4a; sourceTree = "<group>"; };
+		91DDCCCA8C8B3D45A498CBE5 /* ATTRIBUTION.properties */ = {isa = PBXFileReference; path = ATTRIBUTION.properties; sourceTree = "<group>"; };
+		92997B8D2DEDECC89E4F620F /* chess_move_wood_21.m4a */ = {isa = PBXFileReference; path = chess_move_wood_21.m4a; sourceTree = "<group>"; };
+		96C0CF3B6B78684B388E04E0 /* chess_glass_shards_01.m4a */ = {isa = PBXFileReference; path = chess_glass_shards_01.m4a; sourceTree = "<group>"; };
+		99A3BB9C4EA9AD58ACE7C71A /* chess_capture_crush_12.m4a */ = {isa = PBXFileReference; path = chess_capture_crush_12.m4a; sourceTree = "<group>"; };
+		99DAA8915777875FA03D9BA9 /* chess_low_time_04.m4a */ = {isa = PBXFileReference; path = chess_low_time_04.m4a; sourceTree = "<group>"; };
+		9A3F9AD5C92A959527D955A1 /* opponent_learner.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = opponent_learner.png; sourceTree = "<group>"; };
+		9DBE18F473CD2BC08FA9A217 /* DrawlessChess.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = DrawlessChess.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		9EA3703F572E14F42B16153E /* DrawlessChessUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = DrawlessChessUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		9F0426BB7894259D457E2EDB /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		A11CCF1B143E7B633EE7A83F /* chess_promotion_03.m4a */ = {isa = PBXFileReference; path = chess_promotion_03.m4a; sourceTree = "<group>"; };
+		A292A2DD774F1F9A4EF9971E /* chess_castle_wood_03.m4a */ = {isa = PBXFileReference; path = chess_castle_wood_03.m4a; sourceTree = "<group>"; };
+		A38B27F0F8C6FDEFDF555FEC /* chess_move_wood_13.m4a */ = {isa = PBXFileReference; path = chess_move_wood_13.m4a; sourceTree = "<group>"; };
+		A75EF3B27000A8D6082D1C76 /* chess_move_wood_48.m4a */ = {isa = PBXFileReference; path = chess_move_wood_48.m4a; sourceTree = "<group>"; };
+		A814CAAE81E862C3D2CFCCA8 /* chess_capture_crush_06.m4a */ = {isa = PBXFileReference; path = chess_capture_crush_06.m4a; sourceTree = "<group>"; };
+		A9D40F5F883F8BB3DD833178 /* chess_move_wood_50.m4a */ = {isa = PBXFileReference; path = chess_move_wood_50.m4a; sourceTree = "<group>"; };
+		AC0204508FFBC9FC8799482E /* chess_undo_01.m4a */ = {isa = PBXFileReference; path = chess_undo_01.m4a; sourceTree = "<group>"; };
+		AD74565EDACCC7F5998D4E63 /* chess_check_mechanical_02.m4a */ = {isa = PBXFileReference; path = chess_check_mechanical_02.m4a; sourceTree = "<group>"; };
+		B093DD983F6372EAD56B4B56 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		B6ED04A23D1BA483C73817DD /* chess_capture_crush_04.m4a */ = {isa = PBXFileReference; path = chess_capture_crush_04.m4a; sourceTree = "<group>"; };
+		B788A6B248FB6F297A0E69B3 /* chess_move_wood_47.m4a */ = {isa = PBXFileReference; path = chess_move_wood_47.m4a; sourceTree = "<group>"; };
+		B8FEE6D8DFBBF86C4395D169 /* opponent_grandmaster.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = opponent_grandmaster.png; sourceTree = "<group>"; };
+		B9C6B8ECDB7F305977AEC053 /* DrawlessChessApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DrawlessChessApp.swift; sourceTree = "<group>"; };
+		C547CD060394E26DBA04DE84 /* chess_game_start_02.m4a */ = {isa = PBXFileReference; path = chess_game_start_02.m4a; sourceTree = "<group>"; };
+		C57B730F5BE3EC94B98B192D /* chess_undo_02.m4a */ = {isa = PBXFileReference; path = chess_undo_02.m4a; sourceTree = "<group>"; };
+		C71F915C4C73CA3D00E38459 /* chess_move_wood_25.m4a */ = {isa = PBXFileReference; path = chess_move_wood_25.m4a; sourceTree = "<group>"; };
+		C7B639E17C3BBB79E6FCAABB /* chess_capture_crush_09.m4a */ = {isa = PBXFileReference; path = chess_capture_crush_09.m4a; sourceTree = "<group>"; };
+		CB2E1C4117F988861ED23D42 /* chess_move_wood_15.m4a */ = {isa = PBXFileReference; path = chess_move_wood_15.m4a; sourceTree = "<group>"; };
+		CF4C47441AB975D4CDD96BE4 /* DrawlessChessUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DrawlessChessUITests.swift; sourceTree = "<group>"; };
+		D44734F8A5C029C0F0D1D6CE /* chess_move_wood_45.m4a */ = {isa = PBXFileReference; path = chess_move_wood_45.m4a; sourceTree = "<group>"; };
+		D7766A9F5B4687192EC8BE57 /* chess_capture_crush_03.m4a */ = {isa = PBXFileReference; path = chess_capture_crush_03.m4a; sourceTree = "<group>"; };
+		D7DCAB146E697267E921478A /* chess_move_wood_32.m4a */ = {isa = PBXFileReference; path = chess_move_wood_32.m4a; sourceTree = "<group>"; };
+		D7F8DBB2F7353ED313872BCF /* chess_move_wood_07.m4a */ = {isa = PBXFileReference; path = chess_move_wood_07.m4a; sourceTree = "<group>"; };
+		D81D886638227579A9F66BAB /* chess_move_wood_35.m4a */ = {isa = PBXFileReference; path = chess_move_wood_35.m4a; sourceTree = "<group>"; };
+		D86F01E10B0373F6FD92D885 /* chess_move_wood_06.m4a */ = {isa = PBXFileReference; path = chess_move_wood_06.m4a; sourceTree = "<group>"; };
+		D8855200BF1A0E00C2F26ABF /* chess_hint_01.m4a */ = {isa = PBXFileReference; path = chess_hint_01.m4a; sourceTree = "<group>"; };
+		DC0E870DEA1866DED6A004A7 /* variants.ini */ = {isa = PBXFileReference; path = variants.ini; sourceTree = "<group>"; };
+		E03024B54CC80B26B732E9A5 /* chess_promotion_02.m4a */ = {isa = PBXFileReference; path = chess_promotion_02.m4a; sourceTree = "<group>"; };
+		E11FBFB170FFEE84EF57A3BB /* chess_move_wood_43.m4a */ = {isa = PBXFileReference; path = chess_move_wood_43.m4a; sourceTree = "<group>"; };
+		E184B492B0FB95710DC4978D /* chess_en_passant_brick_01.m4a */ = {isa = PBXFileReference; path = chess_en_passant_brick_01.m4a; sourceTree = "<group>"; };
+		E4EE161919014A24F5172E96 /* opponent_adaptive.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = opponent_adaptive.png; sourceTree = "<group>"; };
+		E75DBFD0B44472CDD3633D93 /* chess_move_wood_41.m4a */ = {isa = PBXFileReference; path = chess_move_wood_41.m4a; sourceTree = "<group>"; };
+		E844159CB44A5DA6DACEB563 /* chess_promotion_01.m4a */ = {isa = PBXFileReference; path = chess_promotion_01.m4a; sourceTree = "<group>"; };
+		E912BCF03A686AC42810720F /* chess_move_wood_22.m4a */ = {isa = PBXFileReference; path = chess_move_wood_22.m4a; sourceTree = "<group>"; };
+		F398B55D3B13A098DD9645BF /* chess_move_wood_17.m4a */ = {isa = PBXFileReference; path = chess_move_wood_17.m4a; sourceTree = "<group>"; };
+		F4F0C996337C39FFBFBD6981 /* opponent_casual.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = opponent_casual.png; sourceTree = "<group>"; };
+		F673C217CA24D5C5C89DAD37 /* chess_capture_crush_02.m4a */ = {isa = PBXFileReference; path = chess_capture_crush_02.m4a; sourceTree = "<group>"; };
+		F71546DE78208ACE4BC80751 /* pt-BR */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "pt-BR"; path = "pt-BR.lproj/Localizable.strings"; sourceTree = "<group>"; };
+		F91A2B0DEDA77AD326E04FA8 /* chess_move_wood_38.m4a */ = {isa = PBXFileReference; path = chess_move_wood_38.m4a; sourceTree = "<group>"; };
+		FAF8E1257128DDCCD409E85D /* chess_move_wood_01.m4a */ = {isa = PBXFileReference; path = chess_move_wood_01.m4a; sourceTree = "<group>"; };
+		FD909917D6D141E2F4F28121 /* DrawlessShared.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = DrawlessShared.framework; path = "../multiplatform/shared-core/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)/DrawlessShared.framework"; sourceTree = "<group>"; };
+		FDE189579B69A6057309B752 /* chess_firework_high_01.m4a */ = {isa = PBXFileReference; path = chess_firework_high_01.m4a; sourceTree = "<group>"; };
+		FF9AED790C6081A7DE6A7735 /* chess_game_start_01.m4a */ = {isa = PBXFileReference; path = chess_game_start_01.m4a; sourceTree = "<group>"; };
+		FFBAF22A684536C7AC1FF40D /* chess_move_wood_24.m4a */ = {isa = PBXFileReference; path = chess_move_wood_24.m4a; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		49633515A970A28D7E7BC911 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4878DAD9979DBE10421D76E9 /* DrawlessShared.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		2BF9A847B4506BD3F38C65CB /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				9DBE18F473CD2BC08FA9A217 /* DrawlessChess.app */,
+				9EA3703F572E14F42B16153E /* DrawlessChessUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		63B04DA967F76B0047C5B04F /* Audio */ = {
+			isa = PBXGroup;
+			children = (
+				91DDCCCA8C8B3D45A498CBE5 /* ATTRIBUTION.properties */,
+				286B527CB45D28C4C924AD96 /* chess_capture_crush_01.m4a */,
+				F673C217CA24D5C5C89DAD37 /* chess_capture_crush_02.m4a */,
+				D7766A9F5B4687192EC8BE57 /* chess_capture_crush_03.m4a */,
+				B6ED04A23D1BA483C73817DD /* chess_capture_crush_04.m4a */,
+				3D7E7F455065EB5A1378B92A /* chess_capture_crush_05.m4a */,
+				A814CAAE81E862C3D2CFCCA8 /* chess_capture_crush_06.m4a */,
+				7084596B895D43D7C7ADEABB /* chess_capture_crush_07.m4a */,
+				4A35A4073833D9CA59633602 /* chess_capture_crush_08.m4a */,
+				C7B639E17C3BBB79E6FCAABB /* chess_capture_crush_09.m4a */,
+				7A2F2DE0A126EC774FB94B57 /* chess_capture_crush_10.m4a */,
+				75F40A6D953AAADF86311ACC /* chess_capture_crush_11.m4a */,
+				99A3BB9C4EA9AD58ACE7C71A /* chess_capture_crush_12.m4a */,
+				22B7C9A979F31148E583A96A /* chess_castle_wood_01.m4a */,
+				9003E5EF7D5FD708437F62EC /* chess_castle_wood_02.m4a */,
+				A292A2DD774F1F9A4EF9971E /* chess_castle_wood_03.m4a */,
+				57CFAA9E4819CCAE8AE547B3 /* chess_castle_wood_04.m4a */,
+				601A45B1A6E8D9ED7F2DD954 /* chess_castle_wood_05.m4a */,
+				52FEF467928BEB9417FB9F23 /* chess_castle_wood_06.m4a */,
+				AD74565EDACCC7F5998D4E63 /* chess_check_mechanical_02.m4a */,
+				217DA91ADA42F1D80C8DE6A7 /* chess_checkmate_stone_01.m4a */,
+				E184B492B0FB95710DC4978D /* chess_en_passant_brick_01.m4a */,
+				FDE189579B69A6057309B752 /* chess_firework_high_01.m4a */,
+				058F8A832C3B17A62C866315 /* chess_firework_high_02.m4a */,
+				51DC4BCC0855D2BF59653AAA /* chess_firework_low_01.m4a */,
+				8CC9EE24CAB16CF9C805A5DE /* chess_firework_low_02.m4a */,
+				075DAE8A3802AE65F4ACA583 /* chess_firework_mid_01.m4a */,
+				3F43307CC6B72F72BBB3AD12 /* chess_firework_mid_02.m4a */,
+				FF9AED790C6081A7DE6A7735 /* chess_game_start_01.m4a */,
+				C547CD060394E26DBA04DE84 /* chess_game_start_02.m4a */,
+				63FECD3CD014680F3DAC51F7 /* chess_game_start_03.m4a */,
+				644DC58778586221250F1A60 /* chess_glass_fracture_01.m4a */,
+				50A390DBCC71A8EEB52A201E /* chess_glass_fracture_02.m4a */,
+				8B8068E97E0AAD45E028A507 /* chess_glass_fracture_03.m4a */,
+				322C73B80098EE4554B36684 /* chess_glass_impact_01.m4a */,
+				5C859C0F9D5E5FA15DD49C74 /* chess_glass_impact_02.m4a */,
+				04C11D0377B761810D786284 /* chess_glass_impact_03.m4a */,
+				96C0CF3B6B78684B388E04E0 /* chess_glass_shards_01.m4a */,
+				1B2B57406C4B68E1A2152FDB /* chess_glass_shards_02.m4a */,
+				4BD2FAA5059ECCF8C5ABE107 /* chess_glass_shards_03.m4a */,
+				D8855200BF1A0E00C2F26ABF /* chess_hint_01.m4a */,
+				826AE0D43A65C79B8CF404D1 /* chess_hint_02.m4a */,
+				6B309E0F1F4F20134F03C098 /* chess_hint_03.m4a */,
+				2A33479BC1840C1AD09A14D4 /* chess_low_time_01.m4a */,
+				2E1253F2317AD589E5F96C82 /* chess_low_time_02.m4a */,
+				70B00C68E8768299B544918A /* chess_low_time_03.m4a */,
+				99DAA8915777875FA03D9BA9 /* chess_low_time_04.m4a */,
+				FAF8E1257128DDCCD409E85D /* chess_move_wood_01.m4a */,
+				6F9BA8F56EF551C8809F8E61 /* chess_move_wood_02.m4a */,
+				2E30AC9F8B0C41DD21610B42 /* chess_move_wood_03.m4a */,
+				2FC3DB49F2E9583987BEF8DD /* chess_move_wood_04.m4a */,
+				728D5112791F7EAAA90FB018 /* chess_move_wood_05.m4a */,
+				D86F01E10B0373F6FD92D885 /* chess_move_wood_06.m4a */,
+				D7F8DBB2F7353ED313872BCF /* chess_move_wood_07.m4a */,
+				4BF7679E22BA00ED893B0EA5 /* chess_move_wood_08.m4a */,
+				08715872AE9E9CF300B6CE39 /* chess_move_wood_09.m4a */,
+				25DD2F6770F78920FE47FB58 /* chess_move_wood_10.m4a */,
+				6146CCB301758E3CB2BBBB97 /* chess_move_wood_11.m4a */,
+				17F0F505A491454AEB462DCC /* chess_move_wood_12.m4a */,
+				A38B27F0F8C6FDEFDF555FEC /* chess_move_wood_13.m4a */,
+				41EBB9E98B26FA843E11FA91 /* chess_move_wood_14.m4a */,
+				CB2E1C4117F988861ED23D42 /* chess_move_wood_15.m4a */,
+				91AB7AA729FDFFF8FD642CA3 /* chess_move_wood_16.m4a */,
+				F398B55D3B13A098DD9645BF /* chess_move_wood_17.m4a */,
+				4C9AFC39B1A8F28BF4F2A97F /* chess_move_wood_18.m4a */,
+				198C12A2CF55B1FCDE5624E7 /* chess_move_wood_19.m4a */,
+				7D2147AAB75974A3692754BA /* chess_move_wood_20.m4a */,
+				92997B8D2DEDECC89E4F620F /* chess_move_wood_21.m4a */,
+				E912BCF03A686AC42810720F /* chess_move_wood_22.m4a */,
+				715A5AB4FA6A9682F674E517 /* chess_move_wood_23.m4a */,
+				FFBAF22A684536C7AC1FF40D /* chess_move_wood_24.m4a */,
+				C71F915C4C73CA3D00E38459 /* chess_move_wood_25.m4a */,
+				298AD8562F8902B1441E0EAC /* chess_move_wood_26.m4a */,
+				5F0887239D07892E29FDFD3D /* chess_move_wood_27.m4a */,
+				8568B6A4A018DD3C2DF1C222 /* chess_move_wood_28.m4a */,
+				2E44D8BE37BD78DD776E268A /* chess_move_wood_29.m4a */,
+				8281A2DF005B340055275D9B /* chess_move_wood_30.m4a */,
+				883D00795BABB422665923C5 /* chess_move_wood_31.m4a */,
+				D7DCAB146E697267E921478A /* chess_move_wood_32.m4a */,
+				1AF6E3D67F7D5205CE0C3818 /* chess_move_wood_33.m4a */,
+				51E888094D5632960AE562CB /* chess_move_wood_34.m4a */,
+				D81D886638227579A9F66BAB /* chess_move_wood_35.m4a */,
+				0CE7EAC8C59188C3CD45E408 /* chess_move_wood_36.m4a */,
+				0219159533B6401EC8C6A47C /* chess_move_wood_37.m4a */,
+				F91A2B0DEDA77AD326E04FA8 /* chess_move_wood_38.m4a */,
+				609004B4F041AA613303CCF1 /* chess_move_wood_39.m4a */,
+				7EDC5CB0296598CBA9EC7414 /* chess_move_wood_40.m4a */,
+				E75DBFD0B44472CDD3633D93 /* chess_move_wood_41.m4a */,
+				8BB14B7DF14962BA50E07490 /* chess_move_wood_42.m4a */,
+				E11FBFB170FFEE84EF57A3BB /* chess_move_wood_43.m4a */,
+				458B1DD6FB14C6B717773437 /* chess_move_wood_44.m4a */,
+				D44734F8A5C029C0F0D1D6CE /* chess_move_wood_45.m4a */,
+				66E3B042E1E89B370DD1AE3B /* chess_move_wood_46.m4a */,
+				B788A6B248FB6F297A0E69B3 /* chess_move_wood_47.m4a */,
+				A75EF3B27000A8D6082D1C76 /* chess_move_wood_48.m4a */,
+				5EE475968B72E37E84190505 /* chess_move_wood_49.m4a */,
+				A9D40F5F883F8BB3DD833178 /* chess_move_wood_50.m4a */,
+				E844159CB44A5DA6DACEB563 /* chess_promotion_01.m4a */,
+				E03024B54CC80B26B732E9A5 /* chess_promotion_02.m4a */,
+				A11CCF1B143E7B633EE7A83F /* chess_promotion_03.m4a */,
+				375C81807AC1C3084762E602 /* chess_promotion_04.m4a */,
+				AC0204508FFBC9FC8799482E /* chess_undo_01.m4a */,
+				C57B730F5BE3EC94B98B192D /* chess_undo_02.m4a */,
+				3FAEB60DE41ED21640683C7C /* chess_undo_03.m4a */,
+			);
+			path = Audio;
+			sourceTree = "<group>";
+		};
+		7E006126442D1189B5ED5DCA /* Portraits */ = {
+			isa = PBXGroup;
+			children = (
+				767238DB10CED952E3FD7768 /* home_hero_kings.png */,
+				E4EE161919014A24F5172E96 /* opponent_adaptive.png */,
+				F4F0C996337C39FFBFBD6981 /* opponent_casual.png */,
+				84DD402BF299CABA7EEA3C24 /* opponent_challenger.png */,
+				605E30137CBA83B43372B582 /* opponent_club.png */,
+				1D822FBA199C58F1C2761DB5 /* opponent_expert.png */,
+				B8FEE6D8DFBBF86C4395D169 /* opponent_grandmaster.png */,
+				9A3F9AD5C92A959527D955A1 /* opponent_learner.png */,
+				834DC4E06F71B4043329FCCE /* opponent_master.png */,
+			);
+			path = Portraits;
+			sourceTree = "<group>";
+		};
+		827A162DC4062ADEC37B925F /* DrawlessChessUITests */ = {
+			isa = PBXGroup;
+			children = (
+				CF4C47441AB975D4CDD96BE4 /* DrawlessChessUITests.swift */,
+			);
+			path = DrawlessChessUITests;
+			sourceTree = "<group>";
+		};
+		962327823D3983ABF8914EF7 /* DrawlessChess */ = {
+			isa = PBXGroup;
+			children = (
+				9F0426BB7894259D457E2EDB /* Assets.xcassets */,
+				1AA4401068FA2A4DC323F8C5 /* BoardVisuals.swift */,
+				B093DD983F6372EAD56B4B56 /* ContentView.swift */,
+				B9C6B8ECDB7F305977AEC053 /* DrawlessChessApp.swift */,
+				6CD4148FA4230415A94862D0 /* DrawlessChessModel.swift */,
+				087318CA013ABB00A432730B /* GameFeedback.swift */,
+				63B04DA967F76B0047C5B04F /* Audio */,
+				A5B13CA1391D5F3B8ACB2C33 /* Localizable.strings */,
+				7E006126442D1189B5ED5DCA /* Portraits */,
+			);
+			path = DrawlessChess;
+			sourceTree = "<group>";
+		};
+		9B7B92C59DD5FE7600118E44 /* engine */ = {
+			isa = PBXGroup;
+			children = (
+				DC0E870DEA1866DED6A004A7 /* variants.ini */,
+			);
+			name = engine;
+			path = ../engine;
+			sourceTree = "<group>";
+		};
+		9C3C214B3EFA1B38918232B2 = {
+			isa = PBXGroup;
+			children = (
+				962327823D3983ABF8914EF7 /* DrawlessChess */,
+				827A162DC4062ADEC37B925F /* DrawlessChessUITests */,
+				9B7B92C59DD5FE7600118E44 /* engine */,
+				B07C8B701DD97C42242C3249 /* Frameworks */,
+				2BF9A847B4506BD3F38C65CB /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		B07C8B701DD97C42242C3249 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				FD909917D6D141E2F4F28121 /* DrawlessShared.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		36A9CBF29395C911570D77E9 /* DrawlessChessUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = CE6A96A6875E0B827659A2BD /* Build configuration list for PBXNativeTarget "DrawlessChessUITests" */;
+			buildPhases = (
+				9754C9C6DF54056F3E321D11 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				31BA77C6E6BBBBB53AD067C2 /* PBXTargetDependency */,
+			);
+			name = DrawlessChessUITests;
+			packageProductDependencies = (
+			);
+			productName = DrawlessChessUITests;
+			productReference = 9EA3703F572E14F42B16153E /* DrawlessChessUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+		3C31B5EEEE052B0FC5EF9032 /* DrawlessChess */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 349AC68D666BB8A20657FBA7 /* Build configuration list for PBXNativeTarget "DrawlessChess" */;
+			buildPhases = (
+				4A6AFF009077A486A633BEA1 /* Build shared Kotlin framework */,
+				BE2EA96E2989ADA766F2EF7C /* Sources */,
+				6D52F4CA6980DA3367E53BB7 /* Resources */,
+				49633515A970A28D7E7BC911 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = DrawlessChess;
+			packageProductDependencies = (
+			);
+			productName = DrawlessChess;
+			productReference = 9DBE18F473CD2BC08FA9A217 /* DrawlessChess.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		79CAFA469BF09437E6FA5264 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 2620;
+				TargetAttributes = {
+					36A9CBF29395C911570D77E9 = {
+						DevelopmentTeam = CJF2JVS342;
+						ProvisioningStyle = Automatic;
+						TestTargetID = 3C31B5EEEE052B0FC5EF9032;
+					};
+					3C31B5EEEE052B0FC5EF9032 = {
+						DevelopmentTeam = CJF2JVS342;
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = 20C679FD6335A004DD1F7548 /* Build configuration list for PBXProject "DrawlessChess" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				de,
+				en,
+				"es-419",
+				fr,
+				"pt-BR",
+			);
+			mainGroup = 9C3C214B3EFA1B38918232B2;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 2BF9A847B4506BD3F38C65CB /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				3C31B5EEEE052B0FC5EF9032 /* DrawlessChess */,
+				36A9CBF29395C911570D77E9 /* DrawlessChessUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		6D52F4CA6980DA3367E53BB7 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D993B852FCA67F7C7D5C370F /* ATTRIBUTION.properties in Resources */,
+				F52C18043A58D866E7F6CF5D /* Assets.xcassets in Resources */,
+				4426BAE298937E7708272D92 /* Localizable.strings in Resources */,
+				27B685E18AEB81C7001F2E6B /* chess_capture_crush_01.m4a in Resources */,
+				15F576159981EB5F30DA1400 /* chess_capture_crush_02.m4a in Resources */,
+				C544DC8784B7389E8C4682C0 /* chess_capture_crush_03.m4a in Resources */,
+				F5DBCD544036BB6DFCACD592 /* chess_capture_crush_04.m4a in Resources */,
+				711BD238EEA0B40ED7BCB41A /* chess_capture_crush_05.m4a in Resources */,
+				ACA1881BE56285EDCD4A4B45 /* chess_capture_crush_06.m4a in Resources */,
+				AA0763C013F8A10A5C573E65 /* chess_capture_crush_07.m4a in Resources */,
+				8ECE7F3B3CEEE1460CD90B2E /* chess_capture_crush_08.m4a in Resources */,
+				5C1C02C52D58C7B6469F81E7 /* chess_capture_crush_09.m4a in Resources */,
+				C85CE141566DE4A374B30973 /* chess_capture_crush_10.m4a in Resources */,
+				50FBA58ED2EFBEF6EDB51E59 /* chess_capture_crush_11.m4a in Resources */,
+				63492B0F6A067150CB9D0DC5 /* chess_capture_crush_12.m4a in Resources */,
+				31FAFDF1EDA71CC7DE3A3F65 /* chess_castle_wood_01.m4a in Resources */,
+				0A0EB6D1970D3F6F520E9616 /* chess_castle_wood_02.m4a in Resources */,
+				FF99DCE04F50D2565824038B /* chess_castle_wood_03.m4a in Resources */,
+				782D9A95B74590049923E93B /* chess_castle_wood_04.m4a in Resources */,
+				3C9993819CA096D856E5CD88 /* chess_castle_wood_05.m4a in Resources */,
+				13943574478B03CE3ABE7610 /* chess_castle_wood_06.m4a in Resources */,
+				A825CDB1ED0D2B9FF2E49898 /* chess_check_mechanical_02.m4a in Resources */,
+				627CE91DD1E39C6DB2AEE318 /* chess_checkmate_stone_01.m4a in Resources */,
+				2BE87B43928644739C496D50 /* chess_en_passant_brick_01.m4a in Resources */,
+				EE9F911C756B8294FD221921 /* chess_firework_high_01.m4a in Resources */,
+				31BBD1190C41445F67DDB68D /* chess_firework_high_02.m4a in Resources */,
+				726CD7232D4DBE8B427EE558 /* chess_firework_low_01.m4a in Resources */,
+				11E9B403B3F5F03C43D17FC1 /* chess_firework_low_02.m4a in Resources */,
+				3FA10F311DF2C661216C0AEA /* chess_firework_mid_01.m4a in Resources */,
+				7AEE8588F0A5509AED0ED986 /* chess_firework_mid_02.m4a in Resources */,
+				13DF05DC9D4037CA6F0055E7 /* chess_game_start_01.m4a in Resources */,
+				ECA354188FEDB9C42954BCC2 /* chess_game_start_02.m4a in Resources */,
+				D572DC2CABF5345F55ADE619 /* chess_game_start_03.m4a in Resources */,
+				E2FF46EE51D69D70394AEA5D /* chess_glass_fracture_01.m4a in Resources */,
+				CAA0FA7EABFA1D22DCDE2F3B /* chess_glass_fracture_02.m4a in Resources */,
+				C0428A0FAB439BE5570DCE83 /* chess_glass_fracture_03.m4a in Resources */,
+				78E0C87B4F5AD86440BD6459 /* chess_glass_impact_01.m4a in Resources */,
+				578E62217D2437F42C3108DE /* chess_glass_impact_02.m4a in Resources */,
+				D3031FEFCF442C3B8CB8DD46 /* chess_glass_impact_03.m4a in Resources */,
+				7032D84B58CB6EA7ACE1225F /* chess_glass_shards_01.m4a in Resources */,
+				705764065F1B62840BB5F2E5 /* chess_glass_shards_02.m4a in Resources */,
+				7A8FCE6BC5A0AE3A04F07B20 /* chess_glass_shards_03.m4a in Resources */,
+				9BFA332FB75C8AB558632E34 /* chess_hint_01.m4a in Resources */,
+				00CFFFB89A4D38B9A5AAF333 /* chess_hint_02.m4a in Resources */,
+				35A67A1BAB5B10AE867C351E /* chess_hint_03.m4a in Resources */,
+				46EA15672E61A470966A5BB5 /* chess_low_time_01.m4a in Resources */,
+				C90E8C784D314F971227F729 /* chess_low_time_02.m4a in Resources */,
+				623FB8CE86D86E04C4D593F1 /* chess_low_time_03.m4a in Resources */,
+				66F2058025343C39A0D91FC0 /* chess_low_time_04.m4a in Resources */,
+				278352E7FB45EE5F635572E2 /* chess_move_wood_01.m4a in Resources */,
+				331705174B630B356F989059 /* chess_move_wood_02.m4a in Resources */,
+				9B38F9CF063DFC07D3006AD3 /* chess_move_wood_03.m4a in Resources */,
+				40B608EE8F851FCF71D31A2E /* chess_move_wood_04.m4a in Resources */,
+				D241C32F76B2636CF646D031 /* chess_move_wood_05.m4a in Resources */,
+				32A384AA6C8D7A4AA47DF930 /* chess_move_wood_06.m4a in Resources */,
+				04DB47C0E7435AF57DE214F6 /* chess_move_wood_07.m4a in Resources */,
+				A2CE63D0D6D102A3FA73097C /* chess_move_wood_08.m4a in Resources */,
+				64A475B8BB35A3AC9D8D05B5 /* chess_move_wood_09.m4a in Resources */,
+				FB9E1BB6C2515297F049956A /* chess_move_wood_10.m4a in Resources */,
+				B4AA4CD066622BF7D2073825 /* chess_move_wood_11.m4a in Resources */,
+				80B21A9A676E48ED966AAA0C /* chess_move_wood_12.m4a in Resources */,
+				C3B6C785F38EDE49AD3970FC /* chess_move_wood_13.m4a in Resources */,
+				500E85568BB930619D853A8A /* chess_move_wood_14.m4a in Resources */,
+				93291DDA5CC6BC3F08DA554A /* chess_move_wood_15.m4a in Resources */,
+				A23211C6B75C070ACA859248 /* chess_move_wood_16.m4a in Resources */,
+				943A5C21FEBBCBD72B3BC2FE /* chess_move_wood_17.m4a in Resources */,
+				7D8FD6C05A319C9DD274643D /* chess_move_wood_18.m4a in Resources */,
+				4BBEB1E8F04E8953A7B1AFAE /* chess_move_wood_19.m4a in Resources */,
+				B9C7C19D0D5E96540A8A5E43 /* chess_move_wood_20.m4a in Resources */,
+				0B601673778A0829BAE4E5ED /* chess_move_wood_21.m4a in Resources */,
+				8AAD5B14275AC80EF2949848 /* chess_move_wood_22.m4a in Resources */,
+				899E8BEDB179A46AE182E42C /* chess_move_wood_23.m4a in Resources */,
+				EC6B2941D8368408E9A2B343 /* chess_move_wood_24.m4a in Resources */,
+				45B1157E28DA5FB8C057550D /* chess_move_wood_25.m4a in Resources */,
+				C1A47CA285EB31047E512667 /* chess_move_wood_26.m4a in Resources */,
+				BA6D309CEF39DE037BD4F9A8 /* chess_move_wood_27.m4a in Resources */,
+				AF743195F88F326624C950DA /* chess_move_wood_28.m4a in Resources */,
+				B8ABFCE96138A8078D24612A /* chess_move_wood_29.m4a in Resources */,
+				0561D3C1E2D997282189EF2C /* chess_move_wood_30.m4a in Resources */,
+				9D0DCCE275636A176DB35080 /* chess_move_wood_31.m4a in Resources */,
+				F89006B29491AE2C6146A8A1 /* chess_move_wood_32.m4a in Resources */,
+				94F2DE63A3D735D84E18D74C /* chess_move_wood_33.m4a in Resources */,
+				9A5DBD382067B3CE3F217B11 /* chess_move_wood_34.m4a in Resources */,
+				C6868B164B05F9F0EC6D7CA3 /* chess_move_wood_35.m4a in Resources */,
+				37E7E7026AF747BC3E81C5F9 /* chess_move_wood_36.m4a in Resources */,
+				CCEA07645C008B8B63B7140A /* chess_move_wood_37.m4a in Resources */,
+				EA25D89B1486913998324D8E /* chess_move_wood_38.m4a in Resources */,
+				AEE563E29038DC667C0DB074 /* chess_move_wood_39.m4a in Resources */,
+				C98277EC3137D3724399F6F6 /* chess_move_wood_40.m4a in Resources */,
+				5D00BC7E2A9FA3177E4566EB /* chess_move_wood_41.m4a in Resources */,
+				D9C146A8AF6C05BBCB97F63B /* chess_move_wood_42.m4a in Resources */,
+				EF4F5A6DE2D0F2DD9078A8B9 /* chess_move_wood_43.m4a in Resources */,
+				8E0627656B2D976923D26174 /* chess_move_wood_44.m4a in Resources */,
+				FB2670A1245AF03B3771ECA9 /* chess_move_wood_45.m4a in Resources */,
+				0EFDE28485865EA9F5988512 /* chess_move_wood_46.m4a in Resources */,
+				88893A635E1E70038C4EF697 /* chess_move_wood_47.m4a in Resources */,
+				84AF1BCDA7AB7E78803C8059 /* chess_move_wood_48.m4a in Resources */,
+				187B3FE1C8FF324873952D3C /* chess_move_wood_49.m4a in Resources */,
+				84CCA4478D30017D74BAC36F /* chess_move_wood_50.m4a in Resources */,
+				BC6BDC550E86C2FE0130F822 /* chess_promotion_01.m4a in Resources */,
+				596C19D5B6A26514028C2B12 /* chess_promotion_02.m4a in Resources */,
+				7CFC8F797A474B2D7C612C0E /* chess_promotion_03.m4a in Resources */,
+				60C598DF37EED49257EA7AFA /* chess_promotion_04.m4a in Resources */,
+				4DFA644D68207D1D125974B7 /* chess_undo_01.m4a in Resources */,
+				21BB44F1FA6ECB0803DD1E9E /* chess_undo_02.m4a in Resources */,
+				8CFAE3CDB41628C9D1B39C6C /* chess_undo_03.m4a in Resources */,
+				DAB3126D9BFDB5F248F9BF1E /* home_hero_kings.png in Resources */,
+				4E3291123B8AD59A33A1AF36 /* opponent_adaptive.png in Resources */,
+				F8A92F115AAE0131F196F001 /* opponent_casual.png in Resources */,
+				70C82F4AA164D4631C03EDA4 /* opponent_challenger.png in Resources */,
+				1C2A75D6595FCFCC4363D553 /* opponent_club.png in Resources */,
+				AD4626CB5DF8392206E520E2 /* opponent_expert.png in Resources */,
+				CB98CAF4735BD4C17B7F0C6D /* opponent_grandmaster.png in Resources */,
+				685C9B499D5D80E4CAEBE537 /* opponent_learner.png in Resources */,
+				81A6D87DCD28D3B01D12DB22 /* opponent_master.png in Resources */,
+				533D41A2ADD6CC671C2F0E63 /* variants.ini in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		4A6AFF009077A486A633BEA1 /* Build shared Kotlin framework */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Build shared Kotlin framework";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "if [ \"YES\" = \"$OVERRIDE_KOTLIN_BUILD_IDE_SUPPORTED\" ]; then\n  echo \"Skipping duplicate Kotlin framework build\"\n  exit 0\nfi\n\"$SRCROOT/../scripts/xcode-build-kmp.sh\"\n";
+		};
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		9754C9C6DF54056F3E321D11 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				24C4C69177D2CFB1674DB7FE /* DrawlessChessUITests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BE2EA96E2989ADA766F2EF7C /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E353FF359B926A86C0354C39 /* BoardVisuals.swift in Sources */,
+				1E210BFF07C511FF999B7491 /* ContentView.swift in Sources */,
+				B4564C7091E4D739AB478B91 /* DrawlessChessApp.swift in Sources */,
+				90988A560CC8467A8E77235E /* DrawlessChessModel.swift in Sources */,
+				5217AC1E70FAB77311C10A53 /* GameFeedback.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		31BA77C6E6BBBBB53AD067C2 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 3C31B5EEEE052B0FC5EF9032 /* DrawlessChess */;
+			targetProxy = ABA30A3006EE660EBC26CD5A /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin PBXVariantGroup section */
+		A5B13CA1391D5F3B8ACB2C33 /* Localizable.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				52A9CDB8E91411D8463BA2AC /* de */,
+				6A8E86353A8982ADDAEF149D /* en */,
+				38B29F09AFBB7B8459E4669F /* es-419 */,
+				0F4AD7DFB3DE25DDB3F487DD /* fr */,
+				F71546DE78208ACE4BC80751 /* pt-BR */,
+			);
+			name = Localizable.strings;
+			sourceTree = "<group>";
+		};
+/* End PBXVariantGroup section */
+
+/* Begin XCBuildConfiguration section */
+		119B7189BB4D66D870A43B58 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = CJF2JVS342;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				MARKETING_VERSION = 1.0.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		1D101C6B0314EE76262AE527 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.drawlesschess.uitests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = DrawlessChess;
+			};
+			name = Release;
+		};
+		888B6C229BC949EEBB5A7390 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.drawlesschess.uitests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = DrawlessChess;
+			};
+			name = Debug;
+		};
+		9579A2E7FBD97557C5E097E4 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				"CODE_SIGNING_ALLOWED[sdk=iphonesimulator*]" = NO;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"\"../multiplatform/shared-core/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)\"",
+				);
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "Drawless Chess";
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.drawlesschess;
+				PRODUCT_NAME = "Drawless Chess";
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		A5AB9E59585F7D9A98B3DB81 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = CJF2JVS342;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				MARKETING_VERSION = 1.0.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		FCD600CDEF5B3E9654CE18DE /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				"CODE_SIGNING_ALLOWED[sdk=iphonesimulator*]" = NO;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"\"../multiplatform/shared-core/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)\"",
+				);
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "Drawless Chess";
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.drawlesschess;
+				PRODUCT_NAME = "Drawless Chess";
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		20C679FD6335A004DD1F7548 /* Build configuration list for PBXProject "DrawlessChess" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				119B7189BB4D66D870A43B58 /* Debug */,
+				A5AB9E59585F7D9A98B3DB81 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		349AC68D666BB8A20657FBA7 /* Build configuration list for PBXNativeTarget "DrawlessChess" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				9579A2E7FBD97557C5E097E4 /* Debug */,
+				FCD600CDEF5B3E9654CE18DE /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		CE6A96A6875E0B827659A2BD /* Build configuration list for PBXNativeTarget "DrawlessChessUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				888B6C229BC949EEBB5A7390 /* Debug */,
+				1D101C6B0314EE76262AE527 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 79CAFA469BF09437E6FA5264 /* Project object */;
+}

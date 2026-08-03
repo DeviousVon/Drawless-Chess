@@ -81,6 +81,7 @@ class FairyUciEngine(
     )
 
     private val options = linkedMapOf<String, UciOption>()
+    private val lock = ConcurrentLock()
     private var engineName: String? = null
     private var engineAuthor: String? = null
     private var stateValue = UciSessionState.NEW
@@ -92,13 +93,14 @@ class FairyUciEngine(
     private var timerGeneration = 0L
     private var terminalFailure: Throwable? = null
 
-    val state: UciSessionState get() = synchronized(this) { stateValue }
-    val reportedName: String? get() = synchronized(this) { engineName }
-    val reportedAuthor: String? get() = synchronized(this) { engineAuthor }
-    val advertisedOptions: List<UciOption> get() = synchronized(this) { options.values.toList() }
+    val state: UciSessionState get() = lock.withLock { stateValue }
+    val reportedName: String? get() = lock.withLock { engineName }
+    val reportedAuthor: String? get() = lock.withLock { engineAuthor }
+    val advertisedOptions: List<UciOption> get() = lock.withLock { options.values.toList() }
 
-    @Synchronized
-    fun start() {
+    fun start() = lock.withLock { startLocked() }
+
+    private fun startLocked() {
         when (stateValue) {
             UciSessionState.NEW -> {
                 stateValue = UciSessionState.UCI_HANDSHAKE
@@ -117,11 +119,10 @@ class FairyUciEngine(
         }
     }
 
-    @Synchronized
     override fun analyze(
         request: EngineRequest,
         onResult: (Result<EngineResponse>) -> Unit,
-    ): EngineCancellation {
+    ): EngineCancellation = lock.withLock {
         if (stateValue == UciSessionState.FAILED) throw failedStateException()
         if (stateValue == UciSessionState.CLOSED) throw UciEngineStateException("Engine session is closed")
         val work = Work(request, onResult)
@@ -132,13 +133,12 @@ class FairyUciEngine(
             }
             else -> throw UciEngineStateException("Engine already has an active or queued request")
         }
-        if (stateValue == UciSessionState.NEW) start()
+        if (stateValue == UciSessionState.NEW) startLocked()
         if (stateValue == UciSessionState.IDLE && active === work) prepareActive()
         return EngineCancellation { cancel(request.requestId) }
     }
 
-    @Synchronized
-    fun onLine(line: String) {
+    fun onLine(line: String): Unit = lock.withLock {
         if (stateValue == UciSessionState.CLOSED || stateValue == UciSessionState.FAILED) return
         val message = try {
             UciProtocol.parse(line)
@@ -166,15 +166,13 @@ class FairyUciEngine(
         }
     }
 
-    @Synchronized
-    fun onTransportFailure(error: Throwable) {
+    fun onTransportFailure(error: Throwable): Unit = lock.withLock {
         if (stateValue != UciSessionState.CLOSED && stateValue != UciSessionState.FAILED) {
             failSession(error)
         }
     }
 
-    @Synchronized
-    override fun close() {
+    override fun close(): Unit = lock.withLock {
         if (stateValue == UciSessionState.CLOSED) return
         cancelTimer()
         val pending = listOfNotNull(active, queued).filterNot { it.cancelled }
@@ -187,8 +185,7 @@ class FairyUciEngine(
         pending.forEach { deliver(it, Result.failure(error)) }
     }
 
-    @Synchronized
-    private fun cancel(requestId: String) {
+    private fun cancel(requestId: String): Unit = lock.withLock {
         if (queued?.request?.requestId == requestId) {
             queued!!.cancelled = true
             queued = null
@@ -463,7 +460,7 @@ class FairyUciEngine(
         cancelTimer()
         val generation = ++timerGeneration
         timer = timeoutScheduler.schedule(delayMillis) {
-            synchronized(this) {
+            lock.withLock {
                 if (generation == timerGeneration && stateValue !in setOf(
                         UciSessionState.IDLE, UciSessionState.FAILED, UciSessionState.CLOSED,
                     )) {
@@ -556,8 +553,8 @@ class FairyUciEngine(
                 candidate.ranks.getValue(1).principalVariation.first() == bestMove
             } ?: completeSnapshots.firstOrNull()
             val converted = snapshot?.ranks
-                ?.toSortedMap()
                 ?.entries
+                ?.sortedBy { it.key }
                 ?.take(expectedRanks)
                 ?.map { (rank, info) ->
                     when (val score = info.score!!) {

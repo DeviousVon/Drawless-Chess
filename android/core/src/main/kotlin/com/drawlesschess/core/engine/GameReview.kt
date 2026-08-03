@@ -1,6 +1,7 @@
 package com.drawlesschess.core.engine
 
 import com.drawlesschess.core.ChessEngine
+import com.drawlesschess.core.ConcurrentLock
 import com.drawlesschess.core.EngineCancellation
 import com.drawlesschess.core.EngineIdentity
 import com.drawlesschess.core.EngineLimits
@@ -20,7 +21,6 @@ import com.drawlesschess.core.chess.ChessAdapter
 import com.drawlesschess.core.chess.ChessPosition
 import com.drawlesschess.core.chess.ChessRules
 import com.drawlesschess.core.chess.RepetitionKey
-import java.util.concurrent.atomic.AtomicLong
 import kotlin.math.pow
 
 const val REVIEW_EVIDENCE_SCHEMA_VERSION = 1
@@ -403,7 +403,7 @@ class GameReviewRunner(private val engine: ChessEngine) {
         val decisions = replay(gameId, initialFen, moves, rules, outcome)
         val plan = GameReviewPlanner.plan(gameId, initialFen, moves, rules, moveTimeMillis)
         check(plan.requests.size == decisions.size)
-        val runId = REVIEW_RUN_SEQUENCE.incrementAndGet()
+        val runId = nextReviewRunId()
         val requests = buildList {
             addAll(plan.requests)
             val finalDecision = decisions.lastOrNull()
@@ -504,7 +504,7 @@ class GameReviewRunner(private val engine: ChessEngine) {
             "Seeded review evidence came from different engine builds"
         }
 
-        val runId = REVIEW_RUN_SEQUENCE.incrementAndGet()
+        val runId = nextReviewRunId()
         val roots = plan.roots.map { root ->
             root.copy(request = root.request.copy(requestId = "${root.request.requestId}-run-$runId"))
         }
@@ -554,7 +554,7 @@ class GameReviewRunner(private val engine: ChessEngine) {
             var completed = false
         }
 
-        private val lock = Any()
+        private val lock = ConcurrentLock()
         private val reviewed = mutableListOf<ReviewedMove>()
         private val identities = linkedSetOf<EngineIdentity>()
         private var active: Submission? = null
@@ -577,7 +577,7 @@ class GameReviewRunner(private val engine: ChessEngine) {
         }
 
         override fun cancel() {
-            val cancellation = synchronized(lock) {
+            val cancellation = lock.withLock {
                 if (cancelled || finished) return
                 cancelled = true
                 finished = true
@@ -587,7 +587,7 @@ class GameReviewRunner(private val engine: ChessEngine) {
         }
 
         private fun queueRoot() {
-            val index = synchronized(lock) {
+            val index = lock.withLock {
                 if (cancelled || finished || active != null || cursor !in roots.indices) return
                 cursor
             }
@@ -607,7 +607,7 @@ class GameReviewRunner(private val engine: ChessEngine) {
         }
 
         private fun enqueue(submission: Submission) {
-            val shouldDrain = synchronized(lock) {
+            val shouldDrain = lock.withLock {
                 if (cancelled || finished || active != null || submission.rootIndex != cursor) return
                 check(queuedSubmission == null) { "Player review attempted to queue concurrent work" }
                 queuedSubmission = submission
@@ -622,7 +622,7 @@ class GameReviewRunner(private val engine: ChessEngine) {
         /** Trampolines seeded and synchronously-completing engines without recursive submission. */
         private fun drainSubmissions() {
             while (true) {
-                val submission = synchronized(lock) {
+                val submission = lock.withLock {
                     if (cancelled || finished) {
                         queuedSubmission = null
                         dispatching = false
@@ -638,7 +638,7 @@ class GameReviewRunner(private val engine: ChessEngine) {
         }
 
         private fun submitNow(submission: Submission) {
-            synchronized(lock) {
+            lock.withLock {
                 if (cancelled || finished || active != null || submission.rootIndex != cursor) return
                 active = submission
             }
@@ -665,7 +665,7 @@ class GameReviewRunner(private val engine: ChessEngine) {
                 return
             }
             var cancelImmediately = false
-            synchronized(lock) {
+            lock.withLock {
                 if (active === submission && !submission.completed && !cancelled && !finished) {
                     submission.cancellation = cancellation
                 } else if (cancelled && !submission.completed) {
@@ -681,14 +681,14 @@ class GameReviewRunner(private val engine: ChessEngine) {
             var completion: Result<GameReviewResult>? = null
             var helper: Pair<Int, GameReviewAdjacentRoot>? = null
             var submitNextRoot = false
-            synchronized(lock) {
+            lock.withLock {
                 if (submission.completed || cancelled || finished || active !== submission) return
                 submission.completed = true
                 active = null
                 val response = result.getOrElse { error ->
                     finished = true
                     completion = Result.failure(error)
-                    return@synchronized
+                    return@withLock
                 }
                 if (!response.matches(submission.request)) {
                     finished = true
@@ -697,7 +697,7 @@ class GameReviewRunner(private val engine: ChessEngine) {
                             "Player review response identity does not match request ${submission.request.requestId}",
                         ),
                     )
-                    return@synchronized
+                    return@withLock
                 }
                 try {
                     require(response.engine.drawlessPatch == REVIEW_REQUIRED_DRAWLESS_PATCH_VERSION) {
@@ -786,7 +786,7 @@ class GameReviewRunner(private val engine: ChessEngine) {
         )
 
         private fun finish(result: Result<GameReviewResult>) {
-            val deliver = synchronized(lock) {
+            val deliver = lock.withLock {
                 if (cancelled || finished) false else {
                     finished = true
                     true
@@ -812,7 +812,7 @@ class GameReviewRunner(private val engine: ChessEngine) {
             var completed = false
         }
 
-        private val lock = Any()
+        private val lock = ConcurrentLock()
         private val responses = mutableListOf<EngineResponse>()
         private var active: Submission? = null
         private var cancelled = false
@@ -828,7 +828,7 @@ class GameReviewRunner(private val engine: ChessEngine) {
         }
 
         override fun cancel() {
-            val cancellation = synchronized(lock) {
+            val cancellation = lock.withLock {
                 if (cancelled || finished) return
                 cancelled = true
                 finished = true
@@ -838,7 +838,7 @@ class GameReviewRunner(private val engine: ChessEngine) {
         }
 
         private fun submit(index: Int) {
-            val submission = synchronized(lock) {
+            val submission = lock.withLock {
                 if (cancelled || finished) return
                 Submission(index).also { active = it }
             }
@@ -849,7 +849,7 @@ class GameReviewRunner(private val engine: ChessEngine) {
                 return
             }
             var cancelImmediately = false
-            synchronized(lock) {
+            lock.withLock {
                 if (active === submission && !submission.completed && !cancelled && !finished) {
                     submission.cancellation = cancellation
                 } else if (cancelled && !submission.completed) {
@@ -863,14 +863,14 @@ class GameReviewRunner(private val engine: ChessEngine) {
             var nextIndex: Int? = null
             var completion: Result<GameReviewResult>? = null
             var progress: GameReviewProgress? = null
-            synchronized(lock) {
+            lock.withLock {
                 if (submission.completed || cancelled || finished || active !== submission) return
                 submission.completed = true
                 active = null
                 val response = result.getOrElse { error ->
                     finished = true
                     completion = Result.failure(error)
-                    return@synchronized
+                    return@withLock
                 }
                 val request = requests[submission.index]
                 if (!response.matches(request)) {
@@ -878,7 +878,7 @@ class GameReviewRunner(private val engine: ChessEngine) {
                     completion = Result.failure(
                         IllegalStateException("Review response identity does not match request ${request.requestId}"),
                     )
-                    return@synchronized
+                    return@withLock
                 }
                 if (response.engine.drawlessPatch != REVIEW_REQUIRED_DRAWLESS_PATCH_VERSION) {
                     finished = true
@@ -887,7 +887,7 @@ class GameReviewRunner(private val engine: ChessEngine) {
                             "Game Review requires Drawless patch $REVIEW_REQUIRED_DRAWLESS_PATCH_VERSION",
                         ),
                     )
-                    return@synchronized
+                    return@withLock
                 }
                 responses += response
                 progress = GameReviewProgress(responses.size, requests.size)
@@ -904,7 +904,7 @@ class GameReviewRunner(private val engine: ChessEngine) {
         }
 
         private fun finish(result: Result<GameReviewResult>) {
-            val deliver = synchronized(lock) {
+            val deliver = lock.withLock {
                 if (cancelled || finished) false else {
                     finished = true
                     true
@@ -952,7 +952,15 @@ class GameReviewRunner(private val engine: ChessEngine) {
 
     private companion object {
         const val DEFAULT_MOVE_TIME_MILLIS = 350L
-        val REVIEW_RUN_SEQUENCE = AtomicLong()
+        val REVIEW_RUN_SEQUENCE_LOCK = ConcurrentLock()
+        var reviewRunSequence = 0L
+
+        fun nextReviewRunId(): Long = REVIEW_RUN_SEQUENCE_LOCK.withLock {
+            if (reviewRunSequence == Long.MAX_VALUE) {
+                throw ArithmeticException("Review run sequence overflow")
+            }
+            ++reviewRunSequence
+        }
 
         fun replay(
             gameId: String,

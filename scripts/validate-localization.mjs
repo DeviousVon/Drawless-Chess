@@ -253,14 +253,107 @@ function validateHardCodedStrings() {
   }
 }
 
+function parseAppleStrings(file) {
+  const table = new Map();
+  const source = fs.readFileSync(file, "utf8");
+  const pattern = /^"((?:\\.|[^"])*)"\s*=\s*"((?:\\.|[^"])*)";\s*$/gm;
+  const decode = (value) => value
+    .replaceAll("\\n", "\n")
+    .replaceAll('\\"', '"')
+    .replaceAll("\\\\", "\\");
+  for (const match of source.matchAll(pattern)) table.set(decode(match[1]), decode(match[2]));
+  return table;
+}
+
+function applePlaceholders(value) {
+  const found = [];
+  let implicitIndex = 1;
+  const matcher = /%(?:(\d+)\$)?[-#+ 0,(<]*\d*(?:\.\d+)?(@|[a-zA-Z])/g;
+  for (const match of value.replaceAll("%%", "").matchAll(matcher)) {
+    const index = Number(match[1] ?? implicitIndex++);
+    const type = match[2] === "@" ? "@" : match[2].toLowerCase();
+    found.push(`${index}:${type}`);
+  }
+  return found.sort().join(",");
+}
+
+function validateIosLocalizations() {
+  const iosRoot = path.join(repositoryRoot, "iosApp", "DrawlessChess");
+  const locales = ["en", "de", "fr", "es-419", "pt-BR"];
+  const tables = new Map();
+  for (const locale of locales) {
+    const file = path.join(iosRoot, `${locale}.lproj`, "Localizable.strings");
+    if (!fs.existsSync(file)) {
+      errors.push(`iOS ${locale}: Localizable.strings is missing`);
+      continue;
+    }
+    tables.set(locale, parseAppleStrings(file));
+  }
+  const canonical = tables.get("en");
+  if (!canonical) return;
+
+  for (const locale of locales.slice(1)) {
+    const translated = tables.get(locale);
+    if (!translated) continue;
+    for (const [key, englishValue] of canonical) {
+      if (!translated.has(key)) {
+        errors.push(`iOS ${locale}: missing key ${JSON.stringify(key)}`);
+        continue;
+      }
+      if (applePlaceholders(englishValue) !== applePlaceholders(translated.get(key))) {
+        errors.push(`iOS ${locale}: placeholder mapping differs for ${JSON.stringify(key)}`);
+      }
+    }
+    for (const key of translated.keys()) {
+      if (!canonical.has(key)) errors.push(`iOS ${locale}: extra key ${JSON.stringify(key)}`);
+    }
+  }
+
+  const swiftFiles = readFiles(iosRoot, (file) => file.endsWith(".swift"));
+  const swift = swiftFiles.map((file) => fs.readFileSync(file, "utf8")).join("\n");
+  const semanticKeyPattern = /\blocalized(?:Format)?\(\s*"((?:\\.|[^"\\])*)"/g;
+  for (const match of swift.matchAll(semanticKeyPattern)) {
+    if (!canonical.has(match[1])) {
+      errors.push(`iOS Swift: localized key ${JSON.stringify(match[1])} is missing from English`);
+    }
+  }
+
+  const literalPatterns = [
+    /\b(?:Text|Button|Toggle|Picker|Label|Link|navigationTitle|accessibilityLabel)\(\s*"((?:\\.|[^"\\])*)"/g,
+    /\b(?:title|message|label):\s*"((?:\\.|[^"\\])*)"/g,
+  ];
+  for (const pattern of literalPatterns) {
+    for (const match of swift.matchAll(pattern)) {
+      const key = match[1].replace(/\\"/g, '"').replace(/\\n/g, "\n");
+      if (key.includes("\\(")) {
+        errors.push(`iOS Swift: interpolated player-facing literal must use localizedFormat: ${JSON.stringify(key)}`);
+      } else if (!canonical.has(key)) {
+        errors.push(`iOS Swift: player-facing literal is missing from Localizable.strings: ${JSON.stringify(key)}`);
+      }
+    }
+  }
+
+  const forbiddenDynamicFallbacks = [
+    "Text(theme.name)",
+    "Text(result)",
+    "Text(summary)",
+    "Text(game.reviewDetails)",
+    ".accessibilityLabel(cell.accessibilityLabel)",
+  ];
+  for (const fallback of forbiddenDynamicFallbacks) {
+    if (swift.includes(fallback)) errors.push(`iOS Swift: untranslated dynamic fallback remains: ${fallback}`);
+  }
+}
+
 validateLocaleBuildConfiguration();
 validateResources();
 validateHardCodedStrings();
+validateIosLocalizations();
 
 if (errors.length > 0) {
   console.error(`Localization validation failed with ${errors.length} issue(s):`);
   errors.forEach((error) => console.error(`  - ${error}`));
   process.exitCode = 1;
 } else {
-  console.log("Localization validation passed: resources, placeholders, markup, and Kotlin UI literals are clean.");
+  console.log("Localization validation passed: Android/iOS resources, placeholders, markup, and UI literals are clean.");
 }

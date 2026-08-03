@@ -202,8 +202,9 @@ data class CoordinatorCheckpoint(
  */
 fun CoordinatorCheckpoint.forfeitByHuman(now: TimeReading): CoordinatorCheckpoint {
     require(outcome == null) { "Only an unfinished game can be forfeited" }
+    if (revision == Long.MAX_VALUE) throw ArithmeticException("Coordinator revision overflow")
     return copy(
-        revision = Math.addExact(revision, 1L),
+        revision = revision + 1L,
         outcome = GameOutcome(
             winner = config.humanSide.opposite(),
             reason = EndReason.RESIGNATION,

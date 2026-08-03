@@ -1,6 +1,6 @@
 package com.drawlesschess.core
 
-import java.time.Instant
+import kotlin.time.Instant
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -462,7 +462,7 @@ fun main() {
     suite.test("saved rated game rejects assistance") {
         assertThrows<IllegalArgumentException> {
             SavedGameV1(
-                "g6", Instant.EPOCH, GameMode.RATED, "start-fen", drawless,
+                "g6", Instant.fromEpochMilliseconds(0), GameMode.RATED, "start-fen", drawless,
                 TimeControl.Untimed, emptyList(), EngineIdentity("fairy", "build", 0),
                 assistance = AssistanceCounts(hints = 1),
             )
@@ -470,7 +470,7 @@ fun main() {
     }
     suite.test("saved casual game accepts assistance") {
         val saved = SavedGameV1(
-            "g7", Instant.EPOCH, GameMode.CASUAL, "start-fen", drawless,
+            "g7", Instant.fromEpochMilliseconds(0), GameMode.CASUAL, "start-fen", drawless,
             TimeControl.Untimed, emptyList(), EngineIdentity("fairy", "build", 0),
             assistance = AssistanceCounts(undos = 1),
         )
@@ -515,7 +515,7 @@ fun main() {
     suite.test("untimed save rejects clock snapshots") {
         assertThrows<IllegalArgumentException> {
             SavedGameV1(
-                "g8", Instant.EPOCH, GameMode.CASUAL, "start-fen", drawless,
+                "g8", Instant.fromEpochMilliseconds(0), GameMode.CASUAL, "start-fen", drawless,
                 TimeControl.Untimed,
                 listOf(SavedMoveV1(UciMove("g1f3"), whiteRemainingMillis = 5)),
                 EngineIdentity("fairy", "build", 0),
@@ -525,7 +525,7 @@ fun main() {
     suite.test("saved result cannot exceed replay history") {
         assertThrows<IllegalArgumentException> {
             SavedGameV1(
-                "g9", Instant.EPOCH, GameMode.CASUAL, "start-fen", drawless,
+                "g9", Instant.fromEpochMilliseconds(0), GameMode.CASUAL, "start-fen", drawless,
                 TimeControl.Untimed, emptyList(), EngineIdentity("fairy", "build", 0),
                 result = SavedResultV1(Side.WHITE, EndReason.CHECKMATE, 1),
             )

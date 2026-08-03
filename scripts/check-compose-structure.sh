@@ -14,10 +14,16 @@ compose_jar="$work/compose-structure.jar"
 [[ -x "$compiler" ]] || { echo "Kotlin compiler missing" >&2; exit 1; }
 [[ -f "$core_jar" ]] || { echo "Run npm run test:kotlin first" >&2; exit 1; }
 
-mapfile -t sources < <(find "$root/android/app/src/main/kotlin" -name '*.kt' -print | sort)
+sources=()
+while IFS= read -r source; do
+  sources+=("$source")
+done < <(find "$root/android/app/src/main/kotlin" -name '*.kt' -print | sort)
 [[ ${#sources[@]} -ge 4 ]] || { echo "Compose source set is incomplete" >&2; exit 1; }
 
-mapfile -t engine_sources < <(find "$root/android/engine/src/main/kotlin" -name '*.kt' -print | sort)
+engine_sources=()
+while IFS= read -r source; do
+  engine_sources+=("$source")
+done < <(find "$root/android/engine/src/main/kotlin" -name '*.kt' -print | sort)
 [[ ${#engine_sources[@]} -ge 5 ]] || { echo "Android engine source set is incomplete" >&2; exit 1; }
 
 "$compiler" -jvm-target 17 -classpath "$core_jar" \
@@ -40,7 +46,10 @@ mapfile -t engine_sources < <(find "$root/android/engine/src/main/kotlin" -name 
   "$root/android/app/src/main/kotlin/com/drawlesschess/ui/GameRuntime.kt" \
   -d "$runtime_jar"
 
-mapfile -t compose_sources < <(printf '%s\n' "${sources[@]}" | rg -v '/(GamePacing|GameRuntime|StartingColor)\.kt$')
+compose_sources=()
+while IFS= read -r source; do
+  compose_sources+=("$source")
+done < <(printf '%s\n' "${sources[@]}" | rg -v '/(GamePacing|GameRuntime|StartingColor)\.kt$')
 set +e
 "$compiler" -jvm-target 17 -classpath "$core_jar:$engine_jar:$runtime_jar" "${compose_sources[@]}" \
   -d "$compose_jar" >"$log" 2>&1
