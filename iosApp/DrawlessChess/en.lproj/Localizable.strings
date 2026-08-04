@@ -157,6 +157,7 @@
 "Hide options" = "Hide options";
 "Highlight your pieces that are attacked by the opponent. This is assistance: a win scores 95 instead of 100 points and does not qualify for rated play. It applies to new games; a resumed game keeps the setting it started with." = "Highlight your pieces that are attacked by the opponent. This is assistance: a win scores 95 instead of 100 points and does not qualify for rated play. It applies to new games; a resumed game keeps the setting it started with.";
 "Hint" = "Hint";
+"Hint move arrow from %1$s to %2$s" = "Hint move arrow from %1$s to %2$s";
 "Hint unavailable. Try again." = "Hint unavailable. Try again.";
 "Hints" = "Hints";
 "Home" = "Home";

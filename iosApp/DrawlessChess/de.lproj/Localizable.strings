@@ -157,6 +157,7 @@
 "Hide options" = "Optionen ausblenden";
 "Highlight your pieces that are attacked by the opponent. This is assistance: a win scores 95 instead of 100 points and does not qualify for rated play. It applies to new games; a resumed game keeps the setting it started with." = "Markiert deine Figuren, die vom Gegner angegriffen werden. Dies gilt als Hilfe: Ein Sieg bringt 95 statt 100 Punkte und zählt nicht für gewertete Partien. Die Einstellung gilt für neue Partien; eine fortgesetzte Partie behält ihre ursprüngliche Einstellung.";
 "Hint" = "Hinweis";
+"Hint move arrow from %1$s to %2$s" = "Hinweis-Pfeil von %1$s nach %2$s";
 "Hint unavailable. Try again." = "Hinweis nicht verfügbar. Versuche es erneut.";
 "Hints" = "Hinweise";
 "Home" = "Startseite";
