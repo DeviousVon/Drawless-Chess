@@ -54,14 +54,14 @@ No account. No ads. No analytics or tracking. No in-app purchases. Games and pre
 
 OPEN-SOURCE SOFTWARE
 Drawless Chess is licensed under GNU GPL version 3 or later. Project source and notices are available at:
-https://github.com/DeviousVon/Drawless-Chess/releases/tag/v1.0.0
+https://github.com/DeviousVon/Drawless-Chess/releases/tag/v1.0.1
 ```
 
 Character count: 2,683 of 4,000, including line breaks.
 
 ## Release notes
 
-Draft for version `1.0.0` (`versionCode` 4):
+Draft for version `1.0.1` (`versionCode` 5):
 
 ```text
 Major update: meet Vesper, the eighth opponent. Adaptive play matches your current strength and evolves after each unassisted game. After a completed game, launch Game Review Beta immediately for player-move grades, better-move suggestions, short lines, and board replay. Analysis runs entirely on device with the Drawless-tuned Fairy-Stockfish engine. Reviews are not saved as a history.

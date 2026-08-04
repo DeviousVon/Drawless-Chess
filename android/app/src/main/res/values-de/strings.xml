@@ -255,6 +255,7 @@
     <string name="review_opponent_context_label">Zug des Gegners</string>
     <string name="review_opponent_context_body">Dieser Zug wird als Kontext gezeigt. Nur deine Züge werden bewertet.</string>
     <string name="review_better_move_arrow_accessibility">Pfeil für den besseren Zug von %1$s nach %2$s</string>
+    <string name="hint_move_arrow_accessibility">Hinweis-Pfeil von %1$s nach %2$s</string>
     <string name="review_failed">Analyse nicht verfügbar</string>
     <string name="review_failed_body">Die Engine konnte diese Analyse nicht abschließen.</string>
     <string name="review_cancelled">Analyse gestoppt</string>

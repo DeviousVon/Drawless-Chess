@@ -356,6 +356,15 @@ data class BoardMoveMotion(
     }
 }
 
+data class BoardMoveArrow(
+    val from: Square,
+    val to: Square,
+) {
+    init {
+        require(from != to) { "A move arrow must connect two different squares" }
+    }
+}
+
 data class SquareView(
     val square: Square,
     val displayRow: Int,
@@ -408,6 +417,7 @@ data class BoardScreenState(
     val pieceSet: PieceSet,
     val promotionPrompt: PromotionPrompt?,
     val moveMotion: BoardMoveMotion?,
+    val hintMove: BoardMoveArrow? = null,
 )
 
 object BoardPresenter {
@@ -472,6 +482,7 @@ object BoardPresenter {
             pieceSet = pieceSet,
             promotionPrompt = null,
             moveMotion = null,
+            hintMove = null,
         )
     }
 
@@ -482,6 +493,7 @@ object BoardPresenter {
         theme: BoardTheme = BoardThemes.DEFAULT,
         pieceSet: PieceSet = PieceSets.MODERN_FLAT,
         threatIndicationEnabled: Boolean = false,
+        hintMove: BoardMoveArrow? = null,
     ): BoardScreenState {
         val position = ChessPosition.fromFen(snapshot.currentFen)
         val interactive = snapshot.phase == CoordinatorPhase.HUMAN_TURN &&
@@ -565,6 +577,7 @@ object BoardPresenter {
             pieceSet = pieceSet,
             promotionPrompt = interaction.promotionPrompt,
             moveMotion = moveMotion,
+            hintMove = hintMove,
         )
     }
 

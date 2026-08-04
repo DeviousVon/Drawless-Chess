@@ -123,7 +123,8 @@ data class GameReviewRoot internal constructor(
 }
 
 /** Constructed only through [GameReviewRoot.seed], after the original response identity matches. */
-class SeededGameReviewRoot internal constructor(
+@ConsistentCopyVisibility
+data class SeededGameReviewRoot internal constructor(
     val key: GameReviewRootKey,
     val response: EngineResponse,
 )
@@ -180,7 +181,8 @@ data class GameReviewAdjacentRoot internal constructor(
 }
 
 /** Constructed only through [GameReviewAdjacentRoot.seed] after exact response validation. */
-class SeededGameReviewAdjacentRoot internal constructor(
+@ConsistentCopyVisibility
+data class SeededGameReviewAdjacentRoot internal constructor(
     val key: GameReviewAdjacentKey,
     val response: EngineResponse,
 )

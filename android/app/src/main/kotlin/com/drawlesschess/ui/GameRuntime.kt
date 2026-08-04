@@ -80,6 +80,7 @@ class GameRuntime private constructor(
     internal val gameId: String get() = config.gameId
 
     private val uiContext = applicationContext.applicationContext
+    private val restorableCheckpoint = checkpoint?.withCompatibleReviewPrefetchEvidence()
     private val closed = AtomicBoolean(false)
     private val modelInvalidationListeners = CopyOnWriteArraySet<() -> Unit>()
     private val engineProvision = provisionEngine(uiContext)
@@ -92,7 +93,17 @@ class GameRuntime private constructor(
     private val reviewEngine = IsolatedReviewEngine(uiContext)
     private val reviewLock = Any()
     private val reviewPreparationExecutor = Executors.newSingleThreadExecutor()
+    private val reviewPrefetchEngineSubmissions = AtomicInteger(0)
     private val reviewEngineSubmissions = AtomicInteger(0)
+    private val coordinatorReviewEngine = object : ChessEngine {
+        override fun analyze(
+            request: EngineRequest,
+            onResult: (Result<EngineResponse>) -> Unit,
+        ): EngineCancellation {
+            reviewPrefetchEngineSubmissions.incrementAndGet()
+            return reviewEngine.analyze(request, onResult)
+        }
+    }
     private val reviewRunner = GameReviewRunner(
         object : ChessEngine {
             override fun analyze(
@@ -125,7 +136,7 @@ class GameRuntime private constructor(
     }
     private val idSource = CoordinatorIdSource { UUID.randomUUID().toString() }
     private val coordinator = try {
-        if (checkpoint == null) {
+        if (restorableCheckpoint == null) {
             GameCoordinator.newGame(
                 config,
                 engine,
@@ -136,17 +147,17 @@ class GameRuntime private constructor(
                 initialAssistance = AssistanceCounts(
                     threatIndication = threatIndicationEnabled,
                 ),
-                reviewEngine = reviewEngine,
+                reviewEngine = coordinatorReviewEngine,
             )
         } else {
             GameCoordinator.restore(
-                checkpoint,
+                restorableCheckpoint,
                 engine,
                 checkpointSink,
                 timeSource,
                 idSource,
                 botMovePresentationDelayMillis = GamePacing.PIECE_MOVE_ANIMATION_MILLIS.toLong(),
-                reviewEngine = reviewEngine,
+                reviewEngine = coordinatorReviewEngine,
             )
         }
     } catch (error: Throwable) {
@@ -203,16 +214,22 @@ class GameRuntime private constructor(
                     coordinator.requestHint(effect.positionId) { result ->
                         if (closed.get()) return@requestHint
                         Log.d(HINT_LOG_TAG, "Hint analysis completed success=${result.isSuccess}")
-                        val message = runCatching {
+                        runCatching {
                             result.fold(
-                                onSuccess = { response -> hintMessage(uiContext, effect.currentFen, response) },
-                                onFailure = { uiContext.getString(R.string.hint_unavailable) },
+                                onSuccess = { response ->
+                                    createdController.showHint(
+                                        message = hintMessage(uiContext, effect.currentFen, response),
+                                        move = response.bestMove,
+                                    )
+                                },
+                                onFailure = {
+                                    createdController.showMessage(uiContext.getString(R.string.hint_unavailable))
+                                },
                             )
-                        }.getOrElse { error ->
+                        }.onFailure { error ->
                             Log.e(HINT_LOG_TAG, "Hint result could not be presented", error)
-                            uiContext.getString(R.string.hint_unavailable)
+                            createdController.showMessage(uiContext.getString(R.string.hint_unavailable))
                         }
-                        createdController.showMessage(message)
                         publishModelInvalidation()
                         Log.d(HINT_LOG_TAG, "Hint message published")
                     }
@@ -275,6 +292,9 @@ class GameRuntime private constructor(
 
     /** Counts only non-seeded engine work submitted by the final-review runner. */
     internal fun reviewEngineSubmissionCount(): Int = reviewEngineSubmissions.get()
+
+    /** Counts isolated-engine work submitted by in-game speculative review prefetch. */
+    internal fun reviewPrefetchEngineSubmissionCount(): Int = reviewPrefetchEngineSubmissions.get()
 
     internal fun reviewPrefetchDiagnostics(): RuntimeReviewPrefetchDiagnostics =
         RuntimeReviewPrefetchDiagnostics(
@@ -493,6 +513,28 @@ class GameRuntime private constructor(
         const val HINT_LOG_TAG = "DrawlessChessHint"
         const val REVIEW_LOG_TAG = "DrawlessChessReview"
     }
+}
+
+private fun CoordinatorCheckpoint.withCompatibleReviewPrefetchEvidence(): CoordinatorCheckpoint {
+    val roots = reviewPrefetchRoots.filter { seed ->
+        AndroidFairyEngineFactory.acceptsPersistedReviewEvidence(seed.response.engine)
+    }
+    val adjacentRoots = reviewPrefetchAdjacentRoots.filter { seed ->
+        AndroidFairyEngineFactory.acceptsPersistedReviewEvidence(seed.response.engine)
+    }
+    if (roots.size == reviewPrefetchRoots.size &&
+        adjacentRoots.size == reviewPrefetchAdjacentRoots.size
+    ) {
+        return this
+    }
+    Log.i(
+        "DrawlessChessReview",
+        "Discarding review prefetch evidence from an incompatible embedded engine build",
+    )
+    return copy(
+        reviewPrefetchRoots = roots,
+        reviewPrefetchAdjacentRoots = adjacentRoots,
+    )
 }
 
 private fun hintMessage(context: Context, fen: String, response: EngineResponse): String {

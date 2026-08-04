@@ -19,10 +19,12 @@ internal data class DrawlessPiecePalette(
     val whiteOutline: Color,
     val whiteDetail: Color,
     val whiteKingAccent: Color,
+    val whiteQueenAccent: Color,
     val blackFill: Color,
     val blackOutline: Color,
     val blackDetail: Color,
     val blackKingAccent: Color,
+    val blackQueenAccent: Color,
 )
 
 internal data class DrawlessVisualTheme(
@@ -36,8 +38,8 @@ internal object DrawlessVisualThemes {
         boardTheme = BoardThemes.GLACIER_SLATE,
         descriptionRes = R.string.theme_description_glacier_slate,
         pieces = DrawlessPiecePalette(
-            Color(0xFFF5FCFF), Color(0xFF18313F), Color(0xFF5A7785), Color(0xFFD63E58),
-            Color(0xFF102630), Color(0xFFD9F3FF), Color(0xFF89A9B8), Color(0xFF45D7D9),
+            Color(0xFFF5FCFF), Color(0xFF18313F), Color(0xFF5A7785), Color(0xFFD63E58), Color(0xFF45D7D9),
+            Color(0xFF102630), Color(0xFFD9F3FF), Color(0xFF89A9B8), Color(0xFF45D7D9), Color(0xFFD63E58),
         ),
     )
 
@@ -45,8 +47,8 @@ internal object DrawlessVisualThemes {
         boardTheme = BoardThemes.VERDIGRIS_COPPER,
         descriptionRes = R.string.theme_description_verdigris_copper,
         pieces = DrawlessPiecePalette(
-            Color(0xFFF8F0D9), Color(0xFF1D3531), Color(0xFF607E77), Color(0xFFC84C32),
-            Color(0xFF102724), Color(0xFFF1E5CB), Color(0xFFA5BBB4), Color(0xFFE5A45D),
+            Color(0xFFF8F0D9), Color(0xFF1D3531), Color(0xFF607E77), Color(0xFFC84C32), Color(0xFFE5A45D),
+            Color(0xFF102724), Color(0xFFF1E5CB), Color(0xFFA5BBB4), Color(0xFFE5A45D), Color(0xFFC84C32),
         ),
     )
 
@@ -54,8 +56,8 @@ internal object DrawlessVisualThemes {
         boardTheme = BoardThemes.AMETHYST_GEODE,
         descriptionRes = R.string.theme_description_amethyst_geode,
         pieces = DrawlessPiecePalette(
-            Color(0xFFFCF5E6), Color(0xFF2B1D38), Color(0xFF77648A), Color(0xFFC43E5C),
-            Color(0xFF21162F), Color(0xFFEDE0F7), Color(0xFFBCA4D0), Color(0xFFFFD166),
+            Color(0xFFFCF5E6), Color(0xFF2B1D38), Color(0xFF77648A), Color(0xFFC43E5C), Color(0xFFFFD166),
+            Color(0xFF21162F), Color(0xFFEDE0F7), Color(0xFFBCA4D0), Color(0xFFFFD166), Color(0xFFC43E5C),
         ),
     )
 
@@ -63,8 +65,8 @@ internal object DrawlessVisualThemes {
         boardTheme = BoardThemes.DESERT_SANDSTONE,
         descriptionRes = R.string.theme_description_desert_sandstone,
         pieces = DrawlessPiecePalette(
-            Color(0xFFFFF5DD), Color(0xFF3A281D), Color(0xFF8A6A52), Color(0xFFC43B2E),
-            Color(0xFF241710), Color(0xFFFFE4C7), Color(0xFFC89B78), Color(0xFF4DD8BD),
+            Color(0xFFFFF5DD), Color(0xFF3A281D), Color(0xFF8A6A52), Color(0xFFC43B2E), Color(0xFF4DD8BD),
+            Color(0xFF241710), Color(0xFFFFE4C7), Color(0xFFC89B78), Color(0xFF4DD8BD), Color(0xFFC43B2E),
         ),
     )
 
@@ -72,8 +74,8 @@ internal object DrawlessVisualThemes {
         boardTheme = BoardThemes.IMPERIAL_MARBLE,
         descriptionRes = R.string.theme_description_imperial_marble,
         pieces = DrawlessPiecePalette(
-            Color(0xFFFFFCF2), Color(0xFF26332D), Color(0xFF738078), Color(0xFFAD3043),
-            Color(0xFF111A16), Color(0xFFEAF1EC), Color(0xFF9FB0A6), Color(0xFFE9C349),
+            Color(0xFFFFFCF2), Color(0xFF26332D), Color(0xFF738078), Color(0xFFAD3043), Color(0xFFE9C349),
+            Color(0xFF111A16), Color(0xFFEAF1EC), Color(0xFF9FB0A6), Color(0xFFE9C349), Color(0xFFAD3043),
         ),
     )
 

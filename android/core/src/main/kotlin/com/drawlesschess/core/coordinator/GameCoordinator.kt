@@ -31,6 +31,8 @@ class GameCoordinator private constructor(
     initialMoveClocks: List<MoveClockSnapshot>,
     initialAssistance: AssistanceCounts,
     initialRevision: Long,
+    initialReviewPrefetchRoots: Collection<SeededGameReviewRoot> = emptyList(),
+    initialReviewPrefetchAdjacentRoots: Collection<SeededGameReviewAdjacentRoot> = emptyList(),
 ) {
     private data class ReviewAdjacentCandidate(
         val rootKey: GameReviewRootKey,
@@ -73,13 +75,24 @@ class GameCoordinator private constructor(
     private var activeReviewPrefetchAdjacentRoot: GameReviewAdjacentRoot? = null
     private var activeReviewPrefetchRevision: Long? = null
     private var reviewPrefetchEnabled = false
-    private val reviewPrefetchRootsByKey = linkedMapOf<GameReviewRootKey, SeededGameReviewRoot>()
+    private val reviewPrefetchRootsByKey =
+        linkedMapOf<GameReviewRootKey, SeededGameReviewRoot>().apply {
+            initialReviewPrefetchRoots.forEach { seed -> put(seed.key, seed) }
+        }
     private val reviewPrefetchAdjacentRootsByKey =
-        linkedMapOf<GameReviewAdjacentKey, SeededGameReviewAdjacentRoot>()
-    private val reviewPrefetchRootKeysByPly = linkedMapOf<Int, GameReviewRootKey>()
+        linkedMapOf<GameReviewAdjacentKey, SeededGameReviewAdjacentRoot>().apply {
+            initialReviewPrefetchAdjacentRoots.forEach { seed -> put(seed.key, seed) }
+        }
+    private val reviewPrefetchRootKeysByPly = linkedMapOf<Int, GameReviewRootKey>().apply {
+        initialReviewPrefetchRoots.forEach { seed -> put(seed.key.ply, seed.key) }
+    }
     private val reviewAdjacentCandidates = linkedSetOf<ReviewAdjacentCandidate>()
     private var adjacentPrefetchRevision: Long? = null
     private var engineError: String? = null
+
+    init {
+        rebuildReviewAdjacentCandidates()
+    }
 
     fun start() {
         synchronized(lock) {
@@ -366,9 +379,7 @@ class GameCoordinator private constructor(
             val rebuilt = rebuild(config, retained)
             session = rebuilt.first
             position = rebuilt.second
-            reviewAdjacentCandidates.clear()
-            reviewPrefetchRootKeysByPly.keys.removeAll { ply -> ply > retained.size + 1 }
-            adjacentPrefetchRevision = null
+            trimReviewPrefetchToCurrentHistoryLocked()
             moveClocks = moveClocks.take(retained.size)
             clock = restoredClockAfterUndo(retained.size, timeSource.now())
             assistance = assistance.copy(undos = assistance.undos + 1)
@@ -714,6 +725,8 @@ class GameCoordinator private constructor(
             if (root != null) {
                 seededRoot?.let { seeded ->
                     reviewPrefetchRootsByKey[seeded.key] = seeded
+                    revision++
+                    persistLocked()
                     continuePrefetch = true
                 }
             } else {
@@ -722,6 +735,12 @@ class GameCoordinator private constructor(
                     reviewAdjacentCandidates.remove(
                         ReviewAdjacentCandidate(seeded.key.rootKey, seeded.key.playedMove),
                     )
+                    revision++
+                    // Persisting review evidence advances the durable checkpoint revision, but it
+                    // does not create another idle player turn. Carry the one-fallback allowance
+                    // forward so the continuation below cannot start a second historical search.
+                    adjacentPrefetchRevision = revision
+                    persistLocked()
                     continuePrefetch = true
                 }
             }
@@ -775,6 +794,61 @@ class GameCoordinator private constructor(
             return
         }
         reviewAdjacentCandidates += ReviewAdjacentCandidate(rootKey, transition.move)
+    }
+
+    /** Recreates unfinished played-position fallback work from durable exact root evidence. */
+    private fun rebuildReviewAdjacentCandidates() {
+        reviewAdjacentCandidates.clear()
+        reviewPrefetchRootsByKey.values
+            .sortedBy { seed -> seed.key.ply }
+            .forEach { seed ->
+                val playedMove = session.moves.getOrNull(seed.key.ply - 1)?.move ?: return@forEach
+                if (seed.response.variations.any { variation ->
+                        variation.moves.firstOrNull() == playedMove
+                    }
+                ) {
+                    return@forEach
+                }
+                val adjacentKey = GameReviewPlanner.adjacentRoot(
+                    requestId = "restored-adjacent-${seed.key.ply}",
+                    rootKey = seed.key,
+                    playedMove = playedMove,
+                ).key
+                if (adjacentKey !in reviewPrefetchAdjacentRootsByKey) {
+                    reviewAdjacentCandidates += ReviewAdjacentCandidate(seed.key, playedMove)
+                }
+            }
+    }
+
+    private fun trimReviewPrefetchToCurrentHistoryLocked() {
+        val moves = session.moves.map { recorded -> recorded.move }
+        val expectedRoots = GameReviewPlanner.playerPlan(
+            gameId = config.gameId,
+            initialFen = config.initialFen,
+            moves = moves,
+            rules = config.rules,
+            playerSide = config.humanSide,
+        ).roots.toMutableList()
+        if (session.outcome == null && position.sideToMove == config.humanSide) {
+            expectedRoots += GameReviewPlanner.playerRootAtPosition(
+                requestId = "${config.gameId}-undo-current-review",
+                gameId = config.gameId,
+                initialFen = config.initialFen,
+                moves = moves,
+                rules = config.rules,
+                position = position,
+            )
+        }
+        val expectedKeys = expectedRoots.mapTo(linkedSetOf()) { root -> root.key }
+        reviewPrefetchRootsByKey.keys.retainAll(expectedKeys)
+        reviewPrefetchAdjacentRootsByKey.entries.removeAll { (key, _) ->
+            val playedMove = moves.getOrNull(key.rootKey.ply - 1)
+            key.rootKey !in expectedKeys || playedMove != key.playedMove
+        }
+        reviewPrefetchRootKeysByPly.clear()
+        reviewPrefetchRootsByKey.keys.forEach { key -> reviewPrefetchRootKeysByPly[key.ply] = key }
+        adjacentPrefetchRevision = null
+        rebuildReviewAdjacentCandidates()
     }
 
     private fun expireClockLocked(now: TimeReading): Boolean {
@@ -865,6 +939,8 @@ class GameCoordinator private constructor(
         clock = clock,
         moveClocks = moveClocks,
         assistance = assistance,
+        reviewPrefetchRoots = reviewPrefetchRootsByKey.values.toList(),
+        reviewPrefetchAdjacentRoots = reviewPrefetchAdjacentRootsByKey.values.toList(),
     )
 
     companion object {
@@ -941,11 +1017,62 @@ class GameCoordinator private constructor(
                 "Clock history ply sequence is invalid"
             }
             val restoredClock = if (session.outcome == null) checkpoint.clock else checkpoint.clock.stop(timeSource.now())
+            val (reviewRoots, reviewAdjacentRoots) = compatibleReviewPrefetch(
+                checkpoint,
+                rebuiltPosition,
+            )
             return GameCoordinator(
                 checkpoint.config, engine, reviewEngine, checkpointSink, timeSource, idSource, botMovePresentationDelayMillis,
                 session, rebuiltPosition, restoredClock, checkpoint.moveClocks,
                 checkpoint.assistance, checkpoint.revision,
+                reviewRoots, reviewAdjacentRoots,
             )
+        }
+
+        /**
+         * Durable review work is advisory: an exact key match restores it, while stale evidence is
+         * ignored without making the playable checkpoint unavailable.
+         */
+        private fun compatibleReviewPrefetch(
+            checkpoint: CoordinatorCheckpoint,
+            rebuiltPosition: ChessPosition,
+        ): Pair<List<SeededGameReviewRoot>, List<SeededGameReviewAdjacentRoot>> {
+            val expectedRootsByPly = GameReviewPlanner.playerPlan(
+                gameId = checkpoint.config.gameId,
+                initialFen = checkpoint.config.initialFen,
+                moves = checkpoint.moves,
+                rules = checkpoint.config.rules,
+                playerSide = checkpoint.config.humanSide,
+            ).roots.associateByTo(linkedMapOf()) { root -> root.ply }
+            if (checkpoint.outcome == null && rebuiltPosition.sideToMove == checkpoint.config.humanSide) {
+                val current = GameReviewPlanner.playerRootAtPosition(
+                    requestId = "${checkpoint.config.gameId}-restored-current-review",
+                    gameId = checkpoint.config.gameId,
+                    initialFen = checkpoint.config.initialFen,
+                    moves = checkpoint.moves,
+                    rules = checkpoint.config.rules,
+                    position = rebuiltPosition,
+                )
+                expectedRootsByPly[current.ply] = current
+            }
+
+            val roots = checkpoint.reviewPrefetchRoots.filter { seed ->
+                expectedRootsByPly[seed.key.ply]?.key == seed.key
+            }
+            val expectedRootsByKey = expectedRootsByPly.values.associateBy { root -> root.key }
+            val adjacentRoots = checkpoint.reviewPrefetchAdjacentRoots.filter { seed ->
+                val root = expectedRootsByKey[seed.key.rootKey] ?: return@filter false
+                val playedMove = checkpoint.moves.getOrNull(root.ply - 1) ?: return@filter false
+                if (playedMove != seed.key.playedMove) return@filter false
+                GameReviewPlanner.adjacentRoot(
+                    requestId = seed.response.requestId,
+                    root = root,
+                    playedMove = playedMove,
+                ).key == seed.key
+            }
+            val identities = (roots.map { it.response.engine } +
+                adjacentRoots.map { it.response.engine }).distinct()
+            return if (identities.size <= 1) roots to adjacentRoots else emptyList<SeededGameReviewRoot>() to emptyList()
         }
 
         private fun rebuild(config: GameConfig, moves: List<UciMove>): Pair<GameSession, ChessPosition> {

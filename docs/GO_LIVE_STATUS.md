@@ -1,8 +1,9 @@
 # Drawless Chess go-live status
 
-Status as of July 31, 2026: **Bob has accepted the hash-scoped debug build below as RC1 for
-gameplay responsiveness, review latency, and difficulty consistency; the exact clean, optimized
-1.0.0 Android candidate/device proof and public production release remain blocked.**
+Status as of August 3, 2026: **The owner approved RC1 for publication with the visual hint
+correction, durable exact Game Review prefetch across Save & exit/Resume, and the approved piece
+legibility correction. Exact clean `1.0.1` artifact, device, GitHub, and Google Play destination
+verification remain pending.**
 
 Google Play closed testing currently serves 0.3.0 (`versionCode` 3) on the Alpha track; six testers
 were opted in when the Console was inspected on July 30. The owner selected a one-time paid listing,
@@ -10,7 +11,7 @@ and the standard price is still awaiting final approval. The authorized upload k
 and must be reused as-is. Never generate, rotate, replace, or reset that key or certificate without
 Bob's explicit authorization for that exact action.
 
-The current RC1 worktree is being frozen for GitHub publication. Every artifact and device claim
+The current RC1 worktree is frozen locally for final publication preparation. Every artifact and device claim
 below is scoped to its recorded source or binary identity; neither a branch name nor an older APK
 silently verifies a later commit. The July 14 test-harness APK's emulator/tablet suite and
 independent repository review are complete, but those artifacts predate the patch-v2 engine
@@ -38,7 +39,7 @@ candidate.
 - The clean Linux x86-64 source/patch verifier passes exact replay, the direct native-state harness,
   and the full UCI acceptance matrix, including both-color quiet stalemates beyond the sparse
   material frontier and the node-neutral speculative-probe assertion.
-- The Kotlin core harness currently passes 357 tests. Full WSL headless `--validate-only` also
+- The Kotlin core harness currently passes 362 tests. Full WSL headless `--validate-only` also
   passes with the rebuilt patch-v2 engine and runner. Headless campaign, puzzle-candidate, and
   puzzle-verification schemas are version 2 and include the bare-king policy in rule fingerprints;
   the soak supervisor requires the schema-2 bare-king value, and older schema-v1 material must be
@@ -66,10 +67,44 @@ candidate.
   than disabled in all four runs. The R6 full-scenario wall ratio nevertheless exceeded the old
   1.15 diagnostic limit twice (`1.1766x` and `1.1775x`); owner acceptance does not turn that metric
   into an automated pass.
-- The exact clean, optimized 1.0.0 candidate still requires new artifact hashes, installation,
+- The exact clean, optimized 1.0.1 candidate still requires new artifact hashes, installation,
   launch, engine verification, and upgrade checks on the designated Pixel phone and R6 tablet.
   Game Review remains labeled Beta. Its engine Gate 1 closes only after that exact candidate proof;
   evidence Gate 0 and experience/persistence/exit Gates 2-5 remain open.
+
+## Frozen hint correction
+
+- A successful hint now carries the engine-validated best move into the gameplay board and draws
+  the same from-square/to-square arrow used by Game Review. The existing localized hint message
+  remains available as supporting text; the arrow clears when the position changes or assistance is
+  replaced.
+- The shared arrow renderer, core hint state, localized accessibility descriptions, controller
+  assertions, and Compose coverage are included in this frozen candidate. The focused Compose test
+  passed on the API-36 emulator; the debug artifact used for that check was
+  `C:\src\android\app\build\outputs\apk\debug\app-debug.apk`, SHA-256
+  `E6E92B83C6E2332160499C552CCBBF83E9BBA659F0D4D21739EAF5EE1C6BE999`.
+- The focused hint-arrow test later passed on the API-36 emulator, Pixel 9 Pro XL, and R6 tablet.
+  That evidence remains scoped to the frozen hint commit; the later combined RC1 still requires
+  exact-candidate proof on both designated physical devices.
+
+## August 3 RC1 additions
+
+- The supplied king uses its approved three-point crown and colored circlet band on Android and
+  the Web Casual board. Its path is locked as approved.
+- The original queen silhouette is retained. Its four crown jewels now use outlined, theme-aware
+  accent colors: the white queen uses the bright theme accent and the black queen uses crimson.
+  The owner approved this exact visual after reviewing the R6 evidence sheet.
+- Compact 14/18/24dp tests retain the king-vs-bishop and king-vs-pawn silhouette gates and require
+  the queen jewel accent to survive rasterization. The focused two-test visual class passes on the
+  API-36 emulator and R6 tablet.
+- Release identity advances to `1.0.1` with `versionCode` 5 because the public `v1.0.0` tag is
+  immutable at the earlier release commit. The approved RC1 debug candidate was installed and
+  launched on the emulator, R6, and Pixel; the exact `1.0.1` build still requires installation on
+  both designated physical devices.
+- Completed foreground Game Review roots and adjacent fallback evidence are persisted immediately
+  with exact history, rules, request, response, analysis-version, and embedded-engine identity
+  validation. Compatible evidence survives Save & exit/Resume without another native search;
+  stale or incompatible evidence is discarded without blocking the saved game.
 
 ## Completed in the July 14 readiness baseline
 
@@ -134,7 +169,7 @@ Machine evidence is retained locally under:
 - `build/release-qa/pixel-clean`
 - `build/release-qa/final-harness`
 
-## Checklist before the 1.0.0 Play update
+## Checklist before the 1.0.1 Play update
 
 Complete these in order. Items involving identity, private keys, payment, legal terms, real
 testers, or publication must be performed or explicitly approved by the owner.
@@ -151,7 +186,7 @@ testers, or publication must be performed or explicitly approved by the owner.
    signature, package/version, API level, both ABIs, 16 KB native compatibility, permissions,
    dependency/SBOM evidence, notices, and corresponding source.
 5. Publish and verify the privacy-policy URL while signed out. Publish the GPL corresponding-source
-   archive and SHA-256 for the exact AAB on the matching `v1.0.0` GitHub release; verify the in-app
+   archive and SHA-256 for the exact AAB on the matching `v1.0.1` GitHub release; verify the in-app
    source link before submission.
 6. Re-audit Play Console App content: Data Safety, privacy URL, ads/app access, target audience,
    content rating, category, pricing, countries, and store listing. Use the prepared drafts, but

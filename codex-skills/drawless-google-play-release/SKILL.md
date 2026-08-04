@@ -13,7 +13,7 @@ track, AAB path, release-note locations, or Console navigation that this skill a
 - Repository: `C:\src`
 - Package: `com.drawlesschess`
 - Developer account: `BB_Games`
-- Preferred signed-in Console profile: `/u/1` (`bob@bostwick.us`)
+- Preferred signed-in Console profile: the existing authorized profile for `BB_Games`
 - Current pre-production route: `Closed testing - Alpha`
 - Signed AAB: `android/app/build/outputs/bundle/release/app-release.aab`
 - Verification evidence: `build/release-evidence/play-aab.json`
@@ -39,16 +39,16 @@ payments/tax identity, app signing enrollment, or any signing/upload key.
 1. Inspect `AGENTS.md`, concurrent work, branch, and candidate identity. Preserve unrelated
    edits. Confirm any explicit test waiver in the conversation; record it without pretending an
    omitted gate ran.
-2. Reuse only the existing protected external upload identity. On this machine, prefer the
-   existing DPAPI signing wrapper under
-   `C:\Users\bob.BOSTWICK\Documents\Dev\DrawlessChess-sign-release.ps1`. Never read or print its
-   decrypted values. If it is unavailable, discover supported existing metadata read-only and
-   stop before any key creation, replacement, or reset.
+2. Reuse only the existing protected external upload identity. Prefer the existing signing
+   wrapper configured outside the repository for the release workstation. Never read or print
+   its decrypted values. If it is unavailable, discover supported existing metadata read-only
+   and stop before any key creation, replacement, or reset.
 3. Require a committed clean candidate before producing the release AAB. Generate current SBOM
    and source archive, build through the existing signing wrapper, then run
    `scripts/verify-play-aab.ps1`. Do not upload a stale bundle left by an earlier build.
-4. When a new test build is ready, install and launch the separate debug package on both the
-   Pixel (`47161FDAS008XH`) and R6 (`TABR6Ultra00000782`). Never replace the production package.
+4. When a new test build is ready, identify the authorized devices by model and install and
+   launch the separate debug package on both the designated Pixel and R6. Never store device
+   serials in the repository and never replace the production package.
    If Bob explicitly waives repeated tests for a minor change, retain prior evidence only for
    the waived tests; exact build/install, signature, artifact, and destination checks still run.
 5. Generate the submission manifest from the repository root:

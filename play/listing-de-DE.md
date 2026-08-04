@@ -59,7 +59,7 @@ Kein Konto. Keine Werbung. Keine Nutzungsanalyse und kein Tracking. Keine In-App
 
 OPEN-SOURCE-SOFTWARE
 Drawless Chess ist unter der GNU GPL Version 3 oder höher lizenziert. Projektquellcode und Hinweise sind verfügbar unter:
-https://github.com/DeviousVon/Drawless-Chess/releases/tag/v1.0.0
+https://github.com/DeviousVon/Drawless-Chess/releases/tag/v1.0.1
 ```
 
 Zeichenanzahl: 3.050 von 4.000, einschließlich Zeilenumbrüchen. Vor Veröffentlichung
@@ -67,7 +67,7 @@ erneut in der Play Console prüfen.
 
 ## Versionshinweise
 
-Entwurf für Version `1.0.0` (`versionCode` 4):
+Entwurf für Version `1.0.1` (`versionCode` 5):
 
 ```text
 Großes Update: Vesper ist der achte Gegner. Der adaptive Modus passt sich deiner Spielstärke an und entwickelt sich nach jeder Partie ohne Hilfen weiter. Starte direkt nach einer beendeten Partie die Spielanalyse (Beta) mit Bewertungen deiner Züge, besseren Vorschlägen, kurzen Varianten und Brettwiedergabe. Die für Drawless angepasste Fairy-Stockfish-Engine arbeitet vollständig auf deinem Gerät. Analysen werden nicht als Verlauf gespeichert.

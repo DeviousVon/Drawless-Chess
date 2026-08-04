@@ -332,6 +332,47 @@ class RepeatedGameLifecycleInstrumentedTest {
     }
 
     @Test
+    fun saveExitAndResumeRestoresReviewPrefetchWithoutAnotherEngineSearch() {
+        assertFalse(
+            "Review resume test must use the embedded native engine",
+            com.drawlesschess.BuildConfig.USE_DEVELOPMENT_ENGINE,
+        )
+        dismissRulesGuideIfShown()
+        waitForText("Quick Play")
+        startWhiteCustomGame()
+        val runtimeBeforeExit = requireNotNull(
+            ViewModelProvider(compose.activity)[DrawlessAppViewModel::class.java].runtime,
+        )
+        compose.waitUntil(timeoutMillis = 20_000L) {
+            runtimeBeforeExit.reviewPrefetchDiagnostics().rootCandidateMovesByPly[1]
+                ?.isNotEmpty() == true
+        }
+        val candidatesBeforeExit = requireNotNull(
+            runtimeBeforeExit.reviewPrefetchDiagnostics().rootCandidateMovesByPly[1],
+        )
+        assertEquals(1, runtimeBeforeExit.reviewPrefetchEngineSubmissionCount())
+
+        compose.onNodeWithTag("game_save_exit").performClick()
+        waitForText("Resume game")
+        compose.onNodeWithText("Resume game").performClick()
+        waitForText("Save & exit")
+
+        val resumedRuntime = requireNotNull(
+            ViewModelProvider(compose.activity)[DrawlessAppViewModel::class.java].runtime,
+        )
+        assertTrue(runtimeBeforeExit !== resumedRuntime)
+        assertEquals(
+            candidatesBeforeExit,
+            resumedRuntime.reviewPrefetchDiagnostics().rootCandidateMovesByPly[1],
+        )
+        assertEquals(
+            "Resume submitted the already-completed current review root again",
+            0,
+            resumedRuntime.reviewPrefetchEngineSubmissionCount(),
+        )
+    }
+
+    @Test
     fun completedResultSurvivesActivityRecreationWithoutReplayingCelebration() {
         dismissRulesGuideIfShown()
         waitForText("Quick Play")
