@@ -17,6 +17,7 @@ import com.drawlesschess.core.UciMove
 import com.drawlesschess.core.chess.ChessAdapter
 import com.drawlesschess.core.chess.ChessPosition
 import com.drawlesschess.core.chess.ChessRules
+import com.drawlesschess.core.coordinator.CoordinatorCheckpoint
 import com.drawlesschess.core.engine.GameReviewPlanner
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -214,6 +215,7 @@ class SharedCoreParityTest {
     @Test
     fun checkpointCodecPreservesExactForegroundReviewEvidence() {
         val game = SharedGameRuntime()
+        var resumed: SharedGameRuntime? = null
         try {
             val checkpoint = SharedCheckpointCodec.decode(game.checkpointJson())
             val root = GameReviewPlanner.playerRoot(
@@ -234,7 +236,7 @@ class SharedCoreParityTest {
                     depth = 12,
                     nodes = 4_096,
                     variations = listOf(PrincipalVariation(18, null, listOf(bestMove))),
-                    engine = EngineIdentity("apple-test-engine", "2", 2),
+                    engine = EngineIdentity("apple-test-engine", "stale-build", 2),
                 ),
             )
             val withEvidence = checkpoint.copy(reviewPrefetchRoots = listOf(seeded))
@@ -243,7 +245,13 @@ class SharedCoreParityTest {
 
             assertEquals(withEvidence, restored)
             assertEquals(listOf(seeded), restored.reviewPrefetchRoots)
+
+            game.close()
+            resumed = SharedGameRuntime(checkpointJson = SharedCheckpointCodec.encode(withEvidence))
+            val filtered = SharedCheckpointCodec.decode(resumed.checkpointJson())
+            assertTrue(filtered.reviewPrefetchRoots.isEmpty())
         } finally {
+            resumed?.close()
             game.close()
         }
     }
@@ -264,13 +272,29 @@ class SharedCoreParityTest {
     }
 
     @Test
-    fun completedGameReviewUsesTheSameSerializedEngineSession() {
+    fun foregroundReviewEvidenceIsPersistedAndReusedByTheSerializedAppleSession() {
         val game = SharedGameRuntime(botLevelId = "learner")
         try {
+            game.setGameForeground(true)
+            val openingPrefetch = awaitCheckpoint(game) { checkpoint ->
+                checkpoint.reviewPrefetchRoots.any { it.key.ply == 1 }
+            }
+            assertTrue(openingPrefetch.reviewPrefetchRoots.any { it.key.ply == 1 })
+
             game.tap(52)
             game.tap(36)
             val played = awaitView(game) { it.plyCount == 2 || it.engineError != null }
             assertNull(played.engineError)
+            // The JVM fixture completes bot analysis synchronously while the shared launch gate
+            // is still held; reasserting visibility performs the same post-callback eligibility
+            // check that the asynchronous Apple transport reaches after releasing that gate.
+            game.setGameForeground(true)
+            val duringGame = awaitCheckpoint(game) { checkpoint ->
+                checkpoint.reviewPrefetchRoots.any { it.key.ply == 1 } &&
+                    checkpoint.reviewPrefetchAdjacentRoots.any { it.key.rootKey.ply == 1 }
+            }
+            assertTrue(duringGame.reviewPrefetchAdjacentRoots.any { it.key.rootKey.ply == 1 })
+
             val completed = game.resign()
             assertEquals(true, completed.reviewAvailable)
 
@@ -335,5 +359,19 @@ class SharedCoreParityTest {
         }
         assertTrue(predicate(view), "Timed out waiting for runtime state: $view")
         return view
+    }
+
+    private fun awaitCheckpoint(
+        game: SharedGameRuntime,
+        timeoutMillis: Long = 15_000,
+        predicate: (CoordinatorCheckpoint) -> Boolean,
+    ): CoordinatorCheckpoint {
+        val started = TimeSource.Monotonic.markNow()
+        var checkpoint = SharedCheckpointCodec.decode(game.checkpointJson())
+        while (!predicate(checkpoint) && started.elapsedNow().inWholeMilliseconds < timeoutMillis) {
+            checkpoint = SharedCheckpointCodec.decode(game.checkpointJson())
+        }
+        assertTrue(predicate(checkpoint), "Timed out waiting for foreground review evidence")
+        return checkpoint
     }
 }

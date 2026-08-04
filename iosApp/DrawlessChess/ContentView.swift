@@ -4,6 +4,7 @@ import SwiftUI
 
 struct ContentView: View {
     @StateObject private var model = DrawlessChessModel()
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         ZStack {
@@ -24,6 +25,9 @@ struct ContentView: View {
             }
         }
         .preferredColorScheme(.dark)
+        .onChange(of: scenePhase) { phase in
+            model.setGameForeground(phase == .active)
+        }
     }
 }
 
@@ -325,6 +329,8 @@ private struct GameView: View {
                 model.refreshGame()
             }
         }
+        .onAppear { model.setGameForeground(true) }
+        .onDisappear { model.setGameForeground(false) }
         .overlay {
             if model.game?.phase == "COMPLETED", model.preferences.celebrationsEnabled {
                 GameCompletionOverlay(won: model.game?.winner == model.game?.humanSide)

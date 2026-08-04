@@ -602,6 +602,49 @@ internal fun registerEngineLayerTests(suite: TestSuite) {
         }
         fixture.engine.close()
     }
+    suite.test("a full-strength review cannot leak into the following limited opponent request") {
+        val fixture = uciFixture()
+        fixture.engine.start(); completeHandshake(fixture)
+
+        val reviewCommandStart = fixture.transport.commands.size
+        fixture.engine.analyze(
+            productionRequest(
+                id = "foreground-review",
+                gameId = "shared-apple-session",
+                purpose = EnginePurpose.REVIEW,
+                strength = EngineStrength.SkillLevel(20),
+            ),
+        ) {}
+        val reviewCommands = fixture.transport.commands.drop(reviewCommandStart)
+        assertThat("setoption name UCI_LimitStrength value false" in reviewCommands)
+        assertThat("setoption name Skill Level value 20" in reviewCommands)
+        assertThat("setoption name UCI_AnalyseMode value true" in reviewCommands)
+        fixture.engine.onLine("readyok")
+        fixture.engine.onLine("info depth 8 score cp 30 nodes 800 pv e2e4 e7e5")
+        fixture.engine.onLine("bestmove e2e4")
+
+        val botCommandStart = fixture.transport.commands.size
+        var botResponse: EngineResponse? = null
+        fixture.engine.analyze(
+            productionRequest(
+                id = "limited-opponent",
+                gameId = "shared-apple-session",
+                purpose = EnginePurpose.BOT_MOVE,
+                strength = EngineStrength.ApproximateElo(800),
+            ),
+        ) { botResponse = it.getOrThrow() }
+        val botCommands = fixture.transport.commands.drop(botCommandStart)
+        assertThat("setoption name UCI_LimitStrength value true" in botCommands)
+        assertThat("setoption name UCI_Elo value 800" in botCommands)
+        assertThat("setoption name UCI_AnalyseMode value false" in botCommands)
+        assertThat("setoption name UCI_ShowWDL value false" in botCommands)
+        fixture.engine.onLine("readyok")
+        fixture.engine.onLine("info depth 8 score cp 20 nodes 700 pv d2d4 d7d5")
+        fixture.engine.onLine("bestmove d2d4")
+
+        assertThat(requireNotNull(botResponse).bestMove == UciMove("d2d4"))
+        fixture.engine.close()
+    }
     suite.test("UCI engine selects one deepest complete same-depth MultiPV snapshot") {
         val fixture = uciFixture()
         fixture.engine.start(); completeHandshake(fixture)

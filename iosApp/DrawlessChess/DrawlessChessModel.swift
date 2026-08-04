@@ -97,6 +97,7 @@ final class DrawlessChessModel: ObservableObject {
     private var runtime: SharedGameRuntime?
     private var recordedGameRevision: Int64?
     private var persistedCheckpointRevision: Int64?
+    private var automaticReviewGameId: String?
     private var completedGames: [CompletedGameRecord]
     private let legacyStatistics: LegacyStatistics
     private let feedback = GameFeedback()
@@ -182,7 +183,9 @@ final class DrawlessChessModel: ObservableObject {
         runtime = created
         recordedGameRevision = nil
         persistedCheckpointRevision = nil
+        automaticReviewGameId = nil
         hintText = nil
+        created.setGameForeground(foreground: true)
         apply(created.view())
         route = .game
     }
@@ -207,7 +210,9 @@ final class DrawlessChessModel: ObservableObject {
         runtime = created
         recordedGameRevision = nil
         persistedCheckpointRevision = nil
+        automaticReviewGameId = nil
         hintText = nil
+        created.setGameForeground(foreground: true)
         let restored = created.view()
         setup.presetId = restored.presetId.lowercased()
         setup.humanSideId = restored.humanSide.lowercased()
@@ -267,7 +272,13 @@ final class DrawlessChessModel: ObservableObject {
         )
         self.runtime = recovered
         persistedCheckpointRevision = nil
+        automaticReviewGameId = nil
+        recovered.setGameForeground(foreground: true)
         apply(recovered.view())
+    }
+
+    func setGameForeground(_ foreground: Bool) {
+        runtime?.setGameForeground(foreground: foreground)
     }
 
     func startReview() {
@@ -338,6 +349,7 @@ final class DrawlessChessModel: ObservableObject {
         runtime?.close()
         runtime = nil
         game = nil
+        automaticReviewGameId = nil
         hintText = nil
         route = .home
     }
@@ -382,6 +394,10 @@ final class DrawlessChessModel: ObservableObject {
         defaults.set(statistics.wins, forKey: "stats.wins")
         defaults.set(statistics.losses, forKey: "stats.losses")
         defaults.set(statistics.totalScore, forKey: "stats.totalScore")
+        if next.reviewAvailable, automaticReviewGameId != next.gameId {
+            automaticReviewGameId = next.gameId
+            game = runtime.startReview()
+        }
     }
 
     private func recordCompletedGame(_ game: SharedGameView) {

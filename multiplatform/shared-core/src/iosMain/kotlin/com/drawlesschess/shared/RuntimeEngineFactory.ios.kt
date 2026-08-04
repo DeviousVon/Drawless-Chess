@@ -49,6 +49,9 @@ internal actual fun createRuntimeEngine(): RuntimeChessEngine = AppleFairyEngine
 
 @OptIn(ExperimentalAtomicApi::class)
 private class AppleFairyEngine : RuntimeChessEngine {
+    override val reviewEvidenceBuildId: String =
+        drawless_fairy_patched_tree()?.toKString() ?: "unknown-apple-build"
+    override val reviewEvidencePatchVersion: Int = drawless_fairy_patch_version()
     private val closed = AtomicBoolean(false)
     private val readerGroup = dispatch_group_create()
     private val handle: ULong
@@ -73,8 +76,8 @@ private class AppleFairyEngine : RuntimeChessEngine {
             transport = UciTransport(::send),
             timeoutScheduler = DarwinTimeoutScheduler,
             build = FairyEngineBuild(
-                buildId = drawless_fairy_patched_tree()?.toKString() ?: "unknown-apple-build",
-                drawlessPatchVersion = drawless_fairy_patch_version(),
+                buildId = reviewEvidenceBuildId,
+                drawlessPatchVersion = reviewEvidencePatchVersion,
             ),
             policy = appleSessionPolicy(),
             closeTransport = ::closeNative,

@@ -170,7 +170,12 @@ class SharedGameRuntime(
     boardThemeId: String = BoardThemes.DEFAULT.id,
     adaptiveElo: Int = BotDifficultyCatalog.ADAPTIVE_STARTING_ELO,
 ) {
-    private val restoredCheckpoint = checkpointJson?.let(SharedCheckpointCodec::decode)
+    private val decodedCheckpoint = checkpointJson?.let(SharedCheckpointCodec::decode)
+    private val engine = createRuntimeEngine()
+    private val restoredCheckpoint = decodedCheckpoint?.withCompatibleReviewPrefetchEvidence(
+        engineBuildId = engine.reviewEvidenceBuildId,
+        enginePatchVersion = engine.reviewEvidencePatchVersion,
+    )
     private val requestedHumanSide = if (humanSideId.lowercase() == "black") Side.BLACK else Side.WHITE
     private val requestedBotLevel = if (botLevelId == BotDifficultyCatalog.ADAPTIVE_LEVEL_ID) {
         BotDifficultyCatalog.adaptiveLevel(adaptiveElo)
@@ -207,7 +212,6 @@ class SharedGameRuntime(
     private val boardTheme = BoardThemes.fromId(boardThemeId)
     private val timeSource = RuntimeTimeSource()
     private val checkpointStore = MemoryCheckpointSink()
-    private val engine = createRuntimeEngine()
     private var nextId = 0
     private val coordinator = restoredCheckpoint?.let { checkpoint ->
         GameCoordinator.restore(
@@ -458,6 +462,16 @@ class SharedGameRuntime(
         return view()
     }
 
+    /**
+     * Warms exact player-decision review evidence only while the game is visible and active.
+     * Apple uses the coordinator's shared-engine launch gate: a move, hint, pause, or bot request
+     * cancels and drains speculative review before the same native Fairy session is reconfigured.
+     */
+    fun setGameForeground(foreground: Boolean) {
+        if (closed) return
+        coordinator.setReviewPrefetchEnabled(foreground)
+    }
+
     fun pause(): SharedGameView {
         coordinator.pause()
         return view()
@@ -494,6 +508,14 @@ class SharedGameRuntime(
             rules = config.rules,
             playerSide = humanSide,
         )
+        val prefetchedByKey = coordinator.completedReviewPrefetchRoots().associateBy { it.key }
+        val compatibleSeeds = plan.roots.mapNotNull { root -> prefetchedByKey[root.key] }
+        val prefetchedAdjacentByRootAndMove = coordinator.completedReviewPrefetchAdjacentRoots()
+            .associateBy { seed -> seed.key.rootKey to seed.key.playedMove }
+        val compatibleAdjacentSeeds = plan.roots.mapNotNull { root ->
+            val playedMove = plan.gameMoves[root.ply - 1]
+            prefetchedAdjacentByRootAndMove[root.key to playedMove]
+        }
         val previousReview = resultLock.withLock {
             val previous = reviewCancellation
             reviewInProgress = true
@@ -520,6 +542,8 @@ class SharedGameRuntime(
                 outcome = outcome,
                 playerSide = humanSide,
                 preparedPlan = plan,
+                seededRoots = compatibleSeeds,
+                seededAdjacentRoots = compatibleAdjacentSeeds,
                 onMoveReviewed = { completed ->
                     resultLock.withLock {
                         if (reviewInProgress) {
@@ -698,13 +722,17 @@ private class MemoryCheckpointSink : CheckpointSink {
 
 /** Deterministic shared-rules engine used by non-Apple host tests. */
 internal class DeterministicOfflineEngine : RuntimeChessEngine {
+    override val reviewEvidenceBuildId: String = "2"
+    override val reviewEvidencePatchVersion: Int = 2
+
     override fun analyze(
         request: EngineRequest,
         onResult: (Result<EngineResponse>) -> Unit,
     ): EngineCancellation {
         val result = runCatching {
             val position = ChessAdapter.replay(request.initialFen, request.moves)
-            val move = chooseMove(position)
+            val candidates = rankedMoves(position).take(request.limits.multiPv)
+            val move = candidates.first()
             val encoded = move.toUci()
             EngineResponse(
                 requestId = request.requestId,
@@ -714,7 +742,14 @@ internal class DeterministicOfflineEngine : RuntimeChessEngine {
                 ponderMove = null,
                 depth = 1,
                 nodes = ChessRules.legalMoves(position).size.toLong(),
-                variations = listOf(PrincipalVariation(0, null, listOf(encoded))),
+                variations = candidates.mapIndexed { index, candidate ->
+                    PrincipalVariation(
+                        scoreCentipawns = -index,
+                        mateIn = null,
+                        moves = listOf(candidate.toUci()),
+                        rank = index + 1,
+                    )
+                },
                 engine = EngineIdentity("shared-rules-test-engine", "2", 2),
             )
         }
@@ -724,12 +759,12 @@ internal class DeterministicOfflineEngine : RuntimeChessEngine {
 
     override fun close() = Unit
 
-    private fun chooseMove(position: ChessPosition): ChessMove = ChessRules.legalMoves(position)
-        .maxWithOrNull(
-            compareBy<ChessMove> { move -> moveScore(position, move) }
-                .thenByDescending { it.toUci().value },
+    private fun rankedMoves(position: ChessPosition): List<ChessMove> = ChessRules.legalMoves(position)
+        .sortedWith(
+            compareByDescending<ChessMove> { move -> moveScore(position, move) }
+                .thenBy { it.toUci().value },
         )
-        ?: error("No legal engine move")
+        .ifEmpty { error("No legal engine move") }
 
     private fun moveScore(position: ChessPosition, move: ChessMove): Int {
         val captured = position[move.to]?.type?.value() ?: 0
@@ -737,6 +772,26 @@ internal class DeterministicOfflineEngine : RuntimeChessEngine {
         return captured * 100 +
             (if (move.promotion == PieceType.QUEEN) 900 else 0) +
             (if (ChessRules.isCheckmate(after)) 100_000 else if (ChessRules.isInCheck(after)) 50 else 0)
+    }
+}
+
+private fun CoordinatorCheckpoint.withCompatibleReviewPrefetchEvidence(
+    engineBuildId: String,
+    enginePatchVersion: Int,
+): CoordinatorCheckpoint {
+    fun EngineResponse.matchesCurrentEngine(): Boolean =
+        engine.build == engineBuildId && engine.drawlessPatch == enginePatchVersion
+
+    val roots = reviewPrefetchRoots.filter { seed -> seed.response.matchesCurrentEngine() }
+    val adjacentRoots = reviewPrefetchAdjacentRoots.filter { seed ->
+        seed.response.matchesCurrentEngine() && roots.any { it.key == seed.key.rootKey }
+    }
+    return if (roots.size == reviewPrefetchRoots.size &&
+        adjacentRoots.size == reviewPrefetchAdjacentRoots.size
+    ) {
+        this
+    } else {
+        copy(reviewPrefetchRoots = roots, reviewPrefetchAdjacentRoots = adjacentRoots)
     }
 }
 
