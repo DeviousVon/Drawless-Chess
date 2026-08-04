@@ -2,18 +2,22 @@ package com.drawlesschess.shared
 
 import com.drawlesschess.core.DrawlessAdjudicator
 import com.drawlesschess.core.EndReason
+import com.drawlesschess.core.EngineIdentity
+import com.drawlesschess.core.EngineResponse
 import com.drawlesschess.core.GameSession
 import com.drawlesschess.core.MaterialScore
 import com.drawlesschess.core.MoveAlternative
 import com.drawlesschess.core.MoveTransition
 import com.drawlesschess.core.PositionFacts
 import com.drawlesschess.core.PositionKey
+import com.drawlesschess.core.PrincipalVariation
 import com.drawlesschess.core.RulesContractV1
 import com.drawlesschess.core.Side
 import com.drawlesschess.core.UciMove
 import com.drawlesschess.core.chess.ChessAdapter
 import com.drawlesschess.core.chess.ChessPosition
 import com.drawlesschess.core.chess.ChessRules
+import com.drawlesschess.core.engine.GameReviewPlanner
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFails
@@ -150,7 +154,10 @@ class SharedCoreParityTest {
             game.requestHint()
             val hinted = awaitView(game) { it.hintMove != null || it.engineError != null }
             assertNull(hinted.engineError)
-            assertTrue(requireNotNull(hinted.hintMove).matches(Regex("^[a-h][1-8][a-h][1-8][qrbn]?$")))
+            val hintMove = requireNotNull(hinted.hintMove)
+            assertTrue(hintMove.matches(Regex("^[a-h][1-8][a-h][1-8][qrbn]?$")))
+            assertEquals(hintMove.substring(0, 2), hinted.hintFromSquare)
+            assertEquals(hintMove.substring(2, 4), hinted.hintToSquare)
             assertEquals(1, game.checkpointRevision())
             assertEquals("PAUSED", game.pause().phase)
             assertEquals("HUMAN_TURN", game.resume().phase)
@@ -201,6 +208,43 @@ class SharedCoreParityTest {
         } finally {
             restored?.close()
             original.close()
+        }
+    }
+
+    @Test
+    fun checkpointCodecPreservesExactForegroundReviewEvidence() {
+        val game = SharedGameRuntime()
+        try {
+            val checkpoint = SharedCheckpointCodec.decode(game.checkpointJson())
+            val root = GameReviewPlanner.playerRoot(
+                requestId = "apple-review-prefetch",
+                gameId = checkpoint.config.gameId,
+                initialFen = checkpoint.config.initialFen,
+                moves = checkpoint.moves,
+                rules = checkpoint.config.rules,
+            )
+            val bestMove = UciMove("e2e4")
+            val seeded = root.seed(
+                EngineResponse(
+                    requestId = root.request.requestId,
+                    gameId = root.request.gameId,
+                    positionId = root.request.positionId,
+                    bestMove = bestMove,
+                    ponderMove = null,
+                    depth = 12,
+                    nodes = 4_096,
+                    variations = listOf(PrincipalVariation(18, null, listOf(bestMove))),
+                    engine = EngineIdentity("apple-test-engine", "2", 2),
+                ),
+            )
+            val withEvidence = checkpoint.copy(reviewPrefetchRoots = listOf(seeded))
+
+            val restored = SharedCheckpointCodec.decode(SharedCheckpointCodec.encode(withEvidence))
+
+            assertEquals(withEvidence, restored)
+            assertEquals(listOf(seeded), restored.reviewPrefetchRoots)
+        } finally {
+            game.close()
         }
     }
 

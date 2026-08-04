@@ -84,10 +84,12 @@ struct BoardVisualTheme {
         let whiteOutline: Color
         let whiteDetail: Color
         let whiteKingAccent: Color
+        let whiteQueenAccent: Color
         let blackFill: Color
         let blackOutline: Color
         let blackDetail: Color
         let blackKingAccent: Color
+        let blackQueenAccent: Color
     }
 
     let id: String
@@ -107,8 +109,10 @@ struct BoardVisualTheme {
                 pieces: PiecePalette(
                     whiteFill: visualColor(0xFFF5DD), whiteOutline: visualColor(0x3A281D),
                     whiteDetail: visualColor(0x8A6A52), whiteKingAccent: visualColor(0xC43B2E),
+                    whiteQueenAccent: visualColor(0x4DD8BD),
                     blackFill: visualColor(0x241710), blackOutline: visualColor(0xFFE4C7),
-                    blackDetail: visualColor(0xC89B78), blackKingAccent: visualColor(0x4DD8BD)
+                    blackDetail: visualColor(0xC89B78), blackKingAccent: visualColor(0x4DD8BD),
+                    blackQueenAccent: visualColor(0xC43B2E)
                 )
             )
         case "glacier_slate":
@@ -120,8 +124,10 @@ struct BoardVisualTheme {
                 pieces: PiecePalette(
                     whiteFill: visualColor(0xF5FCFF), whiteOutline: visualColor(0x18313F),
                     whiteDetail: visualColor(0x5A7785), whiteKingAccent: visualColor(0xD63E58),
+                    whiteQueenAccent: visualColor(0x45D7D9),
                     blackFill: visualColor(0x102630), blackOutline: visualColor(0xD9F3FF),
-                    blackDetail: visualColor(0x89A9B8), blackKingAccent: visualColor(0x45D7D9)
+                    blackDetail: visualColor(0x89A9B8), blackKingAccent: visualColor(0x45D7D9),
+                    blackQueenAccent: visualColor(0xD63E58)
                 )
             )
         case "verdigris_copper", "malachite_court":
@@ -133,8 +139,10 @@ struct BoardVisualTheme {
                 pieces: PiecePalette(
                     whiteFill: visualColor(0xF8F0D9), whiteOutline: visualColor(0x1D3531),
                     whiteDetail: visualColor(0x607E77), whiteKingAccent: visualColor(0xC84C32),
+                    whiteQueenAccent: visualColor(0xE5A45D),
                     blackFill: visualColor(0x102724), blackOutline: visualColor(0xF1E5CB),
-                    blackDetail: visualColor(0xA5BBB4), blackKingAccent: visualColor(0xE5A45D)
+                    blackDetail: visualColor(0xA5BBB4), blackKingAccent: visualColor(0xE5A45D),
+                    blackQueenAccent: visualColor(0xC84C32)
                 )
             )
         case "amethyst_geode":
@@ -146,8 +154,10 @@ struct BoardVisualTheme {
                 pieces: PiecePalette(
                     whiteFill: visualColor(0xFCF5E6), whiteOutline: visualColor(0x2B1D38),
                     whiteDetail: visualColor(0x77648A), whiteKingAccent: visualColor(0xC43E5C),
+                    whiteQueenAccent: visualColor(0xFFD166),
                     blackFill: visualColor(0x21162F), blackOutline: visualColor(0xEDE0F7),
-                    blackDetail: visualColor(0xBCA4D0), blackKingAccent: visualColor(0xFFD166)
+                    blackDetail: visualColor(0xBCA4D0), blackKingAccent: visualColor(0xFFD166),
+                    blackQueenAccent: visualColor(0xC43E5C)
                 )
             )
         default:
@@ -159,8 +169,10 @@ struct BoardVisualTheme {
                 pieces: PiecePalette(
                     whiteFill: visualColor(0xFFFCF2), whiteOutline: visualColor(0x26332D),
                     whiteDetail: visualColor(0x738078), whiteKingAccent: visualColor(0xAD3043),
+                    whiteQueenAccent: visualColor(0xE9C349),
                     blackFill: visualColor(0x111A16), blackOutline: visualColor(0xEAF1EC),
-                    blackDetail: visualColor(0x9FB0A6), blackKingAccent: visualColor(0xE9C349)
+                    blackDetail: visualColor(0x9FB0A6), blackKingAccent: visualColor(0xE9C349),
+                    blackQueenAccent: visualColor(0xAD3043)
                 )
             )
         }
@@ -627,6 +639,7 @@ private enum CodeNativePiecePainter {
         let outline = white ? palette.whiteOutline : palette.blackOutline
         let detail = white ? palette.whiteDetail : palette.blackDetail
         let kingAccent = white ? palette.whiteKingAccent : palette.blackKingAccent
+        let queenAccent = white ? palette.whiteQueenAccent : palette.blackQueenAccent
         let shape = piecePath(type)
 
         drawing.stroke(shape, with: .color(outline), style: pieceStroke(7))
@@ -635,13 +648,15 @@ private enum CodeNativePiecePainter {
 
         switch type {
         case .king:
-            line(from: CGPoint(x: 50, y: 5), to: CGPoint(x: 50, y: 29), color: outline, width: 8, in: drawing)
-            line(from: CGPoint(x: 40, y: 14), to: CGPoint(x: 60, y: 14), color: outline, width: 8, in: drawing)
-            line(from: CGPoint(x: 50, y: 5), to: CGPoint(x: 50, y: 29), color: kingAccent, width: 4.5, in: drawing)
-            line(from: CGPoint(x: 40, y: 14), to: CGPoint(x: 60, y: 14), color: kingAccent, width: 4.5, in: drawing)
+            drawing.fill(Path(CGRect(x: 25, y: 40, width: 50, height: 12)), with: .color(kingAccent))
+            line(from: CGPoint(x: 25, y: 40), to: CGPoint(x: 75, y: 40), color: outline, width: 2.2, in: drawing)
+            for center in [CGPoint(x: 35, y: 46), CGPoint(x: 65, y: 46)] {
+                drawing.fill(Path(ellipseIn: CGRect(x: center.x - 2.6, y: center.y - 2.6, width: 5.2, height: 5.2)), with: .color(detail))
+            }
         case .queen:
             for center in [CGPoint(x: 27, y: 18), CGPoint(x: 42, y: 13), CGPoint(x: 58, y: 13), CGPoint(x: 73, y: 18)] {
-                drawing.fill(Path(ellipseIn: CGRect(x: center.x - 3.4, y: center.y - 3.4, width: 6.8, height: 6.8)), with: .color(detail))
+                drawing.fill(Path(ellipseIn: CGRect(x: center.x - 4.2, y: center.y - 4.2, width: 8.4, height: 8.4)), with: .color(outline))
+                drawing.fill(Path(ellipseIn: CGRect(x: center.x - 2.8, y: center.y - 2.8, width: 5.6, height: 5.6)), with: .color(queenAccent))
             }
         case .bishop:
             let mitre = bishopMitrePath()
@@ -790,14 +805,17 @@ private enum CodeNativePiecePainter {
 
     private static func kingPath() -> Path {
         var path = Path()
-        path.move(to: CGPoint(x: 50, y: 25))
-        path.addCurve(to: CGPoint(x: 34, y: 47), control1: CGPoint(x: 36, y: 25), control2: CGPoint(x: 29, y: 35))
-        path.addCurve(to: CGPoint(x: 36, y: 64), control1: CGPoint(x: 37, y: 54), control2: CGPoint(x: 40, y: 58))
-        path.addLine(to: CGPoint(x: 31, y: 74))
-        path.addLine(to: CGPoint(x: 69, y: 74))
-        path.addLine(to: CGPoint(x: 64, y: 64))
-        path.addCurve(to: CGPoint(x: 66, y: 47), control1: CGPoint(x: 60, y: 58), control2: CGPoint(x: 63, y: 54))
-        path.addCurve(to: CGPoint(x: 50, y: 25), control1: CGPoint(x: 71, y: 35), control2: CGPoint(x: 64, y: 25))
+        path.move(to: CGPoint(x: 34, y: 74))
+        path.addCurve(to: CGPoint(x: 41, y: 53), control1: CGPoint(x: 33, y: 65), control2: CGPoint(x: 37, y: 58))
+        path.addLine(to: CGPoint(x: 24, y: 53))
+        path.addLine(to: CGPoint(x: 23, y: 20))
+        path.addLine(to: CGPoint(x: 35, y: 36))
+        path.addLine(to: CGPoint(x: 50, y: 14))
+        path.addLine(to: CGPoint(x: 65, y: 36))
+        path.addLine(to: CGPoint(x: 77, y: 20))
+        path.addLine(to: CGPoint(x: 76, y: 53))
+        path.addLine(to: CGPoint(x: 59, y: 53))
+        path.addCurve(to: CGPoint(x: 66, y: 74), control1: CGPoint(x: 63, y: 58), control2: CGPoint(x: 67, y: 65))
         path.closeSubpath()
         return path
     }

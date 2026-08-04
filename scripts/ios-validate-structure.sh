@@ -33,6 +33,28 @@ for piece in pawn knight bishop rook queen king; do
   }
 done
 
+for token in whiteQueenAccent blackQueenAccent; do
+  rg -Fq "$token" "$visuals" || {
+    echo "iOS piece palette is missing frozen Android token: $token" >&2
+    exit 1
+  }
+done
+
+rg -Fq 'CGPoint(x: 77, y: 20)' "$visuals" || {
+  echo "iOS king renderer is missing the frozen Android notched crown" >&2
+  exit 1
+}
+
+rg -Fq 'BoardMoveArrowOverlay' "$content" || {
+  echo "iOS gameplay board is missing the shared hint move arrow" >&2
+  exit 1
+}
+
+rg -Fq 'hintFromSquare' "$runtime" || {
+  echo "Apple runtime is not exporting the shared hint arrow endpoints" >&2
+  exit 1
+}
+
 [[ $(rg -c 'BoardSquareSurface\(' "$content") -ge 2 ]] || {
   echo "Both live and preview boards must use procedural square surfaces" >&2
   exit 1

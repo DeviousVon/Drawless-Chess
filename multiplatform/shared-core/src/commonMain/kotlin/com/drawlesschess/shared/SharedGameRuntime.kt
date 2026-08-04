@@ -21,6 +21,7 @@ import com.drawlesschess.core.chess.ChessPosition
 import com.drawlesschess.core.chess.ChessRules
 import com.drawlesschess.core.chess.Piece
 import com.drawlesschess.core.chess.PieceType
+import com.drawlesschess.core.chess.Square
 import com.drawlesschess.core.coordinator.CheckpointSink
 import com.drawlesschess.core.coordinator.CoordinatorCheckpoint
 import com.drawlesschess.core.coordinator.CoordinatorIdSource
@@ -42,6 +43,7 @@ import com.drawlesschess.core.presentation.BoardEvent
 import com.drawlesschess.core.presentation.BoardInteractionContext
 import com.drawlesschess.core.presentation.BoardInteractionReducer
 import com.drawlesschess.core.presentation.BoardInteractionState
+import com.drawlesschess.core.presentation.BoardMoveArrow
 import com.drawlesschess.core.presentation.BoardPresenter
 import com.drawlesschess.core.presentation.BoardThemes
 import com.drawlesschess.core.presentation.GameHistoryPresenter
@@ -132,6 +134,8 @@ data class SharedGameView(
     val pauseCount: Int,
     val threatIndicationEnabled: Boolean,
     val hintMove: String?,
+    val hintFromSquare: String?,
+    val hintToSquare: String?,
     val engineError: String?,
     val reviewAvailable: Boolean,
     val reviewInProgress: Boolean,
@@ -246,21 +250,6 @@ class SharedGameRuntime(
         check(!closed) { "Game runtime is closed" }
         coordinator.tick()
         val snapshot = coordinator.snapshot()
-        val board = BoardPresenter.present(
-            snapshot = snapshot,
-            config = config,
-            interactionState = interaction,
-            theme = boardTheme,
-            pieceSet = PieceSets.MODERN_FLAT,
-            threatIndicationEnabled = snapshot.assistance.threatIndication,
-        )
-        interaction = board.interaction
-        val timeline = GameHistoryPresenter.present(
-            config.initialFen,
-            snapshot.session.moves.map { it.move },
-        )
-        val outcome = snapshot.session.outcome
-        val lastMoveEntry = timeline.history.lastOrNull()?.let { row -> row.black ?: row.white }
         val asyncState = resultLock.withLock {
             RuntimeAsyncState(
                 hintMove = latestHintMove,
@@ -273,6 +262,28 @@ class SharedGameRuntime(
                 reviewError = reviewError,
             )
         }
+        val hintArrow = asyncState.hintMove?.let { move ->
+            BoardMoveArrow(
+                from = Square.parse(move.substring(0, 2)),
+                to = Square.parse(move.substring(2, 4)),
+            )
+        }
+        val board = BoardPresenter.present(
+            snapshot = snapshot,
+            config = config,
+            interactionState = interaction,
+            theme = boardTheme,
+            pieceSet = PieceSets.MODERN_FLAT,
+            threatIndicationEnabled = snapshot.assistance.threatIndication,
+            hintMove = hintArrow,
+        )
+        interaction = board.interaction
+        val timeline = GameHistoryPresenter.present(
+            config.initialFen,
+            snapshot.session.moves.map { it.move },
+        )
+        val outcome = snapshot.session.outcome
+        val lastMoveEntry = timeline.history.lastOrNull()?.let { row -> row.black ?: row.white }
         val playerWon = outcome?.winner == humanSide
         val score = outcome?.let {
             GameScoring.forResult(playerWon, snapshot.assistance, config.timeControl)
@@ -351,6 +362,8 @@ class SharedGameRuntime(
             pauseCount = snapshot.assistance.pauses,
             threatIndicationEnabled = snapshot.assistance.threatIndication,
             hintMove = asyncState.hintMove,
+            hintFromSquare = board.hintMove?.from?.algebraic,
+            hintToSquare = board.hintMove?.to?.algebraic,
             engineError = snapshot.engineError ?: asyncState.hintError,
             reviewAvailable = outcome != null && snapshot.session.moves.isNotEmpty(),
             reviewInProgress = asyncState.reviewInProgress,

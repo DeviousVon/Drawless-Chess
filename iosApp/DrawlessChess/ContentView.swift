@@ -880,54 +880,62 @@ private struct ChessBoardView: View {
 
     var body: some View {
         let themeId = model.game?.boardThemeId ?? model.preferences.boardThemeId
-        LazyVGrid(columns: columns, spacing: 0) {
-            ForEach(model.game?.cells ?? [], id: \.displayIndex) { cell in
-                Button {
-                    model.tap(cell.displayIndex)
-                } label: {
-                    GeometryReader { proxy in
-                        ZStack {
-                            BoardSquareSurface(
-                                themeId: themeId,
-                                isLight: !cell.darkSquare,
-                                square: cell.square
-                            )
-                            if cell.lastMove {
-                                Color(argb: model.game?.lastMoveArgb ?? 0x88D4AF37)
-                            }
-                            if cell.threatened { Color.red.opacity(0.25) }
-                            if cell.selected {
-                                Color(argb: model.game?.selectedArgb ?? 0xCCD4AF37)
-                                Rectangle().stroke(AppPalette.gold, lineWidth: 3)
-                            }
-                            if cell.legalTarget {
-                                if cell.captureTarget {
-                                    Circle().stroke(
-                                        Color(argb: model.game?.legalCaptureArgb ?? 0x99B03A48),
-                                        lineWidth: 4
-                                    )
-                                        .padding(proxy.size.width * 0.08)
-                                } else {
-                                    Circle().fill(Color(argb: model.game?.legalMoveArgb ?? 0x99C9A227))
-                                        .frame(width: proxy.size.width * 0.24)
+        let cells = model.game?.cells ?? []
+        ZStack {
+            LazyVGrid(columns: columns, spacing: 0) {
+                ForEach(cells, id: \.displayIndex) { cell in
+                    Button {
+                        model.tap(cell.displayIndex)
+                    } label: {
+                        GeometryReader { proxy in
+                            ZStack {
+                                BoardSquareSurface(
+                                    themeId: themeId,
+                                    isLight: !cell.darkSquare,
+                                    square: cell.square
+                                )
+                                if cell.lastMove {
+                                    Color(argb: model.game?.lastMoveArgb ?? 0x88D4AF37)
+                                }
+                                if cell.threatened { Color.red.opacity(0.25) }
+                                if cell.selected {
+                                    Color(argb: model.game?.selectedArgb ?? 0xCCD4AF37)
+                                    Rectangle().stroke(AppPalette.gold, lineWidth: 3)
+                                }
+                                if cell.legalTarget {
+                                    if cell.captureTarget {
+                                        Circle().stroke(
+                                            Color(argb: model.game?.legalCaptureArgb ?? 0x99B03A48),
+                                            lineWidth: 4
+                                        )
+                                            .padding(proxy.size.width * 0.08)
+                                    } else {
+                                        Circle().fill(Color(argb: model.game?.legalMoveArgb ?? 0x99C9A227))
+                                            .frame(width: proxy.size.width * 0.24)
+                                    }
+                                }
+                                if cell.inCheck {
+                                    Circle().fill(Color(argb: model.game?.checkArgb ?? 0xB3B22B38))
+                                        .padding(proxy.size.width * 0.05)
+                                }
+                                ChessPieceView(pieceCode: cell.pieceCode, themeId: themeId)
+                                    .padding(proxy.size.width * 0.015)
+                                if model.preferences.coordinatesEnabled {
+                                    coordinateLabels(cell: cell)
                                 }
                             }
-                            if cell.inCheck {
-                                Circle().fill(Color(argb: model.game?.checkArgb ?? 0xB3B22B38))
-                                    .padding(proxy.size.width * 0.05)
-                            }
-                            ChessPieceView(pieceCode: cell.pieceCode, themeId: themeId)
-                                .padding(proxy.size.width * 0.015)
-                            if model.preferences.coordinatesEnabled {
-                                coordinateLabels(cell: cell)
-                            }
                         }
+                        .aspectRatio(1, contentMode: .fit)
                     }
-                    .aspectRatio(1, contentMode: .fit)
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(localizedBoardCellLabel(cell))
+                    .accessibilityIdentifier("square.\(cell.square)")
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel(localizedBoardCellLabel(cell))
-                .accessibilityIdentifier("square.\(cell.square)")
+            }
+            if let from = model.game?.hintFromSquare, let to = model.game?.hintToSquare {
+                BoardMoveArrowOverlay(cells: cells, fromSquare: from, toSquare: to)
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
             }
         }
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
@@ -966,6 +974,74 @@ private struct ChessBoardView: View {
         .foregroundStyle(labelColor)
         .padding(2)
         .accessibilityHidden(true)
+    }
+}
+
+private struct BoardMoveArrowOverlay: View {
+    let cells: [SharedBoardCell]
+    let fromSquare: String
+    let toSquare: String
+
+    var body: some View {
+        Canvas { context, size in
+            guard
+                let fromIndex = cells.first(where: { $0.square == fromSquare })?.displayIndex,
+                let toIndex = cells.first(where: { $0.square == toSquare })?.displayIndex
+            else { return }
+
+            let squareWidth = size.width / 8
+            let squareHeight = size.height / 8
+            func center(_ displayIndex: Int32) -> CGPoint {
+                let index = Int(displayIndex)
+                return CGPoint(
+                    x: (CGFloat(index % 8) + 0.5) * squareWidth,
+                    y: (CGFloat(index / 8) + 0.5) * squareHeight
+                )
+            }
+
+            let start = center(fromIndex)
+            let end = center(toIndex)
+            let angle = atan2(end.y - start.y, end.x - start.x)
+            let headLength = min(squareWidth, squareHeight) * 0.28
+            let headAngle = CGFloat.pi / 6
+            let shaftWidth = max(3, min(squareWidth, squareHeight) * 0.11)
+
+            var shaft = Path()
+            shaft.move(to: start)
+            shaft.addLine(to: end)
+            context.stroke(
+                shaft,
+                with: .color(.black.opacity(0.72)),
+                style: StrokeStyle(lineWidth: shaftWidth + 3, lineCap: .round, lineJoin: .round)
+            )
+            context.stroke(
+                shaft,
+                with: .color(AppPalette.gold),
+                style: StrokeStyle(lineWidth: shaftWidth, lineCap: .round, lineJoin: .round)
+            )
+
+            var head = Path()
+            head.move(to: end)
+            head.addLine(to: CGPoint(
+                x: end.x - headLength * cos(angle - headAngle),
+                y: end.y - headLength * sin(angle - headAngle)
+            ))
+            head.move(to: end)
+            head.addLine(to: CGPoint(
+                x: end.x - headLength * cos(angle + headAngle),
+                y: end.y - headLength * sin(angle + headAngle)
+            ))
+            context.stroke(
+                head,
+                with: .color(.black.opacity(0.72)),
+                style: StrokeStyle(lineWidth: shaftWidth + 3, lineCap: .round, lineJoin: .round)
+            )
+            context.stroke(
+                head,
+                with: .color(AppPalette.gold),
+                style: StrokeStyle(lineWidth: shaftWidth, lineCap: .round, lineJoin: .round)
+            )
+        }
     }
 }
 
