@@ -1,8 +1,8 @@
 # Data Safety draft
 
-Status: **candidate copy for `1.0.0`; re-audit the exact signed release AAB**
+Status: **candidate copy for `1.0.1`; re-audit the exact signed release AAB**
 Package: `com.drawlesschess`
-Candidate version: `1.0.0` (`versionCode` 4)
+Candidate version: `1.0.1` (`versionCode` 5)
 Current Play build: `0.3.0` (`versionCode` 3), active in Closed testing — Alpha
 Candidate documentation date: July 30, 2026
 

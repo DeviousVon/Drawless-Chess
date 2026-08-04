@@ -2,17 +2,12 @@
 
 ## Stable routing
 
-- Account email: `bob@bostwick.us`
-- Console account index: `/u/1`
 - Developer display name: `BB_Games`
-- Developer ID: `8465135086815564930`
 - App: `Drawless Chess`
 - Package: `com.drawlesschess`
-- Console app ID: `4975227002124776938`
 - Closed testing track name: `Alpha`
-- Closed testing track ID: `4699411573101185907`
-- Track URL:
-  `https://play.google.com/console/u/1/developers/8465135086815564930/app/4975227002124776938/tracks/4699411573101185907`
+- Console profile and numeric routing IDs: keep them in external local configuration, not in the
+  repository
 
 Treat IDs and URLs as routing hints. Verify the visible developer name, app, package, and track
 before writing because Console routes can change.
@@ -27,7 +22,7 @@ report production separately.
 ## Browser procedure
 
 1. Use the Chrome control skill and a named release session so the signed-in Google session is
-   retained. Prefer `/u/1`; verify `BB_Games` before continuing.
+   retained. Verify `BB_Games` before continuing.
 2. Open the Drawless Chess app and the chosen track. Resume a matching saved draft when present.
 3. Use the accessible snapshot to locate controls. Do not reuse stale element locators after
    navigation, upload, processing, or save.

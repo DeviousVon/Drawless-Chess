@@ -1,14 +1,29 @@
 [CmdletBinding()]
 param(
-    [string]$RepositoryRoot = 'C:\src',
+    [string]$RepositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..')).Path,
     [string]$EvidenceManifest = 'build\release-evidence\play-aab.json',
     [string]$Bundle = 'android\app\build\outputs\bundle\release\app-release.aab',
     [string]$ReleaseNotes,
     [string]$ReleaseName,
+    [string]$DeveloperName = 'BB_Games',
+    [string]$DeveloperId = $env:DRAWLESS_PLAY_DEVELOPER_ID,
+    [string]$ConsoleAppId = $env:DRAWLESS_PLAY_APP_ID,
+    [string]$TrackId = $env:DRAWLESS_PLAY_TRACK_ID,
+    [int]$AccountIndex = 0,
     [switch]$AllowDirty
 )
 
 $ErrorActionPreference = 'Stop'
+
+foreach ($requiredRoutingValue in @{
+    DRAWLESS_PLAY_DEVELOPER_ID = $DeveloperId
+    DRAWLESS_PLAY_APP_ID = $ConsoleAppId
+    DRAWLESS_PLAY_TRACK_ID = $TrackId
+}.GetEnumerator()) {
+    if ([string]::IsNullOrWhiteSpace([string]$requiredRoutingValue.Value)) {
+        throw "$($requiredRoutingValue.Key) must be supplied through external local configuration."
+    }
+}
 
 function Resolve-RepoPath([string]$PathValue) {
     if ([IO.Path]::IsPathRooted($PathValue)) {
@@ -103,17 +118,21 @@ if (-not $ReleaseName) {
 
 [ordered]@{
     ok = $true
-    developerName = 'BB_Games'
-    developerId = '8465135086815564930'
-    accountIndex = 1
+    developerName = $DeveloperName
+    developerId = $DeveloperId
+    accountIndex = $AccountIndex
     appName = 'Drawless Chess'
-    consoleAppId = '4975227002124776938'
+    consoleAppId = $ConsoleAppId
     packageName = 'com.drawlesschess'
     track = [ordered]@{
         type = 'closedTesting'
         name = 'Alpha'
-        id = '4699411573101185907'
-        url = 'https://play.google.com/console/u/1/developers/8465135086815564930/app/4975227002124776938/tracks/4699411573101185907'
+        id = $TrackId
+        url = if ($AccountIndex -gt 0) {
+            "https://play.google.com/console/u/$AccountIndex/developers/$DeveloperId/app/$ConsoleAppId/tracks/$TrackId"
+        } else {
+            "https://play.google.com/console/developers/$DeveloperId/app/$ConsoleAppId/tracks/$TrackId"
+        }
     }
     versionName = $version
     versionCode = [int]$evidence.versionCode

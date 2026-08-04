@@ -1,9 +1,9 @@
 # Drawless Chess go-live status
 
-Status as of August 3, 2026: **The local RC1 source includes the visual hint correction,
-durable exact Game Review prefetch across Save & exit/Resume, and the owner-approved piece
-legibility correction. The exact clean, optimized 1.0.0 Android candidate/device proof and
-public production release remain blocked.**
+Status as of August 3, 2026: **The owner approved RC1 for publication with the visual hint
+correction, durable exact Game Review prefetch across Save & exit/Resume, and the approved piece
+legibility correction. Exact clean `1.0.1` artifact, device, GitHub, and Google Play destination
+verification remain pending.**
 
 Google Play closed testing currently serves 0.3.0 (`versionCode` 3) on the Alpha track; six testers
 were opted in when the Console was inspected on July 30. The owner selected a one-time paid listing,
@@ -67,7 +67,7 @@ candidate.
   than disabled in all four runs. The R6 full-scenario wall ratio nevertheless exceeded the old
   1.15 diagnostic limit twice (`1.1766x` and `1.1775x`); owner acceptance does not turn that metric
   into an automated pass.
-- The exact clean, optimized 1.0.0 candidate still requires new artifact hashes, installation,
+- The exact clean, optimized 1.0.1 candidate still requires new artifact hashes, installation,
   launch, engine verification, and upgrade checks on the designated Pixel phone and R6 tablet.
   Game Review remains labeled Beta. Its engine Gate 1 closes only after that exact candidate proof;
   evidence Gate 0 and experience/persistence/exit Gates 2-5 remain open.
@@ -97,9 +97,10 @@ candidate.
 - Compact 14/18/24dp tests retain the king-vs-bishop and king-vs-pawn silhouette gates and require
   the queen jewel accent to survive rasterization. The focused two-test visual class passes on the
   API-36 emulator and R6 tablet.
-- Version identity remains `1.0.0` with `versionCode` 4. The debug candidate was installed and
-  launched on the emulator and R6; the Pixel was disconnected, so the exact two-device gate remains
-  open.
+- Release identity advances to `1.0.1` with `versionCode` 5 because the public `v1.0.0` tag is
+  immutable at the earlier release commit. The approved RC1 debug candidate was installed and
+  launched on the emulator, R6, and Pixel; the exact `1.0.1` build still requires installation on
+  both designated physical devices.
 - Completed foreground Game Review roots and adjacent fallback evidence are persisted immediately
   with exact history, rules, request, response, analysis-version, and embedded-engine identity
   validation. Compatible evidence survives Save & exit/Resume without another native search;
@@ -168,7 +169,7 @@ Machine evidence is retained locally under:
 - `build/release-qa/pixel-clean`
 - `build/release-qa/final-harness`
 
-## Checklist before the 1.0.0 Play update
+## Checklist before the 1.0.1 Play update
 
 Complete these in order. Items involving identity, private keys, payment, legal terms, real
 testers, or publication must be performed or explicitly approved by the owner.
@@ -185,7 +186,7 @@ testers, or publication must be performed or explicitly approved by the owner.
    signature, package/version, API level, both ABIs, 16 KB native compatibility, permissions,
    dependency/SBOM evidence, notices, and corresponding source.
 5. Publish and verify the privacy-policy URL while signed out. Publish the GPL corresponding-source
-   archive and SHA-256 for the exact AAB on the matching `v1.0.0` GitHub release; verify the in-app
+   archive and SHA-256 for the exact AAB on the matching `v1.0.1` GitHub release; verify the in-app
    source link before submission.
 6. Re-audit Play Console App content: Data Safety, privacy URL, ads/app access, target audience,
    content rating, category, pricing, countries, and store listing. Use the prepared drafts, but

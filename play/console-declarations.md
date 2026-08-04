@@ -1,7 +1,7 @@
 # Play Console declaration recommendations
 
-These are candidate answers for the planned `com.drawlesschess` version `1.0.0`
-(`versionCode` 4) closed-test update. Match them to the current Console wording and re-audit
+These are candidate answers for the planned `com.drawlesschess` version `1.0.1`
+(`versionCode` 5) closed-test update. Match them to the current Console wording and re-audit
 the exact signed App Bundle. The live Play build remains `0.3.0` (`versionCode` 3) in Closed
 testing — Alpha, with six testers shown on July 30, 2026.
 
@@ -104,7 +104,7 @@ PEGI, or regional result in the listing.
 - Final target-audience confirmation.
 - IARC rating generated from the completed questionnaire.
 - Signed-out verification of `https://drawlesschess.com/privacy/`.
-- Exact `1.0.0` release AAB review and Play pre-launch report.
-- Upload and rollout of `1.0.0` to the closed track. The active `0.3.0` Alpha and its six
+- Exact `1.0.1` release AAB review and Play pre-launch report.
+- Upload and rollout of `1.0.1` to the closed track. The active `0.3.0` Alpha and its six
   testers do not by themselves prove the required tester threshold, elapsed testing
   period, feedback quality, or production-access eligibility.

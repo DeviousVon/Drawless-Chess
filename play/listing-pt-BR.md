@@ -58,14 +58,14 @@ Sem conta. Sem anúncios. Sem análise de uso ou rastreamento. Sem compras no ap
 
 SOFTWARE DE CÓDIGO ABERTO
 Drawless Chess é licenciado sob a GNU GPL versão 3 ou posterior. O código-fonte e os avisos do projeto estão disponíveis em:
-https://github.com/DeviousVon/Drawless-Chess/releases/tag/v1.0.0
+https://github.com/DeviousVon/Drawless-Chess/releases/tag/v1.0.1
 ```
 
 Contagem de caracteres: 3.063 de 4.000, incluindo quebras de linha.
 
 ## Notas da versão
 
-Rascunho para a versão `1.0.0` (`versionCode` 4):
+Rascunho para a versão `1.0.1` (`versionCode` 5):
 
 ```text
 Grande atualização: Vesper é o oitavo adversário. O modo Adaptativo se ajusta ao seu nível e evolui após cada partida sem ajuda. Ao terminar, abra imediatamente a Análise da partida (Beta) para ver avaliações dos seus lances, alternativas melhores, variantes curtas e o tabuleiro. O motor Fairy-Stockfish ajustado para Drawless analisa tudo no aparelho. As análises não são salvas em um histórico.

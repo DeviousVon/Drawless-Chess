@@ -5,8 +5,8 @@ with six testers shown. This is therefore no longer a pre-upload package.
 
 The icon, feature graphic, and ten screenshots form one coherent historical July 18 set from app
 candidate SHA-256 `76e896c3b9ab6728c352f27050d0771219fd33dd9958f63dd8d72072cb44f8b3`.
-Before the `1.0.0` (`versionCode` 4) update, visually compare the set with the exact candidate.
-Because `1.0.0` adds Vesper and Game Review Beta, refresh affected screenshots as one coherent
+Before the `1.0.1` (`versionCode` 5) update, visually compare the set with the exact candidate.
+Because `1.0.1` adds Vesper and Game Review Beta, refresh affected screenshots as one coherent
 set rather than calling all ten images current without that audit.
 
 ## Phone screenshots
@@ -44,6 +44,6 @@ deterministic tablet profile and show the current responsive tablet layout.
   than mixing revisions.
 - The exact dimensions, sizes, hashes, alt text, sources, and transforms are in
   `asset-manifest.csv`; provenance and the deterministic legal positions are in `PROVENANCE.md`.
-- Confirm the assets currently assigned in Play Console before the `1.0.0` rollout. The active
+- Confirm the assets currently assigned in Play Console before the `1.0.1` rollout. The active
   `0.3.0` Alpha confirms that a Play release upload has occurred, but it does not prove that every
   local file in this historical set is still assigned unchanged.

@@ -2,7 +2,7 @@
 
 Current Play state (July 30, 2026): **`0.3.0` (`versionCode` 3) is active in
 Closed testing — Alpha; Play Console shows six testers.**
-Next candidate: **`1.0.0` (`versionCode` 4)**. Its listing and release copy are prepared here;
+Next candidate: **`1.0.1` (`versionCode` 5)**. Its listing and release copy are prepared here;
 do not describe that candidate as live until Play Console confirms it.
 App: Drawless Chess
 Package: `com.drawlesschess`
@@ -12,7 +12,7 @@ Website: https://drawlesschess.com
 Prepared: July 30, 2026
 
 This directory contains copy-ready drafts for the Google Play listing and App content
-forms. The listing and release-note drafts describe the planned `1.0.0` (`versionCode` 4)
+forms. The listing and release-note drafts describe the planned `1.0.1` (`versionCode` 5)
 closed-test update; status notes distinguish it from the live `0.3.0` (`versionCode` 3)
 Alpha. Re-audit the exact signed App Bundle before submission if code, dependencies,
 permissions, data handling, features, or the version changes.
@@ -20,8 +20,8 @@ permissions, data handling, features, or the version changes.
 ## Contents
 
 - `listing-*.md` — title, short and full descriptions, localized metadata, and localized
-  `1.0.0` release notes.
-- [`release-notes-1.0.0.md`](release-notes-1.0.0.md) — one copy-ready block for each of
+  `1.0.1` release notes.
+- [`release-notes-1.0.1.md`](release-notes-1.0.1.md) — one copy-ready block for each of
   en-US, de-DE, es-419, fr-FR, and pt-BR.
 - [`data-safety.md`](data-safety.md) — Data Safety answers and the source evidence behind
   them.
@@ -54,11 +54,11 @@ permissions, data handling, features, or the version changes.
    private outreach.
 6. Use Play Console's current wording when a question differs from these notes. Never
    claim that testing, feedback, production access, or approval occurred until it did.
-7. Publish the exact `drawless-chess-1.0.0-source.tar.gz` and its SHA-256 on the GitHub
-   `v1.0.0` release before submitting or distributing the `1.0.0` build whose in-app source
+7. Publish the exact `drawless-chess-1.0.1-source.tar.gz` and its SHA-256 on the GitHub
+   `v1.0.1` release before submitting or distributing the `1.0.1` build whose in-app source
    link points there.
 
 The icon, feature graphic, and ten screenshots form the documented July 18 set associated with
-the `0.3.0` Alpha. Because `1.0.0` adds Vesper and Game Review Beta, do not label that screenshot
-set current for `1.0.0` without a new visual audit; refresh affected images as one coherent set.
+the `0.3.0` Alpha. Because `1.0.1` adds Vesper and Game Review Beta, do not label that screenshot
+set current for `1.0.1` without a new visual audit; refresh affected images as one coherent set.
 Exact historical sources, transforms, dimensions, and hashes remain under `store-assets/`.
