@@ -51,18 +51,15 @@ try {
             extensionId = $ExtensionId
             extensionInstalled = $false
             extensionEnabled = $false
-            fileUrlAccess = $false
             ready = $false
             reason = 'ChatGPT Chrome extension is not installed in the selected profile.'
         } | ConvertTo-Json -Depth 4
         exit 1
     }
 
-    $disableReasons = @($extension['disable_reasons'])
-    $enabled = $disableReasons.Count -eq 0
-    $fileUrlAccess = $extension.ContainsKey('allowed_file_scheme_access') -and
-        [bool]$extension['allowed_file_scheme_access']
-    $ready = $enabled -and $fileUrlAccess
+    $disableReasons = $extension['disable_reasons']
+    $enabled = $null -eq $disableReasons -or @($disableReasons).Count -eq 0
+    $ready = $enabled
 
     [pscustomobject]@{
         browser = 'chrome'
@@ -72,14 +69,12 @@ try {
         extensionEnabled = $enabled
         extensionVersion = $extension['manifest']['version']
         extensionInstalledAtUtc = Convert-ChromeTime $extension['first_install_time']
-        fileUrlAccess = $fileUrlAccess
+        fileUrlAccess = 'not exposed by Chrome preferences; verify with the browser file chooser'
         ready = $ready
         reason = if ($ready) {
-            'Chrome upload access is ready.'
-        } elseif (-not $enabled) {
-            'ChatGPT Chrome extension is disabled in the selected profile.'
+            'ChatGPT Chrome extension is ready; test file access with the browser file chooser.'
         } else {
-            'Allow access to file URLs is disabled in the selected profile.'
+            'ChatGPT Chrome extension is disabled in the selected profile.'
         }
     } | ConvertTo-Json -Depth 4
 
