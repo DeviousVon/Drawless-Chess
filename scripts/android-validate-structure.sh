@@ -272,7 +272,8 @@ ACTUAL_WRAPPER_JAR_SHA256=$(hash_file "$WRAPPER_JAR")
 [[ "$ACTUAL_WRAPPER_JAR_SHA256" == "$EXPECTED_WRAPPER_JAR_SHA256" ]] \
     || die "Gradle wrapper JAR checksum drifted: $ACTUAL_WRAPPER_JAR_SHA256"
 read -r DECLARED_WRAPPER_JAR_SHA256 DECLARED_WRAPPER_JAR_NAME DECLARED_WRAPPER_JAR_EXTRA \
-    < "$WRAPPER_JAR_CHECKSUM" || die "could not parse Gradle wrapper JAR checksum file"
+    < <(tr -d '\r' < "$WRAPPER_JAR_CHECKSUM") \
+    || die "could not parse Gradle wrapper JAR checksum file"
 [[ "$DECLARED_WRAPPER_JAR_SHA256" == "$EXPECTED_WRAPPER_JAR_SHA256" ]] \
     || die "Gradle wrapper JAR checksum sidecar does not match the locked checksum"
 [[ "$DECLARED_WRAPPER_JAR_NAME" == gradle-wrapper.jar ]] \
