@@ -1,6 +1,6 @@
 ---
 name: drawless-google-play-release
-description: Build, verify, upload, submit, and confirm Drawless Chess releases in Google Play Console from C:\src. Use when Bob asks to update Google Play, upload an AAB, submit a release, update the Alpha closed test, check Play status, or move an eligible Drawless Chess release toward production.
+description: Build, verify, upload, submit, and confirm Drawless Chess releases in Google Play Console from the current repository. Use when Bob asks to update Google Play, upload an AAB, submit a release, update the Alpha closed test, check Play status, or move an eligible Drawless Chess release toward production.
 ---
 
 # Drawless Chess Google Play release
@@ -10,7 +10,7 @@ track, AAB path, release-note locations, or Console navigation that this skill a
 
 ## Fixed project context
 
-- Repository: `C:\src`
+- Repository: the current Drawless Chess repository root
 - Package: `com.drawlesschess`
 - Developer account: `BB_Games`
 - Preferred signed-in Console profile: the existing authorized profile for `BB_Games`
@@ -69,7 +69,7 @@ payments/tax identity, app signing enrollment, or any signing/upload key.
 6. Generate the submission manifest from the repository root:
 
    ```powershell
-   pwsh -NoProfile -File <skill>/scripts/New-PlaySubmissionManifest.ps1 -RepositoryRoot C:\src
+   pwsh -NoProfile -File <skill>/scripts/New-PlaySubmissionManifest.ps1 -RepositoryRoot <repository-root>
    ```
 
 7. Prefer the Google Play Developer Publishing API when an already-authorized external service

@@ -81,6 +81,7 @@ internal class DrawlessAppViewModel(
     private val gamePreferenceStore = GamePreferenceStore(this.applicationContext)
     private val quickPlayPreferences = QuickPlayPreferenceStore(this.applicationContext)
     private var activeSelection: SetupSelection? = null
+    private var postGameReviewHandledGameId: String? by mutableStateOf(null)
 
     var route: AppRoute by mutableStateOf(AppRoute.HOME)
         private set
@@ -315,13 +316,19 @@ internal class DrawlessAppViewModel(
         launchNewGame(quickPlaySelection())
     }
 
-    fun showGameReview() {
-        val activeRuntime = runtime ?: return
-        if (activeRuntime.controller.model().result != null) route = AppRoute.REVIEW
-    }
+    fun isPostGameReviewPending(gameId: String): Boolean =
+        runtime?.gameId == gameId && postGameReviewHandledGameId != gameId
 
-    fun leaveGameReview() {
-        route = if (runtime == null) AppRoute.HOME else AppRoute.GAME
+    fun enterPostGameReview(expectedGameId: String) {
+        val activeRuntime = runtime ?: return
+        if (activeRuntime.gameId != expectedGameId ||
+            activeRuntime.controller.model().result == null ||
+            postGameReviewHandledGameId == activeRuntime.gameId
+        ) {
+            return
+        }
+        postGameReviewHandledGameId = activeRuntime.gameId
+        route = AppRoute.REVIEW
     }
 
     private fun quickPlaySelection(): SetupSelection = quickPlaySetup(quickPlayOpponentLevel)
@@ -355,6 +362,7 @@ internal class DrawlessAppViewModel(
         cancelPendingAdaptiveLaunch()
         val previous = runtime
         runtime = null
+        postGameReviewHandledGameId = null
         previous?.close()
         route = AppRoute.HOME
         playerStatsState = PlayerStatsState.Loading
@@ -419,6 +427,7 @@ internal class DrawlessAppViewModel(
     private fun replaceRuntime(create: () -> GameRuntime) {
         val previous = runtime
         runtime = null
+        postGameReviewHandledGameId = null
         previous?.close()
         try {
             runtime = create()

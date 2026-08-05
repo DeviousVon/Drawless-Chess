@@ -98,7 +98,8 @@ internal fun GameRoute(
     onShowThemes: () -> Unit,
     onShowOptions: () -> Unit,
     onExit: () -> Unit,
-    onReview: () -> Unit,
+    postGameReviewPending: Boolean,
+    onOpenPostGameReview: (String) -> Unit,
     onQuickPlay: () -> Unit,
     onRematch: () -> Unit,
     onGameCompleted: () -> Unit,
@@ -125,6 +126,11 @@ internal fun GameRoute(
         mutableStateOf(model.result.takeIf { model.board.phase == CoordinatorPhase.COMPLETED })
     }
     var completionEffect by remember(controller) { mutableStateOf<GameResultView?>(null) }
+    var completionPresentationFinished by remember(controller) {
+        mutableStateOf(model.board.phase == CoordinatorPhase.COMPLETED && model.result != null)
+    }
+    var completionAudioEndsAtUptimeMillis by remember(controller) { mutableLongStateOf(0L) }
+    var postGameReviewTapReady by remember(controller) { mutableStateOf(false) }
     val lifecycleOwner = LocalLifecycleOwner.current
     var lifecycleStarted by remember(lifecycleOwner) {
         mutableStateOf(lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED))
@@ -211,6 +217,9 @@ internal fun GameRoute(
         if (previousPhase != CoordinatorPhase.COMPLETED &&
             model.board.phase == CoordinatorPhase.COMPLETED
         ) {
+            completionPresentationFinished = false
+            completionAudioEndsAtUptimeMillis = 0L
+            postGameReviewTapReady = false
             model.result?.let { result ->
                 val finalOpponentMovePly = model.board.moveMotion?.takeIf { motion ->
                     motion.ply == visiblePlyCount && motion.mover != model.board.humanSide
@@ -274,12 +283,51 @@ internal fun GameRoute(
                 completionEffect = pending.result.takeIf {
                     preferences.celebrationEffectsEnabled
                 }
+                completionPresentationFinished = !preferences.celebrationEffectsEnabled
                 if (preferences.hapticFeedbackEnabled) {
                     gameHaptics.perform(GameHapticClassifier.forCompletion(pending.result.playerWon))
                 }
                 pendingCompletion = null
             }
         }
+    }
+
+    LaunchedEffect(
+        controller,
+        postGameResult,
+        pendingCompletion,
+        completionEffect,
+        completionPresentationFinished,
+        lifecycleStarted,
+        postGameReviewPending,
+        preferences.soundEnabled,
+        preferences.celebrationEffectsEnabled,
+    ) {
+        postGameReviewTapReady = false
+        val result = postGameResult ?: return@LaunchedEffect
+        if (!lifecycleStarted || !postGameReviewPending ||
+            pendingCompletion != null || completionEffect != null ||
+            !completionPresentationFinished
+        ) {
+            return@LaunchedEffect
+        }
+        val settleMillis = postGameReviewAudioSettleMillis(
+            playerWon = result.playerWon,
+            reason = result.reason,
+            soundEnabled = preferences.soundEnabled,
+            celebrationEffectsEnabled = preferences.celebrationEffectsEnabled,
+        )
+        val sampledCueRemainingMillis = if (preferences.soundEnabled) {
+            remainingCompletionAudioMillis(
+                audioEndsAtUptimeMillis = completionAudioEndsAtUptimeMillis,
+                nowUptimeMillis = SystemClock.uptimeMillis(),
+            )
+        } else {
+            0L
+        }
+        val fullAudioSettleMillis = maxOf(settleMillis, sampledCueRemainingMillis)
+        if (fullAudioSettleMillis > 0L) delay(fullAudioSettleMillis)
+        postGameReviewTapReady = true
     }
 
     val shouldTick = model.board.phase == CoordinatorPhase.BOT_THINKING ||
@@ -316,10 +364,6 @@ internal fun GameRoute(
         soundPlayer.stopAll()
         onQuickPlay()
     }
-    val reviewGame = {
-        soundPlayer.stopAll()
-        onReview()
-    }
     val handleBoardEvent: (BoardEvent) -> Unit = { event ->
         val before = model
         val after = controller.boardEvent(event)
@@ -337,7 +381,16 @@ internal fun GameRoute(
         )
         val headerInSidePanel = fullWindowLayout.controlPlacement == ControlPlacement.BESIDE_BOARD
 
+        val awaitingPostGameAcknowledgement = lifecycleStarted &&
+            postGameReviewPending && model.board.phase == CoordinatorPhase.COMPLETED
+        val scaffoldModifier = if (awaitingPostGameAcknowledgement) {
+            Modifier.clearAndSetSemantics { }
+        } else {
+            Modifier
+        }
+
         Scaffold(
+            modifier = scaffoldModifier,
             topBar = {
                 if (!headerInSidePanel) {
                     GameTopBar(
@@ -357,7 +410,6 @@ internal fun GameRoute(
                             ?.takeIf { it.latestGameId == runtime.gameId }
                             ?.averageScore,
                         onHome = exitGame,
-                        onReview = reviewGame,
                         onQuickPlay = quickPlayGame,
                         onRematch = rematchGame,
                     )
@@ -405,12 +457,33 @@ internal fun GameRoute(
                         result = result,
                         opponent = opponentProfile,
                         modifier = Modifier.fillMaxSize(),
-                        onCue = { won ->
-                            if (preferences.soundEnabled) soundPlayer.playCompletionCue(won)
+                        onCue = { cue ->
+                            if (preferences.soundEnabled) {
+                                completionAudioEndsAtUptimeMillis = maxOf(
+                                    completionAudioEndsAtUptimeMillis,
+                                    cue.audioEndUptimeMillis(SystemClock.uptimeMillis()),
+                                )
+                                soundPlayer.playCompletionCue(cue)
+                            }
                         },
-                        onFinished = { completionEffect = null },
+                        onFinished = {
+                            completionEffect = null
+                            completionPresentationFinished = true
+                        },
                     )
                 }
+            }
+        }
+        if (awaitingPostGameAcknowledgement && !postGameReviewTapReady) {
+            PostGamePresentationInputBlocker(Modifier.fillMaxSize())
+        }
+        if (awaitingPostGameAcknowledgement && postGameReviewTapReady) {
+            postGameResult?.let { result ->
+                PostGameReviewTapGate(
+                    result = result,
+                    onOpenReview = { onOpenPostGameReview(runtime.gameId) },
+                    modifier = Modifier.fillMaxSize(),
+                )
             }
         }
     }
@@ -444,6 +517,70 @@ internal fun GameRoute(
                 ) { Text(stringResource(R.string.action_keep_playing)) }
             },
         )
+    }
+}
+
+@Composable
+private fun PostGamePresentationInputBlocker(modifier: Modifier = Modifier) {
+    Box(
+        modifier
+            .testTag("post_game_presentation_input_blocker")
+            .pointerInput(Unit) {
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    down.consume()
+                    do {
+                        val event = awaitPointerEvent()
+                        event.changes.forEach { it.consume() }
+                    } while (event.changes.any { it.pressed })
+                }
+            }
+            .clearAndSetSemantics { },
+    )
+}
+
+@Composable
+internal fun PostGameReviewTapGate(
+    result: GameResultView,
+    onOpenReview: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val prompt = stringResource(R.string.game_tap_anywhere_to_review)
+    val headline = stringResource(if (result.playerWon) R.string.game_victory else R.string.game_defeat)
+    val resultStateDescription = stringResource(
+        R.string.game_result_accessibility,
+        headline,
+        result.score.points,
+        result.score.maximumPoints,
+    )
+    Box(
+        modifier = modifier
+            .testTag("post_game_review_tap_gate")
+            .clickable(
+                onClickLabel = prompt,
+                role = Role.Button,
+                onClick = onOpenReview,
+            )
+            .semantics {
+                stateDescription = resultStateDescription
+                liveRegion = LiveRegionMode.Polite
+            },
+        contentAlignment = Alignment.BottomCenter,
+    ) {
+        Surface(
+            modifier = Modifier.padding(24.dp),
+            shape = RoundedCornerShape(24.dp),
+            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f),
+            tonalElevation = 8.dp,
+            shadowElevation = 10.dp,
+        ) {
+            Text(
+                text = prompt,
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+        }
     }
 }
 
@@ -585,7 +722,6 @@ internal fun PostGameBar(
     opponentName: String? = null,
     careerAverageGameScore: Double? = null,
     onHome: () -> Unit,
-    onReview: () -> Unit = {},
     onQuickPlay: () -> Unit,
     onRematch: () -> Unit,
 ) {
@@ -698,13 +834,6 @@ internal fun PostGameBar(
                         color = onContainer.copy(alpha = 0.82f),
                     )
                 }
-                Button(
-                    onClick = onReview,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 48.dp)
-                        .testTag("post_game_review"),
-                ) { Text(stringResource(R.string.action_review_game)) }
                 if (stackPrimaryActions) {
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         FilledTonalButton(

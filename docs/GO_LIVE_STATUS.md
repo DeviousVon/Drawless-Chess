@@ -81,7 +81,7 @@ candidate.
 - The shared arrow renderer, core hint state, localized accessibility descriptions, controller
   assertions, and Compose coverage are included in this frozen candidate. The focused Compose test
   passed on the API-36 emulator; the debug artifact used for that check was
-  `C:\src\android\app\build\outputs\apk\debug\app-debug.apk`, SHA-256
+  `android/app/build/outputs/apk/debug/app-debug.apk`, SHA-256
   `E6E92B83C6E2332160499C552CCBBF83E9BBA659F0D4D21739EAF5EE1C6BE999`.
 - The focused hint-arrow test later passed on the API-36 emulator, Pixel 9 Pro XL, and R6 tablet.
   That evidence remains scoped to the frozen hint commit; the later combined RC1 still requires

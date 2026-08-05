@@ -58,18 +58,19 @@ class PostGameLaunchActionsInstrumentedTest {
             assertEquals(expectedOpponent.id, firstRuntime.opponentLevel.id)
             assertEquals(1, randomCalls)
 
-            onMain {
-                firstRuntime.controller.resign()
-                viewModel.showGameReview()
-            }
-            assertEquals(AppRoute.REVIEW, viewModel.route)
-            assertSame(firstRuntime, viewModel.runtime)
+            assertTrue(viewModel.isPostGameReviewPending(firstRuntime.gameId))
+            onMain { viewModel.enterPostGameReview(firstRuntime.gameId) }
+            assertEquals("A nonterminal game entered Review", AppRoute.GAME, viewModel.route)
 
             onMain {
-                viewModel.leaveGameReview()
+                firstRuntime.controller.resign()
             }
+            onMain { viewModel.enterPostGameReview("stale-game-id") }
             assertEquals(AppRoute.GAME, viewModel.route)
+            onMain { viewModel.enterPostGameReview(firstRuntime.gameId) }
+            assertEquals(AppRoute.REVIEW, viewModel.route)
             assertSame(firstRuntime, viewModel.runtime)
+            assertTrue(!viewModel.isPostGameReviewPending(firstRuntime.gameId))
 
             onMain {
                 viewModel.rematchGame()
@@ -81,8 +82,16 @@ class PostGameLaunchActionsInstrumentedTest {
             assertEquals(expectedOpponent.id, rematchRuntime.opponentLevel.id)
             assertEquals("Rematch unexpectedly drew a new side", 1, randomCalls)
 
+            onMain { viewModel.enterPostGameReview(firstRuntime.gameId) }
+            assertEquals("Stale callback navigated the replacement game", AppRoute.GAME, viewModel.route)
+            assertTrue(viewModel.isPostGameReviewPending(rematchRuntime.gameId))
+
             onMain {
                 rematchRuntime.controller.resign()
+            }
+            onMain { viewModel.enterPostGameReview(rematchRuntime.gameId) }
+            assertEquals(AppRoute.REVIEW, viewModel.route)
+            onMain {
                 viewModel.postGameQuickPlay()
             }
             waitUntil { viewModel.runtime != null && viewModel.runtime !== rematchRuntime }

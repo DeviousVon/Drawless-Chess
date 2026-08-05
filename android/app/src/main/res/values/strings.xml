@@ -15,7 +15,6 @@
     <string name="action_home">Home</string>
     <string name="action_quick_play">Quick Play</string>
     <string name="action_rematch">Rematch</string>
-    <string name="action_review_game">Review game</string>
     <string name="action_keep_playing">Keep playing</string>
     <string name="action_theme">Theme</string>
     <string name="label_white">White</string>
@@ -223,6 +222,7 @@
     <string name="game_resign_confirm">Resign game</string>
     <string name="game_victory">Victory</string>
     <string name="game_defeat">Defeat</string>
+    <string name="game_tap_anywhere_to_review">Tap anywhere to review</string>
     <string name="game_result_accessibility">%1$s, score %2$d of %3$d</string>
     <string name="game_you_won">You won this game.</string>
     <string name="game_you_defeated">You defeated %1$s.</string>
@@ -266,7 +266,6 @@
     <string name="review_summary_graded">Moves graded: %1$d</string>
     <string name="review_summary_grade_count">%1$s: %2$d</string>
     <string name="review_summary_grade_badge">%1$s %2$d</string>
-    <string name="review_my_mistakes">Review my mistakes</string>
     <string name="review_opponent_context_label">Opponent move</string>
     <string name="review_opponent_context_body">Shown for context. Only your moves are graded.</string>
     <string name="review_better_move_arrow_accessibility">Better move arrow from %1$s to %2$s</string>
@@ -278,11 +277,15 @@
     <string name="review_cancel_analysis">Stop analysis</string>
     <string name="review_retry">Analyze again</string>
     <string name="review_move_position">Move %1$d of %2$d</string>
+    <string name="review_your_move_position">Your move %1$d of %2$d</string>
     <string name="review_previous_issue">Previous mistake</string>
     <string name="review_previous">Previous move</string>
     <string name="review_next">Next move</string>
     <string name="review_next_issue">Next mistake</string>
     <string name="review_moves">Game moves</string>
+    <string name="review_your_moves">Your moves</string>
+    <string name="review_show_opponent_moves">Show opponent moves</string>
+    <string name="review_no_player_moves">No player moves to review.</string>
     <string name="review_starting_position">Starting position</string>
     <string name="review_choose_move">Choose a move to see its review.</string>
     <string name="review_waiting">Waiting for analysis…</string>

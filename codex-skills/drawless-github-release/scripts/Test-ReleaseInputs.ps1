@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [string]$RepositoryRoot = 'C:\src',
+    [string]$RepositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..')).Path,
     [string]$EvidenceManifest = 'build\release-evidence\play-aab.json',
     [string]$Bundle = 'android\app\build\outputs\bundle\release\app-release.aab',
     [string]$Version,
