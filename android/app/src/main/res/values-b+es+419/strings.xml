@@ -14,7 +14,6 @@
     <string name="action_home">Inicio</string>
     <string name="action_quick_play">Partida rápida</string>
     <string name="action_rematch">Revancha</string>
-    <string name="action_review_game">Analizar partida</string>
     <string name="action_keep_playing">Seguir jugando</string>
     <string name="action_theme">Tema</string>
     <string name="label_white">Blancas</string>
@@ -220,6 +219,7 @@
     <string name="game_resign_confirm">Rendirse</string>
     <string name="game_victory">Victoria</string>
     <string name="game_defeat">Derrota</string>
+    <string name="game_tap_anywhere_to_review">Toca en cualquier lugar para revisar la partida</string>
     <string name="game_result_accessibility">%1$s, puntuación %2$d de %3$d</string>
     <string name="game_you_won">Ganaste esta partida.</string>
     <string name="game_you_defeated">Derrotaste a %1$s.</string>
@@ -262,7 +262,6 @@
     <string name="review_summary_graded">Jugadas calificadas: %1$d</string>
     <string name="review_summary_grade_count">%1$s: %2$d</string>
     <string name="review_summary_grade_badge">%1$s %2$d</string>
-    <string name="review_my_mistakes">Revisar mis errores</string>
     <string name="review_opponent_context_label">Jugada del rival</string>
     <string name="review_opponent_context_body">Se muestra como contexto. Solo se califican tus jugadas.</string>
     <string name="review_better_move_arrow_accessibility">Flecha de mejor jugada de %1$s a %2$s</string>
@@ -274,11 +273,15 @@
     <string name="review_cancel_analysis">Detener análisis</string>
     <string name="review_retry">Analizar de nuevo</string>
     <string name="review_move_position">Jugada %1$d de %2$d</string>
+    <string name="review_your_move_position">Tu jugada %1$d de %2$d</string>
     <string name="review_previous_issue">Error anterior</string>
     <string name="review_previous">Jugada anterior</string>
     <string name="review_next">Jugada siguiente</string>
     <string name="review_next_issue">Error siguiente</string>
     <string name="review_moves">Jugadas de la partida</string>
+    <string name="review_your_moves">Tus jugadas</string>
+    <string name="review_show_opponent_moves">Mostrar jugadas del rival</string>
+    <string name="review_no_player_moves">No hay jugadas tuyas para revisar.</string>
     <string name="review_starting_position">Posición inicial</string>
     <string name="review_choose_move">Elige una jugada para ver su análisis.</string>
     <string name="review_waiting">Esperando el análisis…</string>

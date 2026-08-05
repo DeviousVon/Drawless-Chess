@@ -24,6 +24,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ElevatedCard
@@ -34,6 +35,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedIconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -43,7 +45,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -89,7 +90,6 @@ import com.drawlesschess.core.presentation.ControlPlacement
 import com.drawlesschess.core.presentation.ResponsiveBoardLayout
 import java.text.NumberFormat
 import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -159,6 +159,33 @@ internal data class GameReviewUiModel(
         get() = moves.count { it.role == ReviewMoveRole.PLAYER_DECISION }
 }
 
+internal fun initialPlayerReviewPly(moves: List<ReviewMoveUi>): Int =
+    moves.firstOrNull { move -> move.role == ReviewMoveRole.PLAYER_DECISION }?.ply ?: 0
+
+internal fun visibleReviewMoves(
+    moves: List<ReviewMoveUi>,
+    showOpponentMoves: Boolean,
+): List<ReviewMoveUi> = if (showOpponentMoves) {
+    moves
+} else {
+    moves.filter { move -> move.role == ReviewMoveRole.PLAYER_DECISION }
+}
+
+internal fun reviewSelectionAfterHidingOpponentMoves(
+    moves: List<ReviewMoveUi>,
+    selectedPly: Int,
+): Int {
+    if (selectedPly == 0) return 0
+    val selectedMove = moves.firstOrNull { move -> move.ply == selectedPly }
+        ?: return selectedPly
+    if (selectedMove.role == ReviewMoveRole.PLAYER_DECISION) return selectedPly
+    return moves.firstOrNull { move ->
+        move.ply > selectedPly && move.role == ReviewMoveRole.PLAYER_DECISION
+    }?.ply ?: moves.lastOrNull { move ->
+        move.ply < selectedPly && move.role == ReviewMoveRole.PLAYER_DECISION
+    }?.ply ?: 0
+}
+
 internal data class ReviewContentLayout(
     val controlPlacement: ControlPlacement,
     val boardSizeDp: Int,
@@ -211,9 +238,16 @@ internal fun GameReviewRoute(
     runtime: GameRuntime,
     preferences: GamePreferences,
     selectedTheme: BoardTheme,
-    onBack: () -> Unit,
+    onSaveAndExit: () -> Unit,
+    onRematch: () -> Unit,
 ) {
-    RuntimeGameReviewRoute(runtime, preferences, selectedTheme, onBack)
+    RuntimeGameReviewRoute(
+        runtime = runtime,
+        preferences = preferences,
+        selectedTheme = selectedTheme,
+        onSaveAndExit = onSaveAndExit,
+        onRematch = onRematch,
+    )
 }
 
 @Composable
@@ -221,19 +255,21 @@ private fun RuntimeGameReviewRoute(
     runtime: GameRuntime,
     preferences: GamePreferences,
     selectedTheme: BoardTheme,
-    onBack: () -> Unit,
+    onSaveAndExit: () -> Unit,
+    onRematch: () -> Unit,
 ) {
     val checkpoint = remember(runtime) { runtime.reviewCheckpoint() }
     val finalGameModel = remember(runtime) { runtime.controller.model() }
     val placeholderMoves = remember(checkpoint) { reviewMovePlaceholders(checkpoint) }
     val defaultSelectedPly = remember(placeholderMoves) {
-        placeholderMoves.lastOrNull { it.role == ReviewMoveRole.PLAYER_DECISION }?.ply ?: 0
+        initialPlayerReviewPly(placeholderMoves)
     }
     var orientationOrdinal by rememberSaveable(runtime.gameId) {
         mutableIntStateOf(BoardOrientation.forSide(checkpoint.config.humanSide).ordinal)
     }
     val orientation = BoardOrientation.entries[orientationOrdinal]
     var selectedPly by rememberSaveable(runtime.gameId) { mutableIntStateOf(defaultSelectedPly) }
+    var showOpponentMoves by rememberSaveable(runtime.gameId) { mutableStateOf(false) }
     var completedPlayerMoves by remember(runtime) { mutableIntStateOf(0) }
     var status by remember(runtime) { mutableStateOf(ReviewAnalysisUiStatus.ANALYZING) }
     var reviewResult by remember(runtime) { mutableStateOf<GameReviewResult?>(null) }
@@ -339,11 +375,19 @@ private fun RuntimeGameReviewRoute(
             errorMessage = errorMessage,
         ),
         showBoardCoordinates = preferences.boardCoordinatesEnabled,
-        onBack = onBack,
+        onSaveAndExit = onSaveAndExit,
+        onRematch = onRematch,
         onFlip = { orientationOrdinal = orientation.flipped().ordinal },
         onCancel = runtime::cancelGameReview,
         onRetry = runtime::restartGameReview,
         onSelectPly = { ply -> selectedPly = ply.coerceIn(0, reviewedMoves.size) },
+        showOpponentMoves = showOpponentMoves,
+        onShowOpponentMovesChange = { show ->
+            if (!show) {
+                selectedPly = reviewSelectionAfterHidingOpponentMoves(reviewedMoves, selectedPly)
+            }
+            showOpponentMoves = show
+        },
     )
 }
 
@@ -359,16 +403,17 @@ internal fun reviewCompletedPlayerMoveCount(
 internal fun GameReviewScreen(
     model: GameReviewUiModel,
     showBoardCoordinates: Boolean,
-    onBack: () -> Unit,
+    onSaveAndExit: () -> Unit,
+    onRematch: () -> Unit = {},
     onFlip: () -> Unit,
     onCancel: () -> Unit,
     onRetry: () -> Unit,
     onSelectPly: (Int) -> Unit,
+    showOpponentMoves: Boolean = false,
+    onShowOpponentMovesChange: (Boolean) -> Unit = {},
 ) {
     val stackedScrollState = rememberScrollState()
     val sideScrollState = rememberScrollState()
-    val coroutineScope = rememberCoroutineScope()
-
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val layout = calculateReviewContentLayout(
             maxWidth.value.roundToInt().coerceAtLeast(1),
@@ -384,7 +429,7 @@ internal fun GameReviewScreen(
             modifier = Modifier.fillMaxSize(),
             topBar = {
                 if (!headerInSidePanel) {
-                    ReviewTopBar(onBack = onBack, onFlip = onFlip)
+                    ReviewTopBar(onSaveAndExit = onSaveAndExit, onFlip = onFlip)
                 }
             },
         ) { padding ->
@@ -416,10 +461,9 @@ internal fun GameReviewScreen(
                             onCancel = onCancel,
                             onRetry = onRetry,
                             onSelectPly = onSelectPly,
-                            onReviewIssue = { ply ->
-                                onSelectPly(ply)
-                                coroutineScope.launch { stackedScrollState.scrollTo(0) }
-                            },
+                            onRematch = onRematch,
+                            showOpponentMoves = showOpponentMoves,
+                            onShowOpponentMovesChange = onShowOpponentMovesChange,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .widthIn(max = 720.dp),
@@ -449,17 +493,19 @@ internal fun GameReviewScreen(
                                 .verticalScroll(sideScrollState),
                             verticalArrangement = Arrangement.spacedBy(12.dp),
                         ) {
-                            ReviewSideHeader(onBack = onBack, onFlip = onFlip)
+                            ReviewSideHeader(
+                                onSaveAndExit = onSaveAndExit,
+                                onFlip = onFlip,
+                            )
                             ReviewPanel(
                                 model = model,
                                 moveListHeight = moveListHeight,
                                 onCancel = onCancel,
                                 onRetry = onRetry,
                                 onSelectPly = onSelectPly,
-                                onReviewIssue = { ply ->
-                                    onSelectPly(ply)
-                                    coroutineScope.launch { sideScrollState.scrollTo(0) }
-                                },
+                                onRematch = onRematch,
+                                showOpponentMoves = showOpponentMoves,
+                                onShowOpponentMovesChange = onShowOpponentMovesChange,
                                 modifier = Modifier.fillMaxWidth(),
                             )
                         }
@@ -472,18 +518,24 @@ internal fun GameReviewScreen(
 
 @Composable
 private fun ReviewTopBar(
-    onBack: () -> Unit,
+    onSaveAndExit: () -> Unit,
     onFlip: () -> Unit,
 ) {
     TopAppBar(
         title = { ReviewHeaderTitle() },
         navigationIcon = {
             TextButton(
-                onClick = onBack,
+                onClick = onSaveAndExit,
                 modifier = Modifier
                     .heightIn(min = 48.dp)
-                    .testTag("review_back"),
-            ) { Text(stringResource(R.string.action_back)) }
+                    .testTag("review_save_exit"),
+            ) {
+                Text(
+                    stringResource(R.string.game_save_exit),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         },
         actions = {
             TextButton(
@@ -499,7 +551,7 @@ private fun ReviewTopBar(
 
 @Composable
 private fun ReviewSideHeader(
-    onBack: () -> Unit,
+    onSaveAndExit: () -> Unit,
     onFlip: () -> Unit,
 ) {
     Column(
@@ -513,11 +565,17 @@ private fun ReviewSideHeader(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             TextButton(
-                onClick = onBack,
+                onClick = onSaveAndExit,
                 modifier = Modifier
                     .heightIn(min = 48.dp)
-                    .testTag("review_back"),
-            ) { Text(stringResource(R.string.action_back)) }
+                    .testTag("review_save_exit"),
+            ) {
+                Text(
+                    stringResource(R.string.game_save_exit),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
             Spacer(Modifier.weight(1f))
             TextButton(
                 onClick = onFlip,
@@ -597,34 +655,39 @@ private fun ReviewPanel(
     onCancel: () -> Unit,
     onRetry: () -> Unit,
     onSelectPly: (Int) -> Unit,
-    onReviewIssue: (Int) -> Unit,
+    onRematch: () -> Unit,
+    showOpponentMoves: Boolean,
+    onShowOpponentMovesChange: (Boolean) -> Unit,
     modifier: Modifier,
 ) {
+    val visibleMoves = remember(model.moves, showOpponentMoves) {
+        visibleReviewMoves(model.moves, showOpponentMoves)
+    }
     Column(
         modifier = modifier.testTag("review_panel"),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         if (model.status == ReviewAnalysisUiStatus.COMPLETE) {
             ReviewMoveFeedback(model.selectedMove, model.status)
-            ReviewNavigator(model, onSelectPly)
+            ReviewNavigator(model, visibleMoves, showOpponentMoves, onSelectPly)
         }
-        ReviewAnalysisCard(model, onCancel, onRetry)
+        ReviewAnalysisCard(model, onCancel, onRetry, onRematch)
         if (model.status == ReviewAnalysisUiStatus.COMPLETE) {
             model.playerSummary?.let { summary ->
                 ReviewSummaryCard(
                     summary = summary,
-                    moves = model.moves,
-                    onSelectPly = onReviewIssue,
                 )
             }
         } else {
             ReviewMoveFeedback(model.selectedMove, model.status)
-            ReviewNavigator(model, onSelectPly)
+            ReviewNavigator(model, visibleMoves, showOpponentMoves, onSelectPly)
         }
         ReviewMoveList(
-            moves = model.moves,
+            moves = visibleMoves,
             selectedPly = model.selectedPly,
             analysisStatus = model.status,
+            showOpponentMoves = showOpponentMoves,
+            onShowOpponentMovesChange = onShowOpponentMovesChange,
             onSelectPly = onSelectPly,
             modifier = Modifier
                 .fillMaxWidth()
@@ -638,6 +701,7 @@ private fun ReviewAnalysisCard(
     model: GameReviewUiModel,
     onCancel: () -> Unit,
     onRetry: () -> Unit,
+    onRematch: () -> Unit,
 ) {
     val totalPlayerMoves = model.totalPlayerMoves
     val progressDenominator = totalPlayerMoves.coerceAtLeast(1)
@@ -713,6 +777,15 @@ private fun ReviewAnalysisCard(
                         ),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                    FilledTonalButton(
+                        onClick = onRematch,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 48.dp)
+                            .testTag("review_rematch"),
+                    ) {
+                        Text(stringResource(R.string.action_rematch))
+                    }
                 }
 
                 ReviewAnalysisUiStatus.CANCELLED -> {
@@ -754,13 +827,7 @@ private fun ReviewAnalysisCard(
 @Composable
 private fun ReviewSummaryCard(
     summary: ReviewSideSummary,
-    moves: List<ReviewMoveUi>,
-    onSelectPly: (Int) -> Unit,
 ) {
-    val firstPlayerIssue = moves.firstOrNull { move ->
-        move.role == ReviewMoveRole.PLAYER_DECISION && move.grade?.isReviewIssue() == true
-    }
-
     ElevatedCard(
         modifier = Modifier
             .fillMaxWidth()
@@ -781,17 +848,6 @@ private fun ReviewSummaryCard(
                 summary = summary,
                 roleTag = "player",
             )
-            firstPlayerIssue?.let { issue ->
-                FilledTonalButton(
-                    onClick = { onSelectPly(issue.ply) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 48.dp)
-                        .testTag("review_my_mistakes"),
-                ) {
-                    Text(stringResource(R.string.review_my_mistakes))
-                }
-            }
         }
     }
 }
@@ -1060,19 +1116,21 @@ private fun ReviewMoveFeedback(
 @Composable
 private fun ReviewNavigator(
     model: GameReviewUiModel,
+    visibleMoves: List<ReviewMoveUi>,
+    showOpponentMoves: Boolean,
     onSelectPly: (Int) -> Unit,
 ) {
-    val selectedIndex = model.moves.indexOfFirst { it.ply == model.selectedPly }
+    val selectedIndex = visibleMoves.indexOfFirst { it.ply == model.selectedPly }
     val previousPly = when {
         model.selectedPly == 0 -> null
         selectedIndex <= 0 -> 0
-        else -> model.moves[selectedIndex - 1].ply
+        else -> visibleMoves[selectedIndex - 1].ply
     }
     val next = when {
-        model.selectedPly == 0 || selectedIndex < 0 -> model.moves.firstOrNull()
-        else -> model.moves.getOrNull(selectedIndex + 1)
+        model.selectedPly == 0 || selectedIndex < 0 -> visibleMoves.firstOrNull()
+        else -> visibleMoves.getOrNull(selectedIndex + 1)
     }
-    val playerIssues = model.moves.filter { move ->
+    val playerIssues = visibleMoves.filter { move ->
         move.role == ReviewMoveRole.PLAYER_DECISION && move.grade?.isReviewIssue() == true
     }
     val previousIssue = playerIssues
@@ -1093,7 +1151,12 @@ private fun ReviewNavigator(
             text = if (selectedIndex < 0) {
                 stringResource(R.string.review_starting_position)
             } else {
-                stringResource(R.string.review_move_position, selectedIndex + 1, model.moves.size)
+                stringResource(
+                    if (showOpponentMoves) R.string.review_move_position
+                    else R.string.review_your_move_position,
+                    selectedIndex + 1,
+                    visibleMoves.size,
+                )
             },
             modifier = Modifier
                 .fillMaxWidth()
@@ -1176,23 +1239,33 @@ private fun ReviewMoveList(
     moves: List<ReviewMoveUi>,
     selectedPly: Int,
     analysisStatus: ReviewAnalysisUiStatus,
+    showOpponentMoves: Boolean,
+    onShowOpponentMovesChange: (Boolean) -> Unit,
     onSelectPly: (Int) -> Unit,
     modifier: Modifier,
 ) {
-    val rows = moves
-        .groupBy { it.moveNumber }
-        .map { (moveNumber, entries) ->
-            ReviewMoveRow(
-                moveNumber = moveNumber,
-                white = entries.firstOrNull { it.mover == Side.WHITE },
-                black = entries.firstOrNull { it.mover == Side.BLACK },
-            )
-        }
-    val listState = rememberLazyListState()
-    val selectedRow = rows.indexOfFirst { row ->
-        row.white?.ply == selectedPly || row.black?.ply == selectedPly
+    val rows = if (showOpponentMoves) {
+        moves
+            .groupBy { it.moveNumber }
+            .map { (moveNumber, entries) ->
+                ReviewMoveRow(
+                    moveNumber = moveNumber,
+                    white = entries.firstOrNull { it.mover == Side.WHITE },
+                    black = entries.firstOrNull { it.mover == Side.BLACK },
+                )
+            }
+    } else {
+        emptyList()
     }
-    LaunchedEffect(selectedRow) {
+    val listState = rememberLazyListState()
+    val selectedRow = if (showOpponentMoves) {
+        rows.indexOfFirst { row ->
+            row.white?.ply == selectedPly || row.black?.ply == selectedPly
+        }
+    } else {
+        moves.indexOfFirst { move -> move.ply == selectedPly }
+    }
+    LaunchedEffect(selectedRow, showOpponentMoves) {
         if (selectedRow >= 0) listState.animateScrollToItem(selectedRow)
     }
 
@@ -1202,53 +1275,119 @@ private fun ReviewMoveList(
     ) {
         Column(Modifier.fillMaxSize().padding(12.dp)) {
             Text(
-                stringResource(R.string.review_moves),
+                stringResource(
+                    if (showOpponentMoves) R.string.review_moves else R.string.review_your_moves,
+                ),
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold,
             )
-            HorizontalDivider(Modifier.padding(vertical = 8.dp))
-            Row(Modifier.fillMaxWidth()) {
-                Spacer(Modifier.width(34.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 48.dp)
+                    .testTag("review_show_opponent_moves")
+                    .toggleable(
+                        value = showOpponentMoves,
+                        role = Role.Switch,
+                        onValueChange = onShowOpponentMovesChange,
+                    )
+                    .semantics(mergeDescendants = true) {}
+                    .padding(vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 Text(
-                    stringResource(R.string.label_white),
+                    stringResource(R.string.review_show_opponent_moves),
                     modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodyMedium,
                 )
-                Text(
-                    stringResource(R.string.label_black),
-                    modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                Switch(
+                    checked = showOpponentMoves,
+                    onCheckedChange = null,
+                    modifier = Modifier.clearAndSetSemantics {},
                 )
             }
-            LazyColumn(
-                state = listState,
-                modifier = Modifier
-                    .weight(1f)
-                    .testTag("review_move_list_scroll"),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                items(rows, key = { it.moveNumber }) { row ->
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = stringResource(R.string.move_number_format, row.moveNumber),
-                            modifier = Modifier.width(34.dp),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+            HorizontalDivider(Modifier.padding(vertical = 4.dp))
+            if (moves.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .testTag("review_no_player_moves"),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        stringResource(R.string.review_no_player_moves),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                    )
+                }
+            } else if (showOpponentMoves) {
+                Row(Modifier.fillMaxWidth()) {
+                    Spacer(Modifier.width(34.dp))
+                    Text(
+                        stringResource(R.string.label_white),
+                        modifier = Modifier.weight(1f),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        stringResource(R.string.label_black),
+                        modifier = Modifier.weight(1f),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier
+                        .weight(1f)
+                        .testTag("review_move_list_scroll"),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    items(rows, key = { it.moveNumber }) { row ->
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = stringResource(R.string.move_number_format, row.moveNumber),
+                                modifier = Modifier.width(34.dp),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            ReviewMoveCell(
+                                move = row.white,
+                                selected = row.white?.ply == selectedPly,
+                                analysisStatus = analysisStatus,
+                                onSelectPly = onSelectPly,
+                                modifier = Modifier.weight(1f),
+                            )
+                            ReviewMoveCell(
+                                move = row.black,
+                                selected = row.black?.ply == selectedPly,
+                                analysisStatus = analysisStatus,
+                                onSelectPly = onSelectPly,
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
+                    }
+                }
+            } else {
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier
+                        .weight(1f)
+                        .testTag("review_move_list_scroll"),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    items(moves, key = { it.ply }) { move ->
                         ReviewMoveCell(
-                            move = row.white,
-                            selected = row.white?.ply == selectedPly,
+                            move = move,
+                            selected = move.ply == selectedPly,
                             analysisStatus = analysisStatus,
                             onSelectPly = onSelectPly,
-                            modifier = Modifier.weight(1f),
-                        )
-                        ReviewMoveCell(
-                            move = row.black,
-                            selected = row.black?.ply == selectedPly,
-                            analysisStatus = analysisStatus,
-                            onSelectPly = onSelectPly,
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier.fillMaxWidth(),
+                            includeMoveNumber = true,
                         )
                     }
                 }
@@ -1264,6 +1403,7 @@ private fun ReviewMoveCell(
     analysisStatus: ReviewAnalysisUiStatus,
     onSelectPly: (Int) -> Unit,
     modifier: Modifier,
+    includeMoveNumber: Boolean = false,
 ) {
     if (move == null) {
         Spacer(modifier)
@@ -1330,7 +1470,7 @@ private fun ReviewMoveCell(
                 }
             }
             Text(
-                move.san,
+                if (includeMoveNumber) reviewMoveTitle(move) else move.san,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,

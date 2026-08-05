@@ -12,6 +12,11 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -43,10 +48,53 @@ class PostGameFeedbackInstrumentedTest {
     val compose = createComposeRule()
 
     @Test
-    fun victoryFeedbackIsExplicitAndActionsRemainAvailable() {
+    fun postGameReviewTapGateIsOneFullSurfaceAction() {
+        val context = targetContext()
+        var reviewClicks = 0
+        val result = GameResultView(
+            playerWon = true,
+            playerSide = Side.BLACK,
+            winner = Side.BLACK,
+            reason = EndReason.CHECKMATE,
+            score = GameScore(100, 100, 0),
+        )
+        compose.setContent {
+            DrawlessTheme {
+                PostGameReviewTapGate(
+                    result = result,
+                    onOpenReview = { reviewClicks += 1 },
+                    modifier = Modifier.size(320.dp),
+                )
+            }
+        }
+
+        compose.onNodeWithTag("post_game_review_tap_gate")
+            .assertHasClickAction()
+            .assert(
+                SemanticsMatcher.expectValue(
+                    SemanticsProperties.StateDescription,
+                    context.getString(
+                        R.string.game_result_accessibility,
+                        context.getString(R.string.game_victory),
+                        100,
+                        100,
+                    ),
+                ),
+            )
+            .assert(
+                SemanticsMatcher.expectValue(
+                    SemanticsProperties.LiveRegion,
+                    LiveRegionMode.Polite,
+                ),
+            )
+            .performClick()
+        assertEquals(1, reviewClicks)
+    }
+
+    @Test
+    fun victoryFeedbackIsExplicitAndResultActionsRemainAvailable() {
         val context = targetContext()
         var homeClicks = 0
-        var reviewClicks = 0
         var quickPlayClicks = 0
         var rematchClicks = 0
 
@@ -61,7 +109,6 @@ class PostGameFeedbackInstrumentedTest {
                         score = GameScore(100, 100, 0),
                     ),
                     onHome = { homeClicks += 1 },
-                    onReview = { reviewClicks += 1 },
                     onQuickPlay = { quickPlayClicks += 1 },
                     onRematch = { rematchClicks += 1 },
                 )
@@ -75,14 +122,13 @@ class PostGameFeedbackInstrumentedTest {
         compose.onNodeWithTag("post_game_score")
             .assertTextEquals(context.getString(R.string.game_score, 100, 100))
 
-        compose.onNodeWithTag("post_game_review").performClick()
+        compose.onNodeWithTag("post_game_review").assertDoesNotExist()
         compose.onNodeWithTag("post_game_home").performClick()
         compose.onNodeWithTag("post_game_quick_play").performClick()
         compose.onNodeWithTag("post_game_rematch").performClick()
         // performClick waits for Compose to become idle, so the callbacks are complete here.
         // Avoid another ActivityScenario hop after the final click: on some physical devices the
         // shared test host can already be tearing down when this test follows non-Compose tests.
-        assertEquals(1, reviewClicks)
         assertEquals(1, homeClicks)
         assertEquals(1, quickPlayClicks)
         assertEquals(1, rematchClicks)
@@ -263,7 +309,7 @@ class PostGameFeedbackInstrumentedTest {
         compose.onNodeWithTag("threat_score_penalty")
             .performScrollTo()
             .assertIsDisplayed()
-        compose.onNodeWithTag("post_game_review").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithTag("post_game_review").assertDoesNotExist()
         compose.onNodeWithTag("post_game_quick_play").performScrollTo().assertIsDisplayed()
         compose.onNodeWithTag("post_game_rematch").performScrollTo().assertIsDisplayed()
         compose.onNodeWithTag("post_game_home").performScrollTo().assertIsDisplayed()
@@ -274,6 +320,47 @@ class PostGameFeedbackInstrumentedTest {
         assertTrue(CompletionEffectTimeline.Victory.durationMillis >= 2_000)
         assertTrue(CompletionEffectTimeline.Defeat.durationMillis >= 2_000)
         assertEquals(1_000L, CHECKMATE_COMPLETION_FOLLOWUP_MILLIS)
+        assertEquals(400L, CompletionEffectTimeline.Victory.postVisualAudioTailMillis)
+        assertEquals(25L, CompletionEffectTimeline.Defeat.postVisualAudioTailMillis)
+        assertEquals(
+            10_855L,
+            CompletionEffectCue.FIREWORK_LOW.audioEndUptimeMillis(10_000L),
+        )
+        assertEquals(
+            470L,
+            remainingCompletionAudioMillis(
+                audioEndsAtUptimeMillis =
+                    CompletionEffectCue.GLASS_IMPACT.audioEndUptimeMillis(10_000L),
+                nowUptimeMillis = 10_000L,
+            ),
+        )
+        assertEquals(
+            400L,
+            postGameReviewAudioSettleMillis(
+                playerWon = true,
+                reason = EndReason.CHECKMATE,
+                soundEnabled = true,
+                celebrationEffectsEnabled = true,
+            ),
+        )
+        assertEquals(
+            CHECKMATE_AUDIO_SETTLE_WITHOUT_EFFECT_MILLIS,
+            postGameReviewAudioSettleMillis(
+                playerWon = true,
+                reason = EndReason.CHECKMATE,
+                soundEnabled = true,
+                celebrationEffectsEnabled = false,
+            ),
+        )
+        assertEquals(
+            0L,
+            postGameReviewAudioSettleMillis(
+                playerWon = true,
+                reason = EndReason.CHECKMATE,
+                soundEnabled = false,
+                celebrationEffectsEnabled = true,
+            ),
+        )
 
         val checkmateCueStartedAt = 10_000L
         val firstCompletionCueTarget =

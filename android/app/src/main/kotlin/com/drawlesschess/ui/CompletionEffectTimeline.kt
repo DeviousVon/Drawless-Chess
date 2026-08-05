@@ -1,8 +1,11 @@
 package com.drawlesschess.ui
 
+import com.drawlesschess.core.EndReason
 import kotlin.math.roundToLong
 
 internal const val CHECKMATE_COMPLETION_FOLLOWUP_MILLIS = 1_000L
+internal const val CHECKMATE_AUDIO_SETTLE_WITHOUT_EFFECT_MILLIS = 1_900L
+internal const val COMPLETION_AUDIO_END_SAFETY_MILLIS = 50L
 
 internal enum class CompletionEffectCue {
     FIREWORK_LOW,
@@ -21,10 +24,12 @@ internal data class TimedCompletionCue(
 internal data class CompletionEffectSpec(
     val durationMillis: Int,
     val cues: List<TimedCompletionCue>,
+    val postVisualAudioTailMillis: Long,
 ) {
     init {
         require(durationMillis >= 2_000)
         require(cues.isNotEmpty())
+        require(postVisualAudioTailMillis >= 0L)
         require(cues.zipWithNext().all { (first, second) -> first.progress < second.progress })
         require(cues.all { it.progress in 0f..1f })
     }
@@ -33,6 +38,9 @@ internal data class CompletionEffectSpec(
 internal object CompletionEffectTimeline {
     val Victory = CompletionEffectSpec(
         durationMillis = 2_600,
+        // The 2.175-second middle firework begins at 780 ms and ends 355 ms after
+        // the visual timeline. Keep GameRoute alive long enough to play the full tail.
+        postVisualAudioTailMillis = 400L,
         cues = listOf(
             TimedCompletionCue(CompletionEffectCue.FIREWORK_LOW, 0.08f),
             TimedCompletionCue(CompletionEffectCue.FIREWORK_MID, 0.30f),
@@ -42,6 +50,8 @@ internal object CompletionEffectTimeline {
 
     val Defeat = CompletionEffectSpec(
         durationMillis = 2_200,
+        // The shard layer finishes about 12 ms after the visual timeline.
+        postVisualAudioTailMillis = 25L,
         cues = listOf(
             TimedCompletionCue(CompletionEffectCue.GLASS_IMPACT, 0.04f),
             // Fracture must accompany the first visible crack rays. The prior 0.18 marker made
@@ -53,6 +63,39 @@ internal object CompletionEffectTimeline {
 
     fun forResult(playerWon: Boolean): CompletionEffectSpec = if (playerWon) Victory else Defeat
 }
+
+internal fun postGameReviewAudioSettleMillis(
+    playerWon: Boolean,
+    reason: EndReason,
+    soundEnabled: Boolean,
+    celebrationEffectsEnabled: Boolean,
+): Long = when {
+    !soundEnabled -> 0L
+    celebrationEffectsEnabled ->
+        CompletionEffectTimeline.forResult(playerWon).postVisualAudioTailMillis
+    reason == EndReason.CHECKMATE -> CHECKMATE_AUDIO_SETTLE_WITHOUT_EFFECT_MILLIS
+    else -> 0L
+}
+
+/**
+ * Conservative authored-sample length used to keep GameRoute alive after the final cue starts.
+ * This also covers Android's reduced-motion path, where the concise first cue can start at the
+ * same instant that the visual animation finishes.
+ */
+internal fun CompletionEffectCue.audioEndUptimeMillis(startedAtUptimeMillis: Long): Long =
+    startedAtUptimeMillis + when (this) {
+        CompletionEffectCue.FIREWORK_LOW -> 805L
+        CompletionEffectCue.FIREWORK_MID -> 2_175L
+        CompletionEffectCue.FIREWORK_HIGH -> 1_251L
+        CompletionEffectCue.GLASS_IMPACT -> 420L
+        CompletionEffectCue.GLASS_FRACTURE -> 840L
+        CompletionEffectCue.GLASS_SHARDS -> 1_420L
+    } + COMPLETION_AUDIO_END_SAFETY_MILLIS
+
+internal fun remainingCompletionAudioMillis(
+    audioEndsAtUptimeMillis: Long,
+    nowUptimeMillis: Long,
+): Long = (audioEndsAtUptimeMillis - nowUptimeMillis).coerceAtLeast(0L)
 
 internal fun CompletionEffectSpec.progressOf(cue: CompletionEffectCue): Float =
     cues.firstOrNull { it.cue == cue }?.progress

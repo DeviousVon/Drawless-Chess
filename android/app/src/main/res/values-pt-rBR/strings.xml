@@ -14,7 +14,6 @@
     <string name="action_home">Início</string>
     <string name="action_quick_play">Partida rápida</string>
     <string name="action_rematch">Revanche</string>
-    <string name="action_review_game">Analisar partida</string>
     <string name="action_keep_playing">Continuar jogando</string>
     <string name="action_theme">Tema</string>
     <string name="label_white">Brancas</string>
@@ -220,6 +219,7 @@
     <string name="game_resign_confirm">Desistir da partida</string>
     <string name="game_victory">Vitória</string>
     <string name="game_defeat">Derrota</string>
+    <string name="game_tap_anywhere_to_review">Toque em qualquer lugar para analisar a partida</string>
     <string name="game_result_accessibility">%1$s, pontuação %2$d de %3$d</string>
     <string name="game_you_won">Você venceu esta partida.</string>
     <string name="game_you_defeated">Você derrotou %1$s.</string>
@@ -262,7 +262,6 @@
     <string name="review_summary_graded">Lances avaliados: %1$d</string>
     <string name="review_summary_grade_count">%1$s: %2$d</string>
     <string name="review_summary_grade_badge">%1$s %2$d</string>
-    <string name="review_my_mistakes">Revisar meus erros</string>
     <string name="review_opponent_context_label">Lance do adversário</string>
     <string name="review_opponent_context_body">Exibido para dar contexto. Apenas seus lances são avaliados.</string>
     <string name="review_better_move_arrow_accessibility">Seta da melhor jogada de %1$s para %2$s</string>
@@ -274,11 +273,15 @@
     <string name="review_cancel_analysis">Interromper análise</string>
     <string name="review_retry">Analisar novamente</string>
     <string name="review_move_position">Lance %1$d de %2$d</string>
+    <string name="review_your_move_position">Sua jogada %1$d de %2$d</string>
     <string name="review_previous_issue">Erro anterior</string>
     <string name="review_previous">Lance anterior</string>
     <string name="review_next">Próximo lance</string>
     <string name="review_next_issue">Próximo erro</string>
     <string name="review_moves">Lances da partida</string>
+    <string name="review_your_moves">Suas jogadas</string>
+    <string name="review_show_opponent_moves">Mostrar jogadas do adversário</string>
+    <string name="review_no_player_moves">Não há jogadas suas para revisar.</string>
     <string name="review_starting_position">Posição inicial</string>
     <string name="review_choose_move">Escolha um lance para ver a análise.</string>
     <string name="review_waiting">Aguardando análise…</string>

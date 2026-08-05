@@ -1088,10 +1088,10 @@ internal fun registerEngineLayerTests(suite: TestSuite) {
         assertThat(retried.key === original.key)
     }
     suite.test("player review analyzes only the selected side and retains canonical context") {
-        val moves = listOf("e2e4", "e7e5", "g1f3").map(::UciMove)
+        val moves = listOf("e2e4", "e7e5", "g1f3", "b8c6").map(::UciMove)
         listOf(
             Side.WHITE to listOf(1, 3),
-            Side.BLACK to listOf(2),
+            Side.BLACK to listOf(2, 4),
         ).forEach { (playerSide, expectedPlies) ->
             val engine = FakeReviewEngine()
             val streamed = mutableListOf<GameReviewMoveResult>()

@@ -14,7 +14,6 @@
     <string name="action_home">Accueil</string>
     <string name="action_quick_play">Partie rapide</string>
     <string name="action_rematch">Revanche</string>
-    <string name="action_review_game">Analyser la partie</string>
     <string name="action_keep_playing">Continuer à jouer</string>
     <string name="action_theme">Thème</string>
     <string name="label_white">Blancs</string>
@@ -220,6 +219,7 @@
     <string name="game_resign_confirm">Abandonner la partie</string>
     <string name="game_victory">Victoire</string>
     <string name="game_defeat">Défaite</string>
+    <string name="game_tap_anywhere_to_review">Touchez n’importe où pour analyser la partie</string>
     <string name="game_result_accessibility">%1$s, score de %2$d sur %3$d</string>
     <string name="game_you_won">Vous avez gagné cette partie.</string>
     <string name="game_you_defeated">Vous avez battu %1$s.</string>
@@ -262,7 +262,6 @@
     <string name="review_summary_graded">Coups évalués : %1$d</string>
     <string name="review_summary_grade_count">%1$s : %2$d</string>
     <string name="review_summary_grade_badge">%1$s %2$d</string>
-    <string name="review_my_mistakes">Revoir mes erreurs</string>
     <string name="review_opponent_context_label">Coup de l’adversaire</string>
     <string name="review_opponent_context_body">Affiché pour le contexte. Seuls vos coups sont évalués.</string>
     <string name="review_better_move_arrow_accessibility">Flèche du meilleur coup de %1$s vers %2$s</string>
@@ -274,11 +273,15 @@
     <string name="review_cancel_analysis">Arrêter l’analyse</string>
     <string name="review_retry">Analyser à nouveau</string>
     <string name="review_move_position">Coup %1$d sur %2$d</string>
+    <string name="review_your_move_position">Votre coup %1$d sur %2$d</string>
     <string name="review_previous_issue">Erreur précédente</string>
     <string name="review_previous">Coup précédent</string>
     <string name="review_next">Coup suivant</string>
     <string name="review_next_issue">Erreur suivante</string>
     <string name="review_moves">Coups de la partie</string>
+    <string name="review_your_moves">Vos coups</string>
+    <string name="review_show_opponent_moves">Afficher les coups de l’adversaire</string>
+    <string name="review_no_player_moves">Aucun de vos coups à analyser.</string>
     <string name="review_starting_position">Position initiale</string>
     <string name="review_choose_move">Choisissez un coup pour afficher son analyse.</string>
     <string name="review_waiting">En attente de l’analyse…</string>

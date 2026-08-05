@@ -9,8 +9,7 @@
 
 ## Execution checkpoint
 
-The latest verified playable candidate is on
-`https://drawlesschess.test.bostwick.us/play/` for Bob's acceptance:
+The latest verified playable candidate is on the private acceptance staging site for Bob's review:
 
 - Release ID: `drawless-webplay-20260801-162ffde8`
 - Package build ID: `162ffde816bc7e88a4bd69b8f4c102175ac39de22f1fb318c7cdc1e594fbfcbe`

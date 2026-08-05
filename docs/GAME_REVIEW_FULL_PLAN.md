@@ -31,14 +31,15 @@ The first preparation slice now supplies:
   post-terminal engine lines;
 - a fix preventing an avoidable terminal loss from being labeled Best solely because the engine
   returned a very negative centipawn score;
-- a player-only raw grade summary, localized **Review my mistakes** action, neutral opponent
-  context, and a translucent orientation-aware better-move arrow, without presenting an
-  uncalibrated accuracy percentage;
+- a player-only raw grade summary and move timeline by default, chronological entry that remains
+  at the player's first move whether analysis is running or complete, an optional **Show opponent
+  moves** context toggle, and a translucent orientation-aware better-move arrow, without presenting
+  an uncalibrated accuracy percentage;
 - sparse player-only work planning, dynamic adjacent helpers, immutable per-move streaming, exact
   seeded root/fallback reuse, coordinator-owned foreground pre-analysis in the isolated review
   process, current-position root preparation without repeated full-history replay, at most one
-  historical fallback attempt per player-position revision, and result-screen finalization before
-  the Review action;
+  historical fallback attempt per player-position revision, background Review finalization during
+  the full result celebration, and tap-to-enter Review only after its visual/audio presentation;
 - runtime-owned `StateFlow` analysis state, saved board orientation/selected ply, and lifecycle
   coverage so activity recreation does not cancel or restart an active review;
 - polite TalkBack announcements when move selection changes; and
@@ -238,8 +239,16 @@ Build derived review models from Evidence V2 in a new
 
 Update `android/app/src/main/kotlin/com/drawlesschess/ui/GameReviewScreen.kt` to provide:
 
-- a summary showing result, player side, player accuracy, and player grade counts;
-- a clear **Review my mistakes** action that jumps to the first applicable player issue;
+- a summary showing result, player side, and player grade counts;
+- initial selection of the player's first move (ply 1 for White or ply 2 for Black), retained when
+  analysis completes unless the player deliberately selects another position;
+- a player-only move list and previous/next navigation by default, with a per-review, recreation-safe
+  **Show opponent moves** toggle that reveals the full canonical timeline without grading the
+  opponent or changing analysis work;
+- a **Save & exit** Review header action and system Back behavior that close the completed runtime
+  and return directly Home, plus a completion-only **Rematch** action inside the **Review complete**
+  status card so the direct exit does not remove the unique same-opponent restart path; Quick Play
+  remains available on Home;
 - Summary and Moves destinations, first/last move, adjacent move, previous/next issue, and a
   player-moves filter;
 - grade-count and key-moment links that select the corresponding ply;

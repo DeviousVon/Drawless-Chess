@@ -47,7 +47,8 @@ require_text "$REPOSITORY_ROOT/docs/audio/audio_manifest.json" '74d51c5bd14be428
 require_text "$REPOSITORY_ROOT/package.json" '"test:audio": "pwsh -NoProfile -NonInteractive -File scripts/verify-sampled-audio.ps1 -RequireDecode"'
 require_text "$REPOSITORY_ROOT/package.json" 'npm test && npm run test:audio && npm run test:kotlin'
 require_text "$REPOSITORY_ROOT/scripts/verify-sampled-audio.ps1" 'duplicate decoded audio content'
-require_text "$REPOSITORY_ROOT/scripts/verify-sampled-audio.ps1" '6e10b3348d37ebc6995317596c5c7c9731a4d549b1a9ba35fffe8ad023737ec8'
+require_text "$REPOSITORY_ROOT/scripts/verify-sampled-audio.ps1" 'Get-CanonicalTextSha256'
+require_text "$REPOSITORY_ROOT/scripts/verify-sampled-audio.ps1" '97d683a1a78507df479abe5c5137fa56e8d990c1269b7a51c889e38d684ba15a'
 require_text "$REPOSITORY_ROOT/scripts/audio/rebuild_lossless_audio.ps1" "'-q:a', '8'"
 require_text "$REPOSITORY_ROOT/scripts/verify-sampled-audio.ps1" 'Get-GitBlobSha1'
 require_text "$REPOSITORY_ROOT/scripts/verify-sampled-audio.ps1" 'sweep-like energy distribution'

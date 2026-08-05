@@ -3,7 +3,7 @@
 ## Stable identity
 
 - GitHub repository: `DeviousVon/Drawless-Chess`
-- Local repository: `C:\src`
+- Local repository: resolve from the current checkout; do not record machine-specific paths
 - Tag convention: `v<version>`
 - Release title convention: `Drawless Chess <version>`
 - Android package: `com.drawlesschess`

@@ -12,7 +12,6 @@
     <string name="action_home">Startseite</string>
     <string name="action_quick_play">Schnellspiel</string>
     <string name="action_rematch">Revanche</string>
-    <string name="action_review_game">Partie analysieren</string>
     <string name="action_keep_playing">Weiterspielen</string>
     <string name="action_theme">Design</string>
     <string name="label_white">Weiß</string>
@@ -209,6 +208,7 @@
     <string name="game_resign_confirm">Partie aufgeben</string>
     <string name="game_victory">Sieg</string>
     <string name="game_defeat">Niederlage</string>
+    <string name="game_tap_anywhere_to_review">Tippe irgendwo, um die Partie zu analysieren</string>
     <string name="game_result_accessibility">%1$s, %2$d von %3$d Punkten</string>
     <string name="game_you_won">Du hast diese Partie gewonnen.</string>
     <string name="game_you_defeated">Du hast %1$s besiegt.</string>
@@ -251,7 +251,6 @@
     <string name="review_summary_graded">Bewertete Züge: %1$d</string>
     <string name="review_summary_grade_count">%1$s: %2$d</string>
     <string name="review_summary_grade_badge">%1$s %2$d</string>
-    <string name="review_my_mistakes">Meine Fehler ansehen</string>
     <string name="review_opponent_context_label">Zug des Gegners</string>
     <string name="review_opponent_context_body">Dieser Zug wird als Kontext gezeigt. Nur deine Züge werden bewertet.</string>
     <string name="review_better_move_arrow_accessibility">Pfeil für den besseren Zug von %1$s nach %2$s</string>
@@ -263,11 +262,15 @@
     <string name="review_cancel_analysis">Analyse stoppen</string>
     <string name="review_retry">Erneut analysieren</string>
     <string name="review_move_position">Zug %1$d von %2$d</string>
+    <string name="review_your_move_position">Dein Zug %1$d von %2$d</string>
     <string name="review_previous_issue">Vorheriger Fehler</string>
     <string name="review_previous">Vorheriger Zug</string>
     <string name="review_next">Nächster Zug</string>
     <string name="review_next_issue">Nächster Fehler</string>
     <string name="review_moves">Partiezüge</string>
+    <string name="review_your_moves">Deine Züge</string>
+    <string name="review_show_opponent_moves">Züge des Gegners anzeigen</string>
+    <string name="review_no_player_moves">Keine eigenen Züge zum Analysieren.</string>
     <string name="review_starting_position">Ausgangsstellung</string>
     <string name="review_choose_move">Wähle einen Zug aus, um seine Analyse zu sehen.</string>
     <string name="review_waiting">Analyse steht noch aus…</string>

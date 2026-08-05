@@ -134,7 +134,8 @@ internal fun DrawlessApp(viewModel: DrawlessAppViewModel, soundPlayer: GameSound
                         onShowThemes = { showThemePicker = true },
                         onShowOptions = { showInGameOptions = true },
                         onExit = viewModel::exitGame,
-                        onReview = viewModel::showGameReview,
+                        postGameReviewPending = viewModel.isPostGameReviewPending(runtime.gameId),
+                        onOpenPostGameReview = viewModel::enterPostGameReview,
                         onQuickPlay = viewModel::postGameQuickPlay,
                         onRematch = viewModel::rematchGame,
                         onGameCompleted = viewModel::completedGameRecorded,
@@ -149,7 +150,7 @@ internal fun DrawlessApp(viewModel: DrawlessAppViewModel, soundPlayer: GameSound
                     CircularProgressIndicator()
                 }
             } else {
-                BackHandler(onBack = viewModel::leaveGameReview)
+                BackHandler(onBack = viewModel::exitGame)
                 CompositionLocalProvider(
                     LocalDrawlessVisualTheme provides
                         DrawlessVisualThemes.fromBoardTheme(viewModel.selectedTheme),
@@ -158,7 +159,8 @@ internal fun DrawlessApp(viewModel: DrawlessAppViewModel, soundPlayer: GameSound
                         runtime = runtime,
                         preferences = viewModel.gamePreferences,
                         selectedTheme = viewModel.selectedTheme,
-                        onBack = viewModel::leaveGameReview,
+                        onSaveAndExit = viewModel::exitGame,
+                        onRematch = viewModel::rematchGame,
                     )
                 }
             }

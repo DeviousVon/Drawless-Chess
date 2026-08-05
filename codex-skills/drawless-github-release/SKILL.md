@@ -1,6 +1,6 @@
 ---
 name: drawless-github-release
-description: Publish or update a Drawless Chess release on GitHub from C:\src. Use when Bob asks to update GitHub, push the release version, publish a GitHub release, tag a Drawless Chess version, attach the signed AAB or corresponding source, or verify the public GitHub release.
+description: Publish or update a Drawless Chess release on GitHub from the current repository. Use when Bob asks to update GitHub, push the release version, publish a GitHub release, tag a Drawless Chess version, attach the signed AAB or corresponding source, or verify the public GitHub release.
 ---
 
 # Drawless Chess GitHub release
@@ -11,7 +11,7 @@ tagging steps, or authentication procedures that can be discovered or handled lo
 ## Fixed project context
 
 - Repository: `DeviousVon/Drawless-Chess`
-- Working tree: `C:\src`
+- Working tree: the current Drawless Chess repository root
 - Release tags: `v<version>`
 - Signed AAB: `android/app/build/outputs/bundle/release/app-release.aab`
 - Verification evidence: `build/release-evidence/play-aab.json`
@@ -42,7 +42,7 @@ rewriting history, bypassing branch protection, or publishing signing secrets.
 3. Run the preflight script from the repository root:
 
    ```powershell
-   pwsh -NoProfile -File <skill>/scripts/Test-ReleaseInputs.ps1 -RepositoryRoot C:\src
+   pwsh -NoProfile -File <skill>/scripts/Test-ReleaseInputs.ps1 -RepositoryRoot <repository-root>
    ```
 
 4. Review and stage only the intended files. Run `git diff --check`, a targeted secret scan,

@@ -15,6 +15,17 @@ function Get-Sha256([string]$Path) {
     (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant()
 }
 
+function Get-CanonicalTextSha256([string]$Path) {
+    $text = [IO.File]::ReadAllText($Path).Replace("`r`n", "`n").Replace("`r", "`n")
+    $bytes = [Text.UTF8Encoding]::new($false).GetBytes($text)
+    $sha256 = [Security.Cryptography.SHA256]::Create()
+    try {
+        ([BitConverter]::ToString($sha256.ComputeHash($bytes)) -replace '-', '').ToLowerInvariant()
+    } finally {
+        $sha256.Dispose()
+    }
+}
+
 function Get-GitBlobSha1([string]$Path) {
     $content = [IO.File]::ReadAllBytes($Path)
     $header = [Text.Encoding]::UTF8.GetBytes("blob $($content.Length)`0")
@@ -51,8 +62,8 @@ foreach ($required in @(
     if (-not (Test-Path -LiteralPath $required)) { Fail "missing $required" }
 }
 
-$auditedManifestSha256 = '6e10b3348d37ebc6995317596c5c7c9731a4d549b1a9ba35fffe8ad023737ec8'
-if ((Get-Sha256 $manifestPath) -ne $auditedManifestSha256) {
+$auditedManifestSha256 = '97d683a1a78507df479abe5c5137fa56e8d990c1269b7a51c889e38d684ba15a'
+if ((Get-CanonicalTextSha256 $manifestPath) -ne $auditedManifestSha256) {
     Fail 'audio_manifest.json differs from the independently audited source identities and pins'
 }
 
@@ -69,7 +80,12 @@ foreach ($entry in $auditedPreviewSha256.GetEnumerator()) {
     if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
         Fail "missing curated preview $($entry.Key)"
     }
-    if ((Get-Sha256 $path) -ne $entry.Value) {
+    $actualHash = if ($entry.Key.EndsWith('.txt')) {
+        Get-CanonicalTextSha256 $path
+    } else {
+        Get-Sha256 $path
+    }
+    if ($actualHash -ne $entry.Value) {
         Fail "curated preview $($entry.Key) differs from its audited capture-pack reel"
     }
     if ($entry.Key.EndsWith('.ogg')) {
