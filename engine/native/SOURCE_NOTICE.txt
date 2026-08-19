@@ -17,9 +17,12 @@ Canonical native source identity:
   Drawless patch interface: version 2
 
 The exact Drawless modifications are recorded by the ordered patch series under
-engine/patches/. Reproduction metadata and Android build files are under
-engine/native/ and android/engine/. The build packages upstream Copying.txt,
-AUTHORS, this notice, the source locks, and the Drawless patch series in the AAR.
+engine/patches/. Reproduction metadata is under engine/native/. Android builds
+use android/engine/ and the JNI bridge; iOS builds use ios-engine/,
+multiplatform/, iosApp/, and scripts/build-ios-engine.sh with the static Apple
+bridge. The Android AAR packages upstream Copying.txt, AUTHORS, this notice, the
+source locks, and the Drawless patch series. The iOS application packages this
+notice and the project, Apache, and third-party license resources.
 
 The WebAssembly proof of concept is a different artifact and is not the native
 source pin. Its independent package identity is recorded in
@@ -31,17 +34,21 @@ permitted by applicable law. See the GNU GPL for the complete terms.
 Drawless project license and distributor requirement
 ----------------------------------------------------
 
-Drawless Chess has adopted GPL-3.0-or-later for the combined Android application,
-including the code linked to this engine through JNI. Before any APK, App Bundle,
-or AAR containing it is distributed, the distributor must make the complete corresponding source
-for that exact binary available by a GPL-compliant method and
-include the full license text and required notices. Run scripts/source-bundle.sh
-to create the whole-project archive. scripts/native-source-bundle.sh is a
-compatibility alias and no longer creates a native-only compliance artifact. The
-release owner must record a real public source location; this repository does not
-embed a URL that has not been published and verified.
+Drawless Chess has adopted GPL-3.0-or-later for the combined Android and iOS
+applications, including code linked to this engine through JNI on Android and
+the static Apple bridge on iOS. Before any APK, App Bundle, AAR, iOS archive, or
+App Store binary containing it is distributed, the distributor must make the
+complete corresponding source for that exact binary available by a GPL-compliant
+method and include the full license text and required notices. The release owner
+must use the audited, owner-controlled clean-room publisher, record a real public
+source location and SHA-256, and verify both anonymously.
+scripts/source-bundle.sh is the inclusion-only public publisher;
+scripts/native-source-bundle.sh is its compatibility entry point. The publisher
+exports this exact locked staged tree while removing only repository-local .git
+data, .github administration, and nested AGENTS.md instructions, and it records
+a complete byte manifest for the exported native source.
 
-The in-process JNI boundary is not treated as a way to avoid GPL obligations.
+Neither in-process platform bridge is treated as a way to avoid GPL obligations.
 Charging for the app is compatible with the GPL, but withholding corresponding
 source or recipient rights is not. Root LICENSE, NOTICE,
 THIRD_PARTY_NOTICES.md, and docs/RELEASE_LICENSING.md define the engineering

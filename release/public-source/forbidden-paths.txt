@@ -1,0 +1,19 @@
+# Literal fail-closed exclusions. These rules override include-paths.txt.
+AGENTS.md
+.forgejo/
+.git/
+.github/
+codex-skills/
+docs/GAME_REVIEW_FULL_PLAN.md
+docs/GO_LIVE_STATUS.md
+docs/INTERNATIONAL_ROLLOUT_PLAN.md
+docs/IOS_PORT.md
+docs/NEXT_RELEASE_GATES.md
+docs/PLAY_RELEASE_GUIDE.md
+docs/TABLET_LOCALE_ACCESSIBILITY_MATRIX.md
+docs/WEB_PLAYABLE_PRODUCTION_ROADMAP.md
+docs/internal/
+docs/portal/
+play/
+release/private-source-content.sha256
+website/

@@ -1,1 +1,0 @@
-Drawless Chess now supports English, Latin American Spanish, French, German, and Brazilian Portuguese. This update also improves localized accessibility, plurals, number formatting, saved-game compatibility, and international layout resilience.

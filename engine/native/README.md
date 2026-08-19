@@ -57,11 +57,15 @@ API, compile definitions, and source list are fixed. This removes accidental
 branch drift; it is not a claim that APK/AAR bytes are identical across host
 operating systems because Android packaging can contain independent metadata.
 
-For a release candidate, run `scripts/source-bundle.sh` and archive its SHA-256
-next to the signed binary. The generated whole-project bundle contains this exact
-prepared native Git checkout plus all Drawless source and build material.
-`scripts/native-source-bundle.sh` remains only as a compatibility alias. Review
-`SOURCE_NOTICE.txt` and `docs/RELEASE_LICENSING.md` before external distribution.
+For a release candidate, run `scripts/source-bundle.sh` and publish its SHA-256
+next to the matching public tag and signed binary identity. The inclusion-only
+whole-project bundle contains this exact prepared staged source as ordinary
+files, omits repository-local `.git` data, `.github` administration, and nested
+`AGENTS.md` instructions, and records
+`engine/native/archive-fairy-source.sha256` over every exported native file.
+`scripts/native-source-bundle.sh` remains only as a compatibility alias.
+Review `SOURCE_NOTICE.txt`, `docs/RELEASE_LICENSING.md`, and
+`release/public-source/REBUILD-IOS.md` before external distribution.
 
 After an Android machine builds the AAR, verify its exact ABI contents, ELF
 architectures, legal assets, sizes, and hashes with:

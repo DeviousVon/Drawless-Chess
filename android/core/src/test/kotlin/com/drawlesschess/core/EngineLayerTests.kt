@@ -2,7 +2,12 @@ package com.drawlesschess.core
 
 import com.drawlesschess.core.chess.ChessAdapter
 import com.drawlesschess.core.chess.ChessPosition
+import com.drawlesschess.core.coordinator.CheckpointSink
+import com.drawlesschess.core.coordinator.CoordinatorIdSource
+import com.drawlesschess.core.coordinator.CoordinatorTimeSource
 import com.drawlesschess.core.coordinator.GameConfig
+import com.drawlesschess.core.coordinator.GameCoordinator
+import com.drawlesschess.core.coordinator.TimeReading
 import com.drawlesschess.core.engine.*
 
 private class RecordingTransport : UciTransport {
@@ -165,6 +170,39 @@ private class FakeReviewEngine : ChessEngine {
     }
 }
 
+/** Manual-response shared engine used to model one completed review search per player turn. */
+private class BudgetedCoordinatorEngine : ChessEngine {
+    data class Pending(
+        val request: EngineRequest,
+        val callback: (Result<EngineResponse>) -> Unit,
+        var cancelled: Boolean = false,
+        var responded: Boolean = false,
+    )
+
+    val requests = mutableListOf<Pending>()
+
+    override fun analyze(
+        request: EngineRequest,
+        onResult: (Result<EngineResponse>) -> Unit,
+    ): EngineCancellation {
+        val pending = Pending(request, onResult)
+        requests += pending
+        return EngineCancellation { pending.cancelled = true }
+    }
+
+    fun active(): Pending = requests.last { !it.cancelled && !it.responded }
+
+    fun respond(
+        pending: Pending,
+        bestMove: String,
+        variations: List<PrincipalVariation> = listOf(reviewVariation(bestMove)),
+    ) {
+        check(!pending.cancelled && !pending.responded) { "Engine request is not active" }
+        pending.responded = true
+        pending.callback(Result.success(reviewResponseFor(pending.request, bestMove, variations)))
+    }
+}
+
 private fun reviewResponseFor(
     request: EngineRequest,
     bestMove: String,
@@ -202,7 +240,138 @@ private fun reviewVariation(
     evidenceAvailable = evidenceAvailable,
 )
 
+/** Legal, nonterminal 86-ply fixture matching the length of the physical iPhone report. */
+private fun longPhysicalReviewGameMoves(): List<UciMove> = """
+    g1h3 c7c5 f2f3 g7g6 a2a3 d8a5 g2g4 a5a4 g4g5 e8d8 d2d3 b7b6
+    c1f4 f8h6 h3g1 a4b3 a1a2 b6b5 d1d2 b5b4 f1g2 d7d6 d3d4 b3e3
+    d2d1 d8c7 d1c1 c8b7 c1d2 g8f6 c2c4 c7d7 d2d3 b4b3 h2h4 e3e5
+    f4e3 d7d8 d3f5 f6h5 g2h3 h6f8 f5e4 f7f5 e4d3 a7a6 d4d5 b8c6
+    h3g4 e5d4 d3d1 c6a7 d1d3 h5f6 f3f4 f6e8 b1c3 e8c7 e3c1 a7c6
+    d3h3 c7b5 h3g2 h8g8 g4h3 d4e4 e1f2 f8h6 f2g3 e4e6 a2a1 a8b8
+    c1e3 d8e8 g2f2 e8d8 g3f3 b7c8 e3c1 e6f7 f3g3 d8e8 f2h2 c6a7
+    c3e4 b5c7
+""".trimIndent().split(Regex("\\s+")).map(::UciMove)
+
+/** Exact 77-ply checkmate captured from the latest physical iPhone review report. */
+private fun latestIPhoneReviewGameMoves(): List<UciMove> = """
+    e2e4 e7e5 b1c3 d7d6 f1c4 c7c6 c4b3 b7b5 d2d3 a7a5 c1e3 b8d7
+    f2f3 a5a4 g1e2 d6d5 b3d5 c8b7 d5c6 f8c5 c6b7 a8a7 b7c6 c5e3
+    c6d7 e8f8 d7b5 a4a3 b2a3 a7c7 c3d5 e3c5 d5c7 c5b6 c7d5 h7h5
+    d5b6 g8f6 b6d5 h5h4 d5f6 h4h3 g2g4 h8h6 f6d5 h6d6 a1b1 d6h6
+    a3a4 f8g8 a4a5 g8h7 a5a6 h6g6 a6a7 g6e6 d5c7 d8c8 c7e6 g7g6
+    b5c4 c8a8 c4d5 a8d5 e4d5 e5e4 f3e4 h7h8 a7a8q h8h7 d1d2 f7f6
+    d2f4 g6g5 f4f5 h7h6 a8h8
+""".trimIndent().split(Regex("\\s+")).map(::UciMove)
+
 internal fun registerEngineLayerTests(suite: TestSuite) {
+    suite.test("iOS one-search turns finish old played decisions before the current root") {
+        val engine = BudgetedCoordinatorEngine()
+        var nextId = 0
+        val coordinator = GameCoordinator.newGame(
+            config = GameConfig(
+                gameId = "ios-one-search-turn-budget",
+                initialFen = ChessPosition.START_FEN,
+                rules = RulesContractV1.drawless(),
+                mode = GameMode.CASUAL,
+                timeControl = TimeControl.Untimed,
+                humanSide = Side.WHITE,
+                engineStrength = EngineStrength.ApproximateElo(800),
+                engineLimits = EngineLimits(moveTimeMillis = 350),
+                opponentLevelId = "casual",
+            ),
+            engine = engine,
+            checkpointSink = CheckpointSink { },
+            timeSource = CoordinatorTimeSource { TimeReading(0, 0) },
+            idSource = CoordinatorIdSource { "ios-turn-budget-${++nextId}" },
+            drainReviewPrefetchBacklog = true,
+        )
+        coordinator.start()
+        coordinator.setReviewPrefetchEnabled(true)
+        coordinator.setReviewPrefetchEnabled(true)
+        assertThat(
+            coordinator.reviewPrefetchLifecycleDiagnosticsForTesting() ==
+                "prefetchEnabled=true;prefetchEnableTransitions=1;prefetchDisableTransitions=0",
+        )
+
+        // Root one completes, but e4 is deliberately outside its MultiPV and needs a helper.
+        val openingRoot = engine.active()
+        assertThat(openingRoot.request.purpose == EnginePurpose.REVIEW)
+        assertThat(openingRoot.request.moves.isEmpty())
+        engine.respond(
+            openingRoot,
+            "d2d4",
+            listOf(
+                reviewVariation("d2d4", rank = 1),
+                reviewVariation("g1f3", centipawns = -5, rank = 2),
+                reviewVariation("c2c4", centipawns = -10, rank = 3),
+            ),
+        )
+        coordinator.playHuman(UciMove("e2e4"))
+        engine.respond(engine.active(), "e7e5")
+
+        // The first search budget of the next turn must finish played move one, not speculate
+        // about the still-unplayed ply-three decision root.
+        val openingHelper = engine.active()
+        assertThat(openingHelper.request.purpose == EnginePurpose.REVIEW)
+        assertThat(openingHelper.request.moves.map { it.value } == listOf("e2e4"))
+        engine.respond(openingHelper, "e7e5")
+
+        // Spend only one completed review search on each following player turn. The newly started
+        // current root is interrupted by the player's move, then recovered as the oldest played
+        // decision on the next turn.
+        val currentPlyThree = engine.active()
+        assertThat(currentPlyThree.request.moves.map { it.value } == listOf("e2e4", "e7e5"))
+        coordinator.playHuman(UciMove("g1f3"))
+        assertThat(currentPlyThree.cancelled)
+        engine.respond(engine.active(), "b8c6")
+
+        val recoveredPlyThree = engine.active()
+        assertThat(recoveredPlyThree.request.moves.map { it.value } == listOf("e2e4", "e7e5"))
+        engine.respond(recoveredPlyThree, "g1f3")
+        val currentPlyFive = engine.active()
+        coordinator.playHuman(UciMove("f1b5"))
+        assertThat(currentPlyFive.cancelled)
+        engine.respond(engine.active(), "a7a6")
+
+        val recoveredPlyFive = engine.active()
+        assertThat(
+            recoveredPlyFive.request.moves.map { it.value } ==
+                listOf("e2e4", "e7e5", "g1f3", "b8c6"),
+        )
+        assertThat(
+            coordinator.completedReviewPrefetchRoots().map { it.key.ply }.sorted() == listOf(1, 3),
+            "Only the newest played decision should still be incomplete",
+        )
+        assertThat(coordinator.completedReviewPrefetchAdjacentRoots().map { it.key.rootKey.ply } == listOf(1))
+        engine.respond(recoveredPlyFive, "f1b5")
+
+        val currentPlySeven = engine.active()
+        coordinator.playHuman(UciMove("b5a4"))
+        assertThat(currentPlySeven.cancelled)
+        engine.respond(engine.active(), "g8f6")
+
+        val recoveredPlySeven = engine.active()
+        assertThat(
+            recoveredPlySeven.request.moves.map { it.value } ==
+                listOf("e2e4", "e7e5", "g1f3", "b8c6", "f1b5", "a7a6"),
+        )
+        assertThat(
+            coordinator.completedReviewPrefetchRoots().map { it.key.ply }.sorted() == listOf(1, 3, 5),
+            "Repeated one-search turns must leave at most the newest player move behind",
+        )
+        engine.respond(recoveredPlySeven, "b5a4")
+        assertThat(
+            coordinator.completedReviewPrefetchRoots().map { it.key.ply }.sorted() == listOf(1, 3, 5, 7),
+        )
+
+        coordinator.setReviewPrefetchEnabled(false)
+        coordinator.setReviewPrefetchEnabled(false)
+        assertThat(
+            coordinator.reviewPrefetchLifecycleDiagnosticsForTesting() ==
+                "prefetchEnabled=false;prefetchEnableTransitions=1;prefetchDisableTransitions=1",
+        )
+        coordinator.close()
+    }
     suite.test("bot move pacing adds the requested delay after successful analysis") {
         val timers = FakeTimeoutScheduler()
         val delegate = object : ChessEngine {
@@ -386,6 +555,7 @@ internal fun registerEngineLayerTests(suite: TestSuite) {
         completeHandshake(fixture)
         var firstDelivered = false
         var secondDelivered = false
+        val deliveryOrder = mutableListOf<String>()
         val nextRequest = productionRequest(
             id = "reentrant-review-prefetch",
             purpose = EnginePurpose.REVIEW,
@@ -394,17 +564,26 @@ internal fun registerEngineLayerTests(suite: TestSuite) {
 
         fixture.engine.analyze(productionRequest(id = "completed-bot-move")) { result ->
             firstDelivered = result.isSuccess
+            deliveryOrder += "first"
             fixture.engine.analyze(nextRequest) { nextResult ->
                 secondDelivered = nextResult.isSuccess
+                deliveryOrder += "second"
             }
+            deliveryOrder += "next-started"
         }
         fixture.engine.onLine("readyok")
         fixture.engine.onLine("info depth 8 score cp 24 nodes 500 pv e2e4 e7e5")
-        fixture.engine.onLine("bestmove e2e4")
+        val completion = Thread {
+            fixture.engine.onLine("bestmove e2e4")
+        }.apply {
+            isDaemon = true
+            start()
+        }
+        completion.join(2_000)
 
-        // onBestMove clears the completed work before delivery. beginQueuedIfAny must leave the
-        // new active request installed by the callback instead of dropping or replacing it.
+        assertThat(!completion.isAlive, "Completion callback deadlocked while reentering analyze")
         assertThat(firstDelivered)
+        assertThat(deliveryOrder == listOf("first", "next-started"))
         assertThat(fixture.engine.state == UciSessionState.PREPARING)
         assertThat(fixture.transport.commands.last() == "isready")
         fixture.engine.onLine("readyok")
@@ -415,6 +594,7 @@ internal fun registerEngineLayerTests(suite: TestSuite) {
         fixture.engine.onLine("bestmove d2d4")
 
         assertThat(secondDelivered)
+        assertThat(deliveryOrder == listOf("first", "next-started", "second"))
         assertThat(fixture.engine.state == UciSessionState.IDLE)
     }
     suite.test("UCI engine converts mate and MultiPV analysis") {
@@ -602,6 +782,49 @@ internal fun registerEngineLayerTests(suite: TestSuite) {
         }
         fixture.engine.close()
     }
+    suite.test("a full-strength review cannot leak into the following limited opponent request") {
+        val fixture = uciFixture()
+        fixture.engine.start(); completeHandshake(fixture)
+
+        val reviewCommandStart = fixture.transport.commands.size
+        fixture.engine.analyze(
+            productionRequest(
+                id = "foreground-review",
+                gameId = "shared-apple-session",
+                purpose = EnginePurpose.REVIEW,
+                strength = EngineStrength.SkillLevel(20),
+            ),
+        ) {}
+        val reviewCommands = fixture.transport.commands.drop(reviewCommandStart)
+        assertThat("setoption name UCI_LimitStrength value false" in reviewCommands)
+        assertThat("setoption name Skill Level value 20" in reviewCommands)
+        assertThat("setoption name UCI_AnalyseMode value true" in reviewCommands)
+        fixture.engine.onLine("readyok")
+        fixture.engine.onLine("info depth 8 score cp 30 nodes 800 pv e2e4 e7e5")
+        fixture.engine.onLine("bestmove e2e4")
+
+        val botCommandStart = fixture.transport.commands.size
+        var botResponse: EngineResponse? = null
+        fixture.engine.analyze(
+            productionRequest(
+                id = "limited-opponent",
+                gameId = "shared-apple-session",
+                purpose = EnginePurpose.BOT_MOVE,
+                strength = EngineStrength.ApproximateElo(800),
+            ),
+        ) { botResponse = it.getOrThrow() }
+        val botCommands = fixture.transport.commands.drop(botCommandStart)
+        assertThat("setoption name UCI_LimitStrength value true" in botCommands)
+        assertThat("setoption name UCI_Elo value 800" in botCommands)
+        assertThat("setoption name UCI_AnalyseMode value false" in botCommands)
+        assertThat("setoption name UCI_ShowWDL value false" in botCommands)
+        fixture.engine.onLine("readyok")
+        fixture.engine.onLine("info depth 8 score cp 20 nodes 700 pv d2d4 d7d5")
+        fixture.engine.onLine("bestmove d2d4")
+
+        assertThat(requireNotNull(botResponse).bestMove == UciMove("d2d4"))
+        fixture.engine.close()
+    }
     suite.test("UCI engine selects one deepest complete same-depth MultiPV snapshot") {
         val fixture = uciFixture()
         fixture.engine.start(); completeHandshake(fixture)
@@ -755,6 +978,30 @@ internal fun registerEngineLayerTests(suite: TestSuite) {
         fixture.timers.fireLatest()
         assertThat(error is UciEngineTimeoutException)
         assertThat(fixture.engine.state == UciSessionState.FAILED && fixture.transport.closed)
+    }
+    suite.test("UCI search timeout stops native work before closing its transport") {
+        val fixture = uciFixture()
+        var error: Throwable? = null
+        fixture.engine.start(); completeHandshake(fixture)
+        fixture.engine.analyze(productionRequest()) { error = it.exceptionOrNull() }
+        fixture.engine.onLine("readyok")
+
+        fixture.timers.fireLatest()
+
+        assertThat(error is UciEngineTimeoutException)
+        assertThat(fixture.transport.commands.last() == "stop")
+        assertThat(fixture.engine.state == UciSessionState.FAILED && fixture.transport.closed)
+    }
+    suite.test("closing an active UCI search sends stop before quit") {
+        val fixture = uciFixture()
+        fixture.engine.start(); completeHandshake(fixture)
+        fixture.engine.analyze(productionRequest()) {}
+        fixture.engine.onLine("readyok")
+
+        fixture.engine.close()
+
+        assertThat(fixture.transport.commands.takeLast(2) == listOf("stop", "quit"))
+        assertThat(fixture.engine.state == UciSessionState.CLOSED && fixture.transport.closed)
     }
     suite.test("UCI engine retains an asynchronous startup failure for later analysis") {
         val fixture = uciFixture()
@@ -1606,6 +1853,157 @@ internal fun registerEngineLayerTests(suite: TestSuite) {
         assertThat(streamed.map { it.move.ply } == listOf(1, 3))
         assertThat(requireNotNull(completed).engine == seeds.first().response.engine)
     }
+    suite.test("foreground seeds publish near-complete progress before an early missing root") {
+        val moves = listOf("e2e4", "e7e5", "g1f3", "b8c6", "f1b5").map(::UciMove)
+        val rules = RulesContractV1.drawless()
+        val plan = GameReviewPlanner.playerPlan(
+            gameId = "player-up-front-seeds",
+            initialFen = ChessPosition.START_FEN,
+            moves = moves,
+            rules = rules,
+            playerSide = Side.WHITE,
+        )
+        val seeds = listOf(plan.roots[0], plan.roots[2]).map { root ->
+            root.seed(reviewResponseFor(root.request, moves[root.ply - 1].value))
+        }
+        val engine = FakeReviewEngine()
+        val streamed = mutableListOf<GameReviewMoveResult>()
+        val progress = mutableListOf<GameReviewProgress>()
+        var completed: GameReviewResult? = null
+
+        GameReviewRunner(engine).reviewPlayerMoves(
+            gameId = "player-up-front-seeds",
+            initialFen = ChessPosition.START_FEN,
+            moves = moves,
+            rules = rules,
+            outcome = GameOutcome(Side.BLACK, reason = EndReason.RESIGNATION),
+            playerSide = Side.WHITE,
+            preparedPlan = plan,
+            seededRoots = seeds,
+            materializeSeededMovesUpFront = true,
+            onMoveReviewed = { streamed += it },
+            onProgress = { progress += it },
+            onResult = { completed = it.getOrThrow() },
+        )
+
+        assertThat(progress.single().completedMoves == 2)
+        assertThat(progress.single().totalMoves == 3)
+        assertThat(streamed.map { it.move.ply } == listOf(1, 5))
+        assertThat(engine.requests.single().request.moves.map { it.value } == listOf("e2e4", "e7e5"))
+
+        engine.respond("g1f3")
+        assertThat(progress.last().completedMoves == 3)
+        assertThat(requireNotNull(completed).moves.map { it.ply } == listOf(1, 3, 5))
+    }
+    suite.test("a 43-move iOS review starts 42 moves complete when only an early root is missing") {
+        val moves = longPhysicalReviewGameMoves()
+        val rules = RulesContractV1.drawless()
+        val gameId = "player-up-front-seeds-43-moves"
+        val plan = GameReviewPlanner.playerPlan(
+            gameId = gameId,
+            initialFen = ChessPosition.START_FEN,
+            moves = moves,
+            rules = rules,
+            playerSide = Side.WHITE,
+        )
+        val missingRootIndex = 1
+        val seeds = plan.roots.mapIndexedNotNull { index, root ->
+            if (index == missingRootIndex) null else {
+                root.seed(reviewResponseFor(root.request, moves[root.ply - 1].value))
+            }
+        }
+        val engine = FakeReviewEngine()
+        val streamed = mutableListOf<GameReviewMoveResult>()
+        val progress = mutableListOf<GameReviewProgress>()
+        var completed: GameReviewResult? = null
+
+        assertThat(moves.size == 86)
+        assertThat(plan.roots.size == 43)
+        assertThat(plan.roots[missingRootIndex].ply == 3)
+        GameReviewRunner(engine).reviewPlayerMoves(
+            gameId = gameId,
+            initialFen = ChessPosition.START_FEN,
+            moves = moves,
+            rules = rules,
+            outcome = GameOutcome(Side.BLACK, reason = EndReason.RESIGNATION),
+            playerSide = Side.WHITE,
+            preparedPlan = plan,
+            seededRoots = seeds,
+            materializeSeededMovesUpFront = true,
+            onMoveReviewed = { streamed += it },
+            onProgress = { progress += it },
+            onResult = { completed = it.getOrThrow() },
+        )
+
+        assertThat(progress.single() == GameReviewProgress(42, 43, 42, 43))
+        assertThat(streamed.size == 42)
+        assertThat(streamed.none { it.move.ply == 3 })
+        assertThat(streamed.last().move.ply == 85)
+        assertThat(engine.requests.single().request.moves == moves.take(2))
+
+        engine.respond(moves[2].value)
+        assertThat(progress.last() == GameReviewProgress(43, 43, 43, 43))
+        assertThat(requireNotNull(completed).moves.map { it.ply } == (1..85 step 2).toList())
+    }
+    suite.test("a 43-move iOS review starts 42 moves complete when only an early helper is missing") {
+        val moves = longPhysicalReviewGameMoves()
+        val rules = RulesContractV1.drawless()
+        val gameId = "player-up-front-seeds-43-moves-adjacent"
+        val plan = GameReviewPlanner.playerPlan(
+            gameId = gameId,
+            initialFen = ChessPosition.START_FEN,
+            moves = moves,
+            rules = rules,
+            playerSide = Side.WHITE,
+        )
+        val missingAdjacentIndex = 1
+        val rootSeeds = plan.roots.mapIndexed { index, root ->
+            val bestMove = if (index == missingAdjacentIndex) {
+                // At ply 3, e2e4 is legal but the played f2f3 is outside this root's MultiPV.
+                "e2e4"
+            } else {
+                moves[root.ply - 1].value
+            }
+            root.seed(reviewResponseFor(root.request, bestMove))
+        }
+        val engine = FakeReviewEngine()
+        val streamed = mutableListOf<GameReviewMoveResult>()
+        val progress = mutableListOf<GameReviewProgress>()
+        var completed: GameReviewResult? = null
+
+        assertThat(moves.size == 86)
+        assertThat(plan.roots.size == 43)
+        assertThat(plan.roots[missingAdjacentIndex].ply == 3)
+        GameReviewRunner(engine).reviewPlayerMoves(
+            gameId = gameId,
+            initialFen = ChessPosition.START_FEN,
+            moves = moves,
+            rules = rules,
+            outcome = GameOutcome(Side.BLACK, reason = EndReason.RESIGNATION),
+            playerSide = Side.WHITE,
+            preparedPlan = plan,
+            seededRoots = rootSeeds,
+            materializeSeededMovesUpFront = true,
+            onMoveReviewed = { streamed += it },
+            onProgress = { progress += it },
+            onResult = { completed = it.getOrThrow() },
+        )
+
+        assertThat(progress.first() == GameReviewProgress(42, 43, 42, 43))
+        assertThat(progress.all { it.completedMoves == 42 && it.totalMoves == 43 })
+        assertThat(streamed.size == 42)
+        assertThat(streamed.none { it.move.ply == 3 })
+        assertThat(engine.requests.single().request.moves == moves.take(3))
+
+        engine.respond(moves[3].value)
+        assertThat(progress.last() == GameReviewProgress(44, 44, 43, 43))
+        assertThat(engine.requests.size == 1)
+        assertThat(requireNotNull(completed).moves.map { it.ply } == (1..85 step 2).toList())
+        assertThat(
+            requireNotNull(completed).moves.single { it.ply == 3 }
+                .evidence?.usedAdjacentFallback == true,
+        )
+    }
     suite.test("a seeded root still schedules its required adjacent helper") {
         val rules = RulesContractV1.drawless()
         val root = GameReviewPlanner.playerRoot(
@@ -1631,8 +2029,10 @@ internal fun registerEngineLayerTests(suite: TestSuite) {
             onResult = { completed = it.getOrThrow() },
         )
         assertThat(engine.requests.single().request.moves == listOf(UciMove("e2e4")))
+        assertThat(engine.requests.single().request.positionId != root.key.positionId)
         assertThat(streams == 0)
         engine.respond("e7e5")
+        assertThat(engine.requests.size == 1, "The accepted exact root was submitted again")
         assertThat(streams == 1 && requireNotNull(completed).moves.single().evidence?.usedAdjacentFallback == true)
     }
     suite.test("seeded root and adjacent evidence complete an off-MultiPV player move without engine work") {
@@ -1668,6 +2068,279 @@ internal fun registerEngineLayerTests(suite: TestSuite) {
 
         assertThat(engine.requests.isEmpty())
         assertThat(requireNotNull(completed).moves.single().evidence?.usedAdjacentFallback == true)
+    }
+    suite.test("ongoing player review materializes only newly ready foreground decisions") {
+        val gameId = "player-incremental-materialization"
+        val moves = listOf("e2e4", "e7e5", "g1f3", "b8c6").map(::UciMove)
+        val rules = RulesContractV1.drawless()
+        val plan = GameReviewPlanner.playerPlan(
+            gameId = gameId,
+            initialFen = ChessPosition.START_FEN,
+            moves = moves,
+            rules = rules,
+            playerSide = Side.WHITE,
+        )
+        val firstSeed = plan.roots[0].seed(
+            reviewResponseFor(plan.roots[0].request, moves[0].value),
+        )
+        val thirdPlySeed = plan.roots[1].seed(
+            reviewResponseFor(plan.roots[1].request, "d2d4"),
+        )
+        val runner = GameReviewRunner(FakeReviewEngine())
+
+        val firstBatch = runner.materializeReadyPlayerMoves(
+            gameId = gameId,
+            initialFen = ChessPosition.START_FEN,
+            moves = moves,
+            rules = rules,
+            playerSide = Side.WHITE,
+            preparedPlan = plan,
+            seededRoots = listOf(firstSeed, thirdPlySeed),
+        )
+        assertThat(firstBatch.map { it.move.ply } == listOf(1))
+
+        val adjacent = GameReviewPlanner.adjacentRoot(
+            requestId = "player-incremental-materialization-adjacent",
+            root = plan.roots[1],
+            playedMove = moves[2],
+        )
+        val adjacentSeed = adjacent.seed(reviewResponseFor(adjacent.request, moves[3].value))
+        val secondBatch = runner.materializeReadyPlayerMoves(
+            gameId = gameId,
+            initialFen = ChessPosition.START_FEN,
+            moves = moves,
+            rules = rules,
+            playerSide = Side.WHITE,
+            preparedPlan = plan,
+            seededRoots = listOf(firstSeed, thirdPlySeed),
+            seededAdjacentRoots = listOf(adjacentSeed),
+            alreadyPrepared = firstBatch,
+        )
+        assertThat(secondBatch.map { it.move.ply } == listOf(3))
+        assertThat(secondBatch.single().move.evidence?.usedAdjacentFallback == true)
+
+        val noRepeatedWork = runner.materializeReadyPlayerMoves(
+            gameId = gameId,
+            initialFen = ChessPosition.START_FEN,
+            moves = moves,
+            rules = rules,
+            playerSide = Side.WHITE,
+            preparedPlan = plan,
+            seededRoots = listOf(firstSeed, thirdPlySeed),
+            seededAdjacentRoots = listOf(adjacentSeed),
+            alreadyPrepared = firstBatch + secondBatch,
+        )
+        assertThat(noRepeatedWork.isEmpty())
+    }
+    suite.test("final player review reuses prepared moves without validating their raw PV again") {
+        val gameId = "player-prepared-final-reuse"
+        val moves = listOf(UciMove("e2e4"))
+        val rules = RulesContractV1.drawless()
+        val plan = GameReviewPlanner.playerPlan(
+            gameId = gameId,
+            initialFen = ChessPosition.START_FEN,
+            moves = moves,
+            rules = rules,
+            playerSide = Side.WHITE,
+        )
+        val root = plan.roots.single()
+        val validSeed = root.seed(reviewResponseFor(root.request, moves.single().value))
+        val materializer = GameReviewRunner(FakeReviewEngine())
+        val prepared = materializer.materializeReadyPlayerMoves(
+            gameId = gameId,
+            initialFen = ChessPosition.START_FEN,
+            moves = moves,
+            rules = rules,
+            playerSide = Side.WHITE,
+            preparedPlan = plan,
+            seededRoots = listOf(validSeed),
+        ).single()
+
+        // The candidate still starts with the played move, but its continuation is illegal. A
+        // final attempt which re-runs root PV validation would fail on e2e5 after e2e4.
+        val malformedSeed = root.seed(
+            reviewResponseFor(
+                root.request,
+                moves.single().value,
+                variations = listOf(
+                    reviewVariation(moves.single().value, continuation = listOf("e2e5")),
+                ),
+            ),
+        )
+        assertThrows<IllegalArgumentException> {
+            materializer.materializeReadyPlayerMoves(
+                gameId = gameId,
+                initialFen = ChessPosition.START_FEN,
+                moves = moves,
+                rules = rules,
+                playerSide = Side.WHITE,
+                preparedPlan = plan,
+                seededRoots = listOf(malformedSeed),
+            )
+        }
+        val finalEngine = FakeReviewEngine()
+        val streamed = mutableListOf<GameReviewMoveResult>()
+        var coverage: PlayerGameReviewSeedCoverage? = null
+        var completed: GameReviewResult? = null
+        GameReviewRunner(finalEngine).reviewPlayerMoves(
+            gameId = gameId,
+            initialFen = ChessPosition.START_FEN,
+            moves = moves,
+            rules = rules,
+            outcome = GameOutcome(Side.BLACK, reason = EndReason.RESIGNATION),
+            playerSide = Side.WHITE,
+            preparedPlan = plan,
+            seededRoots = listOf(malformedSeed),
+            preparedMoves = listOf(prepared),
+            materializeSeededMovesUpFront = true,
+            onSeedCoverage = { coverage = it },
+            onMoveReviewed = { streamed += it },
+            onResult = { completed = it.getOrThrow() },
+        )
+
+        assertThat(finalEngine.requests.isEmpty())
+        assertThat(streamed.single() === prepared)
+        assertThat(requireNotNull(completed).moves.single() === prepared.move)
+        assertThat(requireNotNull(coverage).materializablePlies == listOf(1))
+        assertThat(requireNotNull(coverage).missingExactPlies.isEmpty())
+        assertThat(requireNotNull(coverage).missingAdjacentPlies.isEmpty())
+    }
+    suite.test("the latest 77-ply iPhone game retains foreground materialization through checkmate") {
+        val gameId = "player-latest-iphone-77-ply-retention"
+        val moves = latestIPhoneReviewGameMoves()
+        val rules = RulesContractV1.drawless()
+        val outcome = GameOutcome(Side.WHITE, reason = EndReason.CHECKMATE)
+        val finalPlan = GameReviewPlanner.playerPlan(
+            gameId = gameId,
+            initialFen = ChessPosition.START_FEN,
+            moves = moves,
+            rules = rules,
+            playerSide = Side.WHITE,
+        )
+        val materializer = GameReviewRunner(FakeReviewEngine())
+        val acceptedSeeds = mutableListOf<SeededGameReviewRoot>()
+        val prepared = mutableListOf<GameReviewMoveResult>()
+
+        assertThat(moves.size == 77)
+        assertThat(finalPlan.roots.map { it.ply } == (1..77 step 2).toList())
+
+        // Model the real foreground lifecycle: one completed exact root arrives during each
+        // human turn, and only that newly playable decision is converted to immutable review
+        // evidence. Every prior result is handed into the next prefix rather than recalculated.
+        finalPlan.roots.forEach { finalRoot ->
+            val prefix = moves.take(finalRoot.ply)
+            val prefixPlan = GameReviewPlanner.playerPlan(
+                gameId = gameId,
+                initialFen = ChessPosition.START_FEN,
+                moves = prefix,
+                rules = rules,
+                playerSide = Side.WHITE,
+            )
+            val currentRoot = prefixPlan.roots.last()
+            assertThat(currentRoot.key == finalRoot.key)
+            acceptedSeeds += currentRoot.seed(
+                reviewResponseFor(currentRoot.request, moves[currentRoot.ply - 1].value),
+            )
+
+            val newlyPrepared = materializer.materializeReadyPlayerMoves(
+                gameId = gameId,
+                initialFen = ChessPosition.START_FEN,
+                moves = prefix,
+                rules = rules,
+                playerSide = Side.WHITE,
+                preparedPlan = prefixPlan,
+                seededRoots = acceptedSeeds,
+                alreadyPrepared = prepared,
+                outcome = outcome.takeIf { finalRoot.ply == moves.size },
+            )
+            assertThat(
+                newlyPrepared.map { it.move.ply } == listOf(finalRoot.ply),
+                "Foreground pass at ply ${finalRoot.ply} did not materialize exactly that decision",
+            )
+            prepared += newlyPrepared
+
+            val repeatedPass = materializer.materializeReadyPlayerMoves(
+                gameId = gameId,
+                initialFen = ChessPosition.START_FEN,
+                moves = prefix,
+                rules = rules,
+                playerSide = Side.WHITE,
+                preparedPlan = prefixPlan,
+                seededRoots = acceptedSeeds,
+                alreadyPrepared = prepared,
+                outcome = outcome.takeIf { finalRoot.ply == moves.size },
+            )
+            assertThat(repeatedPass.isEmpty(), "Prepared ply ${finalRoot.ply} was recalculated")
+        }
+
+        assertThat(prepared.size == 39)
+        assertThat(prepared.map { it.move.ply } == finalPlan.roots.map { it.ply })
+        assertThat(prepared.last().move.playedMove == UciMove("a8h8"))
+        assertThat(prepared.last().move.evidence?.playedLine?.origin == ReviewLineOrigin.AUTHORITATIVE_TERMINAL)
+
+        // These roots retain the correct identities but contain an illegal continuation. They
+        // are a sentinel: a terminal path which replays or validates raw PVs will fail, while a
+        // path that truly reuses the foreground values can complete synchronously with no engine.
+        val malformedTerminalSeeds = finalPlan.roots.map { root ->
+            root.seed(
+                reviewResponseFor(
+                    request = root.request,
+                    bestMove = moves[root.ply - 1].value,
+                    variations = listOf(
+                        reviewVariation(
+                            move = moves[root.ply - 1].value,
+                            continuation = listOf("e2e5"),
+                        ),
+                    ),
+                ),
+            )
+        }
+        assertThrows<IllegalArgumentException> {
+            materializer.materializeReadyPlayerMoves(
+                gameId = gameId,
+                initialFen = ChessPosition.START_FEN,
+                moves = moves,
+                rules = rules,
+                playerSide = Side.WHITE,
+                preparedPlan = finalPlan,
+                seededRoots = malformedTerminalSeeds,
+                outcome = outcome,
+            )
+        }
+
+        val finalEngine = FakeReviewEngine()
+        val streamed = mutableListOf<GameReviewMoveResult>()
+        val postGameSearches = mutableListOf<GameReviewSearchSubmission>()
+        val progress = mutableListOf<GameReviewProgress>()
+        var coverage: PlayerGameReviewSeedCoverage? = null
+        var completed: GameReviewResult? = null
+        GameReviewRunner(finalEngine).reviewPlayerMoves(
+            gameId = gameId,
+            initialFen = ChessPosition.START_FEN,
+            moves = moves,
+            rules = rules,
+            outcome = outcome,
+            playerSide = Side.WHITE,
+            preparedPlan = finalPlan,
+            seededRoots = malformedTerminalSeeds,
+            preparedMoves = prepared,
+            materializeSeededMovesUpFront = true,
+            onSeedCoverage = { coverage = it },
+            onSearchSubmitted = { postGameSearches += it },
+            onMoveReviewed = { streamed += it },
+            onProgress = { progress += it },
+            onResult = { completed = it.getOrThrow() },
+        )
+
+        val finalResult = requireNotNull(completed)
+        assertThat(finalEngine.requests.isEmpty())
+        assertThat(postGameSearches.isEmpty())
+        assertThat(progress == listOf(GameReviewProgress(39, 39, 39, 39)))
+        assertThat(streamed.indices.all { index -> streamed[index] === prepared[index] })
+        assertThat(finalResult.moves.indices.all { index -> finalResult.moves[index] === prepared[index].move })
+        assertThat(requireNotNull(coverage).materializablePlies == finalPlan.roots.map { it.ply })
+        assertThat(requireNotNull(coverage).missingExactPlies.isEmpty())
+        assertThat(requireNotNull(coverage).missingAdjacentPlies.isEmpty())
     }
     suite.test("player review safely trampolines a synchronously completing engine") {
         val requests = mutableListOf<EngineRequest>()

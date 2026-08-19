@@ -94,7 +94,8 @@ test("renders the major-update story without presenting it as the live Play buil
   assert.match(html, /No internet permission/);
   assert.doesNotMatch(html, /\b(?:0\.3\.0|1\.0\.0|version code)\b/i);
   assert.doesNotMatch(html, /Download now|Get it on Google Play|Available now/i);
-  assert.doesNotMatch(html, /Codex is working|starter loading skeleton/i);
+  assert.doesNotMatch(html, /starter loading skeleton/i);
+  assert.doesNotMatch(html, /\bis working\b/i, "home page still contains a development placeholder");
 });
 
 test("explains the rules-aware, private Game Review beta without overclaiming", async () => {
@@ -291,12 +292,50 @@ test("keeps pricing and release claims out until launch", async () => {
   const supportPage = await releaseFile("support/index.html");
 
   assert.doesNotMatch(sourcePage, /free and open-source/i);
-  assert.match(sourcePage, /public Android release is still in preparation/i);
-  assert.match(privacyPage, /Android’s system backup may include/i);
-  assert.match(privacyPage, /Updated:<\/strong> July 30, 2026/i);
+  assert.match(sourcePage, /public iPhone, iPad, and Android releases are still in preparation/i);
+  assert.match(privacyPage, /Apple device or iCloud Backup, or Android’s system backup, may include/i);
+  assert.match(privacyPage, /Updated:<\/strong> August 14, 2026/i);
   for (const page of [homePage, privacyPage, supportPage]) {
     assert.match(page, /support@drawlesschess\.com/);
     assert.doesNotMatch(page, /realitymaster@protonmail\.ch/);
+  }
+});
+
+test("publishes one truthful mobile privacy and release-source boundary", async () => {
+  const privacyPage = await releaseFile("privacy/index.html");
+  const supportPage = await releaseFile("support/index.html");
+  const sourcePage = await releaseFile("open-source/index.html");
+
+  assert.match(privacyPage, /offline, single-player game for iPhone, iPad, and Android/i);
+  assert.match(privacyPage, /private iOS, iPadOS, or Android app container/i);
+  assert.match(privacyPage, /do not send gameplay, preferences, identifiers, or statistics to BB_Games/i);
+  assert.match(privacyPage, /Apple’s App Store or Google Play/i);
+  assert.match(privacyPage, /Delete App/i);
+  assert.match(privacyPage, /Offload App[^.]*retains documents and data/i);
+  assert.match(privacyPage, /Clear storage\/data/i);
+
+  assert.match(supportPage, /public iPhone, iPad, and Android releases/i);
+  assert.match(supportPage, /platform, operating-system version, and device model/i);
+  assert.match(supportPage, /source matched to a particular app release/i);
+
+  assert.match(sourcePage, /Android application, SwiftUI iPhone and iPad application/i);
+  assert.match(sourcePage, /complete corresponding-source archive and SHA-256 checksum/i);
+  assert.match(sourcePage, /current <code>main<\/code> branch is not a substitute/i);
+  assert.match(sourcePage, /no public release entry with matching source[^.]*not authorized for distribution/i);
+  assert.match(sourcePage, /href="https:\/\/github\.com\/DeviousVon\/Drawless-Chess\/releases"/i);
+  assert.match(sourcePage, /Website deployment, binary distribution, and corresponding-source publication are separate release gates/i);
+
+  const publicCopy = [privacyPage, supportPage, sourcePage].join("\n");
+  const allowedPublicHosts = new Set([
+    "drawlesschess.com",
+    "www.drawlesschess.com",
+    "github.com",
+    "groups.google.com",
+    "play.google.com",
+  ]);
+  for (const match of publicCopy.matchAll(/https?:\/\/[^"'<>\s]+/gi)) {
+    const hostname = new URL(match[0]).hostname.toLowerCase();
+    assert.ok(allowedPublicHosts.has(hostname), "rendered public URL host is not allow-listed");
   }
 });
 

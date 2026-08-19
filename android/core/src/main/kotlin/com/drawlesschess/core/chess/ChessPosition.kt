@@ -28,6 +28,14 @@ class ChessPosition private constructor(
         piece?.let { Square(index) to it }
     }
 
+    internal fun kingSquare(side: Side): Square {
+        val index = board.indexOfFirst { piece ->
+            piece?.side == side && piece.type == PieceType.KING
+        }
+        check(index >= 0) { "Missing ${side.name.lowercase()} king" }
+        return Square(index)
+    }
+
     internal fun boardCopy(): MutableList<Piece?> = board.toMutableList()
 
     fun fen(): String = listOf(

@@ -1,5 +1,9 @@
 #include <cstdint>
 
+#if defined(DRAWLESS_APPLE_BRIDGE)
+#include <TargetConditionals.h>
+#endif
+
 #if defined(__GNUC__)
 #define DRAWLESS_EXPORT __attribute__((visibility("default")))
 #else
@@ -65,5 +69,19 @@ DRAWLESS_EXPORT const char* drawless_fairy_android_abi() {
     return "unsupported";
 #endif
 }
+
+#if defined(DRAWLESS_APPLE_BRIDGE)
+DRAWLESS_EXPORT const char* drawless_fairy_apple_abi() {
+#if defined(__aarch64__) && defined(TARGET_OS_SIMULATOR) && TARGET_OS_SIMULATOR
+    return "ios-simulator-arm64";
+#elif defined(__aarch64__)
+    return "ios-arm64";
+#elif defined(__x86_64__)
+    return "ios-simulator-x86_64";
+#else
+    return "unsupported";
+#endif
+}
+#endif
 
 }  // extern "C"

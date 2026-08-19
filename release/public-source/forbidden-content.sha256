@@ -1,0 +1,3 @@
+# Public synthetic fixture for fail-closed scanner self-tests. Private-project
+# token hashes are kept in the excluded private policy, never in public source.
+4938d82f08974c404a7493729d2b66af15ae74aa7af94ffc4cd2a5a56bdf186e  synthetic-fixture

@@ -2,6 +2,7 @@ package com.drawlesschess.core.chess
 
 import com.drawlesschess.core.Side
 import com.drawlesschess.core.UciMove
+import kotlin.jvm.JvmInline
 
 enum class PieceType(val fenLower: Char) {
     PAWN('p'),

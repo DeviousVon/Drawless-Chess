@@ -1,8 +1,9 @@
 # Third-party notices
 
-This file records the third-party material in the Drawless Chess 1.0.0 release
-checkpoint. The exact resolved Android runtime inventory is generated from
-Gradle and recorded in `release/reports/release-sbom.cdx.json`.
+This file records the third-party material in the Drawless Chess 1.0.2 release
+candidate. The exact resolved Android runtime inventory is generated from Gradle
+and recorded in `release/reports/release-sbom.cdx.json`; the iOS runtime boundary
+is recorded separately below.
 
 ## Fairy-Stockfish and Stockfish
 
@@ -14,9 +15,10 @@ Gradle and recorded in `release/reports/release-sbom.cdx.json`.
 - License and authors in a prepared tree: `Copying.txt` and `AUTHORS`
 - Packaged source notice: `engine/native/SOURCE_NOTICE.txt`
 
-The Android application links the modified engine in process. Drawless Chess has
-therefore adopted GPL-3.0-or-later for the combined application; it does not rely
-on the JNI boundary to avoid the engine's copyleft terms.
+The Android application links the modified engine in process through JNI, and
+the iOS application links it in process through the static Apple bridge. Drawless
+Chess has therefore adopted GPL-3.0-or-later for both combined applications; it
+does not rely on either platform bridge to avoid the engine's copyleft terms.
 
 ## JavaScript chess runtimes
 
@@ -57,6 +59,23 @@ Apache-2.0 is compatible with GPLv3. Nothing in this file relicenses third-party
 material; each component remains under its own license, and upstream notices
 remain authoritative.
 
+## iOS release runtime
+
+The iOS application statically links the DrawlessShared Kotlin/Native framework,
+built with Kotlin 2.4.10, its declared
+`org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0` runtime dependency, and
+the resolved transitive
+`org.jetbrains.kotlinx:kotlinx-serialization-core:1.11.0` dependency. Kotlin and
+kotlinx.serialization are licensed under Apache-2.0. The complete Apache-2.0
+terms are in `APACHE-2.0.txt` and are bundled with the iOS application. The exact
+reviewed Apple resolution and artifact hashes are recorded in
+`release/reports/ios-release-runtime-dependencies.txt`.
+
+The framework also statically links the modified Fairy-Stockfish engine described
+above. Apple SDK and operating-system frameworks are system libraries and are not
+redistributed project components. Regenerate and review the Apple dependency
+boundary whenever the Kotlin toolchain or declared runtime dependencies change.
+
 ## Original UI assets
 
 The chess pieces and launcher icon are vector/code-native original project work
@@ -94,8 +113,9 @@ discofield:
 
 All eight source pages designate the recordings Creative Commons Zero 1.0. CC0
 does not require attribution, but the identities, retained source files and hashes,
-original-download identities, and processing descriptions are preserved
-under `docs/audio/`. The complete CC0 legal text is in
+original-download identities, and processing descriptions are preserved under
+`docs/audio/`. Android ships the processed catalog as stereo 48 kHz Ogg/Vorbis;
+iOS ships corresponding stereo 48 kHz AAC/M4A. The complete CC0 legal text is in
 `docs/audio/licenses/CC0-1.0.txt` in the corresponding source distribution.
 
 ## ion.sound 3.0.7 — MIT License

@@ -1,5 +1,7 @@
 package com.drawlesschess.core
 
+import kotlin.jvm.JvmInline
+
 enum class Side {
     WHITE,
     BLACK;

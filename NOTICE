@@ -2,10 +2,10 @@ Drawless Chess
 ==============
 
 Drawless Chess is free software. Except for third-party material identified
-below or in its own notice, the Drawless Chess source and the combined Android
-application are licensed under the GNU General Public License, version 3 or (at
-your option) any later version (GPL-3.0-or-later). The complete terms are in
-LICENSE.
+below or in its own notice, the Drawless Chess source and the Android and iOS
+applications are licensed under the GNU General Public License, version 3 or
+(at your option) any later version (GPL-3.0-or-later). The complete terms are
+in LICENSE.
 
 You may copy, modify, redistribute, and charge for copies under those terms.
 Those permissions include an obligation to provide recipients the complete
@@ -19,18 +19,25 @@ The public project source is at:
 
     https://github.com/DeviousVon/Drawless-Chess
 
-Every public APK or App Bundle release must also identify the corresponding
-source location for that exact version. The release owner must publish the
-archive made by scripts/source-bundle.sh, its SHA-256, and the matching binary
-identity. The repository alone is not a substitute for that versioned archive.
-See docs/RELEASE_LICENSING.md for the release checklist.
+Every public Android APK/AAB or iOS App Store binary release must also identify
+the corresponding source location for that exact version. The release owner
+must use the audited, owner-controlled clean-room publisher, implemented as an
+inclusion-only export, to produce a whole-project archive from committed public
+product blobs and the validated prepared Fairy-Stockfish staged tree. The
+publisher rejects unclassified or forbidden paths, unsafe entry types,
+private-only content, signing material, credentials, portal data, and
+non-deterministic output. The archive SHA-256 and matching public tag/binary
+identity must be published together. The repository alone is not a substitute
+for that versioned archive. See docs/RELEASE_LICENSING.md for the release
+checklist.
 
 Third-party material
 --------------------
 
-* Fairy-Stockfish, derived from Stockfish, is GPL-3.0-or-later. Its exact
-  revision, authors, license, Drawless patch series, and source identity are
-  recorded under engine/native/ and engine/patches/.
+* Fairy-Stockfish, derived from Stockfish, is GPL-3.0-or-later. It is linked in
+  process by both platform applications. Its exact revision, authors, license,
+  Drawless patch series, and source identity are recorded under engine/native/
+  and engine/patches/.
 * fairy-stockfish-nnue.wasm and ffish-es6 are GPL-family packages used by the
   separate JavaScript proof of concept. Their versions are locked in
   package-lock.json; they are not the Android native source pin.
@@ -38,6 +45,10 @@ Third-party material
   POM license evidence are in release/reports/release-sbom.cdx.json. All 115
   resolved modules at this checkpoint are Apache-2.0; the complete terms are in
   APACHE-2.0.txt. Their upstream notices remain authoritative.
+* The iOS application statically links the Kotlin/Native 2.4.10 runtime and
+  kotlinx-serialization-json 1.11.0. Those components are Apache-2.0; the
+  complete terms are in APACHE-2.0.txt. Apple operating-system frameworks are
+  linked as system libraries rather than redistributed project components.
 * Sampled chess-piece recordings by JJTaynos and mh2o, a stone-impact recording by
   aerror, genuine firework recordings by Rudmer_Rotteveel, the pump-action recording
   by AugustSandberg, and brick/stone crash recordings by discofield are used under
@@ -53,8 +64,8 @@ replace any third-party license text or notice packaged with a dependency.
 Original visual material and sampled audio
 ------------------------------------------
 
-The code-native chess-piece drawings, launcher icon vectors, supporting color
-resources, and fictional opponent identities under android/app/src/main are
+The code-native chess-piece drawings, launcher icons, supporting color resources,
+and fictional opponent identities in the Android and iOS applications are
 original project material and are covered by the Drawless Chess
 GPL-3.0-or-later grant. The eight opponent portraits were generated specifically
 for this project with OpenAI's image-generation tool and without third-party
@@ -65,8 +76,9 @@ Move and castling sounds are processed only from the CC0 chess contacts; capture
 the selected CC0 recording of a stone striking rocks, en passant and checkmate use the
 CC0 Brick and Stone crash recordings, fireworks use the CC0 pyrotechnic recordings,
 and the check cue uses a CC0 pump-action recording. Glass-crack and reserved
-UI sounds also use identified MIT recordings. All ship as stereo 48 kHz
-Ogg/Vorbis resources. The third-party recordings retain their original licenses;
+UI sounds also use identified MIT recordings. Android ships the processed catalog
+as stereo 48 kHz Ogg/Vorbis resources; iOS ships corresponding stereo 48 kHz
+AAC/M4A resources. The third-party recordings retain their original licenses;
 Drawless Chess modifications and catalog code are covered by the project grant to
 the extent applicable. Design and audit details are in docs/AUDIO_PROVENANCE.md.
 

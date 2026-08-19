@@ -1,6 +1,6 @@
 package com.drawlesschess.core
 
-import java.time.Instant
+import kotlin.time.Instant
 
 enum class GameMode { CASUAL, RATED }
 

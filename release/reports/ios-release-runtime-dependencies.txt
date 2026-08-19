@@ -1,0 +1,47 @@
+Drawless Chess 1.0.2 iOS release runtime dependency inventory
+==============================================================
+
+Resolution scope
+----------------
+
+Gradle wrapper: 9.4.1
+Kotlin Multiplatform plugin/toolchain: 2.4.10
+Project: :shared-core
+Configuration: iosArm64CompileKlibraries
+Resolution mode: --no-daemon --offline
+Command:
+
+  android/gradlew -p multiplatform --no-daemon --offline \
+    :shared-core:dependencies --configuration iosArm64CompileKlibraries
+
+Resolved dependency tree
+------------------------
+
+  org.jetbrains.kotlin:kotlin-stdlib:2.4.10
+  org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0
+    org.jetbrains.kotlinx:kotlinx-serialization-json-iosarm64:1.11.0
+      org.jetbrains.kotlin:kotlin-stdlib:2.3.20 -> 2.4.10
+      org.jetbrains.kotlinx:kotlinx-serialization-core:1.11.0
+        org.jetbrains.kotlinx:kotlinx-serialization-core-iosarm64:1.11.0
+          org.jetbrains.kotlin:kotlin-stdlib:2.3.20 -> 2.4.10
+
+All resolved non-system runtime components above are Apache-2.0. The complete
+terms bundled with the iOS application are in APACHE-2.0.txt. Apple SDK and
+operating-system frameworks are system libraries and are not redistributed
+project components. The modified Fairy-Stockfish static dependency is governed
+by GPL-3.0-or-later and is pinned separately in engine/native/upstream.properties.
+
+Resolved artifact and metadata SHA-256
+--------------------------------------
+
+  1c04a98f1200c8705d015df08977211589eecbc87cf1c4c6d28a92682fe8446e  kotlin-stdlib-2.4.10.module
+  b6bdde447bac2dc90e9d73a107aedb130cc4bd873227d87ce3009659434f9903  kotlinx-serialization-json-iosArm64Main-1.11.0.klib
+  5f4050f4ae1f95af0cdb6c96843cda7dd5a0befb76e3b446887afae906333720  kotlinx-serialization-json-iosarm64-1.11.0.module
+  c4231813a585384c493947756ee1ffbbd4d3e0b76ac98d2ed8335909aa1316a2  kotlinx-serialization-core-iosArm64Main-1.11.0.klib
+  f3e7ea23d1545afe680456da2330c25432ed19bc7e9d5826526d9ef305ea7c1b  kotlinx-serialization-core-iosarm64-1.11.0.module
+  9f81f25e96b919153392ded53bd33216e76624909cfd080a3edb278d44fc34f0  kotlin-stdlib-2.4.10.pom
+  67b81973bfd0146e72a8a5b1864a647d9cd9d85468dc109e524733ba5c2fed87  kotlinx-serialization-json-iosarm64-1.11.0.pom
+  c38e1d9563f156943e559fe5c035c1014ed6ad8f30c79ac29a543b9ed006282d  kotlinx-serialization-core-iosarm64-1.11.0.pom
+
+Regenerate and review this report whenever the Kotlin toolchain, declared KMP
+dependencies, or resolved Apple target variants change.

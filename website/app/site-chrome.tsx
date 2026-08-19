@@ -1,4 +1,5 @@
 export const SOURCE_URL = "https://github.com/DeviousVon/Drawless-Chess";
+export const SOURCE_RELEASES_URL = `${SOURCE_URL}/releases`;
 export const SUPPORT_EMAIL = "support@drawlesschess.com";
 export const BETA_GROUP_URL = "https://groups.google.com/g/drawless-chess-testers";
 export const BETA_DOWNLOAD_URL = "https://play.google.com/store/apps/details?id=com.drawlesschess";

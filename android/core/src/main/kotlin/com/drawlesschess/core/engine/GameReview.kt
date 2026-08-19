@@ -1,6 +1,7 @@
 package com.drawlesschess.core.engine
 
 import com.drawlesschess.core.ChessEngine
+import com.drawlesschess.core.ConcurrentLock
 import com.drawlesschess.core.EngineCancellation
 import com.drawlesschess.core.EngineIdentity
 import com.drawlesschess.core.EngineLimits
@@ -20,7 +21,6 @@ import com.drawlesschess.core.chess.ChessAdapter
 import com.drawlesschess.core.chess.ChessPosition
 import com.drawlesschess.core.chess.ChessRules
 import com.drawlesschess.core.chess.RepetitionKey
-import java.util.concurrent.atomic.AtomicLong
 import kotlin.math.pow
 
 const val REVIEW_EVIDENCE_SCHEMA_VERSION = 1
@@ -388,6 +388,39 @@ object GameReviewClassifier {
     }
 }
 
+/** Exact foreground-evidence coverage calculated before final review submits any engine work. */
+data class PlayerGameReviewSeedCoverage(
+    val expectedPlies: List<Int>,
+    val exactSeededPlies: List<Int>,
+    val adjacentRequiredPlies: List<Int>,
+    val adjacentSeededPlies: List<Int>,
+    val materializablePlies: List<Int>,
+    val missingExactPlies: List<Int>,
+    val missingAdjacentPlies: List<Int>,
+) {
+    init {
+        require(expectedPlies == expectedPlies.sorted() && expectedPlies.distinct().size == expectedPlies.size)
+        require(exactSeededPlies.all { it in expectedPlies })
+        require(adjacentRequiredPlies.all { it in exactSeededPlies })
+        require(adjacentSeededPlies.all { it in adjacentRequiredPlies })
+        require(materializablePlies.all { it in exactSeededPlies })
+        require(missingExactPlies.all { it in expectedPlies })
+        require(missingAdjacentPlies.all { it in adjacentRequiredPlies })
+    }
+}
+
+enum class GameReviewSearchKind { EXACT_ROOT, ADJACENT_HELPER }
+
+/** One real final-review engine submission. Seeded responses never emit this callback. */
+data class GameReviewSearchSubmission(
+    val ply: Int,
+    val kind: GameReviewSearchKind,
+    val rootPositionId: String,
+    val playedMove: UciMove?,
+    val positionId: String,
+    val requestId: String,
+)
+
 /** Runs one engine request at a time through the caller-owned engine session. */
 class GameReviewRunner(private val engine: ChessEngine) {
     fun review(
@@ -403,7 +436,7 @@ class GameReviewRunner(private val engine: ChessEngine) {
         val decisions = replay(gameId, initialFen, moves, rules, outcome)
         val plan = GameReviewPlanner.plan(gameId, initialFen, moves, rules, moveTimeMillis)
         check(plan.requests.size == decisions.size)
-        val runId = REVIEW_RUN_SEQUENCE.incrementAndGet()
+        val runId = nextReviewRunId()
         val requests = buildList {
             addAll(plan.requests)
             val finalDecision = decisions.lastOrNull()
@@ -437,6 +470,76 @@ class GameReviewRunner(private val engine: ChessEngine) {
     }
 
     /**
+     * Materializes only player decisions whose exact foreground evidence is complete.
+     *
+     * This is the gameplay-time companion to [reviewPlayerMoves]. Callers may pass an ongoing
+     * nonterminal prefix by leaving [outcome] null, then retain the returned immutable values and
+     * pass them back through [alreadyPrepared] on the next prefix. Previously prepared moves are
+     * identity-checked against the new canonical plan but are never reclassified or PV-validated.
+     * A root which still needs an adjacent played-position response is simply left pending.
+     */
+    fun materializeReadyPlayerMoves(
+        gameId: String,
+        initialFen: String,
+        moves: List<UciMove>,
+        rules: RulesContractV1,
+        playerSide: Side,
+        seededRoots: Collection<SeededGameReviewRoot>,
+        seededAdjacentRoots: Collection<SeededGameReviewAdjacentRoot> = emptyList(),
+        alreadyPrepared: Collection<GameReviewMoveResult> = emptyList(),
+        outcome: GameOutcome? = null,
+        preparedPlan: PlayerGameReviewPlan? = null,
+        moveTimeMillis: Long = DEFAULT_GAME_REVIEW_MOVE_TIME_MILLIS,
+    ): List<GameReviewMoveResult> {
+        val decisions = replay(gameId, initialFen, moves, rules, outcome)
+        val plan = preparedPlan ?: GameReviewPlanner.playerPlan(
+            gameId = gameId,
+            initialFen = initialFen,
+            moves = moves,
+            rules = rules,
+            playerSide = playerSide,
+            moveTimeMillis = moveTimeMillis,
+        )
+        require(plan.gameId == gameId && plan.playerSide == playerSide && plan.gameMoves == moves) {
+            "Prepared player review plan does not match the requested game"
+        }
+        require(plan.roots.all { root ->
+            root.request.initialFen == initialFen &&
+                root.request.rules == rules &&
+                root.request.limits.moveTimeMillis == moveTimeMillis
+        }) { "Prepared player review plan does not match the requested analysis profile" }
+        require(plan.roots.all { root -> decisions[root.ply - 1].mover == playerSide })
+
+        val plannedByPly = plan.roots.associateBy { it.ply }
+        val seedsByPly = validateSeededRoots(seededRoots, plannedByPly)
+        val adjacentSeedsByPly = validateSeededAdjacentRoots(
+            seededAdjacentRoots = seededAdjacentRoots,
+            plannedByPly = plannedByPly,
+            moves = moves,
+        )
+        val preparedByPly = validatePreparedPlayerMoves(
+            preparedMoves = alreadyPrepared,
+            gameId = gameId,
+            playerSide = playerSide,
+            plannedByPly = plannedByPly,
+            decisions = decisions,
+        )
+        requireSinglePlayerReviewEngine(seededRoots, seededAdjacentRoots, alreadyPrepared)
+
+        return plan.roots.mapNotNull { root ->
+            if (root.ply in preparedByPly) return@mapNotNull null
+            val seed = seedsByPly[root.ply] ?: return@mapNotNull null
+            materializeSeededPlayerMove(
+                root = root,
+                decision = decisions[root.ply - 1],
+                seededRoot = seed,
+                seededAdjacent = adjacentSeedsByPly[root.ply],
+                playerSide = playerSide,
+            )
+        }
+    }
+
+    /**
      * Reviews only decisions made by [playerSide]. Opponent plies remain in
      * [GameReviewResult.gameMoves] as canonical context and are never graded. A dynamic adjacent
      * helper is submitted only when the played move is absent from the player's root MultiPV.
@@ -451,7 +554,11 @@ class GameReviewRunner(private val engine: ChessEngine) {
         preparedPlan: PlayerGameReviewPlan? = null,
         seededRoots: Collection<SeededGameReviewRoot> = emptyList(),
         seededAdjacentRoots: Collection<SeededGameReviewAdjacentRoot> = emptyList(),
+        preparedMoves: Collection<GameReviewMoveResult> = emptyList(),
+        materializeSeededMovesUpFront: Boolean = false,
         moveTimeMillis: Long = DEFAULT_GAME_REVIEW_MOVE_TIME_MILLIS,
+        onSeedCoverage: (PlayerGameReviewSeedCoverage) -> Unit = {},
+        onSearchSubmitted: (GameReviewSearchSubmission) -> Unit = {},
         onMoveReviewed: (GameReviewMoveResult) -> Unit = {},
         onProgress: (GameReviewProgress) -> Unit = {},
         onResult: (Result<GameReviewResult>) -> Unit,
@@ -474,37 +581,59 @@ class GameReviewRunner(private val engine: ChessEngine) {
                 root.request.limits.moveTimeMillis == moveTimeMillis
         }) { "Prepared player review plan does not match the requested analysis profile" }
         require(plan.roots.all { root -> decisions[root.ply - 1].mover == playerSide })
-        val seedsByPly = seededRoots.associateBy { it.key.ply }
-        require(seedsByPly.size == seededRoots.size) { "Player review contains duplicate seeded roots" }
         val plannedByPly = plan.roots.associateBy { it.ply }
-        seedsByPly.forEach { (ply, seed) ->
-            val planned = requireNotNull(plannedByPly[ply]) {
-                "Seeded review root ply $ply is outside player coverage"
-            }
-            require(seed.key == planned.key) {
-                "Seeded review root ply $ply does not match the exact game, rules, or analysis profile"
-            }
-        }
-        val adjacentSeedsByPly = seededAdjacentRoots.associateBy { it.key.rootKey.ply }
-        require(adjacentSeedsByPly.size == seededAdjacentRoots.size) {
-            "Player review contains duplicate seeded adjacent roots"
-        }
-        adjacentSeedsByPly.forEach { (ply, seed) ->
-            val planned = requireNotNull(plannedByPly[ply]) {
-                "Seeded adjacent root ply $ply is outside player coverage"
-            }
-            require(seed.key.rootKey == planned.key && seed.key.playedMove == moves[ply - 1]) {
-                "Seeded adjacent root ply $ply does not match the exact game continuation or analysis profile"
-            }
-        }
-        require(
-            (seededRoots.map { it.response.engine } +
-                seededAdjacentRoots.map { it.response.engine }).distinct().size <= 1,
-        ) {
-            "Seeded review evidence came from different engine builds"
-        }
+        val seedsByPly = validateSeededRoots(seededRoots, plannedByPly)
+        val adjacentSeedsByPly = validateSeededAdjacentRoots(
+            seededAdjacentRoots = seededAdjacentRoots,
+            plannedByPly = plannedByPly,
+            moves = moves,
+        )
+        val preparedByPly = validatePreparedPlayerMoves(
+            preparedMoves = preparedMoves,
+            gameId = gameId,
+            playerSide = playerSide,
+            plannedByPly = plannedByPly,
+            decisions = decisions,
+        )
+        requireSinglePlayerReviewEngine(seededRoots, seededAdjacentRoots, preparedMoves)
 
-        val runId = REVIEW_RUN_SEQUENCE.incrementAndGet()
+        val adjacentRequiredPlies = plan.roots.mapNotNull { root ->
+            preparedByPly[root.ply]?.let { prepared ->
+                return@mapNotNull root.ply.takeIf {
+                    requireNotNull(prepared.move.evidence).usedAdjacentFallback
+                }
+            }
+            val seed = seedsByPly[root.ply] ?: return@mapNotNull null
+            val decision = decisions[root.ply - 1]
+            root.ply.takeIf { requiresAdjacentCandidate(decision, seed.response) }
+        }
+        val exactSeededPlies = plan.roots.mapNotNull { root ->
+            root.ply.takeIf {
+                root.ply in preparedByPly || seedsByPly[root.ply]?.key == root.key
+            }
+        }
+        val adjacentSeededPlies = adjacentRequiredPlies.filter { ply ->
+            if (ply in preparedByPly) return@filter true
+            val root = plannedByPly.getValue(ply)
+            adjacentSeedsByPly[ply]?.key?.let { key ->
+                key.rootKey == root.key && key.playedMove == moves[ply - 1]
+            } == true
+        }
+        val materializablePlies = exactSeededPlies.filter { ply ->
+            ply !in adjacentRequiredPlies || ply in adjacentSeededPlies
+        }
+        val coverage = PlayerGameReviewSeedCoverage(
+            expectedPlies = plan.roots.map { it.ply },
+            exactSeededPlies = exactSeededPlies,
+            adjacentRequiredPlies = adjacentRequiredPlies,
+            adjacentSeededPlies = adjacentSeededPlies,
+            materializablePlies = materializablePlies,
+            missingExactPlies = plan.roots.map { it.ply }.filterNot { it in exactSeededPlies },
+            missingAdjacentPlies = adjacentRequiredPlies.filterNot { it in adjacentSeededPlies },
+        )
+        runCatching { onSeedCoverage(coverage) }
+
+        val runId = nextReviewRunId()
         val roots = plan.roots.map { root ->
             root.copy(request = root.request.copy(requestId = "${root.request.requestId}-run-$runId"))
         }
@@ -515,12 +644,15 @@ class GameReviewRunner(private val engine: ChessEngine) {
             gameMoves = plan.gameMoves,
             seedsByPly = seedsByPly,
             adjacentSeedsByPly = adjacentSeedsByPly,
+            preparedMovesByPly = preparedByPly,
+            materializeSeededMovesUpFront = materializeSeededMovesUpFront,
             gameId = gameId,
             initialFen = initialFen,
             rules = rules,
             outcome = outcome,
             playerSide = playerSide,
             onMoveReviewed = onMoveReviewed,
+            onSearchSubmitted = onSearchSubmitted,
             onProgress = onProgress,
             onResult = onResult,
         ).also(PlayerOperation::start)
@@ -533,12 +665,15 @@ class GameReviewRunner(private val engine: ChessEngine) {
         private val gameMoves: List<UciMove>,
         private val seedsByPly: Map<Int, SeededGameReviewRoot>,
         private val adjacentSeedsByPly: Map<Int, SeededGameReviewAdjacentRoot>,
+        private val preparedMovesByPly: Map<Int, GameReviewMoveResult>,
+        private val materializeSeededMovesUpFront: Boolean,
         private val gameId: String,
         private val initialFen: String,
         private val rules: RulesContractV1,
         private val outcome: GameOutcome,
         private val playerSide: Side,
         private val onMoveReviewed: (GameReviewMoveResult) -> Unit,
+        private val onSearchSubmitted: (GameReviewSearchSubmission) -> Unit,
         private val onProgress: (GameReviewProgress) -> Unit,
         private val onResult: (Result<GameReviewResult>) -> Unit,
     ) : EngineCancellation {
@@ -554,30 +689,89 @@ class GameReviewRunner(private val engine: ChessEngine) {
             var completed = false
         }
 
-        private val lock = Any()
-        private val reviewed = mutableListOf<ReviewedMove>()
-        private val identities = linkedSetOf<EngineIdentity>()
+        private val lock = ConcurrentLock()
+        private val reviewed = MutableList<ReviewedMove?>(roots.size) { index ->
+            preparedMovesByPly[roots[index].ply]?.move
+        }
+        private val identities = linkedSetOf<EngineIdentity>().apply {
+            preparedMovesByPly.values.forEach { prepared -> add(prepared.engine) }
+        }
         private var active: Submission? = null
         private var queuedSubmission: Submission? = null
         private var dispatching = false
-        private var cursor = 0
+        private var cursor = reviewed.indexOfFirst { move -> move == null }.let { index ->
+            if (index < 0) roots.size else index
+        }
         private var pendingRootResponse: EngineResponse? = null
-        private var completedWorkUnits = 0
-        private var totalWorkUnits = roots.size
+        private var completedWorkUnits = preparedMovesByPly.values.sumOf { prepared ->
+            if (requireNotNull(prepared.move.evidence).usedAdjacentFallback) 2 else 1
+        }
+        private var totalWorkUnits = roots.size + preparedMovesByPly.values.count { prepared ->
+            requireNotNull(prepared.move.evidence).usedAdjacentFallback
+        }
         private var cancelled = false
         private var finished = false
 
         fun start() {
+            val preparedStreams = roots.mapNotNull { root -> preparedMovesByPly[root.ply] }
+            val seededStreams = if (materializeSeededMovesUpFront) {
+                try {
+                    materializeCompleteSeededMoves()
+                } catch (error: Throwable) {
+                    finish(Result.failure(error))
+                    return
+                }
+            } else {
+                emptyList()
+            }
             runCatching { onProgress(progress()) }
-            if (roots.isEmpty()) {
+            (preparedStreams + seededStreams).forEach { value ->
+                runCatching { onMoveReviewed(value) }
+            }
+            if (cursor !in roots.indices) {
                 finish(Result.success(buildResult()))
             } else {
                 queueRoot()
             }
         }
 
+        /**
+         * Converts every already-complete foreground seed before publishing initial progress.
+         * Missing work may occur anywhere in the game, so this is intentionally not limited to a
+         * chronological prefix. The final result remains ordered by root index.
+         */
+        private fun materializeCompleteSeededMoves(): List<GameReviewMoveResult> {
+            val streams = mutableListOf<GameReviewMoveResult>()
+            roots.forEachIndexed { index, root ->
+                if (reviewed[index] != null) return@forEachIndexed
+                val seededRoot = seedsByPly[root.ply] ?: return@forEachIndexed
+                val decision = decisions[root.ply - 1]
+                val completed = materializeSeededPlayerMove(
+                    root = root,
+                    decision = decision,
+                    seededRoot = seededRoot,
+                    seededAdjacent = adjacentSeedsByPly[root.ply],
+                    playerSide = playerSide,
+                ) ?: return@forEachIndexed
+
+                identities += completed.engine
+                require(identities.size <= 1) {
+                    "Player review responses came from different engine builds"
+                }
+                reviewed[index] = completed.move
+                val usedAdjacent = requireNotNull(completed.move.evidence).usedAdjacentFallback
+                completedWorkUnits += if (usedAdjacent) 2 else 1
+                if (usedAdjacent) totalWorkUnits++
+                streams += completed
+            }
+            cursor = reviewed.indexOfFirst { move -> move == null }.let { index ->
+                if (index < 0) roots.size else index
+            }
+            return streams
+        }
+
         override fun cancel() {
-            val cancellation = synchronized(lock) {
+            val cancellation = lock.withLock {
                 if (cancelled || finished) return
                 cancelled = true
                 finished = true
@@ -587,7 +781,7 @@ class GameReviewRunner(private val engine: ChessEngine) {
         }
 
         private fun queueRoot() {
-            val index = synchronized(lock) {
+            val index = lock.withLock {
                 if (cancelled || finished || active != null || cursor !in roots.indices) return
                 cursor
             }
@@ -607,7 +801,7 @@ class GameReviewRunner(private val engine: ChessEngine) {
         }
 
         private fun enqueue(submission: Submission) {
-            val shouldDrain = synchronized(lock) {
+            val shouldDrain = lock.withLock {
                 if (cancelled || finished || active != null || submission.rootIndex != cursor) return
                 check(queuedSubmission == null) { "Player review attempted to queue concurrent work" }
                 queuedSubmission = submission
@@ -622,7 +816,7 @@ class GameReviewRunner(private val engine: ChessEngine) {
         /** Trampolines seeded and synchronously-completing engines without recursive submission. */
         private fun drainSubmissions() {
             while (true) {
-                val submission = synchronized(lock) {
+                val submission = lock.withLock {
                     if (cancelled || finished) {
                         queuedSubmission = null
                         dispatching = false
@@ -638,7 +832,7 @@ class GameReviewRunner(private val engine: ChessEngine) {
         }
 
         private fun submitNow(submission: Submission) {
-            synchronized(lock) {
+            lock.withLock {
                 if (cancelled || finished || active != null || submission.rootIndex != cursor) return
                 active = submission
             }
@@ -658,6 +852,25 @@ class GameReviewRunner(private val engine: ChessEngine) {
                 )
                 return
             }
+            try {
+                onSearchSubmitted(
+                    GameReviewSearchSubmission(
+                        ply = ply,
+                        kind = when (submission.kind) {
+                            WorkKind.ROOT -> GameReviewSearchKind.EXACT_ROOT
+                            WorkKind.ADJACENT_HELPER -> GameReviewSearchKind.ADJACENT_HELPER
+                        },
+                        rootPositionId = roots[submission.rootIndex].key.positionId,
+                        playedMove = decisions[roots[submission.rootIndex].ply - 1].playedMove
+                            .takeIf { submission.kind == WorkKind.ADJACENT_HELPER },
+                        positionId = submission.request.positionId,
+                        requestId = submission.request.requestId,
+                    ),
+                )
+            } catch (error: Throwable) {
+                complete(submission, Result.failure(error))
+                return
+            }
             val cancellation = try {
                 engine.analyze(submission.request) { result -> complete(submission, result) }
             } catch (error: Throwable) {
@@ -665,7 +878,7 @@ class GameReviewRunner(private val engine: ChessEngine) {
                 return
             }
             var cancelImmediately = false
-            synchronized(lock) {
+            lock.withLock {
                 if (active === submission && !submission.completed && !cancelled && !finished) {
                     submission.cancellation = cancellation
                 } else if (cancelled && !submission.completed) {
@@ -681,14 +894,14 @@ class GameReviewRunner(private val engine: ChessEngine) {
             var completion: Result<GameReviewResult>? = null
             var helper: Pair<Int, GameReviewAdjacentRoot>? = null
             var submitNextRoot = false
-            synchronized(lock) {
+            lock.withLock {
                 if (submission.completed || cancelled || finished || active !== submission) return
                 submission.completed = true
                 active = null
                 val response = result.getOrElse { error ->
                     finished = true
                     completion = Result.failure(error)
-                    return@synchronized
+                    return@withLock
                 }
                 if (!response.matches(submission.request)) {
                     finished = true
@@ -697,7 +910,7 @@ class GameReviewRunner(private val engine: ChessEngine) {
                             "Player review response identity does not match request ${submission.request.requestId}",
                         ),
                     )
-                    return@synchronized
+                    return@withLock
                 }
                 try {
                     require(response.engine.drawlessPatch == REVIEW_REQUIRED_DRAWLESS_PATCH_VERSION) {
@@ -710,7 +923,7 @@ class GameReviewRunner(private val engine: ChessEngine) {
                     val decision = decisions[root.ply - 1]
                     when (submission.kind) {
                         WorkKind.ROOT -> {
-                            if (requiresAdjacentEvidence(decision, response)) {
+                            if (requiresAdjacentCandidate(decision, response)) {
                                 pendingRootResponse = response
                                 totalWorkUnits++
                                 helper = submission.rootIndex to GameReviewPlanner.adjacentRoot(
@@ -720,8 +933,8 @@ class GameReviewRunner(private val engine: ChessEngine) {
                                 )
                             } else {
                                 val completedMove = reviewedMove(decision, response, adjacentResponse = null)
-                                reviewed += completedMove
-                                cursor++
+                                reviewed[submission.rootIndex] = completedMove
+                                advanceCursor(submission.rootIndex + 1)
                                 stream = streamed(root, completedMove)
                                 submitNextRoot = cursor in roots.indices
                             }
@@ -732,8 +945,8 @@ class GameReviewRunner(private val engine: ChessEngine) {
                             }
                             val completedMove = reviewedMove(decision, rootResponse, response)
                             pendingRootResponse = null
-                            reviewed += completedMove
-                            cursor++
+                            reviewed[submission.rootIndex] = completedMove
+                            advanceCursor(submission.rootIndex + 1)
                             stream = streamed(root, completedMove)
                             submitNextRoot = cursor in roots.indices
                         }
@@ -770,23 +983,30 @@ class GameReviewRunner(private val engine: ChessEngine) {
         private fun progress(): GameReviewProgress = GameReviewProgress(
             completedWorkUnits = completedWorkUnits,
             totalWorkUnits = totalWorkUnits,
-            completedMoves = reviewed.size,
+            completedMoves = reviewed.count { move -> move != null },
             totalMoves = roots.size,
         )
+
+        private fun advanceCursor(startIndex: Int) {
+            cursor = (startIndex until roots.size).firstOrNull { index -> reviewed[index] == null }
+                ?: roots.size
+        }
 
         private fun buildResult(): GameReviewResult = GameReviewResult(
             gameId = gameId,
             initialFen = initialFen,
             rules = rules,
             outcome = outcome,
-            moves = reviewed.toList(),
+            moves = reviewed.mapIndexed { index, move ->
+                requireNotNull(move) { "Player review root ${roots[index].ply} was not completed" }
+            },
             engine = identities.singleOrNull(),
             scope = GameReviewScope.PlayerMoves(playerSide),
             gameMoves = gameMoves,
         )
 
         private fun finish(result: Result<GameReviewResult>) {
-            val deliver = synchronized(lock) {
+            val deliver = lock.withLock {
                 if (cancelled || finished) false else {
                     finished = true
                     true
@@ -812,7 +1032,7 @@ class GameReviewRunner(private val engine: ChessEngine) {
             var completed = false
         }
 
-        private val lock = Any()
+        private val lock = ConcurrentLock()
         private val responses = mutableListOf<EngineResponse>()
         private var active: Submission? = null
         private var cancelled = false
@@ -828,7 +1048,7 @@ class GameReviewRunner(private val engine: ChessEngine) {
         }
 
         override fun cancel() {
-            val cancellation = synchronized(lock) {
+            val cancellation = lock.withLock {
                 if (cancelled || finished) return
                 cancelled = true
                 finished = true
@@ -838,7 +1058,7 @@ class GameReviewRunner(private val engine: ChessEngine) {
         }
 
         private fun submit(index: Int) {
-            val submission = synchronized(lock) {
+            val submission = lock.withLock {
                 if (cancelled || finished) return
                 Submission(index).also { active = it }
             }
@@ -849,7 +1069,7 @@ class GameReviewRunner(private val engine: ChessEngine) {
                 return
             }
             var cancelImmediately = false
-            synchronized(lock) {
+            lock.withLock {
                 if (active === submission && !submission.completed && !cancelled && !finished) {
                     submission.cancellation = cancellation
                 } else if (cancelled && !submission.completed) {
@@ -863,14 +1083,14 @@ class GameReviewRunner(private val engine: ChessEngine) {
             var nextIndex: Int? = null
             var completion: Result<GameReviewResult>? = null
             var progress: GameReviewProgress? = null
-            synchronized(lock) {
+            lock.withLock {
                 if (submission.completed || cancelled || finished || active !== submission) return
                 submission.completed = true
                 active = null
                 val response = result.getOrElse { error ->
                     finished = true
                     completion = Result.failure(error)
-                    return@synchronized
+                    return@withLock
                 }
                 val request = requests[submission.index]
                 if (!response.matches(request)) {
@@ -878,7 +1098,7 @@ class GameReviewRunner(private val engine: ChessEngine) {
                     completion = Result.failure(
                         IllegalStateException("Review response identity does not match request ${request.requestId}"),
                     )
-                    return@synchronized
+                    return@withLock
                 }
                 if (response.engine.drawlessPatch != REVIEW_REQUIRED_DRAWLESS_PATCH_VERSION) {
                     finished = true
@@ -887,7 +1107,7 @@ class GameReviewRunner(private val engine: ChessEngine) {
                             "Game Review requires Drawless patch $REVIEW_REQUIRED_DRAWLESS_PATCH_VERSION",
                         ),
                     )
-                    return@synchronized
+                    return@withLock
                 }
                 responses += response
                 progress = GameReviewProgress(responses.size, requests.size)
@@ -904,7 +1124,7 @@ class GameReviewRunner(private val engine: ChessEngine) {
         }
 
         private fun finish(result: Result<GameReviewResult>) {
-            val deliver = synchronized(lock) {
+            val deliver = lock.withLock {
                 if (cancelled || finished) false else {
                     finished = true
                     true
@@ -952,14 +1172,158 @@ class GameReviewRunner(private val engine: ChessEngine) {
 
     private companion object {
         const val DEFAULT_MOVE_TIME_MILLIS = 350L
-        val REVIEW_RUN_SEQUENCE = AtomicLong()
+        val REVIEW_RUN_SEQUENCE_LOCK = ConcurrentLock()
+        var reviewRunSequence = 0L
+
+        fun nextReviewRunId(): Long = REVIEW_RUN_SEQUENCE_LOCK.withLock {
+            if (reviewRunSequence == Long.MAX_VALUE) {
+                throw ArithmeticException("Review run sequence overflow")
+            }
+            ++reviewRunSequence
+        }
+
+        fun validateSeededRoots(
+            seededRoots: Collection<SeededGameReviewRoot>,
+            plannedByPly: Map<Int, GameReviewRoot>,
+        ): Map<Int, SeededGameReviewRoot> {
+            val seedsByPly = seededRoots.associateBy { it.key.ply }
+            require(seedsByPly.size == seededRoots.size) {
+                "Player review contains duplicate seeded roots"
+            }
+            seedsByPly.forEach { (ply, seed) ->
+                val planned = requireNotNull(plannedByPly[ply]) {
+                    "Seeded review root ply $ply is outside player coverage"
+                }
+                require(seed.key == planned.key) {
+                    "Seeded review root ply $ply does not match the exact game, rules, or analysis profile"
+                }
+            }
+            return seedsByPly
+        }
+
+        fun validateSeededAdjacentRoots(
+            seededAdjacentRoots: Collection<SeededGameReviewAdjacentRoot>,
+            plannedByPly: Map<Int, GameReviewRoot>,
+            moves: List<UciMove>,
+        ): Map<Int, SeededGameReviewAdjacentRoot> {
+            val adjacentSeedsByPly = seededAdjacentRoots.associateBy { it.key.rootKey.ply }
+            require(adjacentSeedsByPly.size == seededAdjacentRoots.size) {
+                "Player review contains duplicate seeded adjacent roots"
+            }
+            adjacentSeedsByPly.forEach { (ply, seed) ->
+                val planned = requireNotNull(plannedByPly[ply]) {
+                    "Seeded adjacent root ply $ply is outside player coverage"
+                }
+                require(seed.key.rootKey == planned.key && seed.key.playedMove == moves[ply - 1]) {
+                    "Seeded adjacent root ply $ply does not match the exact game continuation or analysis profile"
+                }
+            }
+            return adjacentSeedsByPly
+        }
+
+        fun validatePreparedPlayerMoves(
+            preparedMoves: Collection<GameReviewMoveResult>,
+            gameId: String,
+            playerSide: Side,
+            plannedByPly: Map<Int, GameReviewRoot>,
+            decisions: List<Decision>,
+        ): Map<Int, GameReviewMoveResult> {
+            val preparedByPly = preparedMoves.associateBy { it.move.ply }
+            require(preparedByPly.size == preparedMoves.size) {
+                "Player review contains duplicate prepared moves"
+            }
+            preparedByPly.forEach { (ply, prepared) ->
+                val planned = requireNotNull(plannedByPly[ply]) {
+                    "Prepared review move ply $ply is outside player coverage"
+                }
+                val decision = decisions[ply - 1]
+                require(
+                    prepared.gameId == gameId &&
+                        prepared.scope == GameReviewScope.PlayerMoves(playerSide) &&
+                        prepared.rootKey == planned.key,
+                ) {
+                    "Prepared review move ply $ply does not match the exact game, side, rules, or analysis profile"
+                }
+                require(
+                    prepared.move.ply == ply &&
+                        prepared.move.mover == decision.mover &&
+                        prepared.move.playedMove == decision.playedMove &&
+                        prepared.move.fenBefore == decision.positionBefore.fen() &&
+                        prepared.move.fenAfter == decision.positionAfter.fen(),
+                ) {
+                    "Prepared review move ply $ply does not match the canonical played decision"
+                }
+            }
+            return preparedByPly
+        }
+
+        fun requireSinglePlayerReviewEngine(
+            seededRoots: Collection<SeededGameReviewRoot>,
+            seededAdjacentRoots: Collection<SeededGameReviewAdjacentRoot>,
+            preparedMoves: Collection<GameReviewMoveResult>,
+        ) {
+            require(
+                (seededRoots.map { it.response.engine } +
+                    seededAdjacentRoots.map { it.response.engine } +
+                    preparedMoves.map { it.engine }).distinct().size <= 1,
+            ) {
+                "Player review evidence came from different engine builds"
+            }
+        }
+
+        fun materializeSeededPlayerMove(
+            root: GameReviewRoot,
+            decision: Decision,
+            seededRoot: SeededGameReviewRoot,
+            seededAdjacent: SeededGameReviewAdjacentRoot?,
+            playerSide: Side,
+        ): GameReviewMoveResult? {
+            val rootResponse = seededRoot.response.copy(requestId = root.request.requestId)
+            require(rootResponse.matches(root.request)) {
+                "Seeded player review response identity does not match root ${root.request.requestId}"
+            }
+            require(rootResponse.engine.drawlessPatch == REVIEW_REQUIRED_DRAWLESS_PATCH_VERSION) {
+                "Player review requires Drawless patch $REVIEW_REQUIRED_DRAWLESS_PATCH_VERSION"
+            }
+
+            val needsAdjacent = requiresAdjacentCandidate(decision, rootResponse)
+            val adjacentResponse = if (needsAdjacent) {
+                val adjacentSeed = seededAdjacent ?: return null
+                val adjacent = GameReviewPlanner.adjacentRoot(
+                    requestId = "${root.request.requestId}-adjacent-${decision.ply}",
+                    root = root,
+                    playedMove = decision.playedMove,
+                )
+                adjacentSeed.response.copy(requestId = adjacent.request.requestId).also { response ->
+                    require(response.matches(adjacent.request)) {
+                        "Seeded adjacent review response identity does not match root ${root.request.requestId}"
+                    }
+                    require(response.engine.drawlessPatch == REVIEW_REQUIRED_DRAWLESS_PATCH_VERSION) {
+                        "Player review requires Drawless patch $REVIEW_REQUIRED_DRAWLESS_PATCH_VERSION"
+                    }
+                    require(response.engine == rootResponse.engine) {
+                        "Player review responses came from different engine builds"
+                    }
+                }
+            } else {
+                null
+            }
+            val move = reviewedMove(decision, rootResponse, adjacentResponse)
+            return GameReviewMoveResult(
+                gameId = root.key.gameId,
+                scope = GameReviewScope.PlayerMoves(playerSide),
+                rootKey = root.key,
+                move = move,
+                engine = rootResponse.engine,
+            )
+        }
 
         fun replay(
             gameId: String,
             initialFen: String,
             moves: List<UciMove>,
             rules: RulesContractV1,
-            expectedOutcome: GameOutcome,
+            expectedOutcome: GameOutcome?,
         ): List<Decision> {
             var position = ChessPosition.fromFen(initialFen)
             var session = GameSession.newGame(gameId, rules, RepetitionKey.of(position), position.sideToMove)
@@ -980,7 +1344,11 @@ class GameReviewRunner(private val engine: ChessEngine) {
                     outcomeAfter = session.outcome,
                 )
             }
-            if (session.outcome != null) {
+            if (expectedOutcome == null) {
+                require(session.outcome == null) {
+                    "Ongoing review prefix already contains a terminal result"
+                }
+            } else if (session.outcome != null) {
                 require(session.outcome == expectedOutcome) { "Review outcome does not match replayed result" }
             } else {
                 require(expectedOutcome.reason in setOf(
@@ -1014,7 +1382,8 @@ class GameReviewRunner(private val engine: ChessEngine) {
             val primary = lines.first()
             val engineBest = response.bestMove
             val terminal = decision.outcomeAfter
-            val legalMoveCount = ChessRules.legalUciMoves(decision.positionBefore).size
+            val legalMoves = ChessRules.legalUciMoves(decision.positionBefore)
+            val legalMoveCount = legalMoves.size
             val playedRootLine = lines.firstOrNull { it.move == decision.playedMove }
             val bestLine: ReviewLine
             val playedLine: ReviewLine
@@ -1028,62 +1397,85 @@ class GameReviewRunner(private val engine: ChessEngine) {
                     mover = decision.mover,
                     origin = ReviewLineOrigin.AUTHORITATIVE_TERMINAL,
                 )
-                val alternatives = ChessRules.legalUciMoves(decision.positionBefore).map { move ->
-                    val resulting = decision.sessionBefore.apply(ChessAdapter.transition(decision.positionBefore, move))
-                    move to resulting.outcome
-                }
-                val immediateWins = alternatives.filter { (_, result) -> result?.winner == decision.mover }
-                val avoidsImmediateLoss = alternatives.filter { (_, result) -> result == null || result.winner == decision.mover }
                 when {
                     terminal.winner == decision.mover -> {
+                        // The played move is the authoritative winning terminal result. None of
+                        // the alternative-outcome analysis below can change its grade, and eagerly
+                        // replaying every alternative is especially expensive in Kotlin/Native on
+                        // legacy devices because each transition regenerates the legal move set.
                         bestLine = playedTerminalLine
                         playedLine = playedTerminalLine
                         quality = ReviewMoveQuality.BEST
                         expectedLoss = 0.0
                     }
-                    avoidsImmediateLoss.isEmpty() -> {
-                        bestLine = playedTerminalLine.copy(origin = ReviewLineOrigin.FORCED_LOSS_EQUIVALENCE)
-                        playedLine = playedTerminalLine
-                        quality = ReviewMoveQuality.BEST
-                        expectedLoss = 0.0
-                    }
                     else -> {
-                        val preferred = immediateWins.firstOrNull()?.first
-                            ?: engineBest.takeIf { candidate -> avoidsImmediateLoss.any { it.first == candidate } }
-                            ?: avoidsImmediateLoss.first().first
-                        val candidateBestLine = if (preferred == engineBest) {
-                            primary
-                        } else {
-                            immediateWins.firstOrNull { it.first == preferred }?.second?.let { winningOutcome ->
-                                terminalLine(
-                                    move = preferred,
-                                    outcome = winningOutcome,
-                                    mover = decision.mover,
-                                    origin = ReviewLineOrigin.AUTHORITATIVE_TERMINAL,
-                                )
-                            } ?: safeAlternativeLine(preferred)
+                        val alternatives = legalMoves.map { move ->
+                            val resulting = decision.sessionBefore.apply(
+                                ChessAdapter.transition(decision.positionBefore, move),
+                            )
+                            move to resulting.outcome
                         }
-                        val classified = GameReviewClassifier.classify(candidateBestLine, playedTerminalLine)
-                        val provenForcedLoss = preferred == engineBest &&
-                            primary.bound == EngineScoreBound.EXACT &&
-                            primary.expectedPoints != null &&
-                            (primary.evaluation as? ReviewEvaluation.Mate)?.mateIn?.let { it < 0 } == true
-                        if (provenForcedLoss) {
-                            // A concrete forced mate is sufficient evidence that delaying the
-                            // authoritative terminal loss would not change the game result.
-                            bestLine = playedTerminalLine.copy(origin = ReviewLineOrigin.FORCED_LOSS_EQUIVALENCE)
+                        val immediateWins = alternatives.filter { (_, result) ->
+                            result?.winner == decision.mover
+                        }
+                        val avoidsImmediateLoss = alternatives.filter { (_, result) ->
+                            result == null || result.winner == decision.mover
+                        }
+                        if (avoidsImmediateLoss.isEmpty()) {
+                            bestLine = playedTerminalLine.copy(
+                                origin = ReviewLineOrigin.FORCED_LOSS_EQUIVALENCE,
+                            )
                             playedLine = playedTerminalLine
                             quality = ReviewMoveQuality.BEST
                             expectedLoss = 0.0
                         } else {
-                            // A large negative centipawn score is not proof that every line loses.
-                            // Never call an avoidable immediate terminal loss Best on that basis.
-                            quality = classified?.first
-                                ?.takeUnless { it == ReviewMoveQuality.BEST }
-                                ?: ReviewMoveQuality.BLUNDER
-                            expectedLoss = classified?.second
-                            bestLine = candidateBestLine
-                            playedLine = playedTerminalLine
+                            val preferred = immediateWins.firstOrNull()?.first
+                                ?: engineBest.takeIf { candidate ->
+                                    avoidsImmediateLoss.any { it.first == candidate }
+                                }
+                                ?: avoidsImmediateLoss.first().first
+                            val candidateBestLine = if (preferred == engineBest) {
+                                primary
+                            } else {
+                                immediateWins.firstOrNull { it.first == preferred }
+                                    ?.second
+                                    ?.let { winningOutcome ->
+                                        terminalLine(
+                                            move = preferred,
+                                            outcome = winningOutcome,
+                                            mover = decision.mover,
+                                            origin = ReviewLineOrigin.AUTHORITATIVE_TERMINAL,
+                                        )
+                                    } ?: safeAlternativeLine(preferred)
+                            }
+                            val classified = GameReviewClassifier.classify(
+                                candidateBestLine,
+                                playedTerminalLine,
+                            )
+                            val provenForcedLoss = preferred == engineBest &&
+                                primary.bound == EngineScoreBound.EXACT &&
+                                primary.expectedPoints != null &&
+                                (primary.evaluation as? ReviewEvaluation.Mate)?.mateIn?.let { it < 0 } == true
+                            if (provenForcedLoss) {
+                                // A concrete forced mate is sufficient evidence that delaying the
+                                // authoritative terminal loss would not change the game result.
+                                bestLine = playedTerminalLine.copy(
+                                    origin = ReviewLineOrigin.FORCED_LOSS_EQUIVALENCE,
+                                )
+                                playedLine = playedTerminalLine
+                                quality = ReviewMoveQuality.BEST
+                                expectedLoss = 0.0
+                            } else {
+                                // A large negative centipawn score is not proof that every line
+                                // loses. Never call an avoidable immediate terminal loss Best on
+                                // that basis.
+                                quality = classified?.first
+                                    ?.takeUnless { it == ReviewMoveQuality.BEST }
+                                    ?: ReviewMoveQuality.BLUNDER
+                                expectedLoss = classified?.second
+                                bestLine = candidateBestLine
+                                playedLine = playedTerminalLine
+                            }
                         }
                     }
                 }
@@ -1136,14 +1528,20 @@ class GameReviewRunner(private val engine: ChessEngine) {
             )
         }
 
-        fun requiresAdjacentEvidence(decision: Decision, response: EngineResponse): Boolean {
+        /**
+         * Cheap readiness check for an identity-validated root response.
+         *
+         * Full PV legality and rules-contract validation happens exactly once in [reviewedMove]
+         * when this decision is first materialized. Coverage polling only needs to know whether a
+         * candidate starts with the played move; replaying every PV here made long seeded games
+         * perform the same expensive validation repeatedly after the terminal move.
+         */
+        fun requiresAdjacentCandidate(decision: Decision, response: EngineResponse): Boolean {
             if (decision.outcomeAfter != null) return false
             if (ChessRules.legalUciMoves(decision.positionBefore).size == 1) return false
-            return response.reviewLines(
-                position = decision.positionBefore,
-                session = decision.sessionBefore,
-                firstGamePly = decision.ply,
-            ).none { it.move == decision.playedMove }
+            return response.variations.none { variation ->
+                variation.moves.firstOrNull() == decision.playedMove
+            }
         }
 
         fun EngineResponse.reviewLines(

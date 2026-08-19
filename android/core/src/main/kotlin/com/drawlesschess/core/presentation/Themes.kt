@@ -1,5 +1,7 @@
 package com.drawlesschess.core.presentation
 
+import kotlin.jvm.JvmInline
+
 import com.drawlesschess.core.chess.Piece
 
 @JvmInline

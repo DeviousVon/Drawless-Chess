@@ -1,6 +1,7 @@
 package com.drawlesschess.core
 
-import java.time.Instant
+import kotlin.time.Instant
+import kotlin.concurrent.atomics.ExperimentalAtomicApi
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -19,6 +20,7 @@ import com.drawlesschess.core.chess.SanNotation
 import com.drawlesschess.core.coordinator.*
 import com.drawlesschess.core.engine.BotDifficultyCatalog
 import com.drawlesschess.core.engine.GameReviewPlanner
+import com.drawlesschess.core.engine.GameReviewRunner
 import com.drawlesschess.core.presentation.*
 
 internal class TestSuite {
@@ -54,6 +56,44 @@ internal inline fun <reified T : Throwable> assertThrows(block: () -> Unit) {
         throw error
     }
     error("Expected ${T::class.simpleName}")
+}
+
+private val reviewPrefetchEnabledField = GameCoordinator::class.java
+    .getDeclaredField("reviewPrefetchEnabled")
+    .apply { isAccessible = true }
+
+private val engineInvocationLockField = GameCoordinator::class.java
+    .getDeclaredField("engineInvocationLock")
+    .apply { isAccessible = true }
+
+private fun awaitReviewPrefetchEnabled(
+    coordinator: GameCoordinator,
+    expected: Boolean,
+    timeout: Long,
+    unit: TimeUnit,
+): Boolean {
+    val deadline = System.nanoTime() + unit.toNanos(timeout)
+    while (System.nanoTime() < deadline) {
+        // Cross the coordinator's atomic gate before observing the private flag so a completed
+        // transition is visible without relying on a JVM-specific blocked thread state.
+        coordinator.snapshot()
+        if (reviewPrefetchEnabledField.getBoolean(coordinator) == expected) return true
+        Thread.yield()
+    }
+    coordinator.snapshot()
+    return reviewPrefetchEnabledField.getBoolean(coordinator) == expected
+}
+
+@OptIn(ExperimentalAtomicApi::class)
+private fun awaitEngineInvocationGate(
+    coordinator: GameCoordinator,
+    timeout: Long,
+    unit: TimeUnit,
+): Boolean {
+    val gate = engineInvocationLockField.get(coordinator) as ConcurrentLock
+    val deadline = System.nanoTime() + unit.toNanos(timeout)
+    while (!gate.held.load() && System.nanoTime() < deadline) Thread.yield()
+    return gate.held.load()
 }
 
 private fun registerJniFairyEnginePortTestsIfPresent(suite: TestSuite) {
@@ -206,6 +246,7 @@ private fun coordinatorFixture(
     time: FakeCoordinatorTime = FakeCoordinatorTime(),
     botMovePresentationDelayMillis: Long = 0,
     initialAssistance: AssistanceCounts = AssistanceCounts(),
+    drainReviewPrefetchBacklog: Boolean = false,
 ): CoordinatorFixture {
     val engine = FakeChessEngine()
     val sink = FakeCheckpointSink()
@@ -217,6 +258,7 @@ private fun coordinatorFixture(
         FakeCoordinatorIds(),
         botMovePresentationDelayMillis = botMovePresentationDelayMillis,
         initialAssistance = initialAssistance,
+        drainReviewPrefetchBacklog = drainReviewPrefetchBacklog,
     )
     coordinator.start()
     return CoordinatorFixture(coordinator, engine, sink, time)
@@ -462,7 +504,7 @@ fun main() {
     suite.test("saved rated game rejects assistance") {
         assertThrows<IllegalArgumentException> {
             SavedGameV1(
-                "g6", Instant.EPOCH, GameMode.RATED, "start-fen", drawless,
+                "g6", Instant.fromEpochMilliseconds(0), GameMode.RATED, "start-fen", drawless,
                 TimeControl.Untimed, emptyList(), EngineIdentity("fairy", "build", 0),
                 assistance = AssistanceCounts(hints = 1),
             )
@@ -470,7 +512,7 @@ fun main() {
     }
     suite.test("saved casual game accepts assistance") {
         val saved = SavedGameV1(
-            "g7", Instant.EPOCH, GameMode.CASUAL, "start-fen", drawless,
+            "g7", Instant.fromEpochMilliseconds(0), GameMode.CASUAL, "start-fen", drawless,
             TimeControl.Untimed, emptyList(), EngineIdentity("fairy", "build", 0),
             assistance = AssistanceCounts(undos = 1),
         )
@@ -515,7 +557,7 @@ fun main() {
     suite.test("untimed save rejects clock snapshots") {
         assertThrows<IllegalArgumentException> {
             SavedGameV1(
-                "g8", Instant.EPOCH, GameMode.CASUAL, "start-fen", drawless,
+                "g8", Instant.fromEpochMilliseconds(0), GameMode.CASUAL, "start-fen", drawless,
                 TimeControl.Untimed,
                 listOf(SavedMoveV1(UciMove("g1f3"), whiteRemainingMillis = 5)),
                 EngineIdentity("fairy", "build", 0),
@@ -525,7 +567,7 @@ fun main() {
     suite.test("saved result cannot exceed replay history") {
         assertThrows<IllegalArgumentException> {
             SavedGameV1(
-                "g9", Instant.EPOCH, GameMode.CASUAL, "start-fen", drawless,
+                "g9", Instant.fromEpochMilliseconds(0), GameMode.CASUAL, "start-fen", drawless,
                 TimeControl.Untimed, emptyList(), EngineIdentity("fairy", "build", 0),
                 result = SavedResultV1(Side.WHITE, EndReason.CHECKMATE, 1),
             )
@@ -553,6 +595,32 @@ fun main() {
     }
     suite.test("starting position has 20 legal moves") {
         assertThat(ChessRules.legalMoves(ChessPosition.starting()).size == 20)
+    }
+    suite.test("fast attack detection matches explanatory attacker enumeration") {
+        val positions = listOf(
+            ChessPosition.starting(),
+            ChessPosition.fromFen(
+                "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1",
+            ),
+            ChessPosition.fromFen("8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1"),
+            ChessPosition.fromFen("k3r3/8/8/3pP3/8/8/8/4K3 w - d6 0 1"),
+            ChessPosition.fromFen(
+                "rnb1kbnr/pppp1ppp/8/4p3/6Pq/5P2/PPPPP2P/RNBQKBNR w KQkq - 1 3",
+            ),
+        )
+        for (position in positions) {
+            for (side in Side.entries) {
+                for (index in 0 until 64) {
+                    val target = Square(index)
+                    val fast = ChessRules.isSquareAttacked(position, target, side)
+                    val explanatory = ChessRules.attackersOf(position, target, side).isNotEmpty()
+                    assertThat(
+                        fast == explanatory,
+                        "attack mismatch at ${target.algebraic} for $side in ${position.fen()}",
+                    )
+                }
+            }
+        }
     }
     suite.test("starting-position perft depth 2 is 400") {
         assertThat(ChessAdapter.perft(ChessPosition.starting(), 2) == 400L)
@@ -1035,6 +1103,242 @@ fun main() {
             "A second historical fallback started in the same position revision",
         )
     }
+    suite.test("continuous review prefetch backfills an exact root cancelled by a quick move") {
+        val fixture = coordinatorFixture(drainReviewPrefetchBacklog = true)
+        fixture.coordinator.setReviewPrefetchEnabled(true)
+        val cancelledOpeningRoot = fixture.engine.requests.single()
+
+        fixture.coordinator.playHuman(UciMove("e2e4"))
+        assertThat(cancelledOpeningRoot.cancelled)
+        val bot = fixture.engine.requests.last()
+        fixture.engine.respond(bot, "e7e5")
+
+        val recoveredOpeningRoot = fixture.engine.requests.last()
+        assertThat(recoveredOpeningRoot.request.purpose == EnginePurpose.REVIEW)
+        assertThat(recoveredOpeningRoot.request.moves.isEmpty())
+        fixture.engine.respond(recoveredOpeningRoot, "e2e4")
+
+        val currentRoot = fixture.engine.requests.last()
+        assertThat(currentRoot !== recoveredOpeningRoot)
+        assertThat(currentRoot.request.moves.map { it.value } == listOf("e2e4", "e7e5"))
+        fixture.engine.respond(currentRoot, "g1f3")
+
+        assertThat(
+            fixture.coordinator.completedReviewPrefetchRoots().map { it.key.ply }.sorted() ==
+                listOf(1, 3),
+        )
+        assertThat(fixture.engine.requests.last() === currentRoot)
+    }
+    suite.test("continuous review prefetch finishes the oldest incomplete move before later exact gaps") {
+        val fixture = coordinatorFixture(drainReviewPrefetchBacklog = true)
+        fixture.coordinator.setReviewPrefetchEnabled(true)
+        fixture.engine.respond(fixture.engine.requests.single(), "d2d4")
+
+        // The opening move is outside its root line, so it needs adjacent evidence.
+        fixture.coordinator.playHuman(UciMove("e2e4"))
+        fixture.engine.respond(fixture.engine.requests.last(), "e7e5")
+
+        // Spend no search budget on this turn. The next human turn now has both the unfinished
+        // ply-one adjacent helper and a later missing exact root.
+        val cancelledOpeningHelper = fixture.engine.requests.last()
+        assertThat(cancelledOpeningHelper.request.moves.map { it.value } == listOf("e2e4"))
+        fixture.coordinator.playHuman(UciMove("g1f3"))
+        assertThat(cancelledOpeningHelper.cancelled)
+        fixture.engine.respond(fixture.engine.requests.last(), "b8c6")
+
+        val oldestIncompleteMove = fixture.engine.requests.last()
+        assertThat(oldestIncompleteMove.request.moves.map { it.value } == listOf("e2e4"))
+        fixture.engine.respond(oldestIncompleteMove, "e7e5")
+
+        val laterExactGap = fixture.engine.requests.last()
+        assertThat(laterExactGap !== oldestIncompleteMove)
+        assertThat(laterExactGap.request.moves.map { it.value } == listOf("e2e4", "e7e5"))
+    }
+    suite.test("continuous review prefetch leaves a realistic multi-move review fully seeded") {
+        val fixture = coordinatorFixture(drainReviewPrefetchBacklog = true)
+        fixture.coordinator.setReviewPrefetchEnabled(true)
+
+        // Move before the opening 350 ms review search completes. A later long think must recover
+        // this exact root instead of leaving it for the result screen.
+        fixture.coordinator.playHuman(UciMove("e2e4"))
+        fixture.engine.respond(fixture.engine.requests.last(), "e7e5")
+        val recoveredOpeningRoot = fixture.engine.requests.last()
+        assertThat(recoveredOpeningRoot.request.moves.isEmpty())
+        fixture.engine.respond(recoveredOpeningRoot, "e2e4")
+
+        val currentPlyThree = fixture.engine.requests.last()
+        assertThat(currentPlyThree.request.moves.map { it.value } == listOf("e2e4", "e7e5"))
+        fixture.engine.respond(currentPlyThree, "g1f3")
+        fixture.coordinator.playHuman(UciMove("g1f3"))
+        fixture.engine.respond(fixture.engine.requests.last(), "b8c6")
+
+        val currentPlyFive = fixture.engine.requests.last()
+        assertThat(
+            currentPlyFive.request.moves.map { it.value } ==
+                listOf("e2e4", "e7e5", "g1f3", "b8c6"),
+        )
+        fixture.engine.respond(currentPlyFive, "f1b5")
+        fixture.coordinator.playHuman(UciMove("f1b5"))
+        fixture.engine.respond(fixture.engine.requests.last(), "a7a6")
+        val unplayedCurrentRoot = fixture.engine.requests.last()
+        fixture.coordinator.resignHuman()
+        assertThat(unplayedCurrentRoot.cancelled)
+
+        val completed = fixture.coordinator.snapshot()
+        val moves = completed.session.moves.map { recorded -> recorded.move }
+        val plan = GameReviewPlanner.playerPlan(
+            gameId = completed.session.gameId,
+            initialFen = fixture.coordinator.checkpoint().config.initialFen,
+            moves = moves,
+            rules = completed.session.rules,
+            playerSide = Side.WHITE,
+        )
+        val finalEngine = FakeChessEngine()
+        var finalResult: Result<com.drawlesschess.core.engine.GameReviewResult>? = null
+        GameReviewRunner(finalEngine).reviewPlayerMoves(
+            gameId = completed.session.gameId,
+            initialFen = fixture.coordinator.checkpoint().config.initialFen,
+            moves = moves,
+            rules = completed.session.rules,
+            outcome = requireNotNull(completed.session.outcome),
+            playerSide = Side.WHITE,
+            preparedPlan = plan,
+            seededRoots = fixture.coordinator.completedReviewPrefetchRoots(),
+            seededAdjacentRoots = fixture.coordinator.completedReviewPrefetchAdjacentRoots(),
+            onResult = { result -> finalResult = result },
+        )
+
+        assertThat(plan.roots.map { it.ply } == listOf(1, 3, 5))
+        assertThat(
+            fixture.coordinator.completedReviewPrefetchRoots().map { it.key.ply }.sorted() ==
+                listOf(1, 3, 5),
+        )
+        assertThat(finalEngine.requests.isEmpty(), "Final review repeated in-game engine work")
+        assertThat(requireNotNull(finalResult).getOrThrow().moves.size == 3)
+    }
+    suite.test("continuous review prefetch drains every queued adjacent fallback while idle") {
+        val fixture = coordinatorFixture(drainReviewPrefetchBacklog = true)
+        fixture.coordinator.setReviewPrefetchEnabled(true)
+        fixture.engine.respond(fixture.engine.requests.single(), "d2d4")
+
+        fixture.coordinator.playHuman(UciMove("e2e4"))
+        fixture.engine.respond(fixture.engine.requests.last(), "e7e5")
+        val interruptedFirstAdjacent = fixture.engine.requests.last()
+        assertThat(
+            interruptedFirstAdjacent.request.moves.map { it.value } == listOf("e2e4"),
+            "The first adjacent helper did not start before the new current root",
+        )
+
+        fixture.coordinator.playHuman(UciMove("g1f3"))
+        assertThat(interruptedFirstAdjacent.cancelled, "The first adjacent helper was not interrupted")
+        fixture.engine.respond(fixture.engine.requests.last(), "b8c6")
+
+        val retriedFirstAdjacent = fixture.engine.requests.last()
+        assertThat(
+            retriedFirstAdjacent.request.moves.map { it.value } == listOf("e2e4"),
+            "The oldest adjacent helper was not retried first",
+        )
+        fixture.engine.respond(retriedFirstAdjacent, "e7e5")
+
+        val recoveredPlyThree = fixture.engine.requests.last()
+        assertThat(
+            recoveredPlyThree.request.moves.map { it.value } == listOf("e2e4", "e7e5"),
+            "The missing played ply-three root did not follow the ply-one helper",
+        )
+        fixture.engine.respond(recoveredPlyThree, "f1b5")
+
+        val secondAdjacent = fixture.engine.requests.last()
+        assertThat(secondAdjacent !== retriedFirstAdjacent, "The second adjacent helper did not start")
+        assertThat(
+            secondAdjacent.request.moves.map { it.value } == listOf("e2e4", "e7e5", "g1f3"),
+            "The second adjacent helper did not target the played ply-three position",
+        )
+        fixture.engine.respond(secondAdjacent, "b8c6")
+
+        assertThat(
+            fixture.coordinator.completedReviewPrefetchAdjacentRoots().size == 2,
+            "Both adjacent helpers were not retained",
+        )
+        val currentPlyFive = fixture.engine.requests.last()
+        assertThat(currentPlyFive !== secondAdjacent, "Current-root speculation did not resume after catch-up")
+        assertThat(
+            currentPlyFive.request.moves.map { it.value } ==
+                listOf("e2e4", "e7e5", "g1f3", "b8c6"),
+            "Catch-up did not leave the unplayed current root until last",
+        )
+    }
+    suite.test("rapid backlog seeds survive foreground disable and terminal handoff without repeat searches") {
+        val fixture = coordinatorFixture(drainReviewPrefetchBacklog = true)
+        fixture.coordinator.setReviewPrefetchEnabled(true)
+
+        // Make two player moves before either exact 350 ms review root can finish. Both attempts
+        // are cancelled by gameplay and must be recovered, oldest first, during the next idle turn.
+        val cancelledPlyOne = fixture.engine.requests.single()
+        fixture.coordinator.playHuman(UciMove("e2e4"))
+        assertThat(cancelledPlyOne.cancelled)
+        fixture.engine.respond(fixture.engine.requests.last(), "e7e5")
+
+        val interruptedPlyOneRetry = fixture.engine.requests.last()
+        assertThat(interruptedPlyOneRetry.request.moves.isEmpty())
+        fixture.coordinator.playHuman(UciMove("g1f3"))
+        assertThat(interruptedPlyOneRetry.cancelled)
+        fixture.engine.respond(fixture.engine.requests.last(), "b8c6")
+
+        val recoveredPlyOne = fixture.engine.requests.last()
+        assertThat(recoveredPlyOne.request.moves.isEmpty())
+        fixture.engine.respond(recoveredPlyOne, "e2e4")
+        val recoveredPlyThree = fixture.engine.requests.last()
+        assertThat(recoveredPlyThree.request.moves.map { it.value } == listOf("e2e4", "e7e5"))
+        fixture.engine.respond(recoveredPlyThree, "g1f3")
+
+        val currentPlyFive = fixture.engine.requests.last()
+        assertThat(
+            currentPlyFive.request.moves.map { it.value } ==
+                listOf("e2e4", "e7e5", "g1f3", "b8c6"),
+        )
+        val snapshot = fixture.coordinator.snapshot()
+        val moves = snapshot.session.moves.map { it.move }
+        val plan = GameReviewPlanner.playerPlan(
+            gameId = snapshot.session.gameId,
+            initialFen = fixture.coordinator.checkpoint().config.initialFen,
+            moves = moves,
+            rules = snapshot.session.rules,
+            playerSide = Side.WHITE,
+        )
+        val acceptedKeys = fixture.coordinator.completedReviewPrefetchRoots().map { it.key }.toSet()
+        assertThat(acceptedKeys == plan.roots.map { it.key }.toSet())
+
+        // Backgrounding may cancel the unplayed current root, but it must not discard either
+        // accepted played-decision key. The terminal transition must preserve the same handoff.
+        fixture.coordinator.setReviewPrefetchEnabled(false)
+        assertThat(currentPlyFive.cancelled)
+        assertThat(
+            fixture.coordinator.completedReviewPrefetchRoots().map { it.key }.toSet() == acceptedKeys,
+        )
+        fixture.coordinator.resignHuman()
+        assertThat(
+            fixture.coordinator.completedReviewPrefetchRoots().map { it.key }.toSet() == acceptedKeys,
+        )
+
+        val finalEngine = FakeChessEngine()
+        var finalResult: Result<com.drawlesschess.core.engine.GameReviewResult>? = null
+        GameReviewRunner(finalEngine).reviewPlayerMoves(
+            gameId = snapshot.session.gameId,
+            initialFen = fixture.coordinator.checkpoint().config.initialFen,
+            moves = moves,
+            rules = snapshot.session.rules,
+            outcome = requireNotNull(fixture.coordinator.snapshot().session.outcome),
+            playerSide = Side.WHITE,
+            preparedPlan = plan,
+            seededRoots = fixture.coordinator.completedReviewPrefetchRoots(),
+            seededAdjacentRoots = fixture.coordinator.completedReviewPrefetchAdjacentRoots(),
+            materializeSeededMovesUpFront = true,
+            onResult = { finalResult = it },
+        )
+
+        assertThat(finalEngine.requests.isEmpty(), "Postgame repeated an accepted keyed exact root")
+        assertThat(requireNotNull(finalResult).getOrThrow().moves.map { it.ply } == listOf(1, 3))
+    }
     suite.test("human move preempts review prefetch and bot then starts the next player root") {
         val fixture = coordinatorFixture()
         fixture.coordinator.setReviewPrefetchEnabled(true)
@@ -1103,6 +1407,7 @@ fun main() {
     suite.test("concurrent disable then enable retries after the in-flight prefetch gate drains") {
         val firstAnalyzeEntered = CountDownLatch(1)
         val releaseFirstAnalyze = CountDownLatch(1)
+        val disableStarted = CountDownLatch(1)
         val firstCancelled = AtomicBoolean(false)
         val calls = CopyOnWriteArrayList<EngineRequest>()
         val failures = CopyOnWriteArrayList<Throwable>()
@@ -1133,6 +1438,7 @@ fun main() {
                 .exceptionOrNull()?.let { failures += it }
         }.also { it.isDaemon = true }
         val disable = Thread {
+            disableStarted.countDown()
             runCatching { coordinator.setReviewPrefetchEnabled(false) }
                 .exceptionOrNull()?.let { failures += it }
         }.also { it.isDaemon = true }
@@ -1140,11 +1446,11 @@ fun main() {
         try {
             assertThat(firstAnalyzeEntered.await(5, TimeUnit.SECONDS))
             disable.start()
-            val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)
-            while (disable.state != Thread.State.WAITING && System.nanoTime() < deadline) {
-                Thread.yield()
-            }
-            assertThat(disable.state == Thread.State.WAITING)
+            assertThat(disableStarted.await(5, TimeUnit.SECONDS))
+            assertThat(
+                awaitReviewPrefetchEnabled(coordinator, expected = false, 5, TimeUnit.SECONDS),
+                "Disable did not publish its state before draining the in-flight prefetch gate",
+            )
 
             // The enable sees the final desired state but deliberately drops its speculative
             // tryLock while disable is queued. Disable's post-drain recheck must restore it.
@@ -1813,6 +2119,7 @@ fun main() {
         ).let { after ->
             "coordinator-game:1:${RepetitionKey.of(after).value}"
         }
+        lateinit var coordinator: GameCoordinator
         lateinit var hintThread: Thread
         val engine = object : ChessEngine {
             override fun analyze(
@@ -1835,16 +2142,12 @@ fun main() {
                 check(hintThreadStarted.await(5, TimeUnit.SECONDS)) {
                     "Hint thread did not start during bot completion"
                 }
-                val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)
-                while (hintThread.state != Thread.State.BLOCKED && System.nanoTime() < deadline) {
-                    Thread.yield()
-                }
-                check(hintThread.state == Thread.State.BLOCKED) {
+                check(awaitEngineInvocationGate(coordinator, 5, TimeUnit.SECONDS)) {
                     "Hint did not acquire the foreground engine gate before callback prefetch"
                 }
             }
         }
-        val coordinator = GameCoordinator.newGame(
+        coordinator = GameCoordinator.newGame(
             coordinatorConfig(humanSide = Side.BLACK),
             engine,
             sink,

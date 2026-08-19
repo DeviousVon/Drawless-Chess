@@ -11,6 +11,8 @@ pids/
 *.iml
 .DS_Store
 Thumbs.db
+**/xcuserdata/
+*.xcuserstate
 .env
 .env.*
 .claude/
@@ -45,6 +47,8 @@ android/.kotlin/
 android/local.properties
 android/**/build/
 android/**/.cxx/
+multiplatform/.gradle/
+multiplatform/.kotlin/
 
 # Local verification evidence and generated release archives. The deterministic
 # dependency inventory and SBOM under release/reports remain versioned.

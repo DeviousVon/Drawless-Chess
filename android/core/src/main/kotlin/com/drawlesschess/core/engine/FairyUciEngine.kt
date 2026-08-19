@@ -80,7 +80,13 @@ class FairyUciEngine(
         var cancelled: Boolean = false,
     )
 
+    private data class Delivery(
+        val work: Work,
+        val result: Result<EngineResponse>,
+    )
+
     private val options = linkedMapOf<String, UciOption>()
+    private val lock = ConcurrentLock()
     private var engineName: String? = null
     private var engineAuthor: String? = null
     private var stateValue = UciSessionState.NEW
@@ -92,13 +98,14 @@ class FairyUciEngine(
     private var timerGeneration = 0L
     private var terminalFailure: Throwable? = null
 
-    val state: UciSessionState get() = synchronized(this) { stateValue }
-    val reportedName: String? get() = synchronized(this) { engineName }
-    val reportedAuthor: String? get() = synchronized(this) { engineAuthor }
-    val advertisedOptions: List<UciOption> get() = synchronized(this) { options.values.toList() }
+    val state: UciSessionState get() = lock.withLock { stateValue }
+    val reportedName: String? get() = lock.withLock { engineName }
+    val reportedAuthor: String? get() = lock.withLock { engineAuthor }
+    val advertisedOptions: List<UciOption> get() = lock.withLock { options.values.toList() }
 
-    @Synchronized
-    fun start() {
+    fun start() = lock.withLock { startLocked() }
+
+    private fun startLocked() {
         when (stateValue) {
             UciSessionState.NEW -> {
                 stateValue = UciSessionState.UCI_HANDSHAKE
@@ -117,11 +124,10 @@ class FairyUciEngine(
         }
     }
 
-    @Synchronized
     override fun analyze(
         request: EngineRequest,
         onResult: (Result<EngineResponse>) -> Unit,
-    ): EngineCancellation {
+    ): EngineCancellation = mutateEngine { deliveries ->
         if (stateValue == UciSessionState.FAILED) throw failedStateException()
         if (stateValue == UciSessionState.CLOSED) throw UciEngineStateException("Engine session is closed")
         val work = Work(request, onResult)
@@ -132,19 +138,20 @@ class FairyUciEngine(
             }
             else -> throw UciEngineStateException("Engine already has an active or queued request")
         }
-        if (stateValue == UciSessionState.NEW) start()
-        if (stateValue == UciSessionState.IDLE && active === work) prepareActive()
-        return EngineCancellation { cancel(request.requestId) }
+        if (stateValue == UciSessionState.NEW) startLocked()
+        if (stateValue == UciSessionState.IDLE && active === work) prepareActive(deliveries)
+        EngineCancellation { cancel(request.requestId) }
     }
 
-    @Synchronized
-    fun onLine(line: String) {
-        if (stateValue == UciSessionState.CLOSED || stateValue == UciSessionState.FAILED) return
+    fun onLine(line: String): Unit = mutateEngine { deliveries ->
+        if (stateValue == UciSessionState.CLOSED || stateValue == UciSessionState.FAILED) {
+            return@mutateEngine
+        }
         val message = try {
             UciProtocol.parse(line)
         } catch (error: Throwable) {
-            failSession(error)
-            return
+            failSession(error, deliveries)
+            return@mutateEngine
         }
         try {
             when (message) {
@@ -154,41 +161,39 @@ class FairyUciEngine(
                     options[normalize(message.value.name)] = message.value
                 }
                 UciMessage.UciOk -> onUciOk()
-                UciMessage.ReadyOk -> onReadyOk()
+                UciMessage.ReadyOk -> onReadyOk(deliveries)
                 is UciMessage.Info -> if (stateValue == UciSessionState.SEARCHING) {
                     active?.analysis?.accept(message.value)
                 }
-                is UciMessage.BestMove -> onBestMove(message)
+                is UciMessage.BestMove -> onBestMove(message, deliveries)
                 is UciMessage.Unknown -> Unit
             }
         } catch (error: Throwable) {
-            failSession(error)
+            failSession(error, deliveries)
         }
     }
 
-    @Synchronized
-    fun onTransportFailure(error: Throwable) {
+    fun onTransportFailure(error: Throwable): Unit = mutateEngine { deliveries ->
         if (stateValue != UciSessionState.CLOSED && stateValue != UciSessionState.FAILED) {
-            failSession(error)
+            failSession(error, deliveries)
         }
     }
 
-    @Synchronized
-    override fun close() {
-        if (stateValue == UciSessionState.CLOSED) return
+    override fun close(): Unit = mutateEngine { deliveries ->
+        if (stateValue == UciSessionState.CLOSED) return@mutateEngine
         cancelTimer()
         val pending = listOfNotNull(active, queued).filterNot { it.cancelled }
         active = null
         queued = null
+        if (stateValue == UciSessionState.SEARCHING) runCatching { send("stop") }
         if (stateValue != UciSessionState.FAILED) runCatching { send("quit") }
         stateValue = UciSessionState.CLOSED
         closeTransport()
         val error = UciEngineStateException("Engine session closed before completing analysis")
-        pending.forEach { deliver(it, Result.failure(error)) }
+        pending.forEach { deliveries += Delivery(it, Result.failure(error)) }
     }
 
-    @Synchronized
-    private fun cancel(requestId: String) {
+    private fun cancel(requestId: String): Unit = lock.withLock {
         if (queued?.request?.requestId == requestId) {
             queued!!.cancelled = true
             queued = null
@@ -229,26 +234,26 @@ class FairyUciEngine(
         armTimeout(policy.synchronizationTimeoutMillis, "engine initialization")
     }
 
-    private fun onReadyOk() {
+    private fun onReadyOk(deliveries: MutableList<Delivery>) {
         when (stateValue) {
             UciSessionState.STARTUP_READY -> {
                 cancelTimer()
                 stateValue = UciSessionState.IDLE
-                if (active != null) prepareActive()
+                if (active != null) prepareActive(deliveries)
             }
             UciSessionState.PREPARING -> launchSearch()
             UciSessionState.DRAINING_READY -> {
                 cancelTimer()
                 active = null
                 stateValue = UciSessionState.IDLE
-                beginQueuedIfAny()
+                beginQueuedIfAny(deliveries)
             }
             UciSessionState.SEARCHING -> Unit // UCI permits readiness probes during search.
             else -> throw UciEngineStateException("Unexpected readyok while $stateValue")
         }
     }
 
-    private fun onBestMove(message: UciMessage.BestMove) {
+    private fun onBestMove(message: UciMessage.BestMove, deliveries: MutableList<Delivery>) {
         when (stateValue) {
             UciSessionState.SEARCHING -> {
                 cancelTimer()
@@ -257,21 +262,21 @@ class FairyUciEngine(
                 stateValue = UciSessionState.IDLE
                 if (!work.cancelled) {
                     val result = runCatching { work.analysis.response(work.request, message, identity()) }
-                    deliver(work, result)
+                    deliveries += Delivery(work, result)
                 }
-                beginQueuedIfAny()
+                beginQueuedIfAny(deliveries)
             }
             UciSessionState.DRAINING_SEARCH -> {
                 cancelTimer()
                 active = null
                 stateValue = UciSessionState.IDLE
-                beginQueuedIfAny()
+                beginQueuedIfAny(deliveries)
             }
             else -> throw UciEngineStateException("Unexpected bestmove while $stateValue")
         }
     }
 
-    private fun prepareActive() {
+    private fun prepareActive(deliveries: MutableList<Delivery>) {
         val work = active ?: return
         if (work.cancelled) {
             active = null
@@ -282,8 +287,8 @@ class FairyUciEngine(
         } catch (error: Throwable) {
             active = null
             stateValue = UciSessionState.IDLE
-            deliver(work, Result.failure(error))
-            beginQueuedIfAny()
+            deliveries += Delivery(work, Result.failure(error))
+            beginQueuedIfAny(deliveries)
             return
         }
         try {
@@ -297,7 +302,7 @@ class FairyUciEngine(
             stateValue = UciSessionState.PREPARING
             armTimeout(policy.synchronizationTimeoutMillis, "analysis configuration")
         } catch (error: Throwable) {
-            failSession(error)
+            failSession(error, deliveries)
         }
     }
 
@@ -310,13 +315,13 @@ class FairyUciEngine(
         armTimeout(work.request.limits.moveTimeMillis + policy.searchGraceMillis, "analysis search")
     }
 
-    private fun beginQueuedIfAny() {
+    private fun beginQueuedIfAny(deliveries: MutableList<Delivery>) {
         if (active != null || stateValue != UciSessionState.IDLE) return
         val next = queued
         queued = null
         if (next != null && !next.cancelled) {
             active = next
-            prepareActive()
+            prepareActive(deliveries)
         }
     }
 
@@ -463,11 +468,14 @@ class FairyUciEngine(
         cancelTimer()
         val generation = ++timerGeneration
         timer = timeoutScheduler.schedule(delayMillis) {
-            synchronized(this) {
+            mutateEngine { deliveries ->
                 if (generation == timerGeneration && stateValue !in setOf(
                         UciSessionState.IDLE, UciSessionState.FAILED, UciSessionState.CLOSED,
                     )) {
-                    failSession(UciEngineTimeoutException("Timed out during $operation"))
+                    failSession(
+                        UciEngineTimeoutException("Timed out during $operation"),
+                        deliveries,
+                    )
                 }
             }
         }
@@ -479,16 +487,17 @@ class FairyUciEngine(
         timer = null
     }
 
-    private fun failSession(error: Throwable) {
+    private fun failSession(error: Throwable, deliveries: MutableList<Delivery>) {
         if (stateValue == UciSessionState.FAILED || stateValue == UciSessionState.CLOSED) return
         cancelTimer()
         val pending = listOfNotNull(active, queued).filterNot { it.cancelled }
         active = null
         queued = null
+        if (stateValue == UciSessionState.SEARCHING) runCatching { send("stop") }
         terminalFailure = error
         stateValue = UciSessionState.FAILED
         closeTransport()
-        pending.forEach { deliver(it, Result.failure(error)) }
+        pending.forEach { deliveries += Delivery(it, Result.failure(error)) }
     }
 
     private fun failedStateException(): UciEngineStateException {
@@ -507,9 +516,21 @@ class FairyUciEngine(
 
     private fun normalize(value: String): String = value.trim().lowercase()
 
-    private fun deliver(work: Work, result: Result<EngineResponse>) {
-        // Consumer exceptions must not corrupt or terminate the reusable engine session.
-        runCatching { work.callback(result) }
+    /**
+     * Mutates the UCI state under its non-reentrant lock, then delivers every completed consumer
+     * callback only after that lock has been released. Callbacks may therefore synchronously
+     * submit the next request without deadlocking or observing a half-completed state transition.
+     */
+    private inline fun <T> mutateEngine(block: (MutableList<Delivery>) -> T): T {
+        val deliveries = mutableListOf<Delivery>()
+        try {
+            return lock.withLock { block(deliveries) }
+        } finally {
+            deliveries.forEach { delivery ->
+                // Consumer exceptions must not corrupt or terminate the reusable engine session.
+                runCatching { delivery.work.callback(delivery.result) }
+            }
+        }
     }
 
     private class AnalysisAccumulator {
@@ -556,8 +577,8 @@ class FairyUciEngine(
                 candidate.ranks.getValue(1).principalVariation.first() == bestMove
             } ?: completeSnapshots.firstOrNull()
             val converted = snapshot?.ranks
-                ?.toSortedMap()
                 ?.entries
+                ?.sortedBy { it.key }
                 ?.take(expectedRanks)
                 ?.map { (rank, info) ->
                     when (val score = info.score!!) {

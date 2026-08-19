@@ -1,0 +1,25 @@
+# Literal reviewed public-source inclusions. A trailing slash means one complete
+# directory prefix. Globs are intentionally unsupported. Deny rules override
+# every inclusion.
+.gitattributes
+.gitignore
+APACHE-2.0.txt
+LICENSE
+NOTICE
+PRIVACY.md
+README.md
+THIRD_PARTY_NOTICES.md
+package-lock.json
+package.json
+android/
+artwork/
+contracts/
+docs/
+engine/
+ios-engine/
+iosApp/
+multiplatform/
+release/
+scripts/
+src/
+tools/

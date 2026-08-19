@@ -159,12 +159,17 @@ reflection-checks all six static native method signatures.
 ## Release and licensing gate
 
 Fairy-Stockfish is GPL-3.0-or-later, and Drawless Chess has adopted
-GPL-3.0-or-later for the whole combined Android application. No APK, App Bundle,
-or AAR containing the engine should be distributed until complete corresponding
-source is made available for the exact shipped binary. `scripts/source-bundle.sh`
-creates the deterministic whole-project archive, including the prepared native Git
-checkout; `scripts/native-source-bundle.sh` is only a compatibility alias. The
-archive is required release material but is not by itself proof of compliance.
+GPL-3.0-or-later for the combined Android and iOS applications. No APK, App
+Bundle, AAR, iOS archive, or App Store binary containing the engine should be
+distributed until complete corresponding source is made available for the exact
+shipped binary. `scripts/source-bundle.sh`
+creates the deterministic, inclusion-only whole-project archive from committed
+product blobs and the validated prepared native staged tree;
+`scripts/native-source-bundle.sh` is only a compatibility alias. Repository-local
+`.git` data, `.github` administration, and nested `AGENTS.md`
+instructions are excluded, while a complete native byte manifest is included.
+The archive is required release material but is not by itself proof of
+compliance.
 
 The implemented in-process JNI bridge remains subject to native crash/lifecycle review,
 but its licensing direction is no longer provisional: the combined work is GPL. Changing

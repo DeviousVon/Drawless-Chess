@@ -1767,7 +1767,7 @@ function Set-GradleJvmIdentity {
             $daemonProperties = Join-Path $AndroidRoot 'gradle\gradle-daemon-jvm.properties'
             Require-RegexValue `
                 $daemonProperties `
-                '^toolchainVersion=(\d+)$' `
+                '^toolchainVersion=(\d+)\r?$' `
                 "$criteriaMajor" `
                 'Gradle daemon toolchain version'
         } else {

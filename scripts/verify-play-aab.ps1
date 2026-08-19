@@ -199,11 +199,25 @@ $sourceArchivePath = (Resolve-Path -LiteralPath $SourceArchive -ErrorAction Stop
 if (-not $sourceArchivePath.EndsWith('.tar.gz', [StringComparison]::OrdinalIgnoreCase)) {
     Fail "source archive must end in .tar.gz: $sourceArchivePath"
 }
+$iosProjectPath = Join-Path $script:RepositoryRoot 'iosApp\project.yml'
+$iosProject = Get-Content -LiteralPath $iosProjectPath -Raw
+$iosBuildMatch = [regex]::Match(
+    $iosProject,
+    '(?m)^\s*CURRENT_PROJECT_VERSION:\s*"([0-9]+)"\s*$'
+)
+if (-not $iosBuildMatch.Success) {
+    Fail "could not read the iOS public-source build identity from $iosProjectPath"
+}
+$iosBuild = $iosBuildMatch.Groups[1].Value
+$expectedSourceArchiveName = "drawless-chess-ios-$expectedVersionName-build-$iosBuild-source.tar.gz"
+if ([IO.Path]::GetFileName($sourceArchivePath) -cne $expectedSourceArchiveName) {
+    Fail "source archive filename must be the reviewed public identity $expectedSourceArchiveName"
+}
 $tar = Get-Command tar -ErrorAction SilentlyContinue
 if (-not $tar) {
-    Fail 'tar was not found; it is required to verify SOURCE-COMMIT and SOURCE-MANIFEST.sha256'
+    Fail 'tar was not found; it is required to verify SOURCE-IDENTITY and SOURCE-MANIFEST.sha256'
 }
-$sourceRoot = "drawless-chess-$expectedVersionName-source"
+$sourceRoot = $expectedSourceArchiveName.Substring(0, $expectedSourceArchiveName.Length - 7)
 $sourceInspectionRoot = Join-Path ([IO.Path]::GetTempPath()) (
     'drawless-source-inspection-' + [guid]::NewGuid().ToString('N')
 )
@@ -211,7 +225,7 @@ New-Item -ItemType Directory -Path $sourceInspectionRoot | Out-Null
 $sourceManifestHashes = @{}
 $sourceManifestSha256 = ''
 $sourceVerifiedFileCount = 0
-$archiveCommit = ''
+$archivePublicTag = ''
 try {
     $entryOutput = @(& $tar.Source -tzf $sourceArchivePath 2>&1 |
         ForEach-Object { $_.ToString() })
@@ -256,14 +270,37 @@ try {
         Fail 'source archive extraction failed after its safety checks'
     }
     $extractedRoot = Join-Path $sourceInspectionRoot $sourceRoot
-    $commitPath = Join-Path $extractedRoot 'SOURCE-COMMIT'
+    $identityPath = Join-Path $extractedRoot 'SOURCE-IDENTITY'
     $manifestPath = Join-Path $extractedRoot 'SOURCE-MANIFEST.sha256'
-    if (-not (Test-Path -LiteralPath $commitPath -PathType Leaf) -or
+    if (-not (Test-Path -LiteralPath $identityPath -PathType Leaf) -or
         -not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) {
-        Fail 'source archive is missing SOURCE-COMMIT or SOURCE-MANIFEST.sha256'
+        Fail 'source archive is missing SOURCE-IDENTITY or SOURCE-MANIFEST.sha256'
     }
-    $archiveCommit = [IO.File]::ReadAllText($commitPath).Trim()
-    Assert-Equal 'source archive commit' $archiveCommit $repositoryCommit
+    $sourceIdentity = Read-Properties $identityPath
+    $expectedPublicTag = "ios-v$expectedVersionName-build-$iosBuild"
+    foreach ($requiredIdentity in @(
+        'schemaVersion',
+        'platform',
+        'version',
+        'build',
+        'publicTag',
+        'archive'
+    )) {
+        if (-not $sourceIdentity.ContainsKey($requiredIdentity) -or
+            -not $sourceIdentity[$requiredIdentity]) {
+            Fail "source archive identity is missing $requiredIdentity"
+        }
+    }
+    Assert-Equal 'source identity schema' $sourceIdentity['schemaVersion'] '1'
+    Assert-Equal 'source identity platform' $sourceIdentity['platform'] 'iOS'
+    Assert-Equal 'source identity version' $sourceIdentity['version'] $expectedVersionName
+    Assert-Equal 'source identity build' $sourceIdentity['build'] $iosBuild
+    Assert-Equal 'source identity public tag' $sourceIdentity['publicTag'] $expectedPublicTag
+    Assert-Equal 'source identity archive' $sourceIdentity['archive'] $expectedSourceArchiveName
+    $archivePublicTag = $sourceIdentity['publicTag']
+    if (Test-Path -LiteralPath (Join-Path $extractedRoot 'SOURCE-COMMIT')) {
+        Fail 'public source archive must not expose a private repository commit identity'
+    }
     $sourceManifestSha256 = (Get-FileHash -LiteralPath $manifestPath -Algorithm SHA256).
         Hash.ToLowerInvariant()
 
@@ -272,12 +309,12 @@ try {
         [StringComparer]::OrdinalIgnoreCase
     )
     foreach ($manifestLine in Get-Content -LiteralPath $manifestPath) {
-        $match = [regex]::Match($manifestLine, '^([0-9a-f]{64})\s+\*?(\./.+)$')
+        $match = [regex]::Match($manifestLine, '^([0-9a-f]{64})  (.+)$')
         if (-not $match.Success) {
             Fail "source manifest contains an invalid row: $manifestLine"
         }
         $expectedHash = $match.Groups[1].Value
-        $relativePath = $match.Groups[2].Value.Substring(2)
+        $relativePath = $match.Groups[2].Value
         if ($relativePath -ceq 'SOURCE-MANIFEST.sha256' -or $relativePath.Contains('\') -or
             $relativePath.Contains(':') -or [IO.Path]::IsPathRooted($relativePath)) {
             Fail "source manifest contains an unsafe path: $relativePath"
@@ -393,70 +430,48 @@ try {
 }
 $sourceArchiveSha256 = (Get-FileHash -LiteralPath $sourceArchivePath -Algorithm SHA256).Hash.
     ToLowerInvariant()
-$canonicalSourceRelative = 'build/release-evidence/canonical-source-' +
-    [guid]::NewGuid().ToString('N') + '.tar.gz'
-$canonicalSourcePath = Join-Path $script:RepositoryRoot (
-    $canonicalSourceRelative.Replace('/', [IO.Path]::DirectorySeparatorChar)
-)
-$canonicalInspectionRoot = Join-Path ([IO.Path]::GetTempPath()) (
-    'drawless-canonical-source-' + [guid]::NewGuid().ToString('N')
-)
-[void][IO.Directory]::CreateDirectory((Split-Path -Parent $canonicalSourcePath))
-[void][IO.Directory]::CreateDirectory($canonicalInspectionRoot)
 $bash = Find-Bash
-try {
-    $gitRoot = Split-Path -Parent (Split-Path -Parent $bash)
-    $cygpath = Join-Path $gitRoot 'usr\bin\cygpath.exe'
-    $bashRepositoryRoot = if (Test-Path -LiteralPath $cygpath -PathType Leaf) {
-        $converted = @(& $cygpath -u $script:RepositoryRoot 2>&1 |
-            ForEach-Object { $_.ToString() })
-        if ($LASTEXITCODE -ne 0) {
-            Fail "could not convert repository path for Git Bash: $($converted -join ' ')"
-        }
-        ($converted -join '').Trim()
-    } else {
-        $script:RepositoryRoot
-    }
-    Push-Location $script:RepositoryRoot
-    try {
-        $canonicalOutput = @(& $bash -lc 'cd -- "$1" && scripts/source-bundle.sh "$2"' `
-            'drawless-source' $bashRepositoryRoot $canonicalSourceRelative 2>&1 |
-                ForEach-Object { $_.ToString() })
-        $canonicalExitCode = $LASTEXITCODE
-    } finally {
-        Pop-Location
-    }
-    if ($canonicalExitCode -ne 0 -or
-        -not (Test-Path -LiteralPath $canonicalSourcePath -PathType Leaf)) {
-        Fail "canonical source regeneration failed: $($canonicalOutput -join ' ')"
-    }
-    & $tar.Source -xzf $canonicalSourcePath -C $canonicalInspectionRoot `
-        "$sourceRoot/SOURCE-MANIFEST.sha256" `
-        "$sourceRoot/SOURCE-MANIFEST.sha256.digest"
+$gitRoot = Split-Path -Parent (Split-Path -Parent $bash)
+$cygpath = Join-Path $gitRoot 'usr\bin\cygpath.exe'
+$bashRepositoryRoot = if (Test-Path -LiteralPath $cygpath -PathType Leaf) {
+    $converted = @(& $cygpath -u $script:RepositoryRoot 2>&1 |
+        ForEach-Object { $_.ToString() })
     if ($LASTEXITCODE -ne 0) {
-        Fail 'canonical source regeneration did not contain its source manifest and digest'
+        Fail "could not convert repository path for Git Bash: $($converted -join ' ')"
     }
-    $canonicalManifestPath = Join-Path $canonicalInspectionRoot (
-        "$sourceRoot\SOURCE-MANIFEST.sha256"
-    )
-    $canonicalDigestPath = Join-Path $canonicalInspectionRoot (
-        "$sourceRoot\SOURCE-MANIFEST.sha256.digest"
-    )
-    $canonicalManifestHash = (Get-FileHash -LiteralPath $canonicalManifestPath `
-        -Algorithm SHA256).Hash.ToLowerInvariant()
-    $canonicalRecordedDigest = [IO.File]::ReadAllText($canonicalDigestPath).Trim()
-    if ($canonicalManifestHash -cne $sourceManifestSha256 -or
-        $canonicalRecordedDigest -cne $sourceManifestSha256) {
-        Fail 'source archive contents differ from the canonical clean-repository manifest'
-    }
-} finally {
-    if (Test-Path -LiteralPath $canonicalSourcePath) {
-        Remove-Item -LiteralPath $canonicalSourcePath -Force
-    }
-    if (Test-Path -LiteralPath $canonicalInspectionRoot) {
-        Remove-Item -LiteralPath $canonicalInspectionRoot -Recurse -Force
-    }
+    ($converted -join '').Trim()
+} else {
+    $script:RepositoryRoot
 }
+Push-Location $script:RepositoryRoot
+try {
+    $canonicalOutput = @(& $bash -lc `
+        'cd -- "$1" && python3 scripts/source-bundle.py --repository-root "$1" --manifest-digest' `
+        'drawless-source-inventory' $bashRepositoryRoot 2>&1 |
+            ForEach-Object { $_.ToString() })
+    $canonicalExitCode = $LASTEXITCODE
+} finally {
+    Pop-Location
+}
+if ($canonicalExitCode -ne 0) {
+    Fail "canonical source inventory failed: $($canonicalOutput -join ' ')"
+}
+$canonicalManifestLine = @($canonicalOutput | Where-Object {
+    $_.StartsWith('source_manifest_sha256=', [StringComparison]::Ordinal)
+})
+$canonicalPublicTagLine = @($canonicalOutput | Where-Object {
+    $_.StartsWith('public_tag=', [StringComparison]::Ordinal)
+})
+if ($canonicalManifestLine.Count -ne 1 -or $canonicalPublicTagLine.Count -ne 1) {
+    Fail 'canonical source inventory did not return one manifest digest and public tag'
+}
+$canonicalManifestHash = $canonicalManifestLine[0].Substring('source_manifest_sha256='.Length)
+$canonicalPublicTag = $canonicalPublicTagLine[0].Substring('public_tag='.Length)
+if ($canonicalManifestHash -cnotmatch '^[0-9a-f]{64}$' -or
+    $canonicalManifestHash -cne $sourceManifestSha256) {
+    Fail 'source archive contents differ from the canonical committed-blob inventory'
+}
+Assert-Equal 'canonical source public tag' $canonicalPublicTag $archivePublicTag
 
 $sdkRoot = Find-AndroidSdk $script:AndroidRoot
 $env:ANDROID_HOME = $sdkRoot
@@ -734,7 +749,7 @@ $report = [ordered]@{
     sourceArchive = [ordered]@{
         file = [IO.Path]::GetFileName($sourceArchivePath)
         sha256 = $sourceArchiveSha256
-        commit = $archiveCommit
+        publicTag = $archivePublicTag
         manifestSha256 = $sourceManifestSha256
         verifiedFileCount = $sourceVerifiedFileCount
         allManifestHashesVerified = $true

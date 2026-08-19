@@ -33,9 +33,7 @@ object ChessRules {
     fun apply(position: ChessPosition, move: UciMove): ChessPosition = apply(position, ChessMove.fromUci(move))
 
     fun isInCheck(position: ChessPosition, side: Side = position.sideToMove): Boolean {
-        val king = position.pieces().singleOrNull { (_, piece) ->
-            piece.side == side && piece.type == PieceType.KING
-        }?.first ?: throw IllegalStateException("Missing ${side.name.lowercase()} king")
+        val king = position.kingSquare(side)
         return isSquareAttacked(position, king, side.opposite())
     }
 
@@ -43,8 +41,53 @@ object ChessRules {
 
     fun isStalemate(position: ChessPosition): Boolean = !isInCheck(position) && legalMoves(position).isEmpty()
 
-    fun isSquareAttacked(position: ChessPosition, target: Square, bySide: Side): Boolean =
-        attackersOf(position, target, bySide).isNotEmpty()
+    fun isSquareAttacked(position: ChessPosition, target: Square, bySide: Side): Boolean {
+        val pawnSourceRank = target.rank - if (bySide == Side.WHITE) 1 else -1
+        if (hasPieceAt(position, target.file - 1, pawnSourceRank, bySide, PieceType.PAWN) ||
+            hasPieceAt(position, target.file + 1, pawnSourceRank, bySide, PieceType.PAWN)
+        ) return true
+
+        for ((df, dr) in knightOffsets) {
+            if (hasPieceAt(
+                    position,
+                    target.file + df,
+                    target.rank + dr,
+                    bySide,
+                    PieceType.KNIGHT,
+                )
+            ) return true
+        }
+
+        if (hasRayAttacker(position, target, bySide, bishopDirections, PieceType.BISHOP) ||
+            hasRayAttacker(position, target, bySide, rookDirections, PieceType.ROOK)
+        ) {
+            return true
+        }
+
+        for ((df, dr) in kingDirections) {
+            if (hasPieceAt(
+                    position,
+                    target.file + df,
+                    target.rank + dr,
+                    bySide,
+                    PieceType.KING,
+                )
+            ) return true
+        }
+        return false
+    }
+
+    private fun hasPieceAt(
+        position: ChessPosition,
+        file: Int,
+        rank: Int,
+        side: Side,
+        type: PieceType,
+    ): Boolean {
+        val square = Square.at(file, rank) ?: return false
+        val piece = position[square] ?: return false
+        return piece.side == side && piece.type == type
+    }
 
     /** Enemy origins attacking [target], used by both legality and explanatory presentation. */
     fun attackersOf(position: ChessPosition, target: Square, bySide: Side): Set<Square> = buildSet {
@@ -91,6 +134,34 @@ object ChessRules {
                 rank += dr
             }
         }
+    }
+
+    private fun hasRayAttacker(
+        position: ChessPosition,
+        target: Square,
+        bySide: Side,
+        directions: List<Pair<Int, Int>>,
+        linePiece: PieceType,
+    ): Boolean {
+        for ((df, dr) in directions) {
+            var file = target.file + df
+            var rank = target.rank + dr
+            while (true) {
+                val square = Square.at(file, rank) ?: break
+                val piece = position[square]
+                if (piece != null) {
+                    if (piece.side == bySide &&
+                        (piece.type == linePiece || piece.type == PieceType.QUEEN)
+                    ) {
+                        return true
+                    }
+                    break
+                }
+                file += df
+                rank += dr
+            }
+        }
+        return false
     }
 
     private fun pseudoLegalMoves(

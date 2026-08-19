@@ -8,6 +8,15 @@ UPSTREAM="https://github.com/fairy-stockfish/Fairy-Stockfish.git"
 PATCH_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SOURCE=""
 JOBS="${JOBS:-2}"
+ENGINE_ARCH="x86-64"
+STATE_ARCH_FLAGS=(-m64)
+STATE_FEATURE_FLAGS=(-DUSE_SSE2 -DNO_PREFETCH)
+
+if [[ "$(uname -s)" == "Darwin" && "$(uname -m)" == "arm64" ]]; then
+  ENGINE_ARCH="apple-silicon"
+  STATE_ARCH_FLAGS=(-arch arm64 -mmacosx-version-min=10.14)
+  STATE_FEATURE_FLAGS=(-DUSE_NEON -DUSE_POPCNT)
+fi
 
 while (($#)); do
   case "$1" in
@@ -41,7 +50,7 @@ git -C "$WORK/source" checkout --detach "$PIN"
 
 (cd "$PATCH_DIR" && sha256sum --check checksums.sha256)
 
-make -C "$WORK/source/src" -j"$JOBS" build ARCH=x86-64
+make -C "$WORK/source/src" -j"$JOBS" build ARCH="$ENGINE_ARCH"
 node "$PATCH_DIR/verify-engine.mjs" \
   "$WORK/source/src/stockfish" \
   "$PATCH_DIR/test-variants-unpatched.ini" \
@@ -56,7 +65,7 @@ done < "$PATCH_DIR/series"
 git -C "$WORK/source" diff --cached --check
 [[ "$(git -C "$WORK/source" write-tree)" == "$PATCHED_TREE" ]]
 node "$PATCH_DIR/verify-elo-rounding.mjs" "$WORK/source/src/search.cpp"
-make -C "$WORK/source/src" -j"$JOBS" build ARCH=x86-64
+make -C "$WORK/source/src" -j"$JOBS" build ARCH="$ENGINE_ARCH"
 
 # Link a verification-only executable against the just-built engine objects so
 # null-move and repetition-key state can be asserted directly instead of being
@@ -72,12 +81,12 @@ while IFS= read -r source_entry || [[ -n "$source_entry" ]]; do
   ENGINE_OBJECTS+=("$WORK/source/src/$object_name")
 done < "$PATCH_DIR/../native/source-manifest.txt"
 
-g++ -std=c++17 -O2 -m64 -pthread \
+g++ -std=c++17 -O2 "${STATE_ARCH_FLAGS[@]}" -pthread \
   -Wall -Wcast-qual -fno-exceptions -fno-strict-aliasing \
-  -DIS_64BIT -DUSE_PTHREADS -DNNUE_EMBEDDING_OFF -DUSE_SSE2 -DNO_PREFETCH \
+  -DIS_64BIT -DUSE_PTHREADS -DNNUE_EMBEDDING_OFF "${STATE_FEATURE_FLAGS[@]}" \
   -I"$WORK/source/src" \
   -c "$PATCH_DIR/drawless-native-state-test.cpp" -o "$STATE_TEST_OBJECT"
-g++ -m64 -pthread -flto "$STATE_TEST_OBJECT" "${ENGINE_OBJECTS[@]}" \
+g++ "${STATE_ARCH_FLAGS[@]}" -pthread -flto "$STATE_TEST_OBJECT" "${ENGINE_OBJECTS[@]}" \
   -o "$STATE_TEST_BINARY"
 "$STATE_TEST_BINARY" "$PATCH_DIR/test-variants.ini"
 

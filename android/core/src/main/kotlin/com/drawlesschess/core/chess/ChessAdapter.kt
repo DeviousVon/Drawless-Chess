@@ -45,7 +45,20 @@ object DeadPositionDetector {
 }
 
 object ChessAdapter {
-    fun transition(position: ChessPosition, selected: UciMove): MoveTransition {
+    data class PreparedTransition(
+        val transition: MoveTransition,
+        val positionAfter: ChessPosition,
+    )
+
+    fun transition(position: ChessPosition, selected: UciMove): MoveTransition =
+        prepareTransition(position, selected).transition
+
+    /**
+     * Builds the rules transition and returns its already-validated selected position. Callers
+     * that commit the move must reuse [positionAfter] instead of regenerating the same legal move
+     * set through `ChessRules.apply`.
+     */
+    fun prepareTransition(position: ChessPosition, selected: UciMove): PreparedTransition {
         val legal = ChessRules.legalMoves(position)
         val selectedMove = ChessMove.fromUci(selected)
         require(selectedMove in legal) { "Illegal move ${selected.value}" }
@@ -57,17 +70,20 @@ object ChessAdapter {
             MoveAlternative(move.toUci(), RepetitionKey.of(result), result.halfmoveClock)
         }
         val legalAfter = ChessRules.legalMoves(after)
-        return MoveTransition(
-            move = selected,
-            mover = position.sideToMove,
-            resultingPositionKey = RepetitionKey.of(after),
-            legalMovesAfter = legalAfter.size,
-            sideToMoveInCheck = ChessRules.isInCheck(after),
-            legalAlternativesBeforeMove = alternatives,
-            halfmoveClockAfter = after.halfmoveClock,
-            deadPositionAfter = DeadPositionDetector.isKnownDead(after),
-            moveWasCapture = isCapture(position, selectedMove),
-            materialAfter = material(after),
+        return PreparedTransition(
+            transition = MoveTransition(
+                move = selected,
+                mover = position.sideToMove,
+                resultingPositionKey = RepetitionKey.of(after),
+                legalMovesAfter = legalAfter.size,
+                sideToMoveInCheck = ChessRules.isInCheck(after),
+                legalAlternativesBeforeMove = alternatives,
+                halfmoveClockAfter = after.halfmoveClock,
+                deadPositionAfter = DeadPositionDetector.isKnownDead(after),
+                moveWasCapture = isCapture(position, selectedMove),
+                materialAfter = material(after),
+            ),
+            positionAfter = after,
         )
     }
 
