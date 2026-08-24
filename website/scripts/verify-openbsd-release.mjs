@@ -346,8 +346,29 @@ async function verifyMarkupAndReferences(releaseRoot, files) {
 
     if (extension === ".html") {
       const isInteractivePlayRoute = relative === "play/index.html";
-      if (!isInteractivePlayRoute && /<script\b/i.test(source)) {
-        throw new Error(`Script tag is not allowed in ${relative}.`);
+      if (!isInteractivePlayRoute) {
+        const scriptTags = [...source.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi)];
+        const scriptOpenCount = [...source.matchAll(/<script\b/gi)].length;
+        if (scriptOpenCount !== scriptTags.length) {
+          throw new Error(`Malformed or non-inline script tag in ${relative}.`);
+        }
+        if (relative === "index.html") {
+          if (scriptTags.length !== 1 || !/^application\/ld\+json$/i.test(htmlAttribute(scriptTags[0][0], "type") ?? "") ||
+              htmlAttribute(scriptTags[0][0], "src")) {
+            throw new Error("index.html may contain only one inline application/ld+json data block.");
+          }
+          let structuredData;
+          try {
+            structuredData = JSON.parse(scriptTags[0][2]);
+          } catch {
+            throw new Error("index.html contains invalid JSON-LD.");
+          }
+          if (structuredData?.["@type"] !== "SoftwareApplication" || structuredData?.name !== "Drawless Chess") {
+            throw new Error("index.html JSON-LD must describe the Drawless Chess SoftwareApplication.");
+          }
+        } else if (scriptTags.length > 0) {
+          throw new Error(`Script tag is not allowed in ${relative}.`);
+        }
       }
       if (isInteractivePlayRoute) {
         const scripts = [...source.matchAll(/<script\b[^>]*\bsrc\s*=\s*["']([^"']+)["'][^>]*>/gi)];

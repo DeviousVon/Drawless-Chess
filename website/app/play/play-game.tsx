@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from "react";
 import {
   BrowserGame,
   loadChessModule,
@@ -27,6 +34,33 @@ const PIECE_NAMES: Record<string, string> = {
 
 const FILES = ["a", "b", "c", "d", "e", "f", "g", "h"];
 const RANKS = ["1", "2", "3", "4", "5", "6", "7", "8"];
+const DIALOG_FOCUSABLE_SELECTOR = [
+  "a[href]",
+  "button:not([disabled])",
+  "input:not([disabled])",
+  "select:not([disabled])",
+  "textarea:not([disabled])",
+  '[tabindex]:not([tabindex="-1"])',
+].join(",");
+
+function containDialogFocus(event: ReactKeyboardEvent<HTMLDivElement>, dialog: HTMLDivElement) {
+  if (event.key !== "Tab") return;
+  const focusable = Array.from(dialog.querySelectorAll<HTMLElement>(DIALOG_FOCUSABLE_SELECTOR));
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+  if (!first || !last) {
+    event.preventDefault();
+    dialog.focus();
+    return;
+  }
+  if (event.shiftKey && (document.activeElement === first || !dialog.contains(document.activeElement))) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && (document.activeElement === last || !dialog.contains(document.activeElement))) {
+    event.preventDefault();
+    first.focus();
+  }
+}
 
 function sideForPiece(piece: PieceCode): Side {
   return piece === piece.toUpperCase() ? "WHITE" : "BLACK";
@@ -54,13 +88,22 @@ export function PlayGame() {
   const gameRef = useRef<BrowserGame | null>(null);
   const workerRef = useRef<Worker | null>(null);
   const pendingRef = useRef<PendingRequest | null>(null);
+  const squareRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const newGameButtonRef = useRef<HTMLButtonElement | null>(null);
   const resultDialogRef = useRef<HTMLDivElement | null>(null);
+  const resultPrimaryActionRef = useRef<HTMLButtonElement | null>(null);
+  const resultReturnFocusRef = useRef<HTMLElement | null>(null);
+  const promotionDialogRef = useRef<HTMLDivElement | null>(null);
+  const promotionPrimaryActionRef = useRef<HTMLButtonElement | null>(null);
+  const promotionReturnFocusRef = useRef<HTMLElement | null>(null);
+  const lastNonDialogFocusRef = useRef<HTMLElement | null>(null);
   const [snapshot, setSnapshot] = useState<GameSnapshot | null>(null);
   const [status, setStatus] = useState<RuntimeStatus>("loading");
   const [error, setError] = useState<string | null>(null);
   const [humanSide, setHumanSide] = useState<Side>("WHITE");
   const [nextHumanSide, setNextHumanSide] = useState<SideChoice>("WHITE");
   const [selected, setSelected] = useState<string | null>(null);
+  const [focusedSquare, setFocusedSquare] = useState("a8");
   const [promotionMoves, setPromotionMoves] = useState<string[]>([]);
   const [resultDismissed, setResultDismissed] = useState(false);
 
@@ -206,6 +249,7 @@ export function PlayGame() {
         ? crypto.getRandomValues(new Uint8Array(1))[0] % 2 === 0 ? "WHITE" : "BLACK"
         : nextHumanSide;
       setHumanSide(chosenSide);
+      setFocusedSquare(chosenSide === "WHITE" ? "a8" : "h1");
       const current = game.reset();
       setSnapshot(current);
       scheduleOpponent(game, current, chosenSide);
@@ -235,13 +279,91 @@ export function PlayGame() {
   const showResult = Boolean(outcome && !resultDismissed);
   const humanWon = outcome?.winner === humanSide;
   const winnerName = outcome?.winner === "WHITE" ? "White" : "Black";
+  const promotionOpen = promotionMoves.length > 0;
+
+  const focusBoardSquare = useCallback((square: string) => {
+    setFocusedSquare(square);
+    squareRefs.current[square]?.focus();
+  }, []);
+
+  const handleSquareKeyDown = useCallback((event: ReactKeyboardEvent<HTMLButtonElement>, square: string) => {
+    const index = displaySquares.indexOf(square);
+    if (index < 0) return;
+    const row = Math.floor(index / 8);
+    const column = index % 8;
+    let nextIndex = index;
+    switch (event.key) {
+      case "ArrowLeft":
+        if (column > 0) nextIndex = index - 1;
+        break;
+      case "ArrowRight":
+        if (column < 7) nextIndex = index + 1;
+        break;
+      case "ArrowUp":
+        if (row > 0) nextIndex = index - 8;
+        break;
+      case "ArrowDown":
+        if (row < 7) nextIndex = index + 8;
+        break;
+      case "Home":
+        nextIndex = event.ctrlKey || event.metaKey ? 0 : row * 8;
+        break;
+      case "End":
+        nextIndex = event.ctrlKey || event.metaKey ? displaySquares.length - 1 : row * 8 + 7;
+        break;
+      default:
+        return;
+    }
+    event.preventDefault();
+    focusBoardSquare(displaySquares[nextIndex]);
+  }, [displaySquares, focusBoardSquare]);
 
   useEffect(() => {
-    if (showResult) resultDialogRef.current?.focus();
+    if (!showResult) return;
+    const activeElement = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const fallbackTarget = newGameButtonRef.current;
+    resultReturnFocusRef.current = lastNonDialogFocusRef.current ?? activeElement;
+    const frame = requestAnimationFrame(() => {
+      (resultPrimaryActionRef.current ?? resultDialogRef.current)?.focus();
+    });
+    return () => {
+      cancelAnimationFrame(frame);
+      const returnTarget = resultReturnFocusRef.current;
+      resultReturnFocusRef.current = null;
+      if (returnTarget?.isConnected && !(returnTarget instanceof HTMLButtonElement && returnTarget.disabled)) {
+        returnTarget.focus({ preventScroll: true });
+      } else {
+        fallbackTarget?.focus({ preventScroll: true });
+      }
+    };
   }, [showResult]);
 
+  useEffect(() => {
+    if (!promotionOpen) return;
+    const activeElement = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    promotionReturnFocusRef.current = lastNonDialogFocusRef.current ?? activeElement;
+    const frame = requestAnimationFrame(() => {
+      (promotionPrimaryActionRef.current ?? promotionDialogRef.current)?.focus();
+    });
+    return () => {
+      cancelAnimationFrame(frame);
+      const returnTarget = promotionReturnFocusRef.current;
+      promotionReturnFocusRef.current = null;
+      if (returnTarget?.isConnected) returnTarget.focus({ preventScroll: true });
+    };
+  }, [promotionOpen]);
+
   return (
-    <section className="web-game" aria-labelledby="play-game-title">
+    <section
+      className="web-game"
+      aria-labelledby="play-game-title"
+      onFocusCapture={(event) => {
+        const target = event.target as HTMLElement;
+        if (!resultDialogRef.current?.contains(target) && !promotionDialogRef.current?.contains(target)) {
+          lastNonDialogFocusRef.current = target;
+        }
+      }}
+    >
       <div className="web-game-heading">
         <div>
           <p className="eyebrow">Casual web preview</p>
@@ -262,7 +384,7 @@ export function PlayGame() {
             <span>Opponent</span>
             <strong>Web Casual</strong>
           </div>
-          <button className="button button-primary" type="button" onClick={newGame} disabled={!snapshot || status === "loading"}>
+          <button ref={newGameButtonRef} className="button button-primary" type="button" onClick={newGame} disabled={!snapshot || status === "loading"}>
             New game
           </button>
         </div>
@@ -270,37 +392,58 @@ export function PlayGame() {
 
       <div className="web-game-layout">
         <div className="web-board-wrap">
-          <div className="web-board" role="grid" aria-label={`Chessboard, viewed from ${humanSide === "WHITE" ? "White" : "Black"}'s side`}>
-            {displaySquares.map((square) => {
-              const piece = pieces.get(square);
-              const isLight = (square.charCodeAt(0) - 97 + Number(square[1]) - 1) % 2 !== 0;
-              const isSelected = selected === square;
-              const isLegal = legalDestinations.has(square);
-              const classes = [
-                "web-square",
-                isLight ? "web-square-light" : "web-square-dark",
-                isSelected ? "is-selected" : "",
-                isLegal ? "is-legal" : "",
-                lastMoveSquares.has(square) ? "is-last" : "",
-              ].filter(Boolean).join(" ");
-              return (
-                <button
-                  className={classes}
-                  type="button"
-                  role="gridcell"
-                  aria-label={squareLabel(square, piece)}
-                  aria-selected={isSelected}
-                  data-square={square}
-                  key={square}
-                  style={{ backgroundImage: marbleSquareBackground(square, isLight) }}
-                  onClick={() => chooseSquare(square)}
-                  disabled={!snapshot || Boolean(snapshot.outcome) || status !== "ready" || snapshot.sideToMove !== humanSide}
-                >
-                  {piece ? <DrawlessPiece piece={piece} /> : null}
-                  {isLegal ? <i aria-hidden="true" /> : null}
-                </button>
-              );
-            })}
+          <div
+            className="web-board"
+            role="grid"
+            aria-label={`Chessboard, viewed from ${humanSide === "WHITE" ? "White" : "Black"}'s side`}
+            aria-rowcount={8}
+            aria-colcount={8}
+          >
+            {Array.from({ length: 8 }, (_, rowIndex) => (
+              <div role="row" aria-rowindex={rowIndex + 1} key={`row-${rowIndex}`} style={{ display: "contents" }}>
+                {displaySquares.slice(rowIndex * 8, rowIndex * 8 + 8).map((square, columnIndex) => {
+                  const piece = pieces.get(square);
+                  const isLight = (square.charCodeAt(0) - 97 + Number(square[1]) - 1) % 2 !== 0;
+                  const isSelected = selected === square;
+                  const isLegal = legalDestinations.has(square);
+                  const isBoardInteractive = Boolean(
+                    snapshot && !snapshot.outcome && status === "ready" && snapshot.sideToMove === humanSide,
+                  );
+                  const classes = [
+                    "web-square",
+                    isLight ? "web-square-light" : "web-square-dark",
+                    isSelected ? "is-selected" : "",
+                    isLegal ? "is-legal" : "",
+                    lastMoveSquares.has(square) ? "is-last" : "",
+                  ].filter(Boolean).join(" ");
+                  return (
+                    <button
+                      ref={(element) => { squareRefs.current[square] = element; }}
+                      className={classes}
+                      type="button"
+                      role="gridcell"
+                      aria-colindex={columnIndex + 1}
+                      aria-label={squareLabel(square, piece)}
+                      aria-selected={isSelected}
+                      aria-disabled={!isBoardInteractive}
+                      data-square={square}
+                      key={square}
+                      tabIndex={focusedSquare === square ? 0 : -1}
+                      style={{
+                        backgroundImage: marbleSquareBackground(square, isLight),
+                        cursor: isBoardInteractive ? undefined : "default",
+                      }}
+                      onFocus={() => setFocusedSquare(square)}
+                      onKeyDown={(event) => handleSquareKeyDown(event, square)}
+                      onClick={() => chooseSquare(square)}
+                    >
+                      {piece ? <DrawlessPiece piece={piece} /> : null}
+                      {isLegal ? <i aria-hidden="true" /> : null}
+                    </button>
+                  );
+                })}
+              </div>
+            ))}
           </div>
           <p className="web-game-status" aria-live="polite">{turnText}</p>
           {error ? <p className="web-game-error" role="alert">{error}</p> : null}
@@ -311,6 +454,12 @@ export function PlayGame() {
             <p className="eyebrow">What changes?</p>
             <h2>No draw offer. No split result.</h2>
             <p>Stalemate defeats the trapped player. Repeating a position, reaching a dead position, or hitting the 50-move limit also produces a winner under Drawless rules.</p>
+          </div>
+          <div className="web-rule-card">
+            <p className="eyebrow">Full mobile game</p>
+            <h2>Take Drawless Chess with you.</h2>
+            <p>Web Casual is a limited preview. The Android and iOS apps include all eight opponents, custom games, themes, and private Game Review.</p>
+            <a className="button button-primary" href="/#download">Get the Android or iOS app</a>
           </div>
           <div className="web-game-actions">
             <button className="button button-secondary" type="button" onClick={resign} disabled={!snapshot || Boolean(snapshot.outcome)}>
@@ -340,7 +489,12 @@ export function PlayGame() {
             aria-describedby="web-result-description"
             tabIndex={-1}
             onKeyDown={(event) => {
-              if (event.key === "Escape") setResultDismissed(true);
+              if (event.key === "Escape") {
+                event.preventDefault();
+                setResultDismissed(true);
+                return;
+              }
+              containDialogFocus(event, event.currentTarget);
             }}
           >
             <div className={styles.halo} aria-hidden="true" />
@@ -358,7 +512,7 @@ export function PlayGame() {
             <p className={styles.winner}>{winnerName} wins</p>
             <p id="web-result-description" className={styles.summary}>{outcomeText(outcome)}</p>
             <div className={styles.actions}>
-              <button className="button button-primary" type="button" onClick={newGame}>
+              <button ref={resultPrimaryActionRef} className="button button-primary" type="button" onClick={newGame}>
                 Play again
               </button>
               <button className="button button-secondary" type="button" onClick={() => setResultDismissed(true)}>
@@ -369,15 +523,36 @@ export function PlayGame() {
         </div>
       ) : null}
 
-      {promotionMoves.length > 0 ? (
+      {promotionOpen ? (
         <div className="promotion-backdrop" role="presentation">
-          <div className="promotion-dialog" role="dialog" aria-modal="true" aria-labelledby="promotion-title">
+          <div
+            ref={promotionDialogRef}
+            className="promotion-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="promotion-title"
+            tabIndex={-1}
+            onKeyDown={(event) => {
+              if (event.key === "Escape") {
+                event.preventDefault();
+                setPromotionMoves([]);
+                return;
+              }
+              containDialogFocus(event, event.currentTarget);
+            }}
+          >
             <h2 id="promotion-title">Choose a promotion</h2>
             <div>
               {promotionMoves.map((move) => {
                 const promotion = move[4] as "q" | "r" | "b" | "n";
                 return (
-                  <button type="button" key={move} onClick={() => commitMove(move)} aria-label={`Promote to ${PIECE_NAMES[promotion]}`}>
+                  <button
+                    ref={promotion === "q" ? promotionPrimaryActionRef : undefined}
+                    type="button"
+                    key={move}
+                    onClick={() => commitMove(move)}
+                    aria-label={`Promote to ${PIECE_NAMES[promotion]}`}
+                  >
                     <DrawlessPiece piece={humanSide === "WHITE" ? promotion.toUpperCase() as PieceCode : promotion} />
                     {PIECE_NAMES[promotion]}
                   </button>

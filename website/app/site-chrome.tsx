@@ -1,8 +1,9 @@
 export const SOURCE_URL = "https://github.com/DeviousVon/Drawless-Chess";
-export const SOURCE_RELEASES_URL = `${SOURCE_URL}/releases`;
+export const ANDROID_SOURCE_RELEASE_URL = `${SOURCE_URL}/releases/tag/v1.0.2`;
+export const IOS_SOURCE_RELEASE_URL = `${SOURCE_URL}/releases/tag/ios-v1.0.2-build-2`;
 export const SUPPORT_EMAIL = "support@drawlesschess.com";
-export const BETA_GROUP_URL = "https://groups.google.com/g/drawless-chess-testers";
-export const BETA_DOWNLOAD_URL = "https://play.google.com/store/apps/details?id=com.drawlesschess";
+export const GOOGLE_PLAY_URL = "https://play.google.com/store/apps/details?id=com.drawlesschess";
+export const APP_STORE_URL = "https://apps.apple.com/app/drawless-chess/id6801584008";
 export const SOCIAL_IMAGE = {
   url: "/og.png",
   width: 1200,
@@ -19,8 +20,8 @@ export function SiteHeader() {
           <span>Drawless Chess</span>
         </a>
         <nav className="site-nav" aria-label="Primary navigation">
-          <a className="nav-play" href="/play/">Play</a>
-          <a className="nav-beta" href="/#beta">Test access</a>
+          <a className="nav-play" href="/play/">Web preview</a>
+          <a className="nav-store" href="/#download">Get the game</a>
           <a className="nav-review" href="/#review">Game review</a>
           <a href="/#rules">How it works</a>
           <a href="/privacy/">Privacy</a>
@@ -43,8 +44,8 @@ export function SiteFooter() {
           <p>Offline chess. Decisive by design.</p>
         </div>
         <nav aria-label="Footer navigation">
-          <a href="/play/">Play</a>
-          <a href="/#beta">Test access</a>
+          <a href="/play/">Web preview</a>
+          <a href="/#download">Get the game</a>
           <a href="/#review">Game review</a>
           <a href="/#rules">How it works</a>
           <a href="/privacy/">Privacy</a>
@@ -56,6 +57,11 @@ export function SiteFooter() {
           <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>
         </div>
       </div>
+      <p className="section-shell footer-legal">
+        Apple and the Apple logo are trademarks of Apple Inc., registered in the U.S. and other
+        countries. App Store is a service mark of Apple Inc. Google Play and the Google Play logo
+        are trademarks of Google LLC.
+      </p>
     </footer>
   );
 }

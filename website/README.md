@@ -38,16 +38,20 @@ That command builds the static export, prepares `release/`, and verifies:
 The verified OpenBSD payload is written to `release/`. Deploy the payload as an
 immutable release directory and switch the site's `current` symlink atomically.
 
-## Release-state copy
+## Storefront and release-source boundaries
 
-As of July 30, 2026, the verified Play closed track serves 0.3.0 (version code 3).
-The 1.0.0 candidate (version code 4), including Vesper and Game Review Beta, is not yet
-on that track. Public site copy therefore distinguishes the current test build from the
-next major update and intentionally omits version numbers. Update that copy only after
-independently verifying the Play rollout state.
+Storefront availability is external state and must be verified independently before each
+production deployment. The site uses the canonical App Store and Google Play destinations,
+states the US price as $4.99, and notes that local storefront prices may vary.
 
-The public Android release is still in preparation. Until launch, do not claim public
-availability, a launch price, or a public version number. Temporary test access may link
-only to the verified tester group and closed-track Play listing. Support and privacy mail
-use `support@drawlesschess.com`; mailbox delivery is an external release gate, not proven
-by the site tests. Verify send and receive before deploying a site that advertises it.
+Android and iOS have separate immutable corresponding-source releases. The open-source page
+links Android 1.0.2 (code 6) and iOS 1.0.2 (build 2) separately so neither platform is routed
+to the other platform's source archive.
+
+The marketing pages describe Game Review as private and on-device. They do not claim that
+reviews are retained as a separate history, and they preserve the distinction between the
+shipped mobile engines and the lightweight browser preview.
+
+Support and privacy mail use `support@drawlesschess.com`. Mail delivery and each public store
+destination remain separate operational checks; a successful static-site build does not prove
+either one.
