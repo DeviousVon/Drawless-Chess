@@ -1,7 +1,11 @@
 # Android machine verification
 
-Status: fail-closed Bash and Windows-native PowerShell gates implemented; historical ABI evidence
-retained; exact 1.0.0 two-device candidate proof remains open
+Historical checkpoint: this document records machine-verification evidence and open gates as they
+stood before the public 1.0.2 release. See `RELEASE_STATUS.md` for current storefront and
+release status.
+
+Status at this checkpoint: fail-closed Bash and Windows-native PowerShell gates implemented;
+historical ABI evidence retained; exact 1.0.0 two-device candidate proof remained open.
 
 ## Locked toolchain
 
@@ -289,9 +293,9 @@ home when Gradle reports it. This makes use of Android Studio's bundled JBR 21 e
 proves the wrapper launched with the selected Java version.
 
 One emulator or device can never prove both runtime ABIs. The historical version-1 JNI matrix
-has passing x86-64 emulator and ARM64 device bundles. Current patch-v2 focused instrumentation
-also passes on the API-36 emulator and R6 ARM64 tablet, but those results do not replace exact
-1.0.0 candidate proof on both designated physical devices.
+has passing x86-64 emulator and ARM64 device bundles. Patch-v2 focused instrumentation at this
+checkpoint also passed on the API-36 emulator and R6 ARM64 tablet, but those results did not
+replace exact 1.0.0 candidate proof on both designated physical devices.
 
 All generated binaries are private-test artifacts. The manifest records
 `distributionAuthorized: false`; successful compilation does not clear the GPL/release gate.
@@ -305,4 +309,4 @@ layouts/options/history, rematch, deterministic finish timing, and the 103 sampl
 Separate physical acceptance has covered
 force-stop/relaunch/Resume. Folding the app suite into this immutable machine manifest,
 low-memory/native-crash behavior, sustained performance, broader UI coverage, and the full 1.0.0
-both-device run remain later checkpoints.
+both-device run remained later checkpoints for that candidate.

@@ -1,8 +1,12 @@
 # Production engine-facing layer
 
-Status: protocol, transport, in-process Android JNI endpoint, factory, and app wiring implemented;
-the clean patch-v2 host verifier passed, while the exact Android candidate still requires
-designated-device verification
+Historical checkpoint: this document records engine-runtime evidence and open gates as they
+stood before the public 1.0.2 release. See `RELEASE_STATUS.md` for current storefront and
+release status.
+
+Status at this checkpoint: protocol, transport, in-process Android JNI endpoint, factory, and app
+wiring implemented; the clean patch-v2 host verifier passed, while the exact Android candidate
+still required designated-device verification.
 
 ## Scope completed
 
@@ -302,9 +306,9 @@ capture flow passes on the emulator and tablet. The complete 51-test suite also 
 against this current test-only pair on both devices, without replacing the exact three-device
 acceptance pair above.
 
-Those retained hashes document the older runtime baseline only. They do not verify patch-v2 tree
-`bf58452cf6bb2254050e7aa442d2b23f3664aaec`; the current candidate needs new artifact hashes and
-fresh x86-64/ARM64 machine results.
+Those retained hashes document the older runtime baseline only. They did not verify patch-v2 tree
+`bf58452cf6bb2254050e7aa442d2b23f3664aaec`; the candidate at this checkpoint needed new artifact
+hashes and fresh x86-64/ARM64 machine results.
 
 The app instrumentation suite now contains 51 tests and passes twice from fresh processes against
 that exact clean APK pair on the API-33 ARM64 tablet, API-36 x86-64 emulator, and Pixel 9 Pro XL.
@@ -320,11 +324,12 @@ collapse behavior, and the 103-resource sampled-audio catalog/platform-loading c
 This evidence does not cover sustained performance, low-memory/native-crash resilience,
 every form factor, a signed release, or an App Bundle. The licensing decision is complete:
 the combined app is GPL-3.0-or-later, and JNI is not treated as a copyleft workaround.
-Public release remains blocked on immutable project source identity, a public source URL,
-complete notices/SBOM, signing, and matching release evidence.
+At this checkpoint, public release remained blocked on immutable project source identity, a
+public source URL, complete notices/SBOM, signing, and matching release evidence. Those controls
+were later cleared for the platform-specific 1.0.2 releases indexed in `RELEASE_STATUS.md`.
 
 Primary protocol reference:
 
-- https://official-stockfish.github.io/docs/stockfish-wiki/UCI-%26-Commands.html
+- https://official-stockfish.github.io/docs/stockfish-wiki/UCI-Protocol-and-Stockfish-Commands.html
 - https://github.com/fairy-stockfish/Fairy-Stockfish/blob/master/src/uci.cpp
 - https://github.com/fairy-stockfish/Fairy-Stockfish/blob/master/src/ucioption.cpp

@@ -1,13 +1,16 @@
 # Privacy Policy for Drawless Chess
 
-**Effective date:** July 11, 2026
+**Effective date:** August 19, 2026
 
-**Last updated:** August 14, 2026
+**Last updated:** August 24, 2026
 
 BB_Games ("we," "us," or "our") publishes Drawless Chess for iPhone and iPad
 under Apple bundle identifier `com.drawlesschess` and for Android under package
 name `com.drawlesschess`. This policy explains how the mobile apps handle
 information.
+
+The canonical published copy is https://drawlesschess.com/privacy/. This repository copy is
+synchronized with it for source and release review.
 
 ## Privacy at a glance
 
@@ -30,7 +33,9 @@ container assigned to it by iOS, iPadOS, or Android. This can include:
   state, chosen rules, player side, opponent level, and counts of gameplay
   actions such as hints, undos, and pauses;
 - a random device-local player identifier and completed-game history used to
-  calculate wins, losses, streaks, unassisted wins, and average game score; and
+  calculate wins, losses, streaks, unassisted wins, and average game score;
+- on Android, local positions and engine analysis used to show Game Review for
+  the current completed game; and
 - app preferences such as the visual theme, coordinates, sound and haptic
   settings, presentation choices, and whether the introductory rules guide has
   been dismissed.
@@ -54,8 +59,10 @@ period.
 
 ## Network access and external services
 
-Drawless Chess does not send gameplay, preferences, identifiers, or statistics
-to BB_Games. Its Open source and Privacy screens contain fixed links. If you
+Drawless Chess does not send gameplay, preferences, identifiers, statistics, or
+Android Game Review data to BB_Games. Game Review runs on the device and does
+not upload the game to a developer-operated server. The apps' Open source and
+Privacy screens contain fixed links. If you
 choose one, the operating system opens an external browser or another app you
 select. That external app and the destination website process the visit under
 their own privacy policies; Drawless Chess does not receive information about

@@ -1,6 +1,7 @@
 # ADR-003: Android engine runtime boundary
 
-Status: accepted; whole application selected as GPL-3.0-or-later; release evidence pending
+Status: accepted; whole application selected as GPL-3.0-or-later. Release evidence remains
+candidate-specific; see `RELEASE_STATUS.md` for the platform-specific 1.0.2 releases.
 
 ## Decision
 

@@ -1,8 +1,12 @@
 # First Compose application checkpoint
 
-Status: app runtime, JNI engine, Room resume flow, and Android builds implemented; historical
-patch-v1 device execution is verified, while the exact patch-v2 candidate still needs both-device
-proof
+Historical checkpoint: this document records Compose implementation evidence and open gates as
+they stood before the public 1.0.2 release. See `RELEASE_STATUS.md` for current storefront and
+release status.
+
+Status at this checkpoint: app runtime, JNI engine, Room resume flow, and Android builds
+implemented; historical patch-v1 device execution was verified, while the exact patch-v2
+candidate still needed both-device proof.
 
 ## Toolchain declarations
 
@@ -175,10 +179,11 @@ The suite verifies:
 
 A separate host-driven physical-phone acceptance run has also covered force-stop, relaunch, and
 Resume. The retained Windows-native machine runs used historical patch-v1 tree
-`80208e5f35549b88505df983e4bc0f7621083fd4`; they prove the JNI/device workflow but not current
-patch-v2 tree `bf58452cf6bb2254050e7aa442d2b23f3664aaec`. Fresh v2 artifact and runtime-ABI evidence is
-required for the current candidate. All such builds remain private engineering artifacts, not
-signed release evidence, and distribution authorization remains false.
+`80208e5f35549b88505df983e4bc0f7621083fd4`; they proved the JNI/device workflow but not the
+then-current patch-v2 tree `bf58452cf6bb2254050e7aa442d2b23f3664aaec`. Fresh v2 artifact and
+runtime-ABI evidence was required for that candidate. The builds discussed in this historical
+checkpoint were private engineering artifacts, not signed release evidence, and their
+distribution authorization was false.
 
 The Final Capture result explanation now says that the terminal **move** made checkmate impossible
 in English, German, French, Latin American Spanish, and Brazilian Portuguese. This keeps the
