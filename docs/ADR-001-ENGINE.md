@@ -1,8 +1,11 @@
 # ADR-001: Fairy-Stockfish integration and Drawless search semantics
 
-Status: accepted; protocol, pinned patch v2, Android native runtime, and private-test packaging
-implemented; clean patch-v2 host verification passed, with exact Android artifact/device proof
-still pending
+Status: accepted. This ADR retains the pre-release verification state that accompanied the
+decision; see `RELEASE_STATUS.md` for the later platform-specific 1.0.2 releases.
+
+At this checkpoint, protocol, pinned patch v2, Android native runtime, and private-test packaging
+were implemented and clean patch-v2 host verification had passed, while exact Android
+artifact/device proof was still pending.
 
 ## Decision
 
@@ -135,9 +138,9 @@ The clean Linux x86-64 verifier passed against the identities above and establis
 - Mandatory Drawless terminals at the UCI root publish no legal root moves and
   `bestmove (none)`, preventing a caller from searching beyond an app-terminal position.
 
-The exact Android candidate must still pass the packaged native/instrumentation matrix and be
-installed, launched, and engine-verified on both designated physical devices. A clean host pass
-does not transfer to different APK bytes.
+Each Android candidate must pass its packaged native/instrumentation matrix and be installed,
+launched, and engine-verified on both designated physical devices. A clean host pass does not
+transfer to different APK bytes.
 
 The older npm/WASM experiment remains intentionally unpatched and covers only the
 configuration-supported stalemate and avoidable-repetition branches. Its package version

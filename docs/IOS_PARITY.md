@@ -1,17 +1,28 @@
-# iOS 1.0 parity ledger
+# iOS parity ledger
 
-Updated: 2026-08-01
+Updated: 2026-08-24
+
+Release note: Apple accepted iOS 1.0.2 (build 2), and its public App Store page and matching
+`ios-v1.0.2-build-2` source release are live. That Release build is intentionally core-only:
+Game Review remains available only in Debug/internal builds and is not claimed in the App Store
+copy or screenshots. See `RELEASE_STATUS.md` for current storefront details.
+
+The implementation rows below preserve the 2026-08-01 pre-submission parity checkpoint. `Partial`
+and `Pending` describe the evidence boundary at that checkpoint; they are not a claim that the
+accepted 1.0.2 App Store submission is still awaiting review. The distribution-control rows are
+updated through 2026-08-24.
 
 This is the working evidence ledger for the native SwiftUI host and the shared Kotlin core.
 `Complete` means the iOS implementation uses the production behavior and has automated evidence.
 `Partial` means a usable vertical slice exists but one or more Android behaviors or release tests are
 missing. `Missing` means it is not implemented for iOS. `External` is not solvable solely in source.
 
-The Android application remains the reference product until every release-critical row is complete.
+At this checkpoint, the Android application remained the reference product until every
+release-critical row was complete.
 Apple builds use the pinned native Fairy engine. The deterministic shared-rules engine is limited
 to non-Apple host tests and is never considered Apple engine evidence.
 
-Latest automated rerun on 2026-08-01:
+Checkpoint automated rerun on 2026-08-01:
 
 - `npm run test:all`: 42 JavaScript contract/rules tests, 104 decoded sampled-audio assets,
   243 Kotlin core tests, and all license, Android/iOS UI-structure, localization, engine,
@@ -57,7 +68,7 @@ Latest automated rerun on 2026-08-01:
 | Home and Quick Play | `DrawlessApp.kt` | Partial | Home, saved-game controls, Quick Play opponent picker/theme preview, rules, privacy and license screens are implemented. Physical iPhone and iPad cases verify opponent selection, game launch and persistence; final VoiceOver/Dynamic Type audit remains. |
 | Advanced setup | `SetupScreen` | Partial | Ruleset, side, all eight RC1 opponents, clocks/increment, threat indication, copy and portraits are implemented. The original seven profiles passed on physical iPhone and iPad; Vesper/adaptive-rating device verification and the final VoiceOver/Dynamic Type audit remain. |
 | Eight opponent profiles | `OpponentProfiles` | Partial | Vesper plus Mira, Theo, Rhea, Mateo, Yuna, Amara and Lucian use the RC1 IDs, exact Elo behavior, portraits, epithets and personalities. The original seven selections passed on physical iPhone and iPad; Vesper's adaptive presentation and rating loop await the current device run. |
-| Playable game screen | `GameScreen.kt` | Partial | Board, clocks, status, history, hint, undo, pause, resign, promotion, retry, flip, score detail, completion feedback and review are implemented. Physical iPhone XCTest passes a production-engine hint, human move, opponent reply, SAN and undo; promotion, completion and review UI cases remain. |
+| Playable game screen | `GameScreen.kt` | Partial | Board, clocks, status, history, hint, undo, pause, resign, promotion, retry, flip, score detail and completion feedback are implemented. Review exists for Debug/internal validation but is compiled out of the core-only App Store Release. Physical iPhone XCTest passes a production-engine hint, human move, opponent reply, SAN and undo; promotion and completion UI cases remained at this checkpoint. |
 | Real offline opponent | `FairyUciEngine` + pinned native bridge | Complete | The checksum-pinned Fairy-Stockfish XCFramework and production `FairyUciEngine` run through the Apple transport. Direct UCI, shared runtime, cancellation/restart and 12-cycle lifecycle tests pass; ARM64 symbols are linked into the Release app. |
 | Save/resume active game | Room checkpoint store/codec | Partial | The Swift adapter durably stores the Android-compatible checkpoint by revision and implements Resume/discard/forfeit. Shared round trips pass; physical iPhone and iPad cases verify checkpoint restoration and the forfeit-and-replace path. Legacy migration coverage remains. |
 | Completed-game persistence | Room completed-game rows | Partial | Append-only, game-ID-idempotent JSON history and legacy aggregate migration are implemented. Physical iPhone and iPad cases verify that forfeit appends one loss; automated legacy migration UI coverage remains. |
@@ -85,9 +96,9 @@ Latest automated rerun on 2026-08-01:
 | Supported physical iPad | Complete | Personal Team-signed Debug build installs and launches through Xcode on an iPad Air 2/iPadOS 15.8.8, stays live through a 12-second on-device Time Profiler trace, and passes all eight final UI cases across completed runs after the owner authorizes Apple's protected Touch ID sheet. |
 | VoiceOver semantics | Partial | Board cells and major controls expose identifiers/labels used by XCTest. Full audit, rotor order and announcements remain. |
 | Dynamic Type, contrast, Reduce Motion | Pending | Native text participates in Dynamic Type; systematic max-size, contrast and reduced-motion tests remain. |
-| Correctness/performance soak | Partial | Apple tests cover 12 create/cancel/close cycles followed by a completed engine turn and a full review. Deterministic cross-platform long replay, memory, thermal and sustained-play budgets remain. |
-| GPL/source notices | Partial | Repository structure/source validation passes and notices/source links are packaged. Final distribution review of exact binary/source correspondence remains. |
-| App Store controls | External | Enrollment, agreements, tax/banking, privacy answers, age rating, price, screenshots, TestFlight and review are owner/release inputs. |
+| Correctness/performance soak | Partial | Internal Apple tests cover 12 create/cancel/close cycles followed by a completed engine turn and a full Debug-only review. Deterministic cross-platform long replay, memory, thermal and sustained-play budgets remained at this checkpoint. |
+| GPL/source notices | Released with evidence limit | Notices and source links are packaged, and the public `ios-v1.0.2-build-2` source release is live. Compiled app/core/resource Git blobs match the final canonical core-only source tree; the accepted Mach-O was not available for direct inspection. |
+| App Store controls | Complete for 1.0.2 | Version 1.0.2 (build 2) is accepted and live with its price, privacy answers, age rating, screenshots, and core-only feature scope. |
 
 ## Latest repeatable commands
 

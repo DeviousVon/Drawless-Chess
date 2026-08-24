@@ -1,6 +1,11 @@
 # Android and Kotlin foundation checkpoint
 
-Status: foundation implemented; historical ABI evidence retained; exact 1.0.0 two-device proof pending
+Historical checkpoint: this document records the foundation evidence and open gates as they
+stood before the public 1.0.2 release. See `RELEASE_STATUS.md` for current storefront and
+release status.
+
+Status at this checkpoint: foundation implemented; historical ABI evidence retained; exact
+1.0.0 two-device proof was pending.
 
 ## Toolchain baseline
 
@@ -20,9 +25,9 @@ stable build-JDK majors 17 and 21, including Android Studio's bundled JBR 21, wh
 compatibility remains 17. The committed wrapper has run with Android Studio JBR 21,
 SDK/Build Tools 36, NDK 29, and CMake 3.22.1. Historical debug/release packages were built,
 audited, and exercised on an API-36 x86-64 emulator and API-33 ARM64 physical tablet. Current
-patch-v2 focused instrumentation also passes on those ABIs, but the exact 1.0.0 candidate still
-requires both designated physical devices. Device runtime API is independent from the stable
-compile/target API 36 baseline.
+patch-v2 focused instrumentation also passed on those ABIs, but the exact 1.0.0 candidate at
+this checkpoint still required both designated physical devices. Device runtime API is
+independent from the stable compile/target API 36 baseline.
 The Android-free Kotlin core is still compiled and executed directly as a faster gate.
 
 Official AGP release information:
@@ -108,5 +113,6 @@ Game Review evidence, and the exact static-native signature contract.
 The host-native gate also compiles the full patched engine and exercises the bridge core,
 rules advertisement, forced-repetition search, singleton, close, and restart. The separate
 Android machine gate proves SDK/NDK/CMake compatibility, ART JNI loading, AAR/APK packaging,
-and historical runtime behavior on both supported ABIs. The exact 1.0.0 Pixel run, signed App
-Bundle, sustained performance, and low-memory/native-crash testing remain open.
+and historical runtime behavior on both supported ABIs. At this checkpoint, the exact 1.0.0
+Pixel run, signed App Bundle, sustained performance, and low-memory/native-crash testing remained
+open. Candidate-specific status for the shipped release is indexed in `RELEASE_STATUS.md`.

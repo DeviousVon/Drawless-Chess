@@ -1,8 +1,11 @@
 # Native Fairy-Stockfish checkpoint
 
-Status: Drawless interface v2, platform-neutral transport, in-process JNI bridge, Android factory,
-app wiring, and packaging implemented. Clean patch-v2 host verification passed; exact Android
-artifact/device verification remains the current private-test gate.
+Historical checkpoint: this document records native-engine evidence and open gates as they stood
+before the public 1.0.2 release. See `RELEASE_STATUS.md` for current storefront and release status.
+
+Status at this checkpoint: Drawless interface v2, platform-neutral transport, in-process JNI
+bridge, Android factory, app wiring, and packaging implemented. Clean patch-v2 host verification
+passed; exact Android artifact/device verification remained the private-test gate.
 
 ## What is pinned
 

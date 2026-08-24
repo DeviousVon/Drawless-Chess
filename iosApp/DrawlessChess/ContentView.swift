@@ -767,7 +767,7 @@ private struct GameView: View {
     private var shouldHidePostGameContentFromAccessibility: Bool {
         guard model.postGameReviewPending else { return false }
 #if DEBUG
-        // Latency/review XCTest probes remain observable while the production surface is blocked.
+        // Latency/review XCTest probes remain observable in internal builds while Release stays core-only.
         return ProcessInfo.processInfo.environment["DRAWLESS_XCTEST_LATENCY"] != "1"
 #else
         return true
@@ -2742,7 +2742,7 @@ private struct OptionsView: View {
 
     private var versionLabel: String {
         let info = Bundle.main.infoDictionary
-        let version = info?["CFBundleShortVersionString"] as? String ?? "1.0.0"
+        let version = info?["CFBundleShortVersionString"] as? String ?? "Unknown"
         let build = Int(info?["CFBundleVersion"] as? String ?? "") ?? 0
         return localizedFormat("Version %1$s (%2$d)", version, build)
     }

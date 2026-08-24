@@ -8,7 +8,19 @@ uses SwiftUI with the existing `multiplatform/shared-core` and Apple engine
 adapter. The older JavaScript/WASM proof of concept remains a fast regression
 lane; it is not either platform's shipped runtime.
 
+Website: https://drawlesschess.com
+
+Download Drawless Chess:
+
+- Google Play: https://play.google.com/store/apps/details?id=com.drawlesschess
+- App Store: https://apps.apple.com/app/drawless-chess/id6801584008
+
 Project source: https://github.com/DeviousVon/Drawless-Chess
+
+The Android and iOS apps share the decisive offline game, eight opponents, custom games,
+themes, local records, and GPL-licensed engine foundation. Android 1.0.2 also includes the
+on-device Game Review feature. The accepted iOS 1.0.2 (build 2) release is intentionally
+core-only and does not advertise or expose Game Review.
 
 The design and release controls are documented here:
 
@@ -18,8 +30,8 @@ The design and release controls are documented here:
 - `docs/ADR-003-ANDROID-ENGINE-RUNTIME.md` — accepted JNI runtime and GPL release boundary.
 - `docs/NATIVE_ENGINE.md` — pinned patch, native package boundary, verification, and release gates.
 - `docs/ANDROID_MACHINE_VERIFICATION.md` — pinned Android toolchain and device evidence gate.
-- `docs/NEXT_RELEASE_GATES.md` — mandatory code, localization, optimization, version, upgrade,
-  and Play country-targeting gates for current and later releases.
+- `docs/RELEASE_STATUS.md` — current public versions, storefronts, source releases, price,
+  and platform feature boundary.
 - `contracts/` — language-neutral JSON contracts for rules and saved games.
 
 The Android foundation lives under `android/` and includes a dependency-free Kotlin
@@ -41,11 +53,12 @@ See `docs/BOARD_PRESENTATION.md`.
 The Compose application adds Quick Play, custom/advanced setup, a first-run rules guide,
 Room resume, clocks, SAN history, gestures, original code-native pieces, sampled close-board
 move/capture sounds, five persisted visual themes, post-game results, rematches, and local
-  career statistics backed by immutable completed-game records. From the current completed-game
-  result, players can immediately open a beta Game Review with move grades, better-move
-  suggestions, short principal variations, and an interactive move-by-move board replay. Review
-  output is not persisted as a history. Its verified and unverified
-boundaries are documented in `docs/COMPOSE_APP.md`.
+career statistics backed by immutable completed-game records. From the current completed-game
+result, Android players can immediately open Game Review for move grades, better-move
+suggestions, short principal variations, and an interactive move-by-move board replay. The
+shipped Android 1.0.2 interface labels this first review implementation Beta. Review output is
+not persisted as a history. Its verified and unverified boundaries are documented in
+`docs/COMPOSE_APP.md`.
 
 The production engine-facing core now adds strict UCI parsing, lifecycle and timeout
 control, cancellation draining, patch identity checks, named/custom/adaptive difficulty,
@@ -137,6 +150,7 @@ and requires two byte-identical normalized builds before emitting the archive.
 See `release/public-source/REBUILD-IOS.md` for manifest verification and unsigned
 rebuild inspection.
 
-`docs/RELEASE_LICENSING.md` is the mandatory public-release checklist. It intentionally
-keeps distribution blocked until a real immutable release identity, public source URL,
-resolved third-party notice/SBOM, signing setup, and matching release evidence exist.
+`docs/RELEASE_LICENSING.md` is the mandatory public-release checklist. Each candidate remains
+blocked until its immutable release identity, public source URL, third-party notices/SBOM,
+signing setup, and matching release evidence exist. See `docs/RELEASE_STATUS.md` for the
+v1.0.2 releases that cleared those candidate-specific gates.
