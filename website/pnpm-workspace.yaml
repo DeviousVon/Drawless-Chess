@@ -3,3 +3,19 @@ allowBuilds:
   sharp: true
   unrs-resolver: true
   workerd: true
+
+# Vinext's dev-only image-size 2.0.2 dependency has two reviewed advisories,
+# but no patched npm release exists. Ignore only these exact GHSAs until Vinext
+# replaces the archived package; audit:raw still reports them as ignored.
+auditConfig:
+  ignoreGhsas:
+    - GHSA-w3rx-r6r6-pgpr
+    - GHSA-5p2g-fcmc-qvqq
+
+# Upstream packages still pin vulnerable releases within compatible ranges.
+# Keep these overrides patch-only and remove them when upstream catches up.
+overrides:
+  'brace-expansion@<2.0.0': 1.1.18
+  'brace-expansion@>=5.0.0 <6.0.0': 5.0.9
+  fast-uri: 3.1.5
+  js-yaml: 4.3.1

@@ -1,5 +1,13 @@
 import type { Metadata } from "next";
-import { PageIntro, SiteFooter, SiteHeader, SOCIAL_IMAGE, SOURCE_RELEASES_URL, SOURCE_URL } from "../site-chrome";
+import {
+  ANDROID_SOURCE_RELEASE_URL,
+  IOS_SOURCE_RELEASE_URL,
+  PageIntro,
+  SiteFooter,
+  SiteHeader,
+  SOCIAL_IMAGE,
+  SOURCE_URL,
+} from "../site-chrome";
 
 export const metadata: Metadata = {
   title: "Open source",
@@ -32,19 +40,19 @@ export default function OpenSourcePage() {
         <div className="prose-shell">
           <section>
             <h2>Project source</h2>
-            <p>The public repository is the publication home for Drawless Chess code, documentation, notices, and project history. Browse it for the material that has already been published.</p>
-            <p><a className="button button-primary" href={SOURCE_URL}>Browse the public project on GitHub</a></p>
+            <p>The public repository is the home for Drawless Chess source, the shared rules core, tests, build material, documentation, notices, and the modified Fairy-Stockfish engine integration.</p>
+            <p>BB_Games publishes Drawless Chess. The public project is hosted in the DeviousVon GitHub account.</p>
+            <p>Android and iOS use separate release identities. For Android 1.0.2 (code 6), use the Android release. For iOS 1.0.2 (build 2), use the iOS source release. Each release identifies the immutable source and verification material corresponding to that store binary.</p>
+            <div className="inline-links">
+              <a className="button button-primary" href={ANDROID_SOURCE_RELEASE_URL}>Android 1.0.2 source</a>
+              <a className="button button-secondary" href={IOS_SOURCE_RELEASE_URL}>iOS 1.0.2 (build 2) source</a>
+              <a className="text-link" href={SOURCE_URL}>Browse the project</a>
+            </div>
           </section>
           <section>
             <h2>License</h2>
-            <p>The complete application is licensed under <strong>GNU GPL-3.0-or-later</strong>. This covers the Android application, SwiftUI iPhone and iPad application, shared rules and game core, platform engine adapters, and modified Fairy-Stockfish integration.</p>
+            <p>Drawless Chess is licensed under <strong>GNU GPL-3.0-or-later</strong>. The corresponding source for an authorized binary is identified through its matching GitHub release.</p>
             <p><a className="text-link" href={`${SOURCE_URL}/blob/main/LICENSE`}>Read the license</a></p>
-          </section>
-          <section>
-            <h2>Matching source for released apps</h2>
-            <p>Every authorized iPhone, iPad, or Android binary release must have a public release entry containing or linking its complete corresponding-source archive and SHA-256 checksum no later than the binary becomes available.</p>
-            <p>The current <code>main</code> branch is not a substitute for source matched to a particular binary. If a version has no public release entry with matching source, that version is not authorized for distribution.</p>
-            <p><a className="text-link" href={SOURCE_RELEASES_URL}>View public release entries</a></p>
           </section>
           <section>
             <h2>Third-party work</h2>
@@ -56,7 +64,7 @@ export default function OpenSourcePage() {
           </section>
           <section>
             <h2>Release status</h2>
-            <p>The public iPhone, iPad, and Android releases are still in preparation. Website deployment, binary distribution, and corresponding-source publication are separate release gates.</p>
+            <p>Android and iOS are separate builds. To find source for an installed build, match its platform and app version to the corresponding GitHub release. An Android source archive is not the corresponding source for an iOS binary, and vice versa.</p>
           </section>
         </div>
       </main>

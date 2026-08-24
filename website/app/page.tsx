@@ -1,17 +1,39 @@
 import type { Metadata } from "next";
 import {
-  BETA_DOWNLOAD_URL,
-  BETA_GROUP_URL,
+  APP_STORE_URL,
+  GOOGLE_PLAY_URL,
   SiteFooter,
   SiteHeader,
   SOURCE_URL,
 } from "./site-chrome";
 
 export const metadata: Metadata = {
-  title: "Every game has a winner",
+  title: "Offline Chess for Android & iOS",
   description:
-    "Preview the next closed-test update: eight opponents and Game Review Beta, powered on-device by Drawless-tuned Fairy-Stockfish.",
+    "Play decisive offline chess on Android, iPhone, and iPad, then review every turning point privately on your device.",
   alternates: { canonical: "/" },
+};
+
+const applicationStructuredData = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  name: "Drawless Chess",
+  applicationCategory: "GameApplication",
+  operatingSystem: "Android, iOS, iPadOS",
+  description:
+    "Decisive offline chess with eight on-device opponents and private post-game review.",
+  downloadUrl: [GOOGLE_PLAY_URL, APP_STORE_URL],
+  offers: {
+    "@type": "Offer",
+    price: "4.99",
+    priceCurrency: "USD",
+    description: "One-time purchase. Local storefront pricing may vary.",
+  },
+  author: {
+    "@type": "Organization",
+    name: "BB_Games",
+    url: "https://drawlesschess.com/",
+  },
 };
 
 const opponents = [
@@ -33,9 +55,53 @@ const themes = [
   { name: "Amethyst Geode", className: "theme-geode" },
 ];
 
+function StoreBadges({ compact = false }: { compact?: boolean }) {
+  return (
+    <div
+      className={`store-badges${compact ? " hero-store-badges" : ""}`}
+      aria-label="Download Drawless Chess"
+    >
+      <a
+        className="store-badge-link"
+        href={GOOGLE_PLAY_URL}
+        target="_blank"
+        rel="noreferrer"
+        aria-label="Get Drawless Chess on Google Play (opens in a new tab)"
+      >
+        <img
+          src="/media/google-play-badge.png"
+          width="646"
+          height="250"
+          alt="Get it on Google Play"
+        />
+      </a>
+      <a
+        className="store-badge-link"
+        href={APP_STORE_URL}
+        target="_blank"
+        rel="noreferrer"
+        aria-label="Download Drawless Chess on the App Store (opens in a new tab)"
+      >
+        <img
+          src="/media/app-store-badge.svg"
+          width="120"
+          height="40"
+          alt="Download on the App Store"
+        />
+      </a>
+    </div>
+  );
+}
+
 export default function Home() {
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(applicationStructuredData).replace(/</g, "\\u003c"),
+        }}
+      />
       <SiteHeader />
       <main id="main">
         <section className="hero section-shell" aria-labelledby="hero-title">
@@ -52,31 +118,22 @@ export default function Home() {
               fetchPriority="high"
               decoding="async"
             />
-            <p className="eyebrow">Offline chess · Decisive by design</p>
+            <p className="eyebrow">Offline chess for Android and iOS</p>
             <h1 id="hero-title">Every game has a winner.</h1>
             <p className="hero-lede">
-              Familiar chess, reworked to replace routine draws with decisive
-              results. The next closed-test update adds Vesper as the eighth
-              opponent and Game Review Beta, powered on your device by the
-              Drawless-tuned Fairy-Stockfish engine—no account, ads, or tracking.
+              For chess players who want familiar play without routine draws.
+              Choose from eight on-device opponents, then see where the game
+              turned and what you could have played instead—privately, on your
+              device.
+            </p>
+            <StoreBadges compact />
+            <p className="price-note">
+              One-time purchase · US price $4.99 · No subscriptions or in-app purchases
             </p>
             <div className="button-row">
-              <a className="button button-primary" href="#beta">
-                Join the closed test
-              </a>
-              <a className="button button-secondary" href="#review">
-                Preview Game Review
-              </a>
+              <a className="button button-secondary" href="#review">See Game Review</a>
+              <a className="button button-secondary" href="/play/">Try the web preview</a>
             </div>
-            <div className="trust-row" aria-label="Product highlights">
-              <span>Android</span>
-              <span>Single player</span>
-              <span>Drawless-tuned Fairy-Stockfish</span>
-            </div>
-            <p className="release-note">
-              <span className="status-dot" aria-hidden="true" /> Closed Android
-              test open · major update in preparation
-            </p>
           </div>
 
           <div className="hero-visual" aria-label="Drawless Chess gameplay preview">
@@ -92,7 +149,7 @@ export default function Home() {
                   src="/media/gameplay-720.webp"
                   width="720"
                   height="1280"
-                  alt="Drawless Chess game against Theo on the Imperial Marble board."
+                  alt="Drawless Chess game against Vesper on the Imperial Marble board."
                   loading="lazy"
                   decoding="async"
                 />
@@ -116,13 +173,15 @@ export default function Home() {
         <section className="section review-section" id="review" aria-labelledby="review-title">
           <div className="section-shell review-layout">
             <div className="review-copy">
-              <p className="eyebrow">Next major update · Game Review Beta</p>
+              <p className="eyebrow">Private, on-device Game Review</p>
               <h2 id="review-title">The game ends. The learning starts.</h2>
               <p className="review-lede">
-                Immediately after the result, the Drawless-tuned Fairy-Stockfish
-                engine analyzes your decisions with the exact rules you played.
-                Everything runs on your device—there is no game upload or cloud
-                analysis. Reviews are not saved as a review history.
+                After the game, see where the position changed and what you
+                could have played instead. The Drawless-tuned Fairy-Stockfish
+                engine analyzes your decisions using the exact rules you
+                played. Everything runs on your device—there is no game upload
+                or cloud analysis. Reviews are available from the completed
+                game and are not kept as a separate review history.
               </p>
               <ol className="review-feature-list">
                 <li>
@@ -169,72 +228,30 @@ export default function Home() {
                   <img
                     src="/media/game-review-720.webp"
                     width="720"
-                    height="1100"
-                    alt="Drawless Chess Game Review Beta on the Imperial Marble board, grading f3 as a Blunder, recommending c4, and showing the c4 Nc6 Nc3 e5 line, evaluation, and better-move arrow."
+                    height="1280"
+                    alt="Drawless Chess Game Review on the Imperial Marble board, grading f3 as a Blunder, recommending c4, and showing the c4 Nc6 Nc3 e5 line, evaluation, and better-move arrow."
                     loading="lazy"
                     decoding="async"
                   />
                 </picture>
               </div>
-              <figcaption>Game Review remains in beta · current Android test build</figcaption>
+              <figcaption>Private Game Review · analysis runs on your device</figcaption>
             </figure>
           </div>
         </section>
 
-        <section className="section section-shell beta-section" id="beta" aria-labelledby="beta-title">
-          <div className="beta-panel">
-            <div className="beta-copy">
-              <p className="eyebrow">Closed Android test</p>
-              <h2 id="beta-title">Play it before launch.</h2>
+        <section className="section section-shell store-section" id="download" aria-labelledby="download-title">
+          <div className="store-panel">
+            <div className="store-copy">
+              <p className="eyebrow">Choose your platform</p>
+              <h2 id="download-title">Take Drawless Chess with you.</h2>
               <p>
-                The current Play build remains in the closed test. The major
-                update with Vesper and Game Review Beta is still in preparation
-                for that track. Access takes two quick steps.
+                Buy the full game once on your chosen platform. There are no
+                subscriptions, ads, or purchases inside the app.
               </p>
-              <span className="beta-badge">Current build on Play · major update next</span>
+              <span className="store-status">US price $4.99 · Local storefront prices may vary</span>
             </div>
-            <div className="beta-flow">
-              <ol className="beta-steps">
-                <li className="beta-step">
-                  <span className="beta-step-number" aria-hidden="true">01</span>
-                  <h3>Join the testing group</h3>
-                  <p>
-                    Sign in with the Google account you use in the Play Store,
-                    then join the Drawless Chess Testers group.
-                  </p>
-                  <a
-                    className="button button-primary"
-                    href={BETA_GROUP_URL}
-                    target="_blank"
-                    rel="noreferrer"
-                    aria-label="Join the testing group (opens in a new tab)"
-                  >
-                    Join the closed test <span aria-hidden="true">↗</span>
-                  </a>
-                </li>
-                <li className="beta-step">
-                  <span className="beta-step-number" aria-hidden="true">02</span>
-                  <h3>Install from Google Play</h3>
-                  <p>
-                    After joining, open the private Play listing with that same
-                    account and install the current test build.
-                  </p>
-                  <a
-                    className="button button-gold"
-                    href={BETA_DOWNLOAD_URL}
-                    target="_blank"
-                    rel="noreferrer"
-                    aria-label="Install the current test build from Google Play (opens in a new tab)"
-                  >
-                    Install the current test build <span aria-hidden="true">↗</span>
-                  </a>
-                </li>
-              </ol>
-              <p className="beta-account-note">
-                Use the same Google account for both steps. Play access may take
-                a few minutes to appear after joining.
-              </p>
-            </div>
+            <StoreBadges />
           </div>
         </section>
 
@@ -276,7 +293,8 @@ export default function Home() {
             </article>
           </div>
           <p className="rules-footnote">
-            After 50 moves without a pawn move or capture, material points decide the winner.
+            After 50 moves without a pawn move or capture, material points decide the winner.{" "}
+            <a className="text-link" href="/play/">Try the rules in the Web Casual preview</a>.
           </p>
         </section>
 
@@ -307,7 +325,7 @@ export default function Home() {
               <h3>Keep your momentum</h3>
               <p>
                 Resume, hints, undo, rematches, local records, and streaks. Launch
-                Game Review from the completed result; reviews are not saved as a history.
+                Game Review from the completed result.
               </p>
             </article>
           </div>
@@ -388,9 +406,9 @@ export default function Home() {
               <p className="eyebrow">Private by design</p>
               <h2 id="privacy-title">Your game stays your game.</h2>
               <p>
-                No account. No ads. No analytics or tracking. Drawless Chess
-                does not request Android internet, location, camera, microphone,
-                contacts, or shared-storage permissions.
+                No account. No ads. No analytics or tracking. Games, settings,
+                and reviews stay on your device, subject to the backup settings
+                you choose for Android, iPhone, or iPad.
               </p>
               <a className="text-link" href="/privacy/">Read the privacy policy</a>
             </div>
@@ -398,7 +416,7 @@ export default function Home() {
               <span>No account</span>
               <span>No ads</span>
               <span>No tracking</span>
-              <span>No internet permission</span>
+              <span>On-device review</span>
             </div>
           </div>
         </section>
@@ -420,19 +438,6 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="section section-shell final-cta" aria-labelledby="cta-title">
-          <p className="eyebrow">Drawless Chess for Android</p>
-          <h2 id="cta-title">Ready when the position isn’t.</h2>
-          <p>
-            The public release is still in preparation. The current Play build
-            remains in the closed test, with the major update coming to that
-            track next. Join with the Google account you use in the Play Store.
-          </p>
-          <div className="button-row button-row-center">
-            <a className="button button-primary" href="#beta">Join the closed test</a>
-            <a className="button button-secondary" href={SOURCE_URL}>View the source</a>
-          </div>
-        </section>
       </main>
       <SiteFooter />
     </>
