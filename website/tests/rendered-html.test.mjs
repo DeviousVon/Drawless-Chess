@@ -73,7 +73,8 @@ test("renders the launch-ready cross-platform story without beta or closed-test 
 
   assert.match(html, /<html[^>]+lang="en"/i);
   assert.match(html, /Every game has a winner\./);
-  assert.match(html, /Choose from eight\s*on-device opponents[\s\S]*see where the game turned/i);
+  assert.match(html, /Choose from eight\s*on-device opponents on Android, iPhone, or iPad/i);
+  assert.match(html, /The Android app also shows where the game turned/i);
   assert.match(html, /id="review"/i);
   assert.match(html, /The game ends\. The learning starts\./);
   assert.match(html, /Familiar chess\. Decisive endings\./);
@@ -88,7 +89,7 @@ test("renders the launch-ready cross-platform story without beta or closed-test 
     html.indexOf("Vesper") < html.indexOf("Mira"),
     "Vesper leads the opponent roster",
   );
-  assert.match(html, /On-device review/);
+  assert.match(html, /Android on-device review/);
   assert.doesNotMatch(html, /\b(?:0\.3\.0|1\.0\.0|version code)\b/i);
   assert.doesNotMatch(html, /\bbeta\b|closed test|testing group|test build/i);
   assert.doesNotMatch(html, /Codex is working|starter loading skeleton/i);
@@ -113,7 +114,7 @@ test("explains the rules-aware, private Game Review without overclaiming", async
   const openSource = await releaseFile("open-source/index.html");
 
   for (const claim of [
-    "Private, on-device Game Review",
+    "Private, on-device Game Review for Android",
     "Drawless-tuned Fairy-Stockfish",
     "Grades focused on your choices",
     "Best",
@@ -126,7 +127,7 @@ test("explains the rules-aware, private Game Review without overclaiming", async
     "exact rules you played",
     "there is no game upload or cloud analysis",
     "not kept as a separate review history",
-    "Private Game Review",
+    "Android Game Review",
   ]) {
     assert.match(html, new RegExp(claim, "i"));
   }
@@ -138,7 +139,10 @@ test("explains the rules-aware, private Game Review without overclaiming", async
   assert.match(reviewFigure, /grading f3 as a Blunder/i);
   assert.match(reviewFigure, /recommending c4/i);
   assert.match(reviewFigure, /c4 Nc6 Nc3 e5 line/i);
-  assert.match(reviewFigure, /Private Game Review · analysis runs on your device/i);
+  assert.match(reviewFigure, /Android Game Review · analysis runs on your device/i);
+  assert.match(html, /Android also includes private, on-device Game Review/i);
+  assert.doesNotMatch(html, /The Android and iOS apps include[^.]*Game Review/i);
+  assert.doesNotMatch(html, /iPhone(?:,? and iPad)?[^.]{0,120}(?:includes?|with)[^.]*Game Review/i);
   assert.doesNotMatch(html, /Actual app screen/i);
   assert.doesNotMatch(reviewFigure, /Best move grade|Illustrated feature preview|review-square|♜|♟/i);
   assert.match(openSource, /modified Fairy-Stockfish engine, derived from Stockfish/i);
@@ -223,12 +227,12 @@ test("gives the proof and privacy selling points a stronger visual hierarchy", a
     "Checkmate still wins",
     "Five board themes",
     "Eight opponents",
-    "On-device Game Review",
+    "Android Game Review",
     "Private by design",
     "No account",
     "No ads",
     "No tracking",
-    "On-device review",
+    "Android on-device review",
   ]) {
     assert.match(html, new RegExp(point));
   }
@@ -287,11 +291,11 @@ test("ships accessible metadata, static structured data, and no browser runtime 
     assert.doesNotMatch(html, /modulepreload|__VINEXT|vite-rsc/i);
   }
 
-  assert.match(pages[0], /name="description"[^>]+content="[^"]*Android, iPhone, and iPad[^"]*privately on your device[^"]*"/i);
-  assert.match(pages[0], /property="og:description"[^>]+content="[^"]*Android, iPhone, and iPad[^"]*privately on your device[^"]*"/i);
+  assert.match(pages[0], /name="description"[^>]+content="[^"]*Android, iPhone, and iPad\. Android also includes private, on-device Game Review[^"]*"/i);
+  assert.match(pages[0], /property="og:description"[^>]+content="[^"]*Android, iPhone, and iPad\. Android also includes private, on-device Game Review[^"]*"/i);
   assert.match(pages[0], /property="og:image"[^>]+content="https:\/\/drawlesschess\.com\/og\.png"/i);
   assert.match(pages[0], /name="twitter:card"[^>]+content="summary_large_image"/i);
-  assert.match(pages[0], /name="twitter:description"[^>]+content="[^"]*Android, iPhone, and iPad[^"]*privately on your device[^"]*"/i);
+  assert.match(pages[0], /name="twitter:description"[^>]+content="[^"]*Android, iPhone, and iPad\. Android also includes private, on-device Game Review[^"]*"/i);
   assert.match(pages[0], /name="apple-itunes-app"[^>]+content="app-id=6801584008,[^"]*id6801584008"/i);
   assert.match(pages[0], /http-equiv="Content-Security-Policy"/i);
   assert.match(pages[0], /script-src &#x27;self&#x27;/i);
@@ -301,6 +305,7 @@ test("ships accessible metadata, static structured data, and no browser runtime 
   const manifest = JSON.parse(await releaseFile("site.webmanifest"));
   assert.match(manifest.description, /on-device Game Review/i);
   assert.match(manifest.description, /iPhone, and iPad/i);
+  assert.match(manifest.description, /Android also includes/i);
   assert.doesNotMatch(manifest.description, /beta|closed test/i);
 });
 
@@ -353,7 +358,8 @@ test("keeps pricing, privacy, support, and source promises launch-consistent", a
   assert.match(privacyPage, /Android system backup may include/i);
   assert.match(privacyPage, /device or iCloud backup/i);
   assert.match(privacyPage, /Google Play or Apple’s App Store/i);
-  assert.match(privacyPage, /Updated:<\/strong> August 19, 2026/i);
+  assert.match(privacyPage, /Updated:<\/strong> August 24, 2026/i);
+  assert.match(privacyPage, /Game Review on Android/i);
   assert.match(supportPage, /Purchases, downloads, and refunds/i);
   assert.match(supportPage, /Do not send payment-card or bank details/i);
   for (const page of [homePage, privacyPage, supportPage]) {
@@ -371,7 +377,7 @@ test("ships narrow-navigation, sitemap freshness, and readable small-copy safegu
   assert.match(css, /@media \(max-width: 760px\)[\s\S]*?\.site-nav\s*{[^}]*grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)[^}]*overflow:\s*visible/s);
   assert.match(css, /\.review-preview figcaption\s*{[^}]*font-size:\s*0\.8rem/s);
   assert.match(css, /\.footer-legal\s*{[^}]*font-size:\s*0\.78rem/s);
-  assert.equal((sitemap.match(/<lastmod>2026-08-19<\/lastmod>/g) ?? []).length, 5);
+  assert.equal((sitemap.match(/<lastmod>2026-08-24<\/lastmod>/g) ?? []).length, 5);
 });
 
 test("does not publish local paths, development hosts, or common secret material", async () => {

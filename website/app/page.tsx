@@ -10,7 +10,7 @@ import {
 export const metadata: Metadata = {
   title: "Offline Chess for Android & iOS",
   description:
-    "Play decisive offline chess on Android, iPhone, and iPad, then review every turning point privately on your device.",
+    "Play decisive offline chess against eight on-device opponents on Android, iPhone, and iPad. Android also includes private, on-device Game Review.",
   alternates: { canonical: "/" },
 };
 
@@ -21,7 +21,7 @@ const applicationStructuredData = {
   applicationCategory: "GameApplication",
   operatingSystem: "Android, iOS, iPadOS",
   description:
-    "Decisive offline chess with eight on-device opponents and private post-game review.",
+    "Decisive offline chess with eight on-device opponents on Android, iPhone, and iPad. Android also includes private post-game review.",
   downloadUrl: [GOOGLE_PLAY_URL, APP_STORE_URL],
   offers: {
     "@type": "Offer",
@@ -122,9 +122,9 @@ export default function Home() {
             <h1 id="hero-title">Every game has a winner.</h1>
             <p className="hero-lede">
               For chess players who want familiar play without routine draws.
-              Choose from eight on-device opponents, then see where the game
-              turned and what you could have played instead—privately, on your
-              device.
+              Choose from eight on-device opponents on Android, iPhone, or iPad.
+              The Android app also shows where the game turned and what you
+              could have played instead—privately, on your device.
             </p>
             <StoreBadges compact />
             <p className="price-note">
@@ -166,17 +166,17 @@ export default function Home() {
             <span>Checkmate still wins</span>
             <span>Five board themes</span>
             <span>Eight opponents</span>
-            <span>On-device Game Review</span>
+            <span>Android Game Review</span>
           </div>
         </section>
 
         <section className="section review-section" id="review" aria-labelledby="review-title">
           <div className="section-shell review-layout">
             <div className="review-copy">
-              <p className="eyebrow">Private, on-device Game Review</p>
+              <p className="eyebrow">Private, on-device Game Review for Android</p>
               <h2 id="review-title">The game ends. The learning starts.</h2>
               <p className="review-lede">
-                After the game, see where the position changed and what you
+                In the Android app, see where the position changed and what you
                 could have played instead. The Drawless-tuned Fairy-Stockfish
                 engine analyzes your decisions using the exact rules you
                 played. Everything runs on your device—there is no game upload
@@ -235,7 +235,7 @@ export default function Home() {
                   />
                 </picture>
               </div>
-              <figcaption>Private Game Review · analysis runs on your device</figcaption>
+              <figcaption>Android Game Review · analysis runs on your device</figcaption>
             </figure>
           </div>
         </section>
@@ -325,7 +325,7 @@ export default function Home() {
               <h3>Keep your momentum</h3>
               <p>
                 Resume, hints, undo, rematches, local records, and streaks. Launch
-                Game Review from the completed result.
+                Game Review from the completed result on Android.
               </p>
             </article>
           </div>
@@ -407,8 +407,8 @@ export default function Home() {
               <h2 id="privacy-title">Your game stays your game.</h2>
               <p>
                 No account. No ads. No analytics or tracking. Games, settings,
-                and reviews stay on your device, subject to the backup settings
-                you choose for Android, iPhone, or iPad.
+                and preferences stay on your device. Android Game Reviews also
+                stay local, subject to the backup settings you choose.
               </p>
               <a className="text-link" href="/privacy/">Read the privacy policy</a>
             </div>
@@ -416,7 +416,7 @@ export default function Home() {
               <span>No account</span>
               <span>No ads</span>
               <span>No tracking</span>
-              <span>On-device review</span>
+              <span>Android on-device review</span>
             </div>
           </div>
         </section>

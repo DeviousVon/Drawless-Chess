@@ -60,7 +60,7 @@ export default function SupportPage() {
           </section>
           <section>
             <h2>Privacy questions</h2>
-            <p>Gameplay and Game Review run on your device without a Drawless account or developer-operated server. Read the complete <a className="text-link" href="/privacy/">privacy policy</a> for local storage, device and cloud backups, store processing, and deletion details.</p>
+            <p>Gameplay on both platforms—and Game Review on Android—runs on your device without a Drawless account or developer-operated server. Read the complete <a className="text-link" href="/privacy/">privacy policy</a> for local storage, device and cloud backups, store processing, and deletion details.</p>
           </section>
         </div>
       </main>

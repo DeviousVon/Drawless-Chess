@@ -1,7 +1,7 @@
 {
   "name": "Drawless Chess",
   "short_name": "Drawless Chess",
-  "description": "Decisive offline chess for Android, iPhone, and iPad with eight opponents and private, on-device Game Review.",
+  "description": "Decisive offline chess with eight on-device opponents on Android, iPhone, and iPad. Android also includes private, on-device Game Review.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#081014",
