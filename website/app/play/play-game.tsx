@@ -458,7 +458,7 @@ export function PlayGame() {
           <div className="web-rule-card">
             <p className="eyebrow">Full mobile game</p>
             <h2>Take Drawless Chess with you.</h2>
-            <p>Web Casual is a limited preview. The Android and iOS apps include all eight opponents, custom games, themes, and private Game Review.</p>
+            <p>Web Casual is a limited preview. The Android and iOS apps include all eight opponents, custom games, and themes. The Android app also includes private Game Review.</p>
             <a className="button button-primary" href="/#download">Get the Android or iOS app</a>
           </div>
           <div className="web-game-actions">

@@ -30,7 +30,7 @@ export default function PrivacyPage() {
           <p>Drawless Chess is an offline, single-player game for Android, iPhone, and iPad. This policy explains how the app handles information.</p>
           <div className="legal-meta">
             <span><strong>Effective:</strong> August 19, 2026</span>
-            <span><strong>Updated:</strong> August 19, 2026</span>
+            <span><strong>Updated:</strong> August 24, 2026</span>
           </div>
         </PageIntro>
         <article className="prose-shell">
@@ -40,7 +40,7 @@ export default function PrivacyPage() {
               <li>No account or sign-in.</li>
               <li>The app does not send personal information or app activity to BB_Games.</li>
               <li>No advertising, analytics, tracking, crash-reporting, or in-app purchase SDKs.</li>
-              <li>Gameplay and Game Review run on your device without sending game data to a developer-operated server.</li>
+              <li>Gameplay on Android, iPhone, and iPad—and Game Review on Android—runs on your device without sending game data to a developer-operated server.</li>
               <li>No access to your location, camera, microphone, contacts, photos, or shared files is requested.</li>
             </ul>
           </section>
@@ -61,7 +61,7 @@ export default function PrivacyPage() {
           </section>
           <section>
             <h2>Network access and external services</h2>
-            <p>The app does not send gameplay, Game Review, or preference data to BB_Games over the internet. Fixed source and privacy links open in an external browser or app only when you choose them.</p>
+            <p>The apps do not send gameplay or preference data to BB_Games over the internet. The Android app also keeps Game Review data on the device. Fixed source and privacy links open in an external browser or app only when you choose them.</p>
             <p>If you install or purchase through Google Play or Apple’s App Store, the store provider processes download, transaction, device, and related platform information under its own terms. BB_Games does not receive your payment-card or bank details. The stores may provide BB_Games with aggregate installation information or platform-generated performance and crash reports; those reports come from the store platform, not from an analytics or crash-reporting SDK in Drawless Chess.</p>
           </section>
           <section>

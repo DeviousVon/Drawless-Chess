@@ -48,9 +48,10 @@ Android and iOS have separate immutable corresponding-source releases. The open-
 links Android 1.0.2 (code 6) and iOS 1.0.2 (build 2) separately so neither platform is routed
 to the other platform's source archive.
 
-The marketing pages describe Game Review as private and on-device. They do not claim that
-reviews are retained as a separate history, and they preserve the distinction between the
-shipped mobile engines and the lightweight browser preview.
+The marketing pages describe Android Game Review as private and on-device without implying
+that the App Store build contains it. They do not claim that reviews are retained as a separate
+history, and they preserve the distinction between the shipped mobile engines and the lightweight
+browser preview.
 
 Support and privacy mail use `support@drawlesschess.com`. Mail delivery and each public store
 destination remain separate operational checks; a successful static-site build does not prove

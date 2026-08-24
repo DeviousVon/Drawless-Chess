@@ -9,7 +9,7 @@ export const metadata: Metadata = {
     template: "%s · Drawless Chess",
   },
   description:
-    "Play decisive offline chess on Android, iPhone, and iPad, then review every turning point privately on your device.",
+    "Play decisive offline chess against eight on-device opponents on Android, iPhone, and iPad. Android also includes private, on-device Game Review.",
   applicationName: "Drawless Chess",
   authors: [{ name: "BB_Games" }],
   creator: "BB_Games",
@@ -20,14 +20,14 @@ export const metadata: Metadata = {
     siteName: "Drawless Chess",
     title: "Drawless Chess — Every game has a winner",
     description:
-      "Play decisive offline chess on Android, iPhone, and iPad, then review every turning point privately on your device.",
+      "Play decisive offline chess against eight on-device opponents on Android, iPhone, and iPad. Android also includes private, on-device Game Review.",
     images: [SOCIAL_IMAGE],
   },
   twitter: {
     card: "summary_large_image",
     title: "Drawless Chess — Every game has a winner",
     description:
-      "Play decisive offline chess on Android, iPhone, and iPad, then review every turning point privately on your device.",
+      "Play decisive offline chess against eight on-device opponents on Android, iPhone, and iPad. Android also includes private, on-device Game Review.",
     images: ["/og.png"],
   },
 };
