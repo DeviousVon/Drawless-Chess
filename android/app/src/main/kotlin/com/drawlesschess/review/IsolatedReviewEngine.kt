@@ -362,6 +362,7 @@ internal object ReviewEngineJson {
     fun request(value: EngineRequest): String = JSONObject().apply {
         put("requestId", value.requestId); put("gameId", value.gameId); put("positionId", value.positionId)
         put("initialFen", value.initialFen); put("moves", JSONArray(value.moves.map(UciMove::value)))
+        put("searchMoves", JSONArray(value.searchMoves.map(UciMove::value)))
         put("purpose", value.purpose.name); put("moveTimeMillis", value.limits.moveTimeMillis)
         put("multiPv", value.limits.multiPv); put("rules", rules(value.rules))
         when (val strength = value.strength) {
@@ -379,6 +380,7 @@ internal object ReviewEngineJson {
             else EngineStrength.SkillLevel(value.getInt("strength")),
             EngineLimits(value.getLong("moveTimeMillis"), value.getInt("multiPv")),
             EnginePurpose.valueOf(value.getString("purpose")),
+            value.optJSONArray("searchMoves")?.strings()?.map(::UciMove).orEmpty(),
         )
     }
 

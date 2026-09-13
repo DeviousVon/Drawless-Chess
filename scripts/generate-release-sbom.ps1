@@ -1,6 +1,8 @@
+#requires -Version 7.0
 [CmdletBinding()]
 param(
-    [string]$OutputDirectory
+    [string]$OutputDirectory,
+    [switch]$ResolveMetadata
 )
 
 $ErrorActionPreference = 'Stop'
@@ -9,7 +11,7 @@ Set-StrictMode -Version Latest
 $scriptDirectory = Split-Path -Parent $MyInvocation.MyCommand.Path
 $repositoryRoot = (Resolve-Path (Join-Path $scriptDirectory '..')).Path
 $androidRoot = Join-Path $repositoryRoot 'android'
-$gradleWrapper = Join-Path $androidRoot 'gradlew.bat'
+$gradleWrapper = Join-Path $androidRoot $(if ($IsWindows) { 'gradlew.bat' } else { 'gradlew' })
 $reportDirectory = if ($OutputDirectory) {
     if ([IO.Path]::IsPathRooted($OutputDirectory)) {
         [IO.Path]::GetFullPath($OutputDirectory)
@@ -170,18 +172,25 @@ foreach ($required in @($gradleWrapper, $appBuildPath, $apacheLicensePath)) {
     }
 }
 
-if (-not $env:JAVA_HOME) {
+if (-not $env:JAVA_HOME -and $IsWindows) {
     $androidStudioJbr = 'C:\Program Files\Android\Android Studio\jbr'
     if (Test-Path -LiteralPath (Join-Path $androidStudioJbr 'bin\java.exe') -PathType Leaf) {
         $env:JAVA_HOME = $androidStudioJbr
     }
 }
+$javaExecutable = if ($IsWindows) { 'bin/java.exe' } else { 'bin/java' }
 if (-not $env:JAVA_HOME -or
-    -not (Test-Path -LiteralPath (Join-Path $env:JAVA_HOME 'bin\java.exe') -PathType Leaf)) {
+    -not (Test-Path -LiteralPath (Join-Path $env:JAVA_HOME $javaExecutable) -PathType Leaf)) {
     Fail 'JAVA_HOME must identify a JDK (Android Studio jbr is accepted)'
 }
 if (-not $env:ANDROID_HOME) {
-    $defaultAndroidSdk = Join-Path $env:LOCALAPPDATA 'Android\Sdk'
+    $defaultAndroidSdk = if ($IsWindows -and $env:LOCALAPPDATA) {
+        Join-Path $env:LOCALAPPDATA 'Android/Sdk'
+    } elseif ($IsMacOS) {
+        Join-Path $HOME 'Library/Android/sdk'
+    } else {
+        Join-Path $HOME 'Android/Sdk'
+    }
     if (Test-Path -LiteralPath $defaultAndroidSdk -PathType Container) {
         $env:ANDROID_HOME = $defaultAndroidSdk
     }
@@ -200,7 +209,10 @@ $versionName = $versionNameMatch.Groups[1].Value
 $versionCode = $versionCodeMatch.Groups[1].Value
 
 [void][System.IO.Directory]::CreateDirectory($reportDirectory)
-$gradleArguments = @('--offline', '--no-daemon', '--console=plain')
+$gradleArguments = @('--no-daemon', '--console=plain')
+if (-not $ResolveMetadata) {
+    $gradleArguments = @('--offline') + $gradleArguments
+}
 Push-Location $androidRoot
 try {
     $dependencyOutput = @(& $gradleWrapper @gradleArguments ':app:dependencies' `
@@ -235,6 +247,9 @@ $initScriptPath = Join-Path ([System.IO.Path]::GetTempPath()) (
 $initScript = @'
 import org.gradle.api.artifacts.component.ModuleComponentIdentifier
 import org.gradle.api.artifacts.result.ResolvedDependencyResult
+import org.gradle.api.artifacts.result.ResolvedArtifactResult
+import org.gradle.maven.MavenModule
+import org.gradle.maven.MavenPomArtifact
 
 gradle.beforeProject { project ->
     if (project.path == ':app') {
@@ -242,6 +257,24 @@ gradle.beforeProject { project ->
             doLast {
                 def configuration = project.configurations.getByName('releaseRuntimeClasspath')
                 def result = configuration.incoming.resolutionResult
+                def moduleIds = result.allComponents.collect { it.id }.findAll {
+                    it instanceof ModuleComponentIdentifier
+                }
+                // Module metadata may resolve dependencies without downloading POMs.
+                // Resolve exact POMs through the configured repositories for license evidence.
+                def pomQuery = project.dependencies.createArtifactResolutionQuery()
+                    .forComponents(moduleIds)
+                    .withArtifacts(MavenModule, MavenPomArtifact)
+                    .execute()
+                if (pomQuery.resolvedComponents.size() != moduleIds.size()) {
+                    throw new GradleException('Release POM metadata is incomplete; run the SBOM tool with -ResolveMetadata to populate the cache')
+                }
+                pomQuery.resolvedComponents.each { component ->
+                    def poms = component.getArtifacts(MavenPomArtifact)
+                    if (poms.size() != 1 || poms.any { !(it instanceof ResolvedArtifactResult) }) {
+                        throw new GradleException("Release POM is unavailable for ${component.id}; run the SBOM tool with -ResolveMetadata to populate the cache")
+                    }
+                }
                 result.allComponents.each { component ->
                     if (component.id instanceof ModuleComponentIdentifier) {
                         def id = component.id

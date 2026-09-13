@@ -33,6 +33,7 @@
     <string name="home_custom_game">Custom game</string>
     <string name="home_theme">Theme · %1$s</string>
     <string name="home_player_stats">Player stats</string>
+    <string name="home_game_history">Game history</string>
     <string name="home_options">Options</string>
     <string name="home_how_drawless_works">How Drawless works</string>
     <string name="home_open_source_license">Open-source license</string>
@@ -51,7 +52,24 @@
     <string name="error_loss_not_recorded">The loss couldn’t be recorded. Keep the current game and try again.</string>
     <string name="error_stats_not_loaded">Player statistics can’t be loaded. Try again.</string>
     <string name="error_saved_game_not_resumed">Saved game can’t be resumed.</string>
+    <string name="error_game_history_not_loaded">Game history can’t be loaded. Try again.</string>
+    <string name="error_history_game_not_loaded">That completed game can’t be loaded.</string>
     <string name="error_unknown">unknown error</string>
+
+    <!-- Completed-game history -->
+    <string name="history_title">Game history</string>
+    <string name="history_unavailable_title">History unavailable</string>
+    <string name="history_empty_title">No completed games yet</string>
+    <string name="history_empty_body">Finished games and their Reviews will appear here.</string>
+    <string name="history_result_win">Win</string>
+    <string name="history_result_loss">Loss</string>
+    <string name="history_review_ready">Review ready</string>
+    <string name="history_review_not_analyzed">Not analyzed</string>
+    <string name="history_review_update_needed">Review update needed</string>
+    <string name="history_custom_opponent">Custom opponent · %1$d</string>
+    <string name="history_unknown_opponent">Opponent</string>
+    <string name="history_opponent_and_side">%1$s · You played %2$s</string>
+    <string name="history_row_accessibility">%1$s against %2$s. You played %3$s. %4$s. %5$s.</string>
 
     <!-- Rules, legal and privacy dialogs -->
     <string name="rules_guide_title">Drawless in one minute</string>
@@ -150,10 +168,16 @@
     <string name="theme_description_desert_sandstone">Sun-baked strata and warm grain</string>
     <string name="theme_glacier_slate">Glacier Slate</string>
     <string name="theme_verdigris_copper">Verdigris Copper</string>
-    <string name="theme_amethyst_geode">Amethyst Geode</string>
+    <string name="theme_celestial_observatory">Celestial Observatory</string>
     <string name="theme_description_glacier_slate">Riven stone and mica light</string>
     <string name="theme_description_verdigris_copper">Aged copper and ivory limestone</string>
-    <string name="theme_description_amethyst_geode">Violet crystal and gold glints</string>
+    <string name="theme_description_celestial_observatory">Lunar alabaster, midnight enamel, and brass</string>
+    <string name="theme_halloween_emberwood">Emberwood Court</string>
+    <string name="theme_description_halloween_emberwood">Halloween · Scorched timber and pumpkin amber</string>
+    <string name="theme_halloween_witchglass">Witchglass</string>
+    <string name="theme_description_halloween_witchglass">Halloween · Cloudy sage and mulberry glass</string>
+    <string name="theme_all_hallows_court">All Hallows’ Court</string>
+    <string name="theme_description_all_hallows_court">Candlelit stone and sculpted gothic pieces</string>
 
     <!-- Options -->
     <string name="options_title">Options</string>
@@ -212,6 +236,7 @@
 
     <!-- In-game shell and results -->
     <string name="game_save_exit">Save &amp; exit</string>
+    <string name="game_save_exit_compact">Save &amp;\nExit</string>
     <string name="game_title_summary">%1$s · %2$s</string>
     <string name="rules_label_drawless">Drawless</string>
     <string name="rules_label_escape">Escape</string>
@@ -253,15 +278,20 @@
     <string name="game_none">None</string>
     <string name="game_promote_pawn">Promote pawn</string>
 
-    <!-- Game review beta -->
-    <string name="review_title">Game review</string>
-    <string name="review_beta">Beta</string>
+    <!-- Game review -->
+    <string name="review_title">Review</string>
     <string name="review_analyzing">Analyzing your moves…</string>
     <string name="review_progress">Your moves reviewed: %1$d of %2$d</string>
     <string name="review_progress_accessibility">Your move review, %1$d%% complete</string>
     <string name="review_complete">Review complete</string>
     <string name="review_complete_body">Your moves: %1$d. Moves graded: %2$d.</string>
     <string name="review_summary_title">Your review</string>
+    <string name="review_accuracy_label">Drawless Accuracy</string>
+    <string name="review_accuracy_value">%1$d</string>
+    <string name="review_accuracy_unavailable">Not enough analysis</string>
+    <string name="review_accuracy_about">About</string>
+    <string name="review_accuracy_less">Less</string>
+    <string name="review_accuracy_limits">Drawless Accuracy summarizes exact expected-point loss from this offline engine and review version. It is not Elo, a tablebase verdict, or another service’s formula.</string>
     <string name="review_summary_player_side">You (%1$s)</string>
     <string name="review_summary_graded">Moves graded: %1$d</string>
     <string name="review_summary_grade_count">%1$s: %2$d</string>
@@ -303,6 +333,12 @@
     <string name="review_grade_inaccuracy_explanation">This gave away a small part of the advantage.</string>
     <string name="review_grade_mistake_explanation">This gave the opponent a meaningful opportunity.</string>
     <string name="review_grade_blunder_explanation">This changed the game significantly.</string>
+    <string name="review_fact_forced_move">Only legal move.</string>
+    <string name="review_fact_capture">Captured a piece.</string>
+    <string name="review_fact_check">Gave check.</string>
+    <string name="review_fact_material_swing">Material swing: %1$s.</string>
+    <string name="review_fact_stalemate">This move ended the game by stalemate.</string>
+    <string name="review_fact_game_ended">This move ended the game.</string>
     <string name="review_move_title_white">%1$d. %2$s</string>
     <string name="review_move_title_black">%1$d… %2$s</string>
     <string name="review_move_accessibility">%1$s. %2$s. %3$s.</string>

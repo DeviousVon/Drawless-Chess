@@ -21,5 +21,6 @@ iosApp/
 multiplatform/
 release/
 scripts/
+shared/
 src/
 tools/

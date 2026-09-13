@@ -504,6 +504,46 @@ internal val MIGRATION_1_2: Migration = object : Migration(1, 2) {
     }
 }
 
+/** Additive v2 -> v3 migration. Completed games and active checkpoints remain untouched. */
+internal val MIGRATION_2_3: Migration = object : Migration(2, 3) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `game_review` (
+                `game_id` TEXT NOT NULL,
+                `evidence_schema_version` INTEGER NOT NULL,
+                `game_fingerprint` TEXT NOT NULL,
+                `rules_fingerprint` TEXT NOT NULL,
+                `evidence_payload_json` TEXT NOT NULL,
+                `evidence_payload_sha256` TEXT NOT NULL,
+                `evidence_cache_key` TEXT NOT NULL,
+                `engine_id` TEXT NOT NULL,
+                `engine_build` TEXT NOT NULL,
+                `engine_drawless_patch` INTEGER NOT NULL,
+                `move_time_millis` INTEGER NOT NULL,
+                `multi_pv` INTEGER NOT NULL,
+                `constrained_root_policy_version` INTEGER NOT NULL,
+                `retained_pv_length` INTEGER NOT NULL,
+                `classifier_version` INTEGER NOT NULL,
+                `grading_policy_version` INTEGER NOT NULL,
+                `accuracy_version` INTEGER NOT NULL,
+                `summary_version` INTEGER NOT NULL,
+                `explanation_version` INTEGER NOT NULL,
+                `derived_review_key` TEXT NOT NULL,
+                `completed_at_epoch_millis` INTEGER NOT NULL,
+                PRIMARY KEY(`game_id`),
+                FOREIGN KEY(`game_id`) REFERENCES `completed_game`(`game_id`)
+                    ON UPDATE NO ACTION ON DELETE NO ACTION
+            )
+            """.trimIndent(),
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_game_review_completed_at_epoch_millis` " +
+                "ON `game_review` (`completed_at_epoch_millis`)",
+        )
+    }
+}
+
 private fun completedGameTableSql(): String =
     """
     CREATE TABLE IF NOT EXISTS `completed_game` (

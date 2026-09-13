@@ -14,12 +14,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.test.platform.app.InstrumentationRegistry
+import com.drawlesschess.core.EndReason
 import com.drawlesschess.core.GameMode
+import com.drawlesschess.core.GameScore
 import com.drawlesschess.core.RulesContractV1
 import com.drawlesschess.core.Side
 import com.drawlesschess.core.chess.ChessPosition
@@ -150,6 +153,64 @@ class CaptureHistoryUiInstrumentedTest {
         compose.onNodeWithTag("move_history").performScrollTo()
         compose.waitForIdle()
         assertVerticallyWithin("move_history", "game_side_panel")
+    }
+
+    @Test
+    fun shortLandscapeKeepsTheBoardLargeWithResultActionsInTheSidePanel() {
+        val result = GameResultView(
+            playerWon = true,
+            playerSide = Side.WHITE,
+            winner = Side.WHITE,
+            reason = EndReason.CHECKMATE,
+            score = GameScore(100, 100, 0),
+        )
+        compose.setContent {
+            CompositionLocalProvider(LocalDensity provides Density(density = 1f, fontScale = 1f)) {
+                DrawlessTheme {
+                    Box(Modifier.width(568.dp).height(320.dp).testTag("landscape_result_host")) {
+                        GameBody(
+                            model = testGameModel(emptyList()),
+                            opponent = OpponentProfiles.quickPlay,
+                            modifier = Modifier.fillMaxSize(),
+                            sideResult = {
+                                PostGameBar(
+                                    result = result,
+                                    onHome = {},
+                                    onQuickPlay = {},
+                                    onRematch = {},
+                                    compact = true,
+                                )
+                            },
+                            onBoardEvent = {},
+                            onPause = {},
+                            onUndo = {},
+                            onHint = {},
+                            onFlip = {},
+                            onRetryBot = {},
+                            onResign = {},
+                            onDismissMessage = {},
+                            showBoardCoordinates = true,
+                            onMoveAnimationFinished = {},
+                        )
+                    }
+                }
+            }
+        }
+
+        compose.onNodeWithTag("post_game_side_feedback").assertIsDisplayed()
+        compose.onNodeWithTag("post_game_quick_play").assertIsDisplayed()
+        compose.onNodeWithTag("post_game_rematch").assertIsDisplayed()
+        val hostBounds = compose.onNodeWithTag("landscape_result_host")
+            .fetchSemanticsNode()
+            .boundsInRoot
+        val boardBounds = compose.onNodeWithTag("chess_board_imperial_marble")
+            .assertIsDisplayed()
+            .fetchSemanticsNode()
+            .boundsInRoot
+        assertEquals(hostBounds.height, boardBounds.height, 1f)
+        assertEquals(hostBounds.left, boardBounds.left, 1f)
+        assertEquals(hostBounds.top, boardBounds.top, 1f)
+        assertEquals(hostBounds.bottom, boardBounds.bottom, 1f)
     }
 
     @Test

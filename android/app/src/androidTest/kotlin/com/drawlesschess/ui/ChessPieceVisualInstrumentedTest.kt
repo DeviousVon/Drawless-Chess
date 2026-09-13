@@ -17,6 +17,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -26,6 +27,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.test.assertContentDescriptionEquals
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -33,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import androidx.test.platform.app.InstrumentationRegistry
 import com.drawlesschess.core.Side
 import com.drawlesschess.core.chess.PieceType
+import com.drawlesschess.core.presentation.PieceStyleIds
 import java.io.FileOutputStream
 import kotlin.math.abs
 import org.junit.Assert.assertEquals
@@ -143,9 +146,113 @@ class ChessPieceVisualInstrumentedTest {
     }
 
     @Test
+    fun allHallowsStyleHasDistinctDeterministicOrnamentsForEveryPiece() {
+        val palette = DrawlessVisualThemes.ALL_HALLOWS_COURT.pieces
+        val resources = InstrumentationRegistry.getInstrumentation().targetContext.resources
+        PieceType.entries.forEach { type ->
+            val classic = chessPieceRaster(
+                Side.WHITE,
+                type,
+                palette,
+                PieceStyleIds.MODERN_FLAT,
+            ).asAndroidBitmap()
+            val seasonal = chessPieceRaster(
+                Side.WHITE,
+                type,
+                palette,
+                PieceStyleIds.ALL_HALLOWS,
+                resources,
+            ).asAndroidBitmap()
+            val repeated = chessPieceRaster(
+                Side.WHITE,
+                type,
+                palette,
+                PieceStyleIds.ALL_HALLOWS,
+                resources,
+            ).asAndroidBitmap()
+
+            assertTrue("$type must have visible All Hallows ornamentation", !classic.sameAs(seasonal))
+            assertTrue("$type All Hallows raster must be deterministic", seasonal.sameAs(repeated))
+        }
+    }
+
+    @Test
+    fun celestialInstrumentsHaveTransparentMarginsAndRemainDistinctAtCompactSizes() {
+        val palette = DrawlessVisualThemes.CELESTIAL_OBSERVATORY.pieces
+        val resources = InstrumentationRegistry.getInstrumentation().targetContext.resources
+        Side.entries.forEach { side ->
+            val rasters = PieceType.entries.associateWith { type ->
+                val instrument = chessPieceRaster(
+                    side, type, palette, PieceStyleIds.CELESTIAL_OBSERVATORY, resources,
+                ).asAndroidBitmap()
+                val repeated = chessPieceRaster(
+                    side, type, palette, PieceStyleIds.CELESTIAL_OBSERVATORY, resources,
+                ).asAndroidBitmap()
+                val fallback = chessPieceRaster(
+                    side, type, palette, PieceStyleIds.CELESTIAL_OBSERVATORY,
+                ).asAndroidBitmap()
+                assertTrue("$side $type must use its instrument atlas", !instrument.sameAs(fallback))
+                assertTrue("$side $type must be deterministic", instrument.sameAs(repeated))
+                val mask = alphaSilhouette(instrument)
+                assertNoEdgeClipping(mask, instrument.width, instrument.height)
+                assertTrue("$side $type must contain visible sculpture", mask.count { it } > mask.size / 20)
+                var greenPixels = 0
+                repeat(instrument.height) { y ->
+                    repeat(instrument.width) { x ->
+                        val pixel = instrument.getPixel(x, y)
+                        val alpha = pixel ushr 24 and 0xFF
+                        val red = pixel ushr 16 and 0xFF
+                        val green = pixel ushr 8 and 0xFF
+                        val blue = pixel and 0xFF
+                        if (alpha > 80 && green > maxOf(red, blue) * 1.4f + 30) greenPixels++
+                    }
+                }
+                assertEquals("$side $type retained green backdrop", 0, greenPixels)
+                instrument
+            }
+            listOf(14, 18, 24, 48).forEach { size ->
+                val pawn = Bitmap.createScaledBitmap(rasters.getValue(PieceType.PAWN), size, size, true)
+                val bishop = Bitmap.createScaledBitmap(rasters.getValue(PieceType.BISHOP), size, size, true)
+                val queen = Bitmap.createScaledBitmap(rasters.getValue(PieceType.QUEEN), size, size, true)
+                val king = Bitmap.createScaledBitmap(rasters.getValue(PieceType.KING), size, size, true)
+                val pawnMask = alphaSilhouette(pawn)
+                val bishopMask = alphaSilhouette(bishop)
+                val queenMask = alphaSilhouette(queen)
+                val kingMask = alphaSilhouette(king)
+                assertTrue(
+                    "$side ${size}px bishop must stand taller than the lunar pawn",
+                    firstOccupiedRow(bishopMask, size, size) < firstOccupiedRow(pawnMask, size, size),
+                )
+                val upperHeight = (size * 0.66f).toInt()
+                assertTrue(
+                    "$side ${size}px pawn and bishop need distinct upper silhouettes",
+                    intersectionOverUnion(pawnMask, bishopMask, size, upperHeight) < 0.80,
+                )
+                assertTrue(
+                    "$side ${size}px sun queen and armillary king need distinct crowns",
+                    intersectionOverUnion(queenMask, kingMask, size, upperHeight) < 0.85,
+                )
+            }
+        }
+    }
+
+    private fun alphaSilhouette(bitmap: Bitmap): BooleanArray =
+        BooleanArray(bitmap.width * bitmap.height) { index ->
+            (bitmap.getPixel(index % bitmap.width, index / bitmap.width) ushr 24 and 0xFF) > 80
+        }
+
+    @Test
     fun visualEvidenceCoversThemesBoardScaleAndAccessibility() {
+        val themes = listOf(
+            DrawlessVisualThemes.GLACIER_SLATE,
+            DrawlessVisualThemes.VERDIGRIS_COPPER,
+            DrawlessVisualThemes.CELESTIAL_OBSERVATORY,
+            DrawlessVisualThemes.HALLOWEEN_EMBERWOOD,
+            DrawlessVisualThemes.HALLOWEEN_WITCHGLASS,
+        )
+        val selected = mutableStateOf(themes.first())
         compose.setContent {
-            DrawlessTheme {
+            DrawlessTheme(selected.value.boardTheme) {
                 Column(
                     modifier = Modifier
                         .width(360.dp)
@@ -155,59 +262,42 @@ class ChessPieceVisualInstrumentedTest {
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     Text(
-                        "Piece legibility · colored queen jewel trial",
+                        "Piece legibility",
                         color = Color(0xFFF2F5F6),
                         style = MaterialTheme.typography.titleSmall,
                     )
-                    listOf(
-                        DrawlessVisualThemes.GLACIER_SLATE,
-                        DrawlessVisualThemes.VERDIGRIS_COPPER,
-                        DrawlessVisualThemes.AMETHYST_GEODE,
-                    ).forEach { visualTheme ->
-                        CompositionLocalProvider(LocalDrawlessVisualTheme provides visualTheme) {
-                            EvidenceThemeSection(visualTheme)
-                        }
+                    CompositionLocalProvider(LocalDrawlessVisualTheme provides selected.value) {
+                        EvidenceThemeSection(selected.value)
                     }
                 }
             }
         }
-
-        compose.waitForIdle()
-        compose.onNodeWithTag("accessible_bishop_glacier_slate")
-            .assertContentDescriptionEquals("Black bishop")
-        val evidence = compose.onNodeWithTag("piece_evidence_sheet")
-        val evidenceBounds = evidence.fetchSemanticsNode().boundsInRoot
-        assertTrue(
-            "Evidence node has empty bounds: $evidenceBounds",
-            evidenceBounds.width > 0f && evidenceBounds.height > 0f,
-        )
-        val bitmap = evidence.captureToImage().asAndroidBitmap()
-        assertTrue(
-            "Evidence capture is empty: ${bitmap.width}x${bitmap.height}",
-            bitmap.width > 0 && bitmap.height > 0,
-        )
-        val sheetBackground = Color(0xFF0A0E15).toArgb()
-        val evidencePixels = countFarFromColor(bitmap, sheetBackground, tolerance = 30)
-        assertTrue(
-            "Evidence capture contains too little rendered content: $evidencePixels of " +
-                "${bitmap.width * bitmap.height} pixels",
-            evidencePixels >= (bitmap.width * bitmap.height * 0.05f).toInt(),
-        )
-        val instrumentation = InstrumentationRegistry.getInstrumentation()
-        val targetContext = instrumentation.targetContext
-        val outputDirectory = targetContext.getExternalFilesDir(null)
-            ?: error("External evidence directory is unavailable")
-        val output = outputDirectory.resolve("chess-piece-visual-evidence.png")
-        FileOutputStream(output).use { stream ->
-            assertTrue(bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream))
+        val outputDirectory = InstrumentationRegistry.getInstrumentation().targetContext
+            .getExternalFilesDir(null) ?: error("External evidence directory is unavailable")
+        // Capture each theme separately so later candidates cannot fall below the phone viewport.
+        themes.forEach { theme ->
+            compose.runOnIdle { selected.value = theme }
+            compose.waitForIdle()
+            compose.onNodeWithTag("accessible_bishop_${theme.boardTheme.id}")
+                .assertContentDescriptionEquals("Black bishop")
+                .assertIsDisplayed()
+            val evidence = compose.onNodeWithTag("piece_evidence_sheet")
+            val evidenceBounds = evidence.fetchSemanticsNode().boundsInRoot
+            assertTrue("Evidence node has empty bounds: $evidenceBounds", evidenceBounds.width > 0f && evidenceBounds.height > 0f)
+            val bitmap = evidence.captureToImage().asAndroidBitmap()
+            assertEquals("Entire sheet must fit in the capture", evidenceBounds.height, bitmap.height.toFloat(), 1f)
+            val evidencePixels = countFarFromColor(bitmap, Color(0xFF0A0E15).toArgb(), tolerance = 30)
+            assertTrue(
+                "${theme.boardTheme.id} capture contains too little rendered content",
+                evidencePixels >= (bitmap.width * bitmap.height * 0.05f).toInt(),
+            )
+            val output = outputDirectory.resolve("chess-piece-visual-evidence-${theme.boardTheme.id}.png")
+            FileOutputStream(output).use { stream ->
+                assertTrue(bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream))
+            }
+            assertTrue("Evidence PNG is empty", output.length() > 0)
+            Log.i("ChessPieceVisual", "evidence=${output.absolutePath} bitmap=${bitmap.width}x${bitmap.height} content_pixels=$evidencePixels")
         }
-        assertTrue("Evidence PNG is empty", output.length() > 0)
-        Log.i(
-            "ChessPieceVisual",
-            "evidence=${output.absolutePath} bounds=$evidenceBounds " +
-                "bitmap=${bitmap.width}x${bitmap.height} content_pixels=$evidencePixels " +
-                "bytes=${output.length()}",
-        )
     }
 
     private fun silhouette(bitmap: Bitmap, background: Int): BooleanArray =

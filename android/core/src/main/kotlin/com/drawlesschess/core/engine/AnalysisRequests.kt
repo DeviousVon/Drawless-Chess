@@ -130,9 +130,10 @@ data class SeededGameReviewRoot internal constructor(
 )
 
 /**
- * Stable identity for the fallback search immediately after one played move. The parent root and
- * played move are both part of the key: an undo can revisit the same root and choose a different
- * continuation, and evidence for those continuations must never be interchanged.
+ * Stable identity for a same-position search constrained to the played move. The historical
+ * "adjacent" name is retained for checkpoint compatibility, but schema 2 evidence no longer
+ * estimates a played move from the following position. The parent root and played move are both
+ * part of the key so evidence for different continuations can never be interchanged.
  */
 @ConsistentCopyVisibility
 data class GameReviewAdjacentKey internal constructor(
@@ -145,14 +146,13 @@ data class GameReviewAdjacentKey internal constructor(
         val before = ChessPosition.fromFen(rootKey.positionFen)
         val after = ChessRules.apply(before, playedMove)
         require(after.fen() == positionFen) { "Adjacent review position FEN is not canonical" }
-        require(
-            positionId ==
-                "${rootKey.gameId}:review:${rootKey.ply}:${RepetitionKey.of(after).value}",
-        ) { "Adjacent review position identity does not match its parent root and played move" }
+        require(positionId == "${rootKey.positionId}:played:${playedMove.value}") {
+            "Constrained review identity does not match its parent root and played move"
+        }
     }
 }
 
-/** One exact fallback request which can be completed speculatively during a later player turn. */
+/** One exact played-move request which can be completed speculatively during a later player turn. */
 @ConsistentCopyVisibility
 data class GameReviewAdjacentRoot internal constructor(
     val request: EngineRequest,
@@ -162,11 +162,13 @@ data class GameReviewAdjacentRoot internal constructor(
         val rootKey = key.rootKey
         require(request.gameId == rootKey.gameId)
         require(request.initialFen == rootKey.normalizedInitialFen)
-        require(request.moves == rootKey.movesBefore + key.playedMove)
+        require(request.moves == rootKey.movesBefore)
         require(request.rules == rootKey.rules)
         require(request.positionId == key.positionId)
-        require(request.strength == rootKey.strength && request.limits == rootKey.limits)
+        require(request.strength == rootKey.strength)
+        require(request.limits == rootKey.limits.copy(multiPv = 1))
         require(request.purpose == EnginePurpose.REVIEW)
+        require(request.searchMoves == listOf(key.playedMove))
     }
 
     fun seed(response: EngineResponse): SeededGameReviewAdjacentRoot {
@@ -332,10 +334,9 @@ object GameReviewPlanner {
     ): GameReviewAdjacentRoot = adjacentRoot(requestId, root.key, playedMove)
 
     /**
-     * Recreates an adjacent fallback directly from a completed root's stable key.
-     *
+     * Recreates a played-move constrained search directly from a completed root's stable key.
      * The key already contains the canonical pre-move FEN and exact move prefix, so historical
-     * roots never need to be replayed merely to schedule their one-ply fallback.
+     * roots never need to be replayed merely to schedule their exact comparison search.
      */
     internal fun adjacentRoot(
         requestId: String,
@@ -345,19 +346,19 @@ object GameReviewPlanner {
         require(requestId.isNotBlank())
         val before = ChessPosition.fromFen(rootKey.positionFen)
         val after = ChessRules.apply(before, playedMove)
-        val positionId =
-            "${rootKey.gameId}:review:${rootKey.ply}:${RepetitionKey.of(after).value}"
+        val positionId = "${rootKey.positionId}:played:${playedMove.value}"
         return GameReviewAdjacentRoot(
             request = EngineRequest(
                 requestId = requestId,
                 gameId = rootKey.gameId,
                 positionId = positionId,
                 initialFen = rootKey.normalizedInitialFen,
-                moves = rootKey.movesBefore + playedMove,
+                moves = rootKey.movesBefore,
                 rules = rootKey.rules,
                 strength = rootKey.strength,
-                limits = rootKey.limits,
+                limits = rootKey.limits.copy(multiPv = 1),
                 purpose = EnginePurpose.REVIEW,
+                searchMoves = listOf(playedMove),
             ),
             key = GameReviewAdjacentKey(
                 rootKey = rootKey,

@@ -54,7 +54,7 @@
 "Advanced rules" = "Advanced rules";
 "Aged copper and ivory limestone" = "Aged copper and ivory limestone";
 "Amara" = "Amara";
-"Amethyst Geode" = "Amethyst Geode";
+"Celestial Observatory" = "Celestial Observatory";
 "analysis failed" = "analysis failed";
 "Analysis stopped" = "Analysis stopped";
 "Analyze again" = "Analyze again";
@@ -68,7 +68,6 @@
 "Back" = "Back";
 "Best" = "Best";
 "Best streak" = "Best streak";
-"Beta" = "Beta";
 "Better move arrow from %1$s to %2$s" = "Better move arrow from %1$s to %2$s";
 "Better was %1$s." = "Better was %1$s.";
 "bishop" = "bishop";
@@ -147,7 +146,6 @@
 "Game feedback" = "Game feedback";
 "Game moves" = "Game moves";
 "Game paused" = "Game paused";
-"Game review" = "Game review";
 "Game score is a motivational measure of clean wins—not a chess rating. Your average includes every completed game, including zero-point losses. Future online Elo will remain separate." = "Game score is a motivational measure of clean wins—not a chess rating. Your average includes every completed game, including zero-point losses. Future online Elo will remain separate.";
 "Getting your latest record ready." = "Getting your latest record ready.";
 "Glacier Slate" = "Glacier Slate";
@@ -185,7 +183,7 @@
 "ios.duration_3" = "3 minutes";
 "ios.duration_30" = "30 minutes";
 "ios.empty_square" = "Empty square %@";
-"ios.game_review" = "Game review";
+"ios.game_review" = "Review";
 "ios.games" = "Games";
 "ios.increment" = "Increment: %ld seconds";
 "ios.license_body" = "Drawless Chess is licensed under GNU GPL version 3 or later. Its on-device engine is modified Fairy-Stockfish, derived from Stockfish, under GPL-3.0-or-later. Sampled audio includes CC0 chess recordings by JJTaynos and mh2o, CC0 fireworks by Rudmer_Rotteveel, and MIT-licensed ion.sound recordings by Denis Ineshin. Exact corresponding source and third-party notices accompany this release.";
@@ -212,7 +210,6 @@
 "Preparing game review" = "Preparing game review";
 "Matching the analysis completed while you played." = "Matching the analysis completed while you played.";
 "Checking the positions that still need analysis." = "Checking the positions that still need analysis.";
-"ios.review_beta" = "Beta";
 "ios.review_better_move" = "Better was %1$@.";
 "ios.review_complete" = "Review complete";
 "ios.review_complete_body" = "Your moves: %1$d. Moves graded: %2$d.";
@@ -422,7 +419,7 @@
 "VICTORY" = "VICTORY";
 "View policy" = "View policy";
 "View source" = "View source";
-"Violet crystal and gold glints" = "Violet crystal and gold glints";
+"Lunar alabaster, midnight enamel, and brass" = "Lunar alabaster, midnight enamel, and brass";
 "Waiting for analysis…" = "Waiting for analysis…";
 "Warm and observant, Theo enjoys a clever move and never takes a loss personally." = "Warm and observant, Theo enjoys a clever move and never takes a loss personally.";
 "When a capture makes checkmate impossible, the capturing side wins." = "When a capture makes checkmate impossible, the capturing side wins.";
@@ -461,3 +458,9 @@
 "Knight" = "Knight";
 "%1$s, %2$s opponent" = "%1$s, %2$s opponent";
 "Opponent, %1$s, %2$s" = "Opponent, %1$s, %2$s";
+
+/* Temporary Halloween board candidates share the existing Halloween pieces. */
+"Emberwood Court" = "Emberwood Court";
+"Witchglass" = "Witchglass";
+"Halloween · Scorched timber and pumpkin amber" = "Halloween · Scorched timber and pumpkin amber";
+"Halloween · Cloudy sage and mulberry glass" = "Halloween · Cloudy sage and mulberry glass";

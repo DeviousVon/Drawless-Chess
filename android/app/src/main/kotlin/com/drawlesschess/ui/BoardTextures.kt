@@ -58,7 +58,7 @@ private val boardSurfaceCache = object : LruCache<BoardSurfaceCacheKey, ImageBit
         (value.width * value.height * Int.SIZE_BYTES / 1024).coerceAtLeast(1)
 }
 
-/** Adds a deterministic, cached stone surface above a square's base color. */
+/** Adds a deterministic, cached material surface above a square's base color. */
 internal fun Modifier.squareTexture(
     textureId: String?,
     isLightSquare: Boolean,
@@ -136,6 +136,13 @@ private fun renderBoardSurface(
             }
         }
     }
+    val boardTextureId = theme.textureId
+    when (boardTextureId) {
+        BoardTextureIds.CELESTIAL_OBSERVATORY ->
+            drawCelestialBezel(canvas, squarePx * 8f, squarePx)
+        BoardTextureIds.EMBERWOOD, BoardTextureIds.WITCHGLASS ->
+            drawHalloweenMaterialRim(canvas, squarePx * 8f, squarePx, boardTextureId == BoardTextureIds.EMBERWOOD)
+    }
     return board
 }
 
@@ -148,10 +155,15 @@ internal fun textureBitmap(
 ): ImageBitmap? {
     val px = when (textureId) {
         BoardTextureIds.AMETHYST -> min(requestedPx, MAX_AMETHYST_PX)
+        BoardTextureIds.EMBERWOOD,
+        BoardTextureIds.WITCHGLASS,
+        -> requestedPx.coerceIn(1, MAX_TEXTURE_PX)
         BoardTextureIds.SANDSTONE,
         BoardTextureIds.MARBLE,
         BoardTextureIds.SLATE,
         BoardTextureIds.VERDIGRIS,
+        BoardTextureIds.ALL_HALLOWS,
+        BoardTextureIds.CELESTIAL_OBSERVATORY,
         -> requestedPx
         else -> return null
     }
@@ -164,10 +176,333 @@ internal fun textureBitmap(
         BoardTextureIds.SLATE -> renderSlate(px, isLightSquare, seed)
         BoardTextureIds.VERDIGRIS -> renderVerdigris(px, isLightSquare, seed)
         BoardTextureIds.AMETHYST -> renderAmethyst(px, isLightSquare, seed)
+        BoardTextureIds.ALL_HALLOWS -> renderAllHallows(px, isLightSquare, seed)
+        BoardTextureIds.EMBERWOOD -> renderEmberwood(px, isLightSquare, seed)
+        BoardTextureIds.WITCHGLASS -> renderWitchglass(px, isLightSquare, seed)
+        BoardTextureIds.CELESTIAL_OBSERVATORY -> renderCelestial(px, isLightSquare, seed)
         else -> error("Unsupported board texture: $textureId")
     }
     textureBitmapCache.put(key, rendered)
     return rendered
+}
+
+/** Amber endgrain and scorched oak: quiet organic detail leaves move markers legible. */
+private fun renderEmberwood(px: Int, light: Boolean, seed: Int): ImageBitmap {
+    val rng = Random(seed)
+    val bitmap = ImageBitmap(px, px)
+    val canvas = Canvas(bitmap)
+    val side = px.toFloat()
+    val scale = side / 72f
+    val paint = Paint().apply { isAntiAlias = true }
+    paint.color = (if (light) Color(0xFFC99658) else Color(0xFF4B332A))
+        .jittered(rng.nextInt(-3, 4) / 255f)
+    canvas.drawRect(0f, 0f, side, side, paint)
+
+    paint.style = PaintingStyle.Stroke
+    paint.strokeCap = StrokeCap.Round
+    if (light) {
+        val center = Offset(
+            side * (0.1f + rng.nextFloat() * 0.8f),
+            side * (0.1f + rng.nextFloat() * 0.8f),
+        )
+        val phase = rng.nextFloat() * 6.28f
+        val stretch = 0.78f + rng.nextFloat() * 0.30f
+        repeat(22) { ring ->
+            val radius = side * (0.035f + ring * 0.046f)
+            val path = Path()
+            for (step in 0..80) {
+                val angle = step * 6.2831855f / 80f
+                val unevenRadius = radius * (
+                    1f + 0.025f * sin(angle * 3f + phase) +
+                        0.013f * sin(angle * 7f - phase + ring * 0.12f)
+                    )
+                val x = center.x + cos(angle) * unevenRadius
+                val y = center.y + sin(angle) * unevenRadius * stretch
+                if (step == 0) path.moveTo(x, y) else path.lineTo(x, y)
+            }
+            path.close()
+            paint.strokeWidth = (if (ring % 4 == 0) 0.72f else 0.42f) * scale
+            paint.color = Color(0xFF71482B).copy(alpha = 0.10f + rng.nextFloat() * 0.06f)
+            canvas.drawPath(path, paint)
+        }
+        // A few short radial checks suggest cut timber without introducing bright cracks.
+        repeat(3) {
+            val angle = rng.nextFloat() * 6.28f
+            val start = side * (0.20f + rng.nextFloat() * 0.45f)
+            val length = side * (0.07f + rng.nextFloat() * 0.13f)
+            val direction = Offset(cos(angle), sin(angle) * stretch)
+            paint.strokeWidth = 0.5f * scale
+            paint.color = Color(0xFF543825).copy(alpha = 0.16f)
+            canvas.drawLine(center + direction * start, center + direction * (start + length), paint)
+        }
+    } else {
+        val direction = if (rng.nextBoolean()) 1f else -1f
+        val phase = rng.nextFloat() * 6.28f
+        repeat(30) { line ->
+            val start = side * (-0.65f + line * 0.075f)
+            val path = Path()
+            for (step in 0..24) {
+                val x = side * step / 24f
+                val y = start + direction * x * 0.72f +
+                    side * 0.012f * sin(step * 0.37f + phase + line * 0.30f)
+                if (step == 0) path.moveTo(x, y) else path.lineTo(x, y)
+            }
+            paint.strokeWidth = (if (line % 5 == 0) 0.95f else 0.50f) * scale
+            paint.color = (if (line % 3 == 0) Color(0xFF94704B) else Color(0xFF231B18))
+                .copy(alpha = 0.12f + rng.nextFloat() * 0.08f)
+            canvas.drawPath(path, paint)
+        }
+        repeat(4) {
+            val start = Offset(rng.nextFloat() * side, rng.nextFloat() * side)
+            val length = side * (0.06f + rng.nextFloat() * 0.16f)
+            val fracture = Path().apply {
+                moveTo(start.x, start.y)
+                lineTo(start.x + length * 0.43f, start.y + direction * length * 0.38f)
+                lineTo(start.x + length * 0.62f, start.y + direction * length * 0.26f)
+                lineTo(start.x + length, start.y + direction * length * 0.67f)
+            }
+            paint.strokeWidth = 0.68f * scale
+            paint.color = Color(0xFF211A17).copy(alpha = 0.22f)
+            canvas.drawPath(fracture, paint)
+        }
+    }
+
+    paint.style = PaintingStyle.Fill
+    repeat(36) {
+        val point = Offset(rng.nextFloat() * side, rng.nextFloat() * side)
+        paint.color = (if (light) Color(0xFF543725) else Color(0xFFC3A278))
+            .copy(alpha = 0.04f + rng.nextFloat() * 0.06f)
+        canvas.drawOval(
+            Rect(point.x, point.y, point.x + 0.55f * scale, point.y + 1.2f * scale),
+            paint,
+        )
+    }
+    drawHalloweenTileEdges(canvas, side, scale, light, glass = false)
+    return bitmap
+}
+
+/** Cloudy sage and mulberry glass with minute trapped bubbles beneath a satin surface. */
+private fun renderWitchglass(px: Int, light: Boolean, seed: Int): ImageBitmap {
+    val rng = Random(seed)
+    val bitmap = ImageBitmap(px, px)
+    val canvas = Canvas(bitmap)
+    val side = px.toFloat()
+    val scale = side / 72f
+    val paint = Paint().apply { isAntiAlias = true }
+    paint.color = (if (light) Color(0xFFA6C2AF) else Color(0xFF59425D))
+        .jittered(rng.nextInt(-3, 4) / 255f)
+    canvas.drawRect(0f, 0f, side, side, paint)
+
+    // Concentric translucent lobes feather the clouds rather than making opaque spots.
+    repeat(7) { cloud ->
+        val center = Offset(rng.nextFloat() * side, rng.nextFloat() * side)
+        val radius = side * (0.22f + rng.nextFloat() * 0.32f)
+        val flatten = 0.38f + rng.nextFloat() * 0.45f
+        val tint = if (light) {
+            if (cloud % 2 == 0) Color(0xFFE4E8C9) else Color(0xFF526F65)
+        } else {
+            if (cloud % 2 == 0) Color(0xFFAC778C) else Color(0xFF252334)
+        }
+        paint.color = tint.copy(alpha = if (light) 0.012f else 0.016f)
+        repeat(10) { layer ->
+            val size = radius * (1f - layer * 0.07f)
+            canvas.drawOval(
+                Rect(center.x - size, center.y - size * flatten, center.x + size, center.y + size * flatten),
+                paint,
+            )
+        }
+    }
+
+    paint.style = PaintingStyle.Stroke
+    paint.strokeCap = StrokeCap.Round
+    repeat(4) {
+        val y = side * (-0.1f + rng.nextFloat() * 1.2f)
+        val drift = side * (rng.nextFloat() - 0.5f) * 0.6f
+        val swirl = Path().apply {
+            moveTo(-side * 0.1f, y)
+            cubicTo(side * 0.25f, y + drift, side * 0.42f, y - side * 0.30f, side * 0.65f, y - drift)
+            cubicTo(side * 0.82f, y + side * 0.20f, side * 0.95f, y + drift, side * 1.1f, y - side * 0.12f)
+        }
+        // Broad halos keep the fine curl recessed below the surface.
+        val tint = if (light) Color(0xFFE2E8D0) else Color(0xFFC18C9C)
+        for (width in listOf(5.5f, 2.5f, 0.7f)) {
+            paint.strokeWidth = width * scale
+            paint.color = tint.copy(alpha = if (width > 1f) 0.022f else 0.065f)
+            canvas.drawPath(swirl, paint)
+        }
+    }
+
+    repeat(3 + rng.nextInt(4)) {
+        var x = side * (0.12f + rng.nextFloat() * 0.76f)
+        val y = side * (0.12f + rng.nextFloat() * 0.76f)
+        // Keep round decoration outside the central legal-move marker region.
+        if (abs(x - side * 0.5f) < side * 0.21f && abs(y - side * 0.5f) < side * 0.21f) {
+            x = side * if (x < side * 0.5f) 0.18f else 0.82f
+        }
+        val radius = (0.50f + rng.nextFloat() * 0.85f) * scale
+        paint.strokeWidth = 0.52f * scale
+        paint.color = (if (light) Color(0xFF3C6257) else Color(0xFF201D2A)).copy(alpha = 0.32f)
+        canvas.drawCircle(Offset(x, y), radius, paint)
+        paint.color = (if (light) Color(0xFFF0F2DB) else Color(0xFFD8B7C6)).copy(alpha = 0.40f)
+        paint.strokeWidth = 0.46f * scale
+        canvas.drawArc(x - radius, y - radius, x + radius, y + radius, 205f, 115f, false, paint)
+    }
+    paint.style = PaintingStyle.Fill
+    repeat(24) {
+        paint.color = (if (light) Color(0xFFF0EED2) else Color(0xFFD8B5C1)).copy(alpha = 0.08f)
+        canvas.drawCircle(Offset(rng.nextFloat() * side, rng.nextFloat() * side), 0.25f * scale, paint)
+    }
+    drawHalloweenTileEdges(canvas, side, scale, light, glass = true)
+    return bitmap
+}
+
+/** Integral hairline joints preserve the full playing area and all hit regions. */
+private fun drawHalloweenTileEdges(canvas: Canvas, side: Float, scale: Float, light: Boolean, glass: Boolean) {
+    val paint = Paint().apply {
+        isAntiAlias = true
+        style = PaintingStyle.Stroke
+        strokeWidth = (if (glass) 0.90f else 0.48f) * scale
+        color = Color(0xFF191D1A).copy(alpha = if (glass) 0.54f else 0.30f)
+    }
+    val inset = paint.strokeWidth / 2f
+    canvas.drawRect(inset, inset, side - inset, side - inset, paint)
+    paint.strokeWidth = 0.5f * scale
+    paint.color = (if (glass) Color(0xFFE5E8D3) else Color(0xFFE4C294))
+        .copy(alpha = if (light) 0.20f else 0.15f)
+    val bevel = (if (glass) 1.1f else 0.75f) * scale
+    canvas.drawLine(Offset(bevel, bevel), Offset(side - bevel, bevel), paint)
+    canvas.drawLine(Offset(bevel, bevel), Offset(bevel, side - bevel), paint)
+}
+
+/** A thin iron rim lies inside the board, adding no margin or layout padding. */
+private fun drawHalloweenMaterialRim(canvas: Canvas, boardSide: Float, squarePx: Int, emberwood: Boolean) {
+    val scale = squarePx / 72f
+    val paint = Paint().apply {
+        isAntiAlias = true
+        style = PaintingStyle.Stroke
+        strokeWidth = 1.6f * scale
+        color = if (emberwood) Color(0xFF302622) else Color(0xFF262E29)
+    }
+    val inset = paint.strokeWidth / 2f
+    canvas.drawRect(inset, inset, boardSide - inset, boardSide - inset, paint)
+    paint.strokeWidth = 0.4f * scale
+    paint.color = (if (emberwood) Color(0xFFA2734D) else Color(0xFF99A486)).copy(alpha = 0.68f)
+    val edge = 1.35f * scale
+    canvas.drawRect(edge, edge, boardSide - edge, boardSide - edge, paint)
+}
+
+/** Lunar alabaster and midnight enamel, with quiet star charts etched beneath the pieces. */
+private fun renderCelestial(px: Int, light: Boolean, seed: Int): ImageBitmap {
+    val rng = Random(seed)
+    val bitmap = ImageBitmap(px, px)
+    val canvas = Canvas(bitmap)
+    val side = px.toFloat()
+    val scale = (side / 72f).coerceAtLeast(0.4f)
+    val paint = Paint().apply { isAntiAlias = true }
+    val base = if (light) Color(0xFFDED5C2) else Color(0xFF152A3B)
+    paint.color = base.jittered(rng.nextInt(-3, 4) / 255f)
+    canvas.drawRect(0f, 0f, side, side, paint)
+
+    // Broad mineral clouds read as polished material, without competing with piece silhouettes.
+    repeat(if (light) 16 else 10) {
+        val x = rng.nextFloat() * side
+        val y = rng.nextFloat() * side
+        val radius = side * (0.06f + rng.nextFloat() * 0.25f)
+        paint.color = if (light) {
+            (if (rng.nextBoolean()) Color(0xFF8E8166) else Color(0xFFFFF7E6))
+                .copy(alpha = 0.035f + rng.nextFloat() * 0.035f)
+        } else {
+            (if (rng.nextBoolean()) Color(0xFF050F1C) else Color(0xFF7095B0))
+                .copy(alpha = 0.025f + rng.nextFloat() * 0.035f)
+        }
+        canvas.drawOval(Rect(x - radius, y - radius * 0.4f, x + radius, y + radius * 0.4f), paint)
+    }
+
+    val brass = if (light) Color(0xFF806B43) else Color(0xFFCFB177)
+    if (light) {
+        // Off-centre astrolabe rings and graduated meridians are fine, recessed brass engraving.
+        val center = Offset(side * (0.25f + rng.nextFloat() * 0.5f), side * (0.25f + rng.nextFloat() * 0.5f))
+        val radius = side * (0.34f + rng.nextFloat() * 0.10f)
+        paint.style = PaintingStyle.Stroke
+        paint.strokeWidth = 0.6f * scale
+        paint.color = brass.copy(alpha = 0.19f)
+        listOf(0.72f, 1f, 1.10f).forEach { ratio ->
+            canvas.drawCircle(center, radius * ratio, paint)
+        }
+        canvas.drawOval(Rect(center.x - radius, center.y - radius * 0.40f, center.x + radius, center.y + radius * 0.40f), paint)
+        canvas.drawLine(Offset(center.x - radius * 1.18f, center.y), Offset(center.x + radius * 1.18f, center.y), paint)
+        canvas.drawLine(Offset(center.x, center.y - radius * 1.18f), Offset(center.x, center.y + radius * 1.18f), paint)
+        repeat(24) { mark ->
+            val angle = mark * Math.PI * 2.0 / 24.0
+            val inner = radius * if (mark % 3 == 0) 0.93f else 0.98f
+            val outer = radius * 1.08f
+            canvas.drawLine(
+                center + Offset(cos(angle).toFloat() * inner, sin(angle).toFloat() * inner),
+                center + Offset(cos(angle).toFloat() * outer, sin(angle).toFloat() * outer),
+                paint,
+            )
+        }
+        paint.style = PaintingStyle.Fill
+    } else {
+        // Each square gets its own small constellation. Stars stay subordinate to move markers.
+        val mirror = if (rng.nextBoolean()) 1f else -1f
+        val nodes = listOf(
+            Offset(0.18f, 0.32f), Offset(0.38f, 0.21f), Offset(0.57f, 0.45f),
+            Offset(0.78f, 0.32f), Offset(0.65f, 0.74f), Offset(0.32f, 0.80f),
+        ).map { point ->
+            Offset(
+                side * (0.5f + mirror * (point.x - 0.5f)),
+                side * (point.y + (rng.nextFloat() - 0.5f) * 0.10f),
+            )
+        }
+        paint.style = PaintingStyle.Stroke
+        paint.strokeWidth = 0.48f * scale
+        paint.color = brass.copy(alpha = 0.19f)
+        nodes.zipWithNext().forEach { (start, end) -> canvas.drawLine(start, end, paint) }
+        paint.style = PaintingStyle.Fill
+        nodes.forEachIndexed { index, point ->
+            paint.color = brass.copy(alpha = if (index == 2) 0.54f else 0.38f)
+            canvas.drawCircle(point, (if (index == 2) 0.85f else 0.65f) * scale, paint)
+        }
+    }
+
+    // Small mineral flecks become alabaster grain or pinpricks in the enamel at board scale.
+    repeat(if (light) 40 else 16) {
+        paint.color = (if (light) Color(0xFF776B53) else Color(0xFFE1CE94))
+            .copy(alpha = if (light) 0.035f + rng.nextFloat() * 0.04f else 0.08f + rng.nextFloat() * 0.12f)
+        canvas.drawCircle(Offset(rng.nextFloat() * side, rng.nextFloat() * side), 0.45f * scale, paint)
+    }
+    // A fine, warm inlay separates the polished tiles without making a busy grid.
+    paint.style = PaintingStyle.Stroke
+    paint.strokeWidth = 0.65f * scale
+    paint.color = brass.copy(alpha = if (light) 0.15f else 0.20f)
+    canvas.drawRect(0.4f * scale, 0.4f * scale, side - 0.4f * scale, side - 0.4f * scale, paint)
+    paint.color = Color.White.copy(alpha = if (light) 0.16f else 0.08f)
+    canvas.drawLine(Offset(0f, 0.7f * scale), Offset(side, 0.7f * scale), paint)
+    return bitmap
+}
+
+/** A thin astrolabe bezel sits inside the playing surface, preserving all board hit regions. */
+private fun drawCelestialBezel(canvas: Canvas, boardSide: Float, squarePx: Int) {
+    val scale = squarePx / 72f
+    val paint = Paint().apply { isAntiAlias = true }
+    val inset = 1.8f * scale
+    paint.style = PaintingStyle.Stroke
+    paint.strokeWidth = 3.2f * scale
+    paint.color = Color(0xFF72552E)
+    canvas.drawRect(inset, inset, boardSide - inset, boardSide - inset, paint)
+    paint.strokeWidth = 0.7f * scale
+    paint.color = Color(0xFFD7B570).copy(alpha = 0.88f)
+    canvas.drawRect(inset, inset, boardSide - inset, boardSide - inset, paint)
+    val step = squarePx / 4f
+    repeat(31) { index ->
+        val position = (index + 1) * step
+        val length = (if (index % 4 == 3) 3.4f else 1.8f) * scale
+        canvas.drawLine(Offset(position, inset), Offset(position, inset + length), paint)
+        canvas.drawLine(Offset(position, boardSide - inset), Offset(position, boardSide - inset - length), paint)
+        canvas.drawLine(Offset(inset, position), Offset(inset + length, position), paint)
+        canvas.drawLine(Offset(boardSide - inset, position), Offset(boardSide - inset - length, position), paint)
+    }
 }
 
 private fun renderSandstone(px: Int, light: Boolean, seed: Int): ImageBitmap {
@@ -620,6 +955,131 @@ private fun renderAmethyst(px: Int, light: Boolean, seed: Int): ImageBitmap {
         canvas.drawLine(Offset(x, y - length), Offset(x, y + length), paint)
     }
     return image
+}
+
+/** A deterministic candlelit-stone tile with restrained wear and a shallow carved bevel. */
+private fun renderAllHallows(px: Int, light: Boolean, seed: Int): ImageBitmap {
+    val rng = Random(seed)
+    val bitmap = ImageBitmap(px, px)
+    val canvas = Canvas(bitmap)
+    val side = px.toFloat()
+    val scale = (px / 72f).coerceAtLeast(0.5f)
+    val paint = Paint().apply { isAntiAlias = true }
+
+    val base = if (light) Color(0xFFC7BBAA) else Color(0xFF28313A)
+    paint.style = PaintingStyle.Fill
+    paint.color = base.jittered(rng.nextInt(-5, 6) / 255f)
+    canvas.drawRect(0f, 0f, side, side, paint)
+
+    // Broad translucent mineral blooms provide depth without a repeated photograph.
+    repeat(rng.nextInt(8, 13)) {
+        val width = side * (0.12f + rng.nextFloat() * 0.38f)
+        val height = side * (0.04f + rng.nextFloat() * 0.16f)
+        val left = rng.nextFloat() * (side + width) - width
+        val top = rng.nextFloat() * (side + height) - height
+        paint.style = PaintingStyle.Fill
+        paint.color = if (light) {
+            (if (rng.nextBoolean()) Color(0xFF786E62) else Color(0xFFF5ECDD))
+                .copy(alpha = 0.025f + rng.nextFloat() * 0.055f)
+        } else {
+            (if (rng.nextBoolean()) Color(0xFF10161C) else Color(0xFF71808B))
+                .copy(alpha = 0.035f + rng.nextFloat() * 0.06f)
+        }
+        canvas.drawOval(Rect(left, top, left + width, top + height), paint)
+    }
+
+    // Tiny pits and chisel marks survive downsampling as tactile stone rather than visual noise.
+    repeat(rng.nextInt(22, 34)) { mark ->
+        val x = rng.nextFloat() * side
+        val y = rng.nextFloat() * side
+        paint.style = PaintingStyle.Stroke
+        paint.strokeCap = StrokeCap.Round
+        paint.strokeWidth = (if (mark % 7 == 0) 0.9f else 0.45f) * scale
+        paint.color = if (light) {
+            Color(0xFF4E473F).copy(alpha = 0.07f + rng.nextFloat() * 0.08f)
+        } else {
+            Color(0xFFAAB4BC).copy(alpha = 0.05f + rng.nextFloat() * 0.07f)
+        }
+        canvas.drawLine(
+            Offset(x, y),
+            Offset((x + side * (0.01f + rng.nextFloat() * 0.045f)).coerceAtMost(side), y),
+            paint,
+        )
+    }
+
+    // Fine fractures add age; one restrained ember seam may show through a dark tile.
+    repeat(rng.nextInt(2, 5)) { crackIndex ->
+        val startX = rng.nextFloat() * side
+        val startY = rng.nextFloat() * side
+        val crack = Path().apply {
+            moveTo(startX, startY)
+            var x = startX
+            var y = startY
+            repeat(rng.nextInt(2, 5)) {
+                x = (x + side * (rng.nextFloat() * 0.22f - 0.11f)).coerceIn(0f, side)
+                y = (y + side * (0.06f + rng.nextFloat() * 0.10f)).coerceIn(0f, side)
+                lineTo(x, y)
+            }
+        }
+        paint.style = PaintingStyle.Stroke
+        paint.strokeWidth = 0.75f * scale
+        paint.color = Color(0xFF0D1116).copy(alpha = if (light) 0.16f else 0.28f)
+        canvas.drawPath(crack, paint)
+        if (!light && crackIndex == 0) {
+            paint.strokeWidth = 0.35f * scale
+            paint.color = Color(0xFFE78A2F).copy(alpha = 0.16f)
+            canvas.save()
+            canvas.translate(0.8f * scale, 0f)
+            canvas.drawPath(crack, paint)
+            canvas.restore()
+        }
+    }
+
+    // A one-pixel carved lip supplies the reference board's tangible square-by-square depth.
+    paint.style = PaintingStyle.Stroke
+    paint.strokeWidth = 0.8f * scale
+    paint.color = (if (light) Color.White else Color(0xFF8B99A3)).copy(alpha = 0.16f)
+    canvas.drawLine(Offset(0f, 0.6f * scale), Offset(side, 0.6f * scale), paint)
+    canvas.drawLine(Offset(0.6f * scale, 0f), Offset(0.6f * scale, side), paint)
+    paint.color = Color.Black.copy(alpha = if (light) 0.18f else 0.34f)
+    canvas.drawLine(Offset(0f, side - 0.6f * scale), Offset(side, side - 0.6f * scale), paint)
+    canvas.drawLine(Offset(side - 0.6f * scale, 0f), Offset(side - 0.6f * scale, side), paint)
+
+    // Only a minority of squares receive a faint corner engraving, avoiding a tiled-web effect.
+    if ((seed ushr 2) and 7 == 0) {
+        val fromRight = (seed and 1) == 0
+        val originX = if (fromRight) side else 0f
+        val direction = if (fromRight) -1f else 1f
+        val webColor = if (light) Color(0xFF453E38) else Color(0xFFE7DDD0)
+        paint.style = PaintingStyle.Stroke
+        paint.strokeCap = StrokeCap.Round
+        paint.strokeWidth = 0.55f * scale
+        paint.color = webColor.copy(alpha = if (light) 0.14f else 0.12f)
+        listOf(0.18f to 0.42f, 0.30f to 0.30f, 0.42f to 0.18f).forEach { (x, y) ->
+            canvas.drawLine(
+                Offset(originX, 0f),
+                Offset(originX + direction * side * x, side * y),
+                paint,
+            )
+        }
+        repeat(2) { ring ->
+            val radius = side * (0.16f + ring * 0.11f)
+            val left = if (fromRight) side - radius else 0f
+            val startAngle = if (fromRight) 90f else 0f
+            canvas.drawArc(
+                left,
+                0f,
+                left + radius,
+                radius,
+                startAngle,
+                90f,
+                false,
+                paint,
+            )
+        }
+    }
+
+    return bitmap
 }
 
 private fun Color.jittered(amount: Float): Color = Color(

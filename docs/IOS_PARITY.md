@@ -1,6 +1,6 @@
 # iOS parity ledger
 
-Updated: 2026-08-24
+Updated: 2026-08-30
 
 Release note: Apple accepted iOS 1.0.2 (build 2), and its public App Store page and matching
 `ios-v1.0.2-build-2` source release are live. That Release build is intentionally core-only:
@@ -21,6 +21,11 @@ At this checkpoint, the Android application remained the reference product until
 release-critical row was complete.
 Apple builds use the pinned native Fairy engine. The deterministic shared-rules engine is limited
 to non-Apple host tests and is never considered Apple engine evidence.
+
+Post-release convergence on 2026-08-30 made new Kotlin core source shared by default, moved
+Android Room and Apple native persistence onto the exact same checkpoint payload codec, and
+replaced Swift's copied opponent Elo values and adaptive-rating formula with the shared Kotlin
+catalog and `OfflineElo`. The native Compose and SwiftUI hosts remain separate by design.
 
 Checkpoint automated rerun on 2026-08-01:
 
@@ -59,7 +64,7 @@ Checkpoint automated rerun on 2026-08-01:
 | Hints and assistance accounting | coordinator/scoring sources | Complete | Exact hint/scoring paths use the production Apple engine; penalties, counts, threat assistance and score breakdown are exposed and covered by shared tests. The frozen Android hint move is projected through `BoardMoveArrow` and drawn over the live SwiftUI board from the shared from/to squares. |
 | Board reducer, orientation, targets, threats, check and last move | presentation sources | Complete | Exact reducer/presenter sources are shared; move selection and undo pass the iPhone UI test. |
 | Promotion UI | shared reducer plus SwiftUI dialog | Partial | Implemented; an end-to-end underpromotion UI fixture remains. |
-| Checkpoint model and revision semantics | coordinator sources | Complete | Exact checkpoint codec/revision contract is shared and tested; the Swift adapter writes the same JSON payload only when its revision changes. Frozen foreground Game Review roots and adjacent roots now round-trip through the Apple codec, while old payloads and invalid optional cache evidence remain playable. |
+| Checkpoint model and revision semantics | coordinator sources plus `shared/checkpoint-codec` | Complete | Android Room and the Swift adapter compile the exact same payload codec; the Swift adapter writes only when its revision changes. Frozen foreground Game Review roots and adjacent roots round-trip, released Android payloads with omitted nullable review fields remain compatible, and invalid optional cache evidence cannot make the playable save unavailable. |
 
 ## Product functionality
 
@@ -67,10 +72,10 @@ Checkpoint automated rerun on 2026-08-01:
 | --- | --- | --- | --- |
 | Home and Quick Play | `DrawlessApp.kt` | Partial | Home, saved-game controls, Quick Play opponent picker/theme preview, rules, privacy and license screens are implemented. Physical iPhone and iPad cases verify opponent selection, game launch and persistence; final VoiceOver/Dynamic Type audit remains. |
 | Advanced setup | `SetupScreen` | Partial | Ruleset, side, all eight RC1 opponents, clocks/increment, threat indication, copy and portraits are implemented. The original seven profiles passed on physical iPhone and iPad; Vesper/adaptive-rating device verification and the final VoiceOver/Dynamic Type audit remain. |
-| Eight opponent profiles | `OpponentProfiles` | Partial | Vesper plus Mira, Theo, Rhea, Mateo, Yuna, Amara and Lucian use the RC1 IDs, exact Elo behavior, portraits, epithets and personalities. The original seven selections passed on physical iPhone and iPad; Vesper's adaptive presentation and rating loop await the current device run. |
+| Eight opponent profiles | `OpponentProfiles` | Partial | Vesper plus Mira, Theo, Rhea, Mateo, Yuna, Amara and Lucian use the RC1 IDs, shared Kotlin Elo catalog and `OfflineElo`, portraits, epithets and personalities. The original seven selections passed on physical iPhone and iPad; Vesper's adaptive presentation and rating loop still await a current device UI run. |
 | Playable game screen | `GameScreen.kt` | Partial | Board, clocks, status, history, hint, undo, pause, resign, promotion, retry, flip, score detail and completion feedback are implemented. Review exists for Debug/internal validation but is compiled out of the core-only App Store Release. Physical iPhone XCTest passes a production-engine hint, human move, opponent reply, SAN and undo; promotion and completion UI cases remained at this checkpoint. |
 | Real offline opponent | `FairyUciEngine` + pinned native bridge | Complete | The checksum-pinned Fairy-Stockfish XCFramework and production `FairyUciEngine` run through the Apple transport. Direct UCI, shared runtime, cancellation/restart and 12-cycle lifecycle tests pass; ARM64 symbols are linked into the Release app. |
-| Save/resume active game | Room checkpoint store/codec | Partial | The Swift adapter durably stores the Android-compatible checkpoint by revision and implements Resume/discard/forfeit. Shared round trips pass; physical iPhone and iPad cases verify checkpoint restoration and the forfeit-and-replace path. Legacy migration coverage remains. |
+| Save/resume active game | Room checkpoint store plus shared codec | Partial | The Swift adapter durably stores the same shared payload by revision and implements Resume/discard/forfeit. Shared and released-format round trips pass; physical iPhone and iPad cases verify checkpoint restoration and the forfeit-and-replace path. Broader legacy migration UI coverage remains. |
 | Completed-game persistence | Room completed-game rows | Partial | Append-only, game-ID-idempotent JSON history and legacy aggregate migration are implemented. Physical iPhone and iPad cases verify that forfeit appends one loss; automated legacy migration UI coverage remains. |
 | Career statistics | `PlayerStatsPersistence` / `PlayerStatsScreen` | Partial | Win rate, average score, current/best streak, unassisted wins and per-opponent records are derived from durable history. Physical-device UI tests verify game/loss totals after forfeit; final migration and broader statistics UI evidence remains. |
 | Review/analysis | engine review controller and presentation | Partial | Full-strength player-only review now runs speculatively during each foreground human turn through the coordinator's same-engine cancellation/drain gate. Exact roots and played-move fallbacks persist in checkpoints and seed the final runner; any missing work starts automatically behind the completion presentation. Every request reapplies strength and analysis options, with a regression proving full-strength review cannot leak into the following limited opponent request. End-to-end physical-device UI evidence remains. |

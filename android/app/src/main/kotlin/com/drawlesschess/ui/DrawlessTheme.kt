@@ -52,12 +52,12 @@ internal object DrawlessVisualThemes {
         ),
     )
 
-    val AMETHYST_GEODE = DrawlessVisualTheme(
-        boardTheme = BoardThemes.AMETHYST_GEODE,
-        descriptionRes = R.string.theme_description_amethyst_geode,
+    val CELESTIAL_OBSERVATORY = DrawlessVisualTheme(
+        boardTheme = BoardThemes.CELESTIAL_OBSERVATORY,
+        descriptionRes = R.string.theme_description_celestial_observatory,
         pieces = DrawlessPiecePalette(
-            Color(0xFFFCF5E6), Color(0xFF2B1D38), Color(0xFF77648A), Color(0xFFC43E5C), Color(0xFFFFD166),
-            Color(0xFF21162F), Color(0xFFEDE0F7), Color(0xFFBCA4D0), Color(0xFFFFD166), Color(0xFFC43E5C),
+            Color(0xFFF1E7D0), Color(0xFF172637), Color(0xFF9A7944), Color(0xFFE4BB64), Color(0xFFCDA253),
+            Color(0xFF0E2130), Color(0xFFE5D4AC), Color(0xFFAA8953), Color(0xFFE4BB64), Color(0xFFCDA253),
         ),
     )
 
@@ -79,13 +79,30 @@ internal object DrawlessVisualThemes {
         ),
     )
 
+    val HALLOWEEN_EMBERWOOD = DrawlessVisualTheme(
+        boardTheme = BoardThemes.HALLOWEEN_EMBERWOOD,
+        descriptionRes = R.string.theme_description_halloween_emberwood,
+        pieces = DrawlessPiecePalette(
+            Color(0xFFF3E7CF), Color(0xFF261A2C), Color(0xFF8B5E3C), Color(0xFFC85427), Color(0xFFE78A2F),
+            Color(0xFF17101E), Color(0xFFF2DFC0), Color(0xFFB8A3C5), Color(0xFFF39A3E), Color(0xFFD75A28),
+        ),
+    )
+
+    val HALLOWEEN_WITCHGLASS = HALLOWEEN_EMBERWOOD.copy(
+        boardTheme = BoardThemes.HALLOWEEN_WITCHGLASS,
+        descriptionRes = R.string.theme_description_halloween_witchglass,
+    )
+    val ALL_HALLOWS_COURT = HALLOWEEN_EMBERWOOD
+
     val DEFAULT = IMPERIAL_MARBLE
     val all = listOf(
         IMPERIAL_MARBLE,
         DESERT_SANDSTONE,
         GLACIER_SLATE,
         VERDIGRIS_COPPER,
-        AMETHYST_GEODE,
+        CELESTIAL_OBSERVATORY,
+        HALLOWEEN_EMBERWOOD,
+        HALLOWEEN_WITCHGLASS,
     )
 
     init {

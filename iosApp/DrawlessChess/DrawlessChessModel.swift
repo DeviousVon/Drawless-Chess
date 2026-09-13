@@ -106,15 +106,24 @@ final class DrawlessChessModel: ObservableObject {
         var adaptiveGamesPlayed: Int
     }
 
+    private static let sharedDifficultyCatalog = BotDifficultyCatalog.shared
+
+    private static func sharedOpponentElo(_ id: String) -> Int {
+        if id == sharedDifficultyCatalog.ADAPTIVE_LEVEL_ID {
+            return Int(sharedDifficultyCatalog.ADAPTIVE_STARTING_ELO)
+        }
+        return Int(sharedDifficultyCatalog.named(id: id).approximateElo)
+    }
+
     static let botLevels = [
-        BotLevel(id: "adaptive", name: "Vesper", elo: 800, epithet: "Your Nemesis", personality: "Vesper watches, remembers, and always returns prepared.", portraitName: "opponent_adaptive"),
-        BotLevel(id: "learner", name: "Mira", elo: 550, epithet: "Curious newcomer", personality: "Bright and fearless, Mira is happy to try any idea once.", portraitName: "opponent_learner"),
-        BotLevel(id: "casual", name: "Theo", elo: 800, epithet: "Easygoing regular", personality: "Warm and observant, Theo enjoys a clever move and never takes a loss personally.", portraitName: "opponent_casual"),
-        BotLevel(id: "challenger", name: "Rhea", elo: 1_000, epithet: "Playful competitor", personality: "Rhea meets every position like a dare—and loves when you push back.", portraitName: "opponent_challenger"),
-        BotLevel(id: "club", name: "Mateo", elo: 1_300, epithet: "Club storyteller", personality: "Patient and good-humored, Mateo always has a story ready after the game.", portraitName: "opponent_club"),
-        BotLevel(id: "expert", name: "Yuna", elo: 1_675, epithet: "Quiet analyst", personality: "Precise and dryly funny, Yuna lets the board do most of the talking.", portraitName: "opponent_expert"),
-        BotLevel(id: "master", name: "Amara", elo: 2_100, epithet: "Unshakable strategist", personality: "Disciplined, gracious, and completely at home under pressure.", portraitName: "opponent_master"),
-        BotLevel(id: "grandmaster", name: "Lucian", elo: 2_550, epithet: "Courteous grandmaster", personality: "Sparse with words, generous in victory, and focused from the first move.", portraitName: "opponent_grandmaster"),
+        BotLevel(id: "adaptive", name: "Vesper", elo: sharedOpponentElo("adaptive"), epithet: "Your Nemesis", personality: "Vesper watches, remembers, and always returns prepared.", portraitName: "opponent_adaptive"),
+        BotLevel(id: "learner", name: "Mira", elo: sharedOpponentElo("learner"), epithet: "Curious newcomer", personality: "Bright and fearless, Mira is happy to try any idea once.", portraitName: "opponent_learner"),
+        BotLevel(id: "casual", name: "Theo", elo: sharedOpponentElo("casual"), epithet: "Easygoing regular", personality: "Warm and observant, Theo enjoys a clever move and never takes a loss personally.", portraitName: "opponent_casual"),
+        BotLevel(id: "challenger", name: "Rhea", elo: sharedOpponentElo("challenger"), epithet: "Playful competitor", personality: "Rhea meets every position like a dare—and loves when you push back.", portraitName: "opponent_challenger"),
+        BotLevel(id: "club", name: "Mateo", elo: sharedOpponentElo("club"), epithet: "Club storyteller", personality: "Patient and good-humored, Mateo always has a story ready after the game.", portraitName: "opponent_club"),
+        BotLevel(id: "expert", name: "Yuna", elo: sharedOpponentElo("expert"), epithet: "Quiet analyst", personality: "Precise and dryly funny, Yuna lets the board do most of the talking.", portraitName: "opponent_expert"),
+        BotLevel(id: "master", name: "Amara", elo: sharedOpponentElo("master"), epithet: "Unshakable strategist", personality: "Disciplined, gracious, and completely at home under pressure.", portraitName: "opponent_master"),
+        BotLevel(id: "grandmaster", name: "Lucian", elo: sharedOpponentElo("grandmaster"), epithet: "Courteous grandmaster", personality: "Sparse with words, generous in victory, and focused from the first move.", portraitName: "opponent_grandmaster"),
     ]
 
     static let boardThemes = [
@@ -122,7 +131,9 @@ final class DrawlessChessModel: ObservableObject {
         (id: "desert_sandstone", name: "Desert Sandstone"),
         (id: "glacier_slate", name: "Glacier Slate"),
         (id: "verdigris_copper", name: "Verdigris Copper"),
-        (id: "amethyst_geode", name: "Amethyst Geode"),
+        (id: "celestial_observatory", name: "Celestial Observatory"),
+        (id: "halloween_emberwood", name: "Emberwood Court"),
+        (id: "halloween_witchglass", name: "Witchglass"),
     ]
 
     @Published var route: Route = .home {
@@ -254,6 +265,11 @@ final class DrawlessChessModel: ObservableObject {
             key: Self.checkpointKey,
             clearTombstoneKey: Self.checkpointClearTombstoneKey
         )
+        let savedBoardThemeId = defaults.string(forKey: "boardThemeId") ?? "imperial_marble"
+        let boardThemeId = Self.normalizedBoardThemeId(savedBoardThemeId)
+        if boardThemeId != savedBoardThemeId {
+            defaults.set(boardThemeId, forKey: "boardThemeId")
+        }
         preferences = Preferences(
             soundEnabled: defaults.object(forKey: "soundEnabled") as? Bool ?? true,
             soundVolumePercent: defaults.object(forKey: "soundVolumePercent") as? Int ?? 50,
@@ -261,7 +277,7 @@ final class DrawlessChessModel: ObservableObject {
             coordinatesEnabled: defaults.object(forKey: "coordinatesEnabled") as? Bool ?? true,
             celebrationsEnabled: defaults.object(forKey: "celebrationsEnabled") as? Bool ?? true,
             threatIndicationEnabled: defaults.object(forKey: "threatIndicationEnabled") as? Bool ?? false,
-            boardThemeId: defaults.string(forKey: "boardThemeId") ?? "imperial_marble"
+            boardThemeId: boardThemeId
         )
         completedGames = Self.loadCompletedGames(defaults: defaults)
         legacyStatistics = Self.loadOrCreateLegacyStatistics(
@@ -844,9 +860,19 @@ final class DrawlessChessModel: ObservableObject {
         setup.threatIndicationEnabled = preferences.threatIndicationEnabled
     }
 
+    private static func normalizedBoardThemeId(_ id: String) -> String {
+        switch id {
+        case "amethyst_geode": "celestial_observatory"
+        case "malachite_court": "verdigris_copper"
+        case "all_hallows_court": "halloween_emberwood"
+        default: id
+        }
+    }
+
     func selectBoardTheme(_ id: String) {
-        guard Self.boardThemes.contains(where: { $0.id == id }) else { return }
-        preferences.boardThemeId = id
+        let normalizedId = Self.normalizedBoardThemeId(id)
+        guard Self.boardThemes.contains(where: { $0.id == normalizedId }) else { return }
+        preferences.boardThemeId = normalizedId
         persistPreferences()
     }
 
@@ -1643,10 +1669,18 @@ final class DrawlessChessModel: ObservableObject {
         opponentElo: Int,
         playerWon: Bool
     ) -> Int {
-        let expected = 1.0 / (1.0 + pow(10.0, Double(opponentElo - rating) / 400.0))
-        let k: Double = gamesPlayed < 10 ? 48.0 : (gamesPlayed < 30 ? 32.0 : 20.0)
-        let result = playerWon ? 1.0 : 0.0
-        return min(2_850, max(500, Int(floor(Double(rating) + k * (result - expected) + 0.5))))
+        let current = OfflineRating(
+            rating: Int32(rating),
+            gamesPlayed: Int32(gamesPlayed)
+        )
+        let result = playerWon ? RatedResult.win : RatedResult.loss
+        return Int(
+            OfflineElo.shared.update(
+                current: current,
+                opponentElo: Int32(opponentElo),
+                result: result
+            ).rating
+        )
     }
 
     private struct LegacyStatistics: Codable {

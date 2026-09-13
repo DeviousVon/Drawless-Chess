@@ -64,14 +64,24 @@ replace any third-party license text or notice packaged with a dependency.
 Original visual material and sampled audio
 ------------------------------------------
 
-The code-native chess-piece drawings, launcher icons, supporting color resources,
-and fictional opponent identities in the Android and iOS applications are
-original project material and are covered by the Drawless Chess
-GPL-3.0-or-later grant. The eight opponent portraits were generated specifically
+The code-native chess-piece drawings, All Hallows’ Court sculpture atlases,
+Celestial Observatory sculpture atlases,
+launcher icons, supporting color resources, and fictional opponent identities
+in the Android and iOS applications are original project material and are
+covered by the Drawless Chess GPL-3.0-or-later grant. The All Hallows’ Court
+atlases were generated specifically for this project with OpenAI's
+image-generation tool. One image supplied by the project owner was used only as
+a general gothic style, material, lighting, and quality reference; it is not
+distributed with the project. The exact prompts, output hashes, and renderer
+boundary are retained under artwork/all-hallows. The eight opponent portraits were generated specifically
 for this project with OpenAI's image-generation tool and without third-party
 reference imagery. Their full-resolution masters, final prompts, derivation
 details, and hashes are retained under artwork/opponents; to the extent copyright
 or related rights subsist in those outputs, they are included in the same grant.
+The Celestial Observatory atlases were generated from an original project concept
+without third-party reference imagery. Exact prompts, per-platform asset paths,
+source dimensions, and hashes are retained under artwork/celestial-observatory;
+to the extent rights subsist in the outputs, the same GPL grant applies.
 Move and castling sounds are processed only from the CC0 chess contacts; captures use
 the selected CC0 recording of a stone striking rocks, en passant and checkmate use the
 CC0 Brick and Stone crash recordings, fireworks use the CC0 pyrotechnic recordings,

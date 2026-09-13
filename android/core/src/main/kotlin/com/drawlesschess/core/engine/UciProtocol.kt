@@ -326,9 +326,19 @@ object UciCommands {
         }
     }
 
-    fun goMoveTime(moveTimeMillis: Long): String {
+    fun goMoveTime(
+        moveTimeMillis: Long,
+        searchMoves: List<UciMove> = emptyList(),
+    ): String {
         require(moveTimeMillis > 0)
-        return "go movetime $moveTimeMillis"
+        require(searchMoves.distinct().size == searchMoves.size)
+        return buildString {
+            append("go movetime ").append(moveTimeMillis)
+            if (searchMoves.isNotEmpty()) {
+                append(" searchmoves ")
+                append(searchMoves.joinToString(" ") { it.value })
+            }
+        }
     }
 
     private fun requireTokenText(value: String, label: String) {

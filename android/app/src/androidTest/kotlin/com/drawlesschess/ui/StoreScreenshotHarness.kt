@@ -134,8 +134,8 @@ internal object StoreScreenshotHarness {
                                     model = gameplayModel(BoardThemes.VERDIGRIS_COPPER),
                                     opponent = OpponentProfiles.quickPlay,
                                 )
-                                MarketingScene.AMETHYST_GEODE -> MarketingGame(
-                                    model = gameplayModel(BoardThemes.AMETHYST_GEODE),
+                                MarketingScene.AMETHYST_GEODE, MarketingScene.CELESTIAL_OBSERVATORY -> MarketingGame(
+                                    model = gameplayModel(BoardThemes.CELESTIAL_OBSERVATORY),
                                     opponent = OpponentProfiles.quickPlay,
                                 )
                                 MarketingScene.VICTORY -> MarketingGame(
@@ -468,7 +468,7 @@ internal object StoreScreenshotHarness {
         MarketingScene.DESERT_SANDSTONE -> BoardThemes.DESERT_SANDSTONE
         MarketingScene.IMPERIAL_MARBLE -> BoardThemes.IMPERIAL_MARBLE
         MarketingScene.VERDIGRIS_COPPER -> BoardThemes.VERDIGRIS_COPPER
-        MarketingScene.AMETHYST_GEODE -> BoardThemes.AMETHYST_GEODE
+        MarketingScene.AMETHYST_GEODE, MarketingScene.CELESTIAL_OBSERVATORY -> BoardThemes.CELESTIAL_OBSERVATORY
         MarketingScene.VICTORY, MarketingScene.DEFEAT -> BoardThemes.VERDIGRIS_COPPER
     }
 
@@ -479,6 +479,7 @@ internal object StoreScreenshotHarness {
         IMPERIAL_MARBLE,
         VERDIGRIS_COPPER,
         AMETHYST_GEODE,
+        CELESTIAL_OBSERVATORY,
         VICTORY,
         DEFEAT,
     }

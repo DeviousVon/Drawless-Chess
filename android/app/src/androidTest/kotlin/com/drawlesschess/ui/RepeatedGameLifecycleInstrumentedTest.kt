@@ -120,11 +120,11 @@ class RepeatedGameLifecycleInstrumentedTest {
         BoardThemes.all.forEach { theme ->
             compose.onNodeWithTag("theme_option_${theme.id}").performScrollTo().fetchSemanticsNode()
         }
-        compose.onNodeWithTag("theme_option_amethyst_geode")
+        compose.onNodeWithTag("theme_option_celestial_observatory")
             .performScrollTo()
             .performClick()
-        assertEquals(BoardThemes.AMETHYST_GEODE, ThemePreferenceStore(compose.activity).load())
-        waitForText("Theme · Amethyst Geode")
+        assertEquals(BoardThemes.CELESTIAL_OBSERVATORY, ThemePreferenceStore(compose.activity).load())
+        waitForText("Theme · Celestial Observatory")
         compose.onNodeWithTag("home_brand_hero").assertIsDisplayed()
 
         waitForText("Custom game")
@@ -174,7 +174,7 @@ class RepeatedGameLifecycleInstrumentedTest {
         compose.onNodeWithTag("review_rematch").performScrollTo().performClick()
         waitForStatus(R.string.status_your_turn)
         assertTrue(compose.onAllNodesWithText("Defeat").fetchSemanticsNodes().isEmpty())
-        assertTrue(compose.onAllNodesWithText("Game review").fetchSemanticsNodes().isEmpty())
+        assertTrue(compose.onAllNodesWithText("Review").fetchSemanticsNodes().isEmpty())
     }
 
     @Test
@@ -235,10 +235,10 @@ class RepeatedGameLifecycleInstrumentedTest {
         }
         assertTrue(
             "Review opened before the player acknowledged the completed presentation",
-            compose.onAllNodesWithText("Game review").fetchSemanticsNodes().isEmpty(),
+            compose.onAllNodesWithText("Review").fetchSemanticsNodes().isEmpty(),
         )
         compose.onNodeWithTag("post_game_review_tap_gate").performClick()
-        waitForText("Game review")
+        waitForText("Review")
         compose.onNodeWithTag("review_show_opponent_moves")
             .performScrollTo()
             .assertIsOff()
@@ -257,7 +257,7 @@ class RepeatedGameLifecycleInstrumentedTest {
                 ?.progress?.completedPositions ?: 0
 
         compose.activityRule.scenario.recreate()
-        waitForText("Game review")
+        waitForText("Review")
         compose.onNodeWithTag("review_show_opponent_moves")
             .performScrollTo()
             .assertIsOn()
@@ -327,7 +327,7 @@ class RepeatedGameLifecycleInstrumentedTest {
         assertEquals(null, viewModelAfterExit.runtime)
         assertTrue(compose.onAllNodesWithText("Resume game").fetchSemanticsNodes().isEmpty())
         assertTrue(compose.onAllNodesWithText("Defeat").fetchSemanticsNodes().isEmpty())
-        assertTrue(compose.onAllNodesWithText("Game review").fetchSemanticsNodes().isEmpty())
+        assertTrue(compose.onAllNodesWithText("Review").fetchSemanticsNodes().isEmpty())
     }
 
     @Test
@@ -378,9 +378,9 @@ class RepeatedGameLifecycleInstrumentedTest {
         )
         assertTrue(complete.result.moves.single().evidence?.usedAdjacentFallback == true)
 
-        assertTrue(compose.onAllNodesWithText("Game review").fetchSemanticsNodes().isEmpty())
+        assertTrue(compose.onAllNodesWithText("Review").fetchSemanticsNodes().isEmpty())
         compose.onNodeWithTag("post_game_review_tap_gate").performClick()
-        waitForText("Game review")
+        waitForText("Review")
         waitForText("Review complete")
     }
 
@@ -483,7 +483,7 @@ class RepeatedGameLifecycleInstrumentedTest {
                 .assertHasNoClickAction()
                 .performTouchInput { click() }
             assertTrue(compose.onAllNodesWithTag("post_game_review_tap_gate").fetchSemanticsNodes().isEmpty())
-            assertTrue(compose.onAllNodesWithText("Game review").fetchSemanticsNodes().isEmpty())
+            assertTrue(compose.onAllNodesWithText("Review").fetchSemanticsNodes().isEmpty())
             assertTrue(
                 "Underlying result actions remained accessible during the presentation",
                 compose.onAllNodesWithText("Home").fetchSemanticsNodes().isEmpty(),
@@ -509,7 +509,7 @@ class RepeatedGameLifecycleInstrumentedTest {
             compose.onNodeWithTag("post_game_review_tap_gate").fetchSemanticsNode()
             assertTrue(
                 "Review opened without the player's post-game tap",
-                compose.onAllNodesWithText("Game review").fetchSemanticsNodes().isEmpty(),
+                compose.onAllNodesWithText("Review").fetchSemanticsNodes().isEmpty(),
             )
 
             // Recreation must keep the result acknowledgement pending without replaying the
@@ -518,11 +518,11 @@ class RepeatedGameLifecycleInstrumentedTest {
             compose.mainClock.advanceTimeBy(defeat.postVisualAudioTailMillis + 50L)
             compose.waitForIdle()
             compose.onNodeWithTag("post_game_review_tap_gate").fetchSemanticsNode()
-            assertTrue(compose.onAllNodesWithText("Game review").fetchSemanticsNodes().isEmpty())
+            assertTrue(compose.onAllNodesWithText("Review").fetchSemanticsNodes().isEmpty())
 
             compose.mainClock.autoAdvance = true
             compose.onNodeWithTag("post_game_review_tap_gate").performClick()
-            waitForText("Game review")
+            waitForText("Review")
             assertTrue(
                 "Activity recreation replayed the one-shot completion effect",
                 compose.onAllNodesWithTag(
@@ -532,7 +532,7 @@ class RepeatedGameLifecycleInstrumentedTest {
             )
 
             compose.activityRule.scenario.recreate()
-            waitForText("Game review")
+            waitForText("Review")
 
             compose.activityRule.scenario.onActivity { activity ->
                 activity.onBackPressedDispatcher.onBackPressed()
@@ -555,7 +555,7 @@ class RepeatedGameLifecycleInstrumentedTest {
                 "Review exit restored the already-consumed tap gate",
                 compose.onAllNodesWithTag("post_game_review_tap_gate").fetchSemanticsNodes().isEmpty(),
             )
-            assertTrue(compose.onAllNodesWithText("Game review").fetchSemanticsNodes().isEmpty())
+            assertTrue(compose.onAllNodesWithText("Review").fetchSemanticsNodes().isEmpty())
         } finally {
             compose.mainClock.autoAdvance = true
             setGamePreferences(originalPreferences)
@@ -587,11 +587,11 @@ class RepeatedGameLifecycleInstrumentedTest {
             compose.onNodeWithTag("post_game_review_tap_gate").fetchSemanticsNode()
             assertTrue(
                 "Disabled effects bypassed the required post-game acknowledgement",
-                compose.onAllNodesWithText("Game review").fetchSemanticsNodes().isEmpty(),
+                compose.onAllNodesWithText("Review").fetchSemanticsNodes().isEmpty(),
             )
             compose.mainClock.autoAdvance = true
             compose.onNodeWithTag("post_game_review_tap_gate").performClick()
-            waitForText("Game review")
+            waitForText("Review")
         } finally {
             compose.mainClock.autoAdvance = true
             setGamePreferences(originalPreferences)
@@ -643,7 +643,7 @@ class RepeatedGameLifecycleInstrumentedTest {
         waitForText("Resign this game?")
         compose.onNodeWithText("Resign game").performClick()
         waitForPostGameReviewTapGate()
-        assertTrue(compose.onAllNodesWithText("Game review").fetchSemanticsNodes().isEmpty())
+        assertTrue(compose.onAllNodesWithText("Review").fetchSemanticsNodes().isEmpty())
     }
 
     private fun loadPlayerLosses(): Int {
@@ -664,14 +664,14 @@ class RepeatedGameLifecycleInstrumentedTest {
         }
         assertTrue(
             "Review opened before the post-game acknowledgement",
-            compose.onAllNodesWithText("Game review").fetchSemanticsNodes().isEmpty(),
+            compose.onAllNodesWithText("Review").fetchSemanticsNodes().isEmpty(),
         )
     }
 
     private fun openPostGameReview() {
         waitForPostGameReviewTapGate()
         compose.onNodeWithTag("post_game_review_tap_gate").performClick()
-        waitForText("Game review")
+        waitForText("Review")
     }
 
     private fun currentGamePreferences(): GamePreferences =

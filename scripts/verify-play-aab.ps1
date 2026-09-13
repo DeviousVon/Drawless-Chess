@@ -1,3 +1,4 @@
+#requires -Version 7.0
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)]
@@ -39,10 +40,12 @@ function Read-Properties([string]$Path) {
 function Find-JavaTool([string]$Name) {
     $candidates = @()
     if ($env:JAVA_HOME) {
-        $candidates += Join-Path $env:JAVA_HOME "bin\$Name.exe"
-        $candidates += Join-Path $env:JAVA_HOME "bin\$Name"
+        $executable = if ($IsWindows) { "$Name.exe" } else { $Name }
+        $candidates += Join-Path $env:JAVA_HOME "bin/$executable"
     }
-    $candidates += "C:\Program Files\Android\Android Studio\jbr\bin\$Name.exe"
+    if ($IsWindows) {
+        $candidates += "C:\Program Files\Android\Android Studio\jbr\bin\$Name.exe"
+    }
     $command = Get-Command $Name -ErrorAction SilentlyContinue
     if ($command -and $command.Source -notmatch '(?i)\\Windows\\System32\\bash\.exe$') {
         $candidates += $command.Source
@@ -56,7 +59,10 @@ function Find-JavaTool([string]$Name) {
 }
 
 function Find-Bash {
-    $candidates = @('C:\Program Files\Git\bin\bash.exe')
+    $candidates = @()
+    if ($IsWindows) {
+        $candidates += 'C:\Program Files\Git\bin\bash.exe'
+    }
     $command = Get-Command bash -ErrorAction SilentlyContinue
     if ($command) {
         $candidates += $command.Source
@@ -70,11 +76,17 @@ function Find-Bash {
 }
 
 function Find-AndroidSdk([string]$AndroidRoot) {
-    $candidates = @(
+    $candidates = @(@(
         $env:ANDROID_SDK_ROOT,
-        $env:ANDROID_HOME,
-        (Join-Path $env:LOCALAPPDATA 'Android\Sdk')
-    ) | Where-Object { $_ }
+        $env:ANDROID_HOME
+    ) | Where-Object { $_ })
+    if ($IsWindows -and $env:LOCALAPPDATA) {
+        $candidates += Join-Path $env:LOCALAPPDATA 'Android/Sdk'
+    } elseif ($IsMacOS) {
+        $candidates += Join-Path $HOME 'Library/Android/sdk'
+    } else {
+        $candidates += Join-Path $HOME 'Android/Sdk'
+    }
     $localProperties = Join-Path $AndroidRoot 'local.properties'
     if (Test-Path -LiteralPath $localProperties -PathType Leaf) {
         $sdkProperty = Read-Properties $localProperties
@@ -131,9 +143,40 @@ function Get-ZipEntrySha256([IO.Compression.ZipArchiveEntry]$Entry) {
     }
 }
 
+function Assert-PublicReleaseIdentity {
+    param(
+        [Parameter(Mandatory)][IO.Compression.ZipArchive]$Archive,
+        [Parameter(Mandatory)][string]$IdentitySha256,
+        [Parameter(Mandatory)][string]$ManifestDigestSha256
+    )
+    $expected = [ordered]@{
+        'base/assets/release/SOURCE-IDENTITY' = $IdentitySha256
+        'base/assets/release/SOURCE-MANIFEST.sha256.digest' = $ManifestDigestSha256
+    }
+    foreach ($entry in $Archive.Entries) {
+        if ($entry.FullName -imatch '(^|/)SOURCE-COMMIT$') {
+            Fail 'bundle must not contain a private source-commit asset'
+        }
+        if ($entry.FullName.StartsWith('base/assets/release/', [StringComparison]::OrdinalIgnoreCase) -and
+            -not $entry.FullName.EndsWith('/', [StringComparison]::Ordinal) -and
+            -not ($expected.Keys -ccontains $entry.FullName)) {
+            Fail "bundle contains an unrecognized release identity asset: $($entry.FullName)"
+        }
+    }
+    foreach ($assetPath in $expected.Keys) {
+        $entry = $Archive.GetEntry($assetPath)
+        if ($null -eq $entry) {
+            Fail "bundle is missing its public release identity asset: $assetPath"
+        }
+        $actualHash = Get-ZipEntrySha256 $entry
+        Assert-Equal "packaged public identity $assetPath" $actualHash $expected[$assetPath]
+        [ordered]@{ asset = $assetPath; sha256 = $actualHash }
+    }
+}
+
 $script:RepositoryRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
 $script:AndroidRoot = Join-Path $script:RepositoryRoot 'android'
-$script:GradleWrapper = Join-Path $script:AndroidRoot 'gradlew.bat'
+$script:GradleWrapper = Join-Path $script:AndroidRoot $(if ($IsWindows) { 'gradlew.bat' } else { 'gradlew' })
 if (-not (Test-Path -LiteralPath $script:GradleWrapper -PathType Leaf)) {
     Fail "Gradle wrapper not found: $script:GradleWrapper"
 }
@@ -199,17 +242,7 @@ $sourceArchivePath = (Resolve-Path -LiteralPath $SourceArchive -ErrorAction Stop
 if (-not $sourceArchivePath.EndsWith('.tar.gz', [StringComparison]::OrdinalIgnoreCase)) {
     Fail "source archive must end in .tar.gz: $sourceArchivePath"
 }
-$iosProjectPath = Join-Path $script:RepositoryRoot 'iosApp\project.yml'
-$iosProject = Get-Content -LiteralPath $iosProjectPath -Raw
-$iosBuildMatch = [regex]::Match(
-    $iosProject,
-    '(?m)^\s*CURRENT_PROJECT_VERSION:\s*"([0-9]+)"\s*$'
-)
-if (-not $iosBuildMatch.Success) {
-    Fail "could not read the iOS public-source build identity from $iosProjectPath"
-}
-$iosBuild = $iosBuildMatch.Groups[1].Value
-$expectedSourceArchiveName = "drawless-chess-ios-$expectedVersionName-build-$iosBuild-source.tar.gz"
+$expectedSourceArchiveName = "drawless-chess-android-$expectedVersionName-build-$expectedVersionCode-source.tar.gz"
 if ([IO.Path]::GetFileName($sourceArchivePath) -cne $expectedSourceArchiveName) {
     Fail "source archive filename must be the reviewed public identity $expectedSourceArchiveName"
 }
@@ -224,6 +257,8 @@ $sourceInspectionRoot = Join-Path ([IO.Path]::GetTempPath()) (
 New-Item -ItemType Directory -Path $sourceInspectionRoot | Out-Null
 $sourceManifestHashes = @{}
 $sourceManifestSha256 = ''
+$sourceIdentitySha256 = ''
+$sourceManifestDigestSha256 = ''
 $sourceVerifiedFileCount = 0
 $archivePublicTag = ''
 try {
@@ -277,10 +312,11 @@ try {
         Fail 'source archive is missing SOURCE-IDENTITY or SOURCE-MANIFEST.sha256'
     }
     $sourceIdentity = Read-Properties $identityPath
-    $expectedPublicTag = "ios-v$expectedVersionName-build-$iosBuild"
+    $expectedPublicTag = "v$expectedVersionName"
     foreach ($requiredIdentity in @(
         'schemaVersion',
         'platform',
+        'applicationId',
         'version',
         'build',
         'publicTag',
@@ -292,12 +328,15 @@ try {
         }
     }
     Assert-Equal 'source identity schema' $sourceIdentity['schemaVersion'] '1'
-    Assert-Equal 'source identity platform' $sourceIdentity['platform'] 'iOS'
+    Assert-Equal 'source identity platform' $sourceIdentity['platform'] 'Android'
+    Assert-Equal 'source identity application ID' $sourceIdentity['applicationId'] $expectedApplicationId
     Assert-Equal 'source identity version' $sourceIdentity['version'] $expectedVersionName
-    Assert-Equal 'source identity build' $sourceIdentity['build'] $iosBuild
+    Assert-Equal 'source identity build' $sourceIdentity['build'] $expectedVersionCode
     Assert-Equal 'source identity public tag' $sourceIdentity['publicTag'] $expectedPublicTag
     Assert-Equal 'source identity archive' $sourceIdentity['archive'] $expectedSourceArchiveName
     $archivePublicTag = $sourceIdentity['publicTag']
+    $sourceIdentitySha256 = (Get-FileHash -LiteralPath $identityPath -Algorithm SHA256).
+        Hash.ToLowerInvariant()
     if (Test-Path -LiteralPath (Join-Path $extractedRoot 'SOURCE-COMMIT')) {
         Fail 'public source archive must not expose a private repository commit identity'
     }
@@ -355,8 +394,10 @@ try {
         $recordedManifestDigest -cne $sourceManifestSha256) {
         Fail 'source archive manifest digest does not match SOURCE-MANIFEST.sha256'
     }
+    $sourceManifestDigestSha256 = (Get-FileHash -LiteralPath $sourceManifestDigestPath -Algorithm SHA256).
+        Hash.ToLowerInvariant()
 
-    $actualArchiveFiles = @(Get-ChildItem -LiteralPath $extractedRoot -Recurse -File |
+    $actualArchiveFiles = @(Get-ChildItem -LiteralPath $extractedRoot -Recurse -File -Force |
         ForEach-Object {
             [IO.Path]::GetRelativePath($extractedRoot, $_.FullName).Replace('\', '/')
         } | Where-Object {
@@ -431,9 +472,13 @@ try {
 $sourceArchiveSha256 = (Get-FileHash -LiteralPath $sourceArchivePath -Algorithm SHA256).Hash.
     ToLowerInvariant()
 $bash = Find-Bash
-$gitRoot = Split-Path -Parent (Split-Path -Parent $bash)
-$cygpath = Join-Path $gitRoot 'usr\bin\cygpath.exe'
-$bashRepositoryRoot = if (Test-Path -LiteralPath $cygpath -PathType Leaf) {
+$cygpath = if ($IsWindows) {
+    $gitRoot = Split-Path -Parent (Split-Path -Parent $bash)
+    Join-Path $gitRoot 'usr\bin\cygpath.exe'
+} else {
+    $null
+}
+$bashRepositoryRoot = if ($cygpath -and (Test-Path -LiteralPath $cygpath -PathType Leaf)) {
     $converted = @(& $cygpath -u $script:RepositoryRoot 2>&1 |
         ForEach-Object { $_.ToString() })
     if ($LASTEXITCODE -ne 0) {
@@ -446,7 +491,7 @@ $bashRepositoryRoot = if (Test-Path -LiteralPath $cygpath -PathType Leaf) {
 Push-Location $script:RepositoryRoot
 try {
     $canonicalOutput = @(& $bash -lc `
-        'cd -- "$1" && python3 scripts/source-bundle.py --repository-root "$1" --manifest-digest' `
+        'cd -- "$1" && python3 scripts/source-bundle.py --repository-root "$1" --platform android --manifest-digest' `
         'drawless-source-inventory' $bashRepositoryRoot 2>&1 |
             ForEach-Object { $_.ToString() })
     $canonicalExitCode = $LASTEXITCODE
@@ -607,24 +652,11 @@ try {
         })
     }
 
-    $sourceCommitAssetPath = 'base/assets/release/SOURCE-COMMIT'
-    $sourceCommitEntry = $archive.GetEntry($sourceCommitAssetPath)
-    if ($null -eq $sourceCommitEntry) {
-        Fail "bundle is missing its release source commit asset: $sourceCommitAssetPath"
+    $publicIdentityAssets = Assert-PublicReleaseIdentity -Archive $archive `
+        -IdentitySha256 $sourceIdentitySha256 -ManifestDigestSha256 $sourceManifestDigestSha256
+    foreach ($identityAsset in $publicIdentityAssets) {
+        $packagedAssetEvidence.Add($identityAsset)
     }
-    $commitStream = $sourceCommitEntry.Open()
-    $commitReader = [IO.StreamReader]::new($commitStream, [Text.UTF8Encoding]::new($false), $true)
-    try {
-        $packagedSourceCommit = $commitReader.ReadToEnd().Trim()
-    } finally {
-        $commitReader.Dispose()
-        $commitStream.Dispose()
-    }
-    Assert-Equal 'packaged release source commit' $packagedSourceCommit $repositoryCommit
-    $packagedAssetEvidence.Add([ordered]@{
-        asset = $sourceCommitAssetPath
-        sha256 = Get-ZipEntrySha256 $sourceCommitEntry
-    })
 
     $nativeEntries = $archive.Entries | Where-Object {
         $_.FullName -cmatch '^base/lib/([^/]+)/([^/]+\.so)$'
@@ -751,6 +783,7 @@ $report = [ordered]@{
         sha256 = $sourceArchiveSha256
         publicTag = $archivePublicTag
         manifestSha256 = $sourceManifestSha256
+        identitySha256 = $sourceIdentitySha256
         verifiedFileCount = $sourceVerifiedFileCount
         allManifestHashesVerified = $true
         manifestDigestVerified = $true

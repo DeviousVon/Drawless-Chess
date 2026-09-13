@@ -17,6 +17,8 @@ import com.drawlesschess.core.engine.NamedBotLevel
 import com.drawlesschess.core.presentation.BoardTheme
 import com.drawlesschess.core.presentation.BoardThemes
 import com.drawlesschess.persistence.PlayerStatistics
+import com.drawlesschess.persistence.GameHistoryEntry
+import com.drawlesschess.persistence.HistoricalGameReview
 import com.drawlesschess.persistence.RoomCheckpointStore
 import com.drawlesschess.R
 
@@ -25,8 +27,10 @@ internal enum class AppRoute {
     SETUP,
     OPTIONS,
     STATS,
+    HISTORY,
     GAME,
     REVIEW,
+    HISTORICAL_REVIEW,
 }
 
 internal sealed interface ResumeState {
@@ -40,6 +44,18 @@ internal sealed interface PlayerStatsState {
     data object Loading : PlayerStatsState
     data class Ready(val statistics: PlayerStatistics) : PlayerStatsState
     data class Failed(val message: UiText) : PlayerStatsState
+}
+
+internal sealed interface GameHistoryState {
+    data object Loading : GameHistoryState
+    data class Ready(val entries: List<GameHistoryEntry>) : GameHistoryState
+    data class Failed(val message: UiText) : GameHistoryState
+}
+
+internal sealed interface HistoricalReviewScreenState {
+    data object Loading : HistoricalReviewScreenState
+    data class Ready(val runtime: HistoricalReviewRuntime) : HistoricalReviewScreenState
+    data class Failed(val message: UiText) : HistoricalReviewScreenState
 }
 
 internal data class ResolvedGameSetup(
@@ -91,6 +107,13 @@ internal class DrawlessAppViewModel(
 
     var playerStatsState: PlayerStatsState by mutableStateOf(PlayerStatsState.Loading)
         private set
+    var gameHistoryState: GameHistoryState by mutableStateOf(GameHistoryState.Loading)
+        private set
+    var historicalReviewState: HistoricalReviewScreenState by
+        mutableStateOf(HistoricalReviewScreenState.Loading)
+        private set
+    private var historicalReviewRuntime: HistoricalReviewRuntime? = null
+    private var historyRequestGeneration = 0L
     private var lastAdaptiveRating: Int = BotDifficultyCatalog.ADAPTIVE_STARTING_ELO
     private var adaptiveLaunchPending = false
     private var launchRequestGeneration = 0L
@@ -150,6 +173,52 @@ internal class DrawlessAppViewModel(
 
     fun leaveStats() {
         route = AppRoute.HOME
+    }
+
+    fun showHistory() {
+        closeHistoricalReviewRuntime()
+        route = AppRoute.HISTORY
+        refreshGameHistory()
+    }
+
+    fun leaveHistory() {
+        route = AppRoute.HOME
+    }
+
+    fun openHistoricalReview(gameId: String) {
+        if (gameId.isBlank()) return
+        closeHistoricalReviewRuntime()
+        val request = ++historyRequestGeneration
+        historicalReviewState = HistoricalReviewScreenState.Loading
+        route = AppRoute.HISTORICAL_REVIEW
+        checkpointStore.loadHistoricalGameReview(gameId) { result ->
+            if (request != historyRequestGeneration || route != AppRoute.HISTORICAL_REVIEW) {
+                return@loadHistoricalGameReview
+            }
+            result.fold(
+                onSuccess = { historical ->
+                    if (historical == null) {
+                        historicalReviewState = HistoricalReviewScreenState.Failed(
+                            uiText(R.string.error_history_game_not_loaded),
+                        )
+                    } else {
+                        showHistoricalReview(historical)
+                    }
+                },
+                onFailure = { error ->
+                    Log.e(LOG_TAG, "Could not load historical game", error)
+                    historicalReviewState = HistoricalReviewScreenState.Failed(
+                        uiText(R.string.error_history_game_not_loaded),
+                    )
+                },
+            )
+        }
+    }
+
+    fun leaveHistoricalReview() {
+        closeHistoricalReviewRuntime()
+        route = AppRoute.HISTORY
+        refreshGameHistory()
     }
 
     fun completedGameRecorded() {
@@ -286,6 +355,7 @@ internal class DrawlessAppViewModel(
                 resolvedHumanSide = resolvedSetup.humanSide,
                 threatIndicationEnabled = gamePreferences.threatIndicationEnabled,
                 adaptiveElo = currentAdaptiveRating(),
+                saveCompletedReview = checkpointStore::saveCompletedGameReview,
             )
                 .also { activeSelection = resolvedSetup.rematchSelection }
         }
@@ -349,6 +419,7 @@ internal class DrawlessAppViewModel(
                                 applicationContext,
                                 checkpointStore.activateResume(),
                                 initialTheme = selectedTheme,
+                                saveCompletedReview = checkpointStore::saveCompletedGameReview,
                             ).also { activeSelection = resumedSelection }
                         }
                     }
@@ -383,6 +454,7 @@ internal class DrawlessAppViewModel(
 
     override fun onCleared() {
         cancelPendingAdaptiveLaunch()
+        closeHistoricalReviewRuntime()
         runtime?.close()
         runtime = null
     }
@@ -424,7 +496,46 @@ internal class DrawlessAppViewModel(
         }
     }
 
+    private fun refreshGameHistory() {
+        val request = ++historyRequestGeneration
+        gameHistoryState = GameHistoryState.Loading
+        checkpointStore.loadGameHistory { result ->
+            if (request != historyRequestGeneration || route != AppRoute.HISTORY) {
+                return@loadGameHistory
+            }
+            result.fold(
+                onSuccess = { entries -> gameHistoryState = GameHistoryState.Ready(entries) },
+                onFailure = { error ->
+                    Log.e(LOG_TAG, "Could not load game history", error)
+                    gameHistoryState = GameHistoryState.Failed(
+                        uiText(R.string.error_game_history_not_loaded),
+                    )
+                },
+            )
+        }
+    }
+
+    private fun showHistoricalReview(historical: HistoricalGameReview) {
+        val created = HistoricalReviewRuntime(
+            applicationContext = applicationContext,
+            game = historical.game,
+            cachedReview = historical.review,
+            saveCompletedReview = checkpointStore::saveCompletedGameReview,
+        )
+        historicalReviewRuntime = created
+        historicalReviewState = HistoricalReviewScreenState.Ready(created)
+    }
+
+    private fun closeHistoricalReviewRuntime() {
+        historyRequestGeneration++
+        val previous = historicalReviewRuntime
+        historicalReviewRuntime = null
+        previous?.close()
+        historicalReviewState = HistoricalReviewScreenState.Loading
+    }
+
     private fun replaceRuntime(create: () -> GameRuntime) {
+        closeHistoricalReviewRuntime()
         val previous = runtime
         runtime = null
         postGameReviewHandledGameId = null

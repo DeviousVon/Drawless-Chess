@@ -54,7 +54,7 @@
 "Advanced rules" = "Règles avancées";
 "Aged copper and ivory limestone" = "Cuivre patiné et calcaire ivoire";
 "Amara" = "Amara";
-"Amethyst Geode" = "Géode d’améthyste";
+"Celestial Observatory" = "Observatoire céleste";
 "analysis failed" = "échec de l’analyse";
 "Analysis stopped" = "Analyse arrêtée";
 "Analyze again" = "Analyser à nouveau";
@@ -68,7 +68,6 @@
 "Back" = "Retour";
 "Best" = "Meilleur";
 "Best streak" = "Meilleure série";
-"Beta" = "Bêta";
 "Better move arrow from %1$s to %2$s" = "Flèche du meilleur coup de %1$s vers %2$s";
 "Better was %1$s." = "Un meilleur coup était %1$s.";
 "bishop" = "fou";
@@ -147,7 +146,6 @@
 "Game feedback" = "Retour de partie";
 "Game moves" = "Coups de la partie";
 "Game paused" = "Partie en pause";
-"Game review" = "Analyse de la partie";
 "Game score is a motivational measure of clean wins—not a chess rating. Your average includes every completed game, including zero-point losses. Future online Elo will remain separate." = "Le score de partie est une mesure motivante des victoires sans aide, pas une évaluation de votre niveau aux échecs. Votre moyenne comprend chaque partie terminée, y compris les défaites à zéro point. Le futur Elo en ligne restera distinct.";
 "Getting your latest record ready." = "Préparation de vos derniers résultats.";
 "Glacier Slate" = "Ardoise glaciaire";
@@ -185,7 +183,7 @@
 "ios.duration_3" = "3 minutes";
 "ios.duration_30" = "30 minutes";
 "ios.empty_square" = "Case %@ vide";
-"ios.game_review" = "Analyse de la partie";
+"ios.game_review" = "Analyse";
 "ios.games" = "Parties";
 "ios.increment" = "Incrément : %ld secondes";
 "ios.license_body" = "Drawless Chess est distribué sous licence GNU GPL version 3 ou ultérieure. Son moteur exécuté sur l’appareil est une version modifiée de Fairy-Stockfish, dérivée de Stockfish et distribuée sous GPL-3.0-or-later. Les sons comprennent des enregistrements d’échecs CC0 de JJTaynos et mh2o, des feux d’artifice CC0 de Rudmer_Rotteveel et des enregistrements ion.sound de Denis Ineshin sous licence MIT. Le code source correspondant exact et les avis de tiers accompagnent cette version.";
@@ -212,7 +210,6 @@
 "Preparing game review" = "Préparation de l’analyse de la partie";
 "Matching the analysis completed while you played." = "Mise en correspondance de l’analyse effectuée pendant votre partie.";
 "Checking the positions that still need analysis." = "Vérification des positions qui nécessitent encore une analyse.";
-"ios.review_beta" = "Bêta";
 "ios.review_better_move" = "Un meilleur coup était %1$@.";
 "ios.review_complete" = "Analyse terminée";
 "ios.review_complete_body" = "Vos coups : %1$d. Coups évalués : %2$d.";
@@ -422,7 +419,7 @@
 "VICTORY" = "VICTOIRE";
 "View policy" = "Voir la politique";
 "View source" = "Voir le code source";
-"Violet crystal and gold glints" = "Cristal violet et reflets dorés";
+"Lunar alabaster, midnight enamel, and brass" = "Albâtre lunaire, émail bleu nuit et laiton";
 "Waiting for analysis…" = "En attente de l’analyse…";
 "Warm and observant, Theo enjoys a clever move and never takes a loss personally." = "Chaleureux et observateur, Theo apprécie les coups astucieux et ne prend jamais une défaite personnellement.";
 "When a capture makes checkmate impossible, the capturing side wins." = "Quand une capture rend l’échec et mat impossible, le camp qui a effectué la capture gagne.";
@@ -461,3 +458,9 @@
 "Knight" = "Cavalier";
 "%1$s, %2$s opponent" = "%1$s, adversaire %2$s";
 "Opponent, %1$s, %2$s" = "Adversaire, %1$s, %2$s";
+
+/* Temporary Halloween board candidates share the existing Halloween pieces. */
+"Emberwood Court" = "Cour des Braises";
+"Witchglass" = "Verre Sorcier";
+"Halloween · Scorched timber and pumpkin amber" = "Halloween · Bois brûlé et ambre citrouille";
+"Halloween · Cloudy sage and mulberry glass" = "Halloween · Verre trouble sauge et mûre";

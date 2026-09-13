@@ -54,7 +54,7 @@
 "Advanced rules" = "Reglas avanzadas";
 "Aged copper and ivory limestone" = "Cobre patinado y caliza marfil";
 "Amara" = "Amara";
-"Amethyst Geode" = "Geoda de amatista";
+"Celestial Observatory" = "Observatorio celeste";
 "analysis failed" = "falló el análisis";
 "Analysis stopped" = "Análisis detenido";
 "Analyze again" = "Analizar de nuevo";
@@ -68,7 +68,6 @@
 "Back" = "Atrás";
 "Best" = "La mejor";
 "Best streak" = "Mejor racha";
-"Beta" = "Beta";
 "Better move arrow from %1$s to %2$s" = "Flecha de mejor jugada de %1$s a %2$s";
 "Better was %1$s." = "Era mejor %1$s.";
 "bishop" = "alfil";
@@ -147,7 +146,6 @@
 "Game feedback" = "Presentación de la partida";
 "Game moves" = "Jugadas de la partida";
 "Game paused" = "Partida en pausa";
-"Game review" = "Análisis de la partida";
 "Game score is a motivational measure of clean wins—not a chess rating. Your average includes every completed game, including zero-point losses. Future online Elo will remain separate." = "La puntuación de partida es una medida motivacional de las victorias limpias, no una clasificación ni un Elo de ajedrez. Tu promedio incluye todas las partidas terminadas, incluso las derrotas de cero puntos. El Elo en línea futuro se mantendrá por separado.";
 "Getting your latest record ready." = "Preparando tu registro más reciente.";
 "Glacier Slate" = "Pizarra glaciar";
@@ -185,7 +183,7 @@
 "ios.duration_3" = "3 minutos";
 "ios.duration_30" = "30 minutos";
 "ios.empty_square" = "Casilla %@ vacía";
-"ios.game_review" = "Análisis de la partida";
+"ios.game_review" = "Análisis";
 "ios.games" = "Partidas";
 "ios.increment" = "Incremento: %ld segundos";
 "ios.license_body" = "Drawless Chess se distribuye bajo la licencia GNU GPL versión 3 o posterior. Su motor en el dispositivo es una versión modificada de Fairy-Stockfish, derivada de Stockfish y distribuida bajo GPL-3.0-or-later. El audio incluye grabaciones de ajedrez CC0 de JJTaynos y mh2o, fuegos artificiales CC0 de Rudmer_Rotteveel y grabaciones ion.sound de Denis Ineshin con licencia MIT. El código fuente correspondiente exacto y los avisos de terceros acompañan a esta versión.";
@@ -212,7 +210,6 @@
 "Preparing game review" = "Preparando el análisis de la partida";
 "Matching the analysis completed while you played." = "Comparando el análisis completado mientras jugabas.";
 "Checking the positions that still need analysis." = "Revisando las posiciones que aún necesitan análisis.";
-"ios.review_beta" = "Beta";
 "ios.review_better_move" = "Era mejor %1$@.";
 "ios.review_complete" = "Análisis completo";
 "ios.review_complete_body" = "Tus jugadas: %1$d. Jugadas calificadas: %2$d.";
@@ -422,7 +419,7 @@
 "VICTORY" = "VICTORIA";
 "View policy" = "Ver política";
 "View source" = "Ver código fuente";
-"Violet crystal and gold glints" = "Cristal violeta y destellos dorados";
+"Lunar alabaster, midnight enamel, and brass" = "Alabastro lunar, esmalte azul medianoche y latón";
 "Waiting for analysis…" = "Esperando el análisis…";
 "Warm and observant, Theo enjoys a clever move and never takes a loss personally." = "Cálido y observador, Theo disfruta los movimientos ingeniosos y nunca se toma una derrota como algo personal.";
 "When a capture makes checkmate impossible, the capturing side wins." = "Cuando una captura vuelve imposible el jaque mate, gana el bando que realizó la captura.";
@@ -461,3 +458,9 @@
 "Knight" = "Caballo";
 "%1$s, %2$s opponent" = "%1$s, oponente %2$s";
 "Opponent, %1$s, %2$s" = "Oponente, %1$s, %2$s";
+
+/* Temporary Halloween board candidates share the existing Halloween pieces. */
+"Emberwood Court" = "Corte de Brasas";
+"Witchglass" = "Cristal Embrujado";
+"Halloween · Scorched timber and pumpkin amber" = "Halloween · Madera quemada y ámbar de calabaza";
+"Halloween · Cloudy sage and mulberry glass" = "Halloween · Vidrio turbio de tonos salvia y mora";

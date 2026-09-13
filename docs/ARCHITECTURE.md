@@ -80,6 +80,22 @@ This is unidirectional data flow: state flows to UI; user events flow to a state
 - Store elapsed clock values at each ply for recovery and dispute-free result screens.
 - Add database migrations; never destructively recreate a production database.
 
+### Completed Review and history
+
+Android schema 3 adds a `game_review` row linked to each completed game. Migration
+2→3 adds this table without replacing checkpoints, profiles, completed games, or
+rating history. A complete review stores versioned exact best/played evidence,
+engine/profile identity, and canonical fingerprints. UI copy is derived at read
+time. Compatible evidence survives scoring-version changes; explicit reanalysis
+can atomically replace known stale evidence. Unknown evidence formats are kept
+intact and conflicting current evidence fails closed.
+
+`HistoricalReviewRuntime` owns a separate cancellable review session. Reopening
+History does not reconstruct a playable game. A game with no player decisions
+reconstructs its empty review directly from canonical history without inventing
+engine evidence. Android history storage is separate from iOS's existing
+completed-game checkpoint restoration.
+
 ## UI architecture
 
 - Compose screens are stateless renderers of immutable screen state.

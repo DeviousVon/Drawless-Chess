@@ -1662,7 +1662,7 @@ final class DrawlessChessUITests: XCTestCase {
             object: sidePanel
         )
         XCTAssertEqual(XCTWaiter.wait(for: [landscapeLayout], timeout: 10), .completed)
-        XCTAssertGreaterThan(board.frame.width, app.windows.firstMatch.frame.height * 0.72)
+        XCTAssertGreaterThan(board.frame.width, app.windows.firstMatch.frame.height * 0.90)
         XCTAssertEqual(board.frame.width, board.frame.height, accuracy: 3)
         XCTAssertGreaterThanOrEqual(board.frame.minY, app.windows.firstMatch.frame.minY - 2)
         XCTAssertLessThanOrEqual(board.frame.maxY, app.windows.firstMatch.frame.maxY + 2)
@@ -1967,7 +1967,9 @@ final class DrawlessChessUITests: XCTestCase {
             ("desert_sandstone", "Desert Sandstone"),
             ("glacier_slate", "Glacier Slate"),
             ("verdigris_copper", "Verdigris Copper"),
-            ("amethyst_geode", "Amethyst Geode")
+            ("celestial_observatory", "Celestial Observatory"),
+            ("halloween_emberwood", "Emberwood Court"),
+            ("halloween_witchglass", "Witchglass")
         ]
         let themeButton = app.buttons["home.theme"]
         let themePicker = app.descendants(matching: .any)["theme.picker"]
@@ -2000,6 +2002,10 @@ final class DrawlessChessUITests: XCTestCase {
         func selectHomeTheme(_ theme: (String, String)) -> Bool {
             let option = app.buttons["theme.option.\(theme.0)"]
             guard option.waitForExistence(timeout: 5) else { return false }
+            for _ in 0..<4 where !option.isHittable {
+                themePicker.swipeUp()
+            }
+            guard option.isHittable else { return false }
             let sourceThemeLabel = themeButton.label
             let sourceOptionStates = Dictionary(uniqueKeysWithValues: themes.map { expected in
                 let identifier = "theme.option.\(expected.0)"
@@ -2043,6 +2049,11 @@ final class DrawlessChessUITests: XCTestCase {
                 openHomeThemePicker(),
                 "The unchanged Home Theme button did not open the theme picker"
             )
+            XCTAssertEqual(
+                app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "theme.option.")).count,
+                themes.count
+            )
+            XCTAssertFalse(app.buttons["theme.option.all_hallows_court"].exists)
             for expected in themes {
                 XCTAssertTrue(
                     app.buttons["theme.option.\(expected.0)"].exists,
@@ -2072,7 +2083,7 @@ final class DrawlessChessUITests: XCTestCase {
         app.terminate()
         app.launch()
         XCTAssertTrue(homeHeader.waitForExistence(timeout: 30))
-        XCTAssertTrue(themeButton.label.contains("Amethyst Geode"))
+        XCTAssertTrue(themeButton.label.contains("Witchglass"))
         XCTAssertTrue(
             openHomeThemePicker(),
             "The unchanged Home Theme button did not open the picker for cleanup"
@@ -2081,6 +2092,66 @@ final class DrawlessChessUITests: XCTestCase {
             selectHomeTheme(themes[0]),
             "The unchanged theme picker did not restore Imperial Marble"
         )
+    }
+
+    @MainActor
+    func testLegacyAmethystThemeMigratesToCelestialObservatory() throws {
+        XCUIDevice.shared.orientation = .portrait
+        let app = XCUIApplication()
+        let localeArguments = ["-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
+        app.launchArguments = localeArguments + ["-boardThemeId", "amethyst_geode"]
+        app.launch()
+        XCTAssertTrue(app.descendants(matching: .any)["home.header"].waitForExistence(timeout: 30))
+        XCTAssertTrue(app.buttons["home.theme"].label.contains("Celestial Observatory"))
+
+        // Remove the legacy launch override: this verifies the new ID was written to storage,
+        // not just used as a temporary display alias for an old saved selection.
+        app.terminate()
+        app.launchArguments = localeArguments
+        app.launch()
+        XCTAssertTrue(app.descendants(matching: .any)["home.header"].waitForExistence(timeout: 30))
+        XCTAssertTrue(app.buttons["home.theme"].label.contains("Celestial Observatory"))
+        app.buttons["home.theme"].tap()
+        let picker = app.descendants(matching: .any)["theme.picker"]
+        XCTAssertTrue(picker.waitForExistence(timeout: 5))
+        let celestial = app.buttons["theme.option.celestial_observatory"]
+        if !celestial.isHittable { picker.swipeUp() }
+        XCTAssertTrue(celestial.exists)
+        XCTAssertTrue(celestial.isSelected)
+        XCTAssertFalse(app.buttons["theme.option.amethyst_geode"].exists)
+        picker.swipeDown()
+        app.buttons["theme.option.imperial_marble"].tap()
+        XCTAssertTrue(picker.waitForNonExistence(timeout: 5))
+    }
+
+    @MainActor
+    func testLegacyHalloweenThemeMigratesToEmberwoodCourt() throws {
+        XCUIDevice.shared.orientation = .portrait
+        let app = XCUIApplication()
+        let localeArguments = ["-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
+        app.launchArguments = localeArguments + ["-boardThemeId", "all_hallows_court"]
+        app.launch()
+        XCTAssertTrue(app.descendants(matching: .any)["home.header"].waitForExistence(timeout: 30))
+        XCTAssertTrue(app.buttons["home.theme"].label.contains("Emberwood Court"))
+
+        // Remove the legacy launch override: this verifies the new ID was written to storage,
+        // not just used as a temporary display alias for an old saved selection.
+        app.terminate()
+        app.launchArguments = localeArguments
+        app.launch()
+        XCTAssertTrue(app.descendants(matching: .any)["home.header"].waitForExistence(timeout: 30))
+        XCTAssertTrue(app.buttons["home.theme"].label.contains("Emberwood Court"))
+        app.buttons["home.theme"].tap()
+        let picker = app.descendants(matching: .any)["theme.picker"]
+        XCTAssertTrue(picker.waitForExistence(timeout: 5))
+        let emberwood = app.buttons["theme.option.halloween_emberwood"]
+        if !emberwood.isHittable { picker.swipeUp() }
+        XCTAssertTrue(emberwood.exists)
+        XCTAssertTrue(emberwood.isSelected)
+        XCTAssertFalse(app.buttons["theme.option.all_hallows_court"].exists)
+        picker.swipeDown()
+        app.buttons["theme.option.imperial_marble"].tap()
+        XCTAssertTrue(picker.waitForNonExistence(timeout: 5))
     }
 
     @MainActor

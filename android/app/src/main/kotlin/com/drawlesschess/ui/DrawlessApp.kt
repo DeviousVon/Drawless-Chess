@@ -75,6 +75,7 @@ internal fun DrawlessApp(viewModel: DrawlessAppViewModel, soundPlayer: GameSound
             onCustomGame = viewModel::showNewGameSetup,
             onShowOptions = viewModel::showOptions,
             onShowStats = viewModel::showStats,
+            onShowHistory = viewModel::showHistory,
             onShowThemes = { showThemePicker = true },
             onShowRules = viewModel::showRulesGuide,
             onDiscard = viewModel::discardSavedGame,
@@ -110,6 +111,15 @@ internal fun DrawlessApp(viewModel: DrawlessAppViewModel, soundPlayer: GameSound
                 state = viewModel.playerStatsState,
                 onBack = viewModel::leaveStats,
                 onRetry = viewModel::completedGameRecorded,
+            )
+        }
+        AppRoute.HISTORY -> {
+            BackHandler(onBack = viewModel::leaveHistory)
+            GameHistoryScreen(
+                state = viewModel.gameHistoryState,
+                onBack = viewModel::leaveHistory,
+                onRetry = viewModel::showHistory,
+                onOpenGame = viewModel::openHistoricalReview,
             )
         }
         AppRoute.GAME -> {
@@ -165,6 +175,46 @@ internal fun DrawlessApp(viewModel: DrawlessAppViewModel, soundPlayer: GameSound
                 }
             }
         }
+        AppRoute.HISTORICAL_REVIEW -> {
+            BackHandler(onBack = viewModel::leaveHistoricalReview)
+            when (val state = viewModel.historicalReviewState) {
+                HistoricalReviewScreenState.Loading -> Box(
+                    Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    CircularProgressIndicator(Modifier.testTag("historical_review_loading"))
+                }
+                is HistoricalReviewScreenState.Failed -> Box(
+                    Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Column(
+                        modifier = Modifier.padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                    ) {
+                        Text(
+                            state.message.resolve(),
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                        Button(onClick = viewModel::leaveHistoricalReview) {
+                            Text(stringResource(R.string.action_back))
+                        }
+                    }
+                }
+                is HistoricalReviewScreenState.Ready -> CompositionLocalProvider(
+                    LocalDrawlessVisualTheme provides
+                        DrawlessVisualThemes.fromBoardTheme(viewModel.selectedTheme),
+                ) {
+                    HistoricalGameReviewRoute(
+                        runtime = state.runtime,
+                        preferences = viewModel.gamePreferences,
+                        selectedTheme = viewModel.selectedTheme,
+                        onSaveAndExit = viewModel::leaveHistoricalReview,
+                    )
+                }
+            }
+        }
     }
 
     if (viewModel.route == AppRoute.HOME && viewModel.showRulesGuide) {
@@ -213,6 +263,7 @@ private fun HomeScreen(
     onCustomGame: () -> Unit,
     onShowOptions: () -> Unit,
     onShowStats: () -> Unit,
+    onShowHistory: () -> Unit,
     onShowThemes: () -> Unit,
     onShowRules: () -> Unit,
     onDiscard: () -> Unit,
@@ -348,6 +399,18 @@ private fun HomeScreen(
                             color = colors.onSurfaceVariant,
                         )
                     }
+                }
+                OutlinedButton(
+                    onClick = onShowHistory,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp)
+                        .testTag("home_history"),
+                    shape = RoundedCornerShape(18.dp),
+                    colors = outlinedButtonColors,
+                    border = BorderStroke(1.dp, colors.outline),
+                ) {
+                    Text(stringResource(R.string.home_game_history), fontSize = 15.sp)
                 }
                 OutlinedButton(
                     onClick = onShowOptions,

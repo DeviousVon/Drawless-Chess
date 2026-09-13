@@ -72,10 +72,11 @@ discarded, and the DAO refuses an older or equal revision for the same game. A d
 atomically replaces the active slot only when its first checkpoint is written, retaining the
 previous good save if construction or the first write fails.
 
-The Room row carries query/guard columns plus a versioned JSON encoding of the complete
-`CoordinatorCheckpoint`. Reads use the same executor, validate duplicated row metadata, decode
-strict enum discriminators, and then pass through `GameCoordinator.restore` for replay, FEN,
-clock, result, and assistance validation.
+The Room row carries query/guard columns plus the versioned JSON encoding of the complete
+`CoordinatorCheckpoint` from `shared/checkpoint-codec`. Android Room and the Apple native
+persistence adapter compile this same payload implementation. Room reads use the same executor,
+validate duplicated row metadata, decode strict enum discriminators, and then pass through
+`GameCoordinator.restore` for replay, FEN, clock, result, and assistance validation.
 
 Completed review-prefetch roots and played-position fallbacks are immutable checkpoint evidence.
 Each accepted result advances the checkpoint revision and is written immediately, so leaving before

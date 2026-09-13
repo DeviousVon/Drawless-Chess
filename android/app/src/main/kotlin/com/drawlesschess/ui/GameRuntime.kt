@@ -76,6 +76,10 @@ class GameRuntime private constructor(
     checkpointSink: CheckpointSink,
     initialTheme: BoardTheme,
     threatIndicationEnabled: Boolean,
+    private val saveCompletedReview: (
+        GameReviewResult,
+        (Result<Unit>) -> Unit,
+    ) -> Unit,
 ) : AutoCloseable {
     internal val gameId: String get() = config.gameId
 
@@ -176,6 +180,9 @@ class GameRuntime private constructor(
         resolvedHumanSide: Side = selection.startingColor.resolve(),
         threatIndicationEnabled: Boolean = false,
         adaptiveElo: Int = BotDifficultyCatalog.ADAPTIVE_STARTING_ELO,
+        saveCompletedReview: (GameReviewResult, (Result<Unit>) -> Unit) -> Unit = { _, callback ->
+            callback(Result.success(Unit))
+        },
     ) : this(
         selection.gameConfig(resolvedHumanSide, adaptiveElo),
         null,
@@ -183,6 +190,7 @@ class GameRuntime private constructor(
         checkpointSink,
         initialTheme,
         threatIndicationEnabled,
+        saveCompletedReview,
     )
 
     constructor(
@@ -190,6 +198,9 @@ class GameRuntime private constructor(
         applicationContext: Context,
         checkpointSink: CheckpointSink,
         initialTheme: BoardTheme = BoardThemes.DEFAULT,
+        saveCompletedReview: (GameReviewResult, (Result<Unit>) -> Unit) -> Unit = { _, callback ->
+            callback(Result.success(Unit))
+        },
     ) : this(
         checkpoint.config,
         checkpoint,
@@ -197,6 +208,7 @@ class GameRuntime private constructor(
         checkpointSink,
         initialTheme,
         checkpoint.assistance.threatIndication,
+        saveCompletedReview,
     )
 
     val controller: GameScreenController
@@ -414,21 +426,53 @@ class GameRuntime private constructor(
                 },
                 onResult = { result ->
                     completedSynchronously.set(true)
-                    synchronized(reviewLock) {
-                        if (!closed.get() && generation == reviewGeneration) {
-                            activeReviewCancellation = null
-                            reviewState.value = result.fold(
-                                onSuccess = { RuntimeGameReviewState.Complete(it) },
-                                onFailure = { error ->
-                                    Log.e(REVIEW_LOG_TAG, "Game review failed", error)
-                                    RuntimeGameReviewState.Failed(
-                                        error = error,
-                                        partialMoves = (
-                                            reviewState.value as? RuntimeGameReviewState.Analyzing
-                                        )?.partialMoves.orEmpty(),
-                                    )
-                                },
-                            )
+                    val completedReview = result.getOrNull()
+                    if (completedReview != null) {
+                        val shouldPersist = synchronized(reviewLock) {
+                            if (!closed.get() && generation == reviewGeneration) {
+                                activeReviewCancellation = null
+                                true
+                            } else {
+                                false
+                            }
+                        }
+                        if (shouldPersist) {
+                            saveCompletedReview(completedReview) { saveResult ->
+                                synchronized(reviewLock) {
+                                    if (!closed.get() && generation == reviewGeneration) {
+                                        activeReviewCancellation = null
+                                        reviewState.value = saveResult.fold(
+                                            onSuccess = {
+                                                RuntimeGameReviewState.Complete(completedReview)
+                                            },
+                                            onFailure = { error ->
+                                                Log.e(REVIEW_LOG_TAG, "Completed Review was not saved", error)
+                                                RuntimeGameReviewState.Failed(
+                                                    error = error,
+                                                    partialMoves = completedReview.moves.associateBy {
+                                                        it.ply
+                                                    },
+                                                )
+                                            },
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        val error = result.exceptionOrNull()
+                            ?: IllegalStateException("Game review failed without an error")
+                        synchronized(reviewLock) {
+                            if (!closed.get() && generation == reviewGeneration) {
+                                activeReviewCancellation = null
+                                Log.e(REVIEW_LOG_TAG, "Game review failed", error)
+                                reviewState.value = RuntimeGameReviewState.Failed(
+                                    error = error,
+                                    partialMoves = (
+                                        reviewState.value as? RuntimeGameReviewState.Analyzing
+                                    )?.partialMoves.orEmpty(),
+                                )
+                            }
                         }
                     }
                 },

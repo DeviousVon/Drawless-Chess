@@ -91,8 +91,9 @@ to publish. Before each public release:
 7. Ship the GPL text, Apache-2.0 text where applicable, project NOTICE,
    third-party notices, and Fairy-Stockfish attribution in the application.
    Preserve upstream notices in redistributed source and binaries. Confirm the
-   provenance of every visual and sound asset. Current code-native pieces/icons
-   are original; sampled audio combines CC0 physical recordings with
+   provenance of every visual and sound asset. Code-native pieces/icons and the
+   project-owned All Hallows sculpture atlases are original project material;
+   atlas prompts and hashes are under `artwork/all-hallows`. Sampled audio combines CC0 physical recordings with
    MIT-licensed ion.sound recordings. Preserve the complete ion.sound copyright
    and MIT notice in every Android APK/AAB, iOS application archive, and
    corresponding-source archive, and run the sampled-audio verifier before

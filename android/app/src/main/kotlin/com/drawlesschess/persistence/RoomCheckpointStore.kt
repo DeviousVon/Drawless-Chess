@@ -14,41 +14,16 @@ import androidx.room.PrimaryKey
 import androidx.room.Query
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.Update
 import androidx.room.Transaction
-import com.drawlesschess.core.AssistanceCounts
-import com.drawlesschess.core.BareKingPolicy
-import com.drawlesschess.core.DeadPositionPolicy
+import com.drawlesschess.core.engine.GameReviewResult
 import com.drawlesschess.core.EndReason
-import com.drawlesschess.core.EngineLimits
-import com.drawlesschess.core.EnginePurpose
-import com.drawlesschess.core.EngineStrength
-import com.drawlesschess.core.FiftyMovePolicy
-import com.drawlesschess.core.GameMode
-import com.drawlesschess.core.GameOutcome
-import com.drawlesschess.core.MaterialValues
 import com.drawlesschess.core.RulesContractV1
-import com.drawlesschess.core.Side
-import com.drawlesschess.core.StalematePolicy
-import com.drawlesschess.core.TimeControl
-import com.drawlesschess.core.UciMove
-import com.drawlesschess.core.chess.ChessPosition
 import com.drawlesschess.core.coordinator.CheckpointSink
 import com.drawlesschess.core.coordinator.CoordinatorCheckpoint
-import com.drawlesschess.core.coordinator.CoordinatorClock
-import com.drawlesschess.core.coordinator.GameConfig
-import com.drawlesschess.core.coordinator.MoveClockSnapshot
 import com.drawlesschess.core.coordinator.TimeReading
 import com.drawlesschess.core.coordinator.forfeitByHuman
-import com.drawlesschess.core.engine.BotDifficultyCatalog
-import com.drawlesschess.core.engine.GameReviewAdjacentKey
-import com.drawlesschess.core.engine.GameReviewPlanner
-import com.drawlesschess.core.engine.GameReviewRoot
-import com.drawlesschess.core.engine.GameReviewRootKey
-import com.drawlesschess.core.engine.REVIEW_ANALYSIS_VERSION
-import com.drawlesschess.core.engine.REVIEW_EVIDENCE_SCHEMA_VERSION
-import com.drawlesschess.core.engine.SeededGameReviewAdjacentRoot
-import com.drawlesschess.core.engine.SeededGameReviewRoot
-import com.drawlesschess.review.ReviewEngineJson
+import com.drawlesschess.shared.SharedCheckpointCodec
 import java.util.concurrent.Executor
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
@@ -57,8 +32,6 @@ import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
 import java.util.UUID
-import org.json.JSONArray
-import org.json.JSONObject
 
 @Entity(tableName = "active_game_checkpoint")
 internal data class ActiveGameCheckpointEntity(
@@ -112,6 +85,15 @@ internal abstract class ActiveGameCheckpointDao {
     )
     abstract fun loadCompletedGames(localProfileId: String): List<CompletedGameEntity>
 
+    @Insert
+    protected abstract fun insertGameReviewOrThrow(review: GameReviewEntity)
+
+    @Update
+    protected abstract fun updateGameReview(review: GameReviewEntity)
+
+    @Query("SELECT * FROM game_review WHERE game_id = :gameId LIMIT 1")
+    abstract fun loadGameReview(gameId: String): GameReviewEntity?
+
     @Query("DELETE FROM active_game_checkpoint")
     abstract fun clear()
 
@@ -148,6 +130,32 @@ internal abstract class ActiveGameCheckpointDao {
     @Transaction
     open fun appendCompletedGame(completedGame: CompletedGameEntity) {
         appendCompletedGameLocked(completedGame)
+    }
+
+    @Transaction
+    open fun persistGameReview(review: GameReviewEntity) {
+        val game = CompletedGameHistoryCodec.decode(requireNotNull(loadCompletedGame(review.gameId)) {
+            "A completed Review cannot exist without its completed game"
+        })
+        if (GameReviewEntityDecoder.decode(review, game) == null) {
+            throw GameReviewConflictException(review.gameId)
+        }
+        val existing = loadGameReview(review.gameId)
+        if (existing == null) {
+            insertGameReviewOrThrow(review)
+        } else if (!existing.hasSameImmutableFactsAs(review)) {
+            if (existing.evidenceSchemaVersion == review.evidenceSchemaVersion &&
+                (GameReviewEntityDecoder.decode(existing, game) == null ||
+                    (existing.evidencePayloadSha256 == review.evidencePayloadSha256 &&
+                        existing.evidenceCacheKey == review.evidenceCacheKey))
+            ) {
+                // Explicit reanalysis repairs known stale evidence atomically. Unknown formats
+                // stay intact, and conflicting complete current evidence is never overwritten.
+                updateGameReview(review)
+            } else {
+                throw GameReviewConflictException(review.gameId)
+            }
+        }
     }
 
     private fun appendCompletedGameLocked(candidate: CompletedGameEntity) {
@@ -190,8 +198,9 @@ internal abstract class ActiveGameCheckpointDao {
         ActiveGameCheckpointEntity::class,
         LocalPlayerProfileEntity::class,
         CompletedGameEntity::class,
+        GameReviewEntity::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = true,
 )
 internal abstract class DrawlessDatabase : RoomDatabase() {
@@ -263,6 +272,85 @@ internal class RoomCheckpointStore(
                     games = dao.loadCompletedGames(profile.localProfileId),
                 )
             }.onFailure(::recordWriteFailure)
+            callbackExecutor.execute { onResult(result) }
+        }
+    }
+
+    fun saveCompletedGameReview(
+        review: GameReviewResult,
+        onResult: (Result<Unit>) -> Unit = {},
+    ) {
+        ioExecutor.execute {
+            val result = runCatching {
+                retryPendingTerminalWrite()
+                val completedEntity = requireNotNull(dao.loadCompletedGame(review.gameId)) {
+                    "The completed game was not durable before its Review finished"
+                }
+                val completedGame = CompletedGameHistoryCodec.decode(completedEntity)
+                val emptyReview = completedGame.emptyReviewOrNull()
+                if (emptyReview != null) {
+                    require(review == emptyReview) { "Empty Review does not match canonical history" }
+                    return@runCatching
+                }
+                val entity = GameReviewRecordFactory.from(
+                    result = review,
+                    completedGame = completedGame,
+                    completedAtEpochMillis = epochMillis(),
+                )
+                dao.persistGameReview(entity)
+            }.onFailure { error -> Log.e(REVIEW_LOG_TAG, "Saving completed Review failed", error) }
+            callbackExecutor.execute { onResult(result) }
+        }
+    }
+
+    fun loadGameHistory(onResult: (Result<List<GameHistoryEntry>>) -> Unit) {
+        ioExecutor.execute {
+            val result = runCatching {
+                retryPendingTerminalWrite()
+                val profile = requireNotNull(dao.loadLocalProfile()) {
+                    "The local player profile has not been initialized"
+                }
+                dao.loadCompletedGames(profile.localProfileId)
+                    .asReversed()
+                    .map { entity ->
+                        val game = CompletedGameHistoryCodec.decode(entity)
+                        GameHistoryEntry(
+                            game = game,
+                            reviewAvailability = GameReviewEntityDecoder.availability(
+                                dao.loadGameReview(game.gameId),
+                                game,
+                            ),
+                        )
+                    }
+            }
+            callbackExecutor.execute { onResult(result) }
+        }
+    }
+
+    fun loadHistoricalGameReview(
+        gameId: String,
+        onResult: (Result<HistoricalGameReview?>) -> Unit,
+    ) {
+        require(gameId.isNotBlank())
+        ioExecutor.execute {
+            val result = runCatching {
+                retryPendingTerminalWrite()
+                dao.loadCompletedGame(gameId)?.let { entity ->
+                    val game = CompletedGameHistoryCodec.decode(entity)
+                    val reviewEntity = dao.loadGameReview(gameId)
+                    val review = game.emptyReviewOrNull()
+                        ?: reviewEntity?.let { GameReviewEntityDecoder.decode(it, game) }
+                    HistoricalGameReview(
+                        game = game,
+                        review = review,
+                        reviewAvailability = when {
+                            review != null -> HistoricalReviewAvailability.READY
+                            reviewEntity == null -> HistoricalReviewAvailability.NOT_ANALYZED
+                            else -> HistoricalReviewAvailability.STALE
+                        },
+                    )
+                }
+            }
             callbackExecutor.execute { onResult(result) }
         }
     }
@@ -459,12 +547,13 @@ internal class RoomCheckpointStore(
                 context.applicationContext,
                 DrawlessDatabase::class.java,
                 DATABASE_NAME,
-            ).addMigrations(MIGRATION_1_2).build()
+            ).addMigrations(MIGRATION_1_2, MIGRATION_2_3).build()
             return RoomCheckpointStore(database)
         }
 
         private const val DATABASE_NAME = "drawless-chess.db"
         private const val LOG_TAG = "DrawlessChessSave"
+        private const val REVIEW_LOG_TAG = "DrawlessChessReview"
     }
 }
 
@@ -474,475 +563,40 @@ private data class PendingTerminalWrite(
 )
 
 internal object CoordinatorCheckpointCodec {
-    private const val FORMAT_VERSION = 1
-    private const val REVIEW_PREFETCH_FORMAT_VERSION = 1
-
-    fun encodeRulesForHistory(rules: RulesContractV1): String = encodeRules(rules).toString()
+    fun encodeRulesForHistory(rules: RulesContractV1): String =
+        SharedCheckpointCodec.encodeRulesForHistory(rules)
 
     fun encode(
         checkpoint: CoordinatorCheckpoint,
         updatedAtEpochMillis: Long,
-    ): ActiveGameCheckpointEntity {
-        val payload = JSONObject()
-            .put("formatVersion", FORMAT_VERSION)
-            .put("revision", checkpoint.revision)
-            .put("config", encodeConfig(checkpoint.config))
-            .put("moves", JSONArray().apply { checkpoint.moves.forEach { put(it.value) } })
-            .put("currentFen", checkpoint.currentFen)
-            .putNullable("outcome", checkpoint.outcome?.let(::encodeOutcome))
-            .put("clock", encodeClock(checkpoint.clock))
-            .put(
-                "moveClocks",
-                JSONArray().apply { checkpoint.moveClocks.forEach { put(encodeMoveClock(it)) } },
-            )
-            .put("assistance", encodeAssistance(checkpoint.assistance))
-            .put("reviewPrefetch", encodeReviewPrefetch(checkpoint))
-
-        return ActiveGameCheckpointEntity(
-            slot = ACTIVE_GAME_SLOT,
-            gameId = checkpoint.config.gameId,
-            revision = checkpoint.revision,
-            checkpointFormat = FORMAT_VERSION,
-            completed = checkpoint.outcome != null,
-            updatedAtEpochMillis = updatedAtEpochMillis,
-            payloadJson = payload.toString(),
-        )
-    }
+    ): ActiveGameCheckpointEntity = ActiveGameCheckpointEntity(
+        slot = ACTIVE_GAME_SLOT,
+        gameId = checkpoint.config.gameId,
+        revision = checkpoint.revision,
+        checkpointFormat = SharedCheckpointCodec.FORMAT_VERSION,
+        completed = checkpoint.outcome != null,
+        updatedAtEpochMillis = updatedAtEpochMillis,
+        payloadJson = SharedCheckpointCodec.encode(checkpoint),
+    )
 
     fun decode(entity: ActiveGameCheckpointEntity): CoordinatorCheckpoint {
         require(entity.slot == ACTIVE_GAME_SLOT) { "Unknown active-game slot ${entity.slot}" }
-        require(entity.checkpointFormat == FORMAT_VERSION) {
+        require(entity.checkpointFormat == SharedCheckpointCodec.FORMAT_VERSION) {
             "Unsupported checkpoint format ${entity.checkpointFormat}"
         }
-        val payload = JSONObject(entity.payloadJson)
-        require(payload.getInt("formatVersion") == FORMAT_VERSION) {
-            "Checkpoint payload format does not match its row"
+        val checkpoint = SharedCheckpointCodec.decode(entity.payloadJson)
+        require(checkpoint.config.gameId == entity.gameId) {
+            "Checkpoint game ID does not match its row"
         }
-        val config = decodeConfig(payload.getJSONObject("config"))
-        val moves = payload.getJSONArray("moves").mapObjects { UciMove(getString(it)) }
-        val outcome = payload.requiredNullableObject("outcome")?.let(::decodeOutcome)
-        val (reviewRoots, reviewAdjacentRoots) = decodeReviewPrefetch(
-            value = payload.optJSONObject("reviewPrefetch"),
-            config = config,
-            moves = moves,
-            outcome = outcome,
-        )
-        val checkpoint = CoordinatorCheckpoint(
-            revision = payload.getLong("revision"),
-            config = config,
-            moves = moves,
-            currentFen = payload.getString("currentFen"),
-            outcome = outcome,
-            clock = decodeClock(payload.getJSONObject("clock")),
-            moveClocks = payload.getJSONArray("moveClocks").mapObjects {
-                decodeMoveClock(getJSONObject(it))
-            },
-            assistance = decodeAssistance(payload.getJSONObject("assistance")),
-            reviewPrefetchRoots = reviewRoots,
-            reviewPrefetchAdjacentRoots = reviewAdjacentRoots,
-        )
-        require(checkpoint.config.gameId == entity.gameId) { "Checkpoint game ID does not match its row" }
-        require(checkpoint.revision == entity.revision) { "Checkpoint revision does not match its row" }
+        require(checkpoint.revision == entity.revision) {
+            "Checkpoint revision does not match its row"
+        }
         require((checkpoint.outcome != null) == entity.completed) {
             "Checkpoint completion state does not match its row"
         }
         return checkpoint
     }
-
-    private fun encodeReviewPrefetch(checkpoint: CoordinatorCheckpoint): JSONObject = JSONObject()
-        .put("formatVersion", REVIEW_PREFETCH_FORMAT_VERSION)
-        .put("evidenceSchemaVersion", REVIEW_EVIDENCE_SCHEMA_VERSION)
-        .put("analysisVersion", REVIEW_ANALYSIS_VERSION)
-        .put(
-            "roots",
-            JSONArray().apply {
-                checkpoint.reviewPrefetchRoots.forEach { seed ->
-                    put(
-                        JSONObject()
-                            .put("key", encodeReviewRootKey(seed.key))
-                            .put("response", JSONObject(ReviewEngineJson.response(seed.response))),
-                    )
-                }
-            },
-        )
-        .put(
-            "adjacentRoots",
-            JSONArray().apply {
-                checkpoint.reviewPrefetchAdjacentRoots.forEach { seed ->
-                    put(
-                        JSONObject()
-                            .put("key", encodeReviewAdjacentKey(seed.key))
-                            .put("response", JSONObject(ReviewEngineJson.response(seed.response))),
-                    )
-                }
-            },
-        )
-
-    /**
-     * Review evidence is an optional cache. Unknown versions, stale keys, truncated entries, and
-     * mixed engine identities are ignored without making the playable checkpoint unavailable.
-     */
-    private fun decodeReviewPrefetch(
-        value: JSONObject?,
-        config: GameConfig,
-        moves: List<UciMove>,
-        outcome: GameOutcome?,
-    ): Pair<List<SeededGameReviewRoot>, List<SeededGameReviewAdjacentRoot>> {
-        if (value == null ||
-            value.optInt("formatVersion", -1) != REVIEW_PREFETCH_FORMAT_VERSION ||
-            value.optInt("evidenceSchemaVersion", -1) != REVIEW_EVIDENCE_SCHEMA_VERSION ||
-            value.optInt("analysisVersion", -1) != REVIEW_ANALYSIS_VERSION
-        ) {
-            return emptyList<SeededGameReviewRoot>() to emptyList()
-        }
-
-        val expectedRootsByPly = runCatching {
-            GameReviewPlanner.playerPlan(
-                gameId = config.gameId,
-                initialFen = config.initialFen,
-                moves = moves,
-                rules = config.rules,
-                playerSide = config.humanSide,
-            ).roots.associateByTo(linkedMapOf()) { root -> root.ply }.also { roots ->
-                if (outcome == null) {
-                    val current = GameReviewPlanner.playerRoot(
-                        requestId = "${config.gameId}-decode-current-review",
-                        gameId = config.gameId,
-                        initialFen = config.initialFen,
-                        moves = moves,
-                        rules = config.rules,
-                    )
-                    if (ChessPosition.fromFen(current.key.positionFen).sideToMove == config.humanSide) {
-                        roots[current.ply] = current
-                    }
-                }
-            }
-        }.getOrElse { return emptyList<SeededGameReviewRoot>() to emptyList() }
-
-        val roots = mutableListOf<SeededGameReviewRoot>()
-        val seenRootKeys = linkedSetOf<GameReviewRootKey>()
-        val rootValues = value.optJSONArray("roots") ?: JSONArray()
-        for (index in 0 until rootValues.length()) {
-            val seed = runCatching {
-                val entry = rootValues.getJSONObject(index)
-                val keyValue = entry.getJSONObject("key")
-                val expected = expectedRootsByPly[keyValue.getInt("ply")]
-                    ?: return@runCatching null
-                if (!matchesReviewRootKey(keyValue, expected.key)) return@runCatching null
-                val response = ReviewEngineJson.response(entry.getJSONObject("response").toString())
-                GameReviewPlanner.playerRoot(
-                    requestId = response.requestId,
-                    gameId = config.gameId,
-                    initialFen = config.initialFen,
-                    moves = moves.take(expected.ply - 1),
-                    rules = config.rules,
-                ).takeIf { root -> root.key == expected.key }?.seed(response)
-            }.getOrNull() ?: continue
-            if (!seenRootKeys.add(seed.key)) {
-                return emptyList<SeededGameReviewRoot>() to emptyList()
-            }
-            roots += seed
-        }
-
-        val adjacentRoots = mutableListOf<SeededGameReviewAdjacentRoot>()
-        val seenAdjacentKeys = linkedSetOf<GameReviewAdjacentKey>()
-        val adjacentValues = value.optJSONArray("adjacentRoots") ?: JSONArray()
-        for (index in 0 until adjacentValues.length()) {
-            val seed = runCatching {
-                val entry = adjacentValues.getJSONObject(index)
-                val keyValue = entry.getJSONObject("key")
-                val rootKeyValue = keyValue.getJSONObject("rootKey")
-                val expectedRoot = expectedRootsByPly[rootKeyValue.getInt("ply")]
-                    ?: return@runCatching null
-                val playedMove = UciMove(keyValue.getString("playedMove"))
-                if (moves.getOrNull(expectedRoot.ply - 1) != playedMove ||
-                    !matchesReviewRootKey(rootKeyValue, expectedRoot.key)
-                ) {
-                    return@runCatching null
-                }
-                val response = ReviewEngineJson.response(entry.getJSONObject("response").toString())
-                GameReviewPlanner.adjacentRoot(
-                    requestId = response.requestId,
-                    root = expectedRoot,
-                    playedMove = playedMove,
-                ).takeIf { adjacent -> matchesReviewAdjacentKey(keyValue, adjacent.key) }
-                    ?.seed(response)
-            }.getOrNull() ?: continue
-            if (!seenAdjacentKeys.add(seed.key)) {
-                return emptyList<SeededGameReviewRoot>() to emptyList()
-            }
-            adjacentRoots += seed
-        }
-
-        val identities = (roots.map { it.response.engine } +
-            adjacentRoots.map { it.response.engine }).distinct()
-        return if (identities.size <= 1) {
-            roots.sortedBy { it.key.ply } to adjacentRoots.sortedBy { it.key.rootKey.ply }
-        } else {
-            emptyList<SeededGameReviewRoot>() to emptyList()
-        }
-    }
-
-    private fun encodeReviewRootKey(key: GameReviewRootKey): JSONObject = JSONObject()
-        .put("evidenceSchemaVersion", key.evidenceSchemaVersion)
-        .put("analysisVersion", key.analysisVersion)
-        .put("gameId", key.gameId)
-        .put("ply", key.ply)
-        .put("normalizedInitialFen", key.normalizedInitialFen)
-        .put("movesBefore", JSONArray().apply { key.movesBefore.forEach { put(it.value) } })
-        .put("rules", encodeRules(key.rules))
-        .put("positionId", key.positionId)
-        .put("positionFen", key.positionFen)
-        .put("strength", encodeEngineStrength(key.strength))
-        .put(
-            "limits",
-            JSONObject()
-                .put("moveTimeMillis", key.limits.moveTimeMillis)
-                .put("multiPv", key.limits.multiPv),
-        )
-        .put("purpose", key.purpose.name)
-
-    private fun encodeReviewAdjacentKey(key: GameReviewAdjacentKey): JSONObject = JSONObject()
-        .put("rootKey", encodeReviewRootKey(key.rootKey))
-        .put("playedMove", key.playedMove.value)
-        .put("positionId", key.positionId)
-        .put("positionFen", key.positionFen)
-
-    private fun matchesReviewRootKey(value: JSONObject, key: GameReviewRootKey): Boolean =
-        runCatching {
-            val limits = value.getJSONObject("limits")
-            value.getInt("evidenceSchemaVersion") == key.evidenceSchemaVersion &&
-                value.getInt("analysisVersion") == key.analysisVersion &&
-                value.getString("gameId") == key.gameId &&
-                value.getInt("ply") == key.ply &&
-                value.getString("normalizedInitialFen") == key.normalizedInitialFen &&
-                value.getJSONArray("movesBefore").mapObjects { UciMove(getString(it)) } ==
-                    key.movesBefore &&
-                decodeRules(value.getJSONObject("rules")) == key.rules &&
-                value.getString("positionId") == key.positionId &&
-                value.getString("positionFen") == key.positionFen &&
-                decodeEngineStrength(value.getJSONObject("strength")) == key.strength &&
-                EngineLimits(limits.getLong("moveTimeMillis"), limits.getInt("multiPv")) ==
-                    key.limits &&
-                enumValueOf<EnginePurpose>(value.getString("purpose")) == key.purpose
-        }.getOrDefault(false)
-
-    private fun matchesReviewAdjacentKey(
-        value: JSONObject,
-        key: GameReviewAdjacentKey,
-    ): Boolean = runCatching {
-        matchesReviewRootKey(value.getJSONObject("rootKey"), key.rootKey) &&
-            UciMove(value.getString("playedMove")) == key.playedMove &&
-            value.getString("positionId") == key.positionId &&
-            value.getString("positionFen") == key.positionFen
-    }.getOrDefault(false)
-
-    private fun encodeConfig(config: GameConfig): JSONObject = JSONObject()
-        .put("gameId", config.gameId)
-        .put("initialFen", config.initialFen)
-        .put("rules", encodeRules(config.rules))
-        .put("mode", config.mode.name)
-        .put("timeControl", encodeTimeControl(config.timeControl))
-        .put("humanSide", config.humanSide.name)
-        .put("engineStrength", encodeEngineStrength(config.engineStrength))
-        .putNullable("opponentLevelId", config.opponentLevelId)
-        .put(
-            "engineLimits",
-            JSONObject()
-                .put("moveTimeMillis", config.engineLimits.moveTimeMillis)
-                .put("multiPv", config.engineLimits.multiPv),
-        )
-
-    private fun decodeConfig(value: JSONObject): GameConfig {
-        val limits = value.getJSONObject("engineLimits")
-        val engineStrength = decodeEngineStrength(value.getJSONObject("engineStrength"))
-        val opponentLevelId = if (value.has("opponentLevelId")) {
-            value.optionalNullableString("opponentLevelId")
-        } else {
-            // Format-v1 checkpoints shipped before named opponent IDs existed. Infer only exact
-            // values from that immutable ladder; present JSON null means a genuine custom bot.
-            (engineStrength as? EngineStrength.ApproximateElo)?.elo
-                ?.let(BotDifficultyCatalog::legacyLevelIdForElo)
-        }
-        return GameConfig(
-            gameId = value.getString("gameId"),
-            initialFen = value.getString("initialFen"),
-            rules = decodeRules(value.getJSONObject("rules")),
-            mode = enumValueOf(value.getString("mode")),
-            timeControl = decodeTimeControl(value.getJSONObject("timeControl")),
-            humanSide = enumValueOf(value.getString("humanSide")),
-            engineStrength = engineStrength,
-            engineLimits = EngineLimits(
-                moveTimeMillis = limits.getLong("moveTimeMillis"),
-                multiPv = limits.getInt("multiPv"),
-            ),
-            opponentLevelId = opponentLevelId,
-        )
-    }
-
-    private fun encodeRules(rules: RulesContractV1): JSONObject = JSONObject()
-        .put("schemaVersion", rules.schemaVersion)
-        .put("preset", rules.preset.name)
-        .put("stalemate", rules.stalemate.name)
-        .put("deadPosition", rules.deadPosition.name)
-        .put("bareKing", rules.bareKing.name)
-        .put("fiftyMove", rules.fiftyMove.name)
-        .put("repetitionThreshold", rules.repetitionThreshold)
-        .put("completingPlayerLosesRepetition", rules.completingPlayerLosesRepetition)
-        .put("forcedRepetitionException", rules.forcedRepetitionException)
-        .put(
-            "materialValues",
-            JSONObject()
-                .put("pawn", rules.materialValues.pawn)
-                .put("knight", rules.materialValues.knight)
-                .put("bishop", rules.materialValues.bishop)
-                .put("rook", rules.materialValues.rook)
-                .put("queen", rules.materialValues.queen),
-        )
-
-    private fun decodeRules(value: JSONObject): RulesContractV1 {
-        require(value.getInt("schemaVersion") == 1) { "Unsupported rules schema" }
-        val material = value.getJSONObject("materialValues")
-        return RulesContractV1(
-            preset = enumValueOf(value.getString("preset")),
-            stalemate = enumValueOf(value.getString("stalemate")),
-            deadPosition = enumValueOf(value.getString("deadPosition")),
-            fiftyMove = enumValueOf(value.getString("fiftyMove")),
-            repetitionThreshold = value.getInt("repetitionThreshold"),
-            completingPlayerLosesRepetition = value.getBoolean("completingPlayerLosesRepetition"),
-            forcedRepetitionException = value.getBoolean("forcedRepetitionException"),
-            materialValues = MaterialValues(
-                pawn = material.getInt("pawn"),
-                knight = material.getInt("knight"),
-                bishop = material.getInt("bishop"),
-                rook = material.getInt("rook"),
-                queen = material.getInt("queen"),
-            ),
-            bareKing = if (value.has("bareKing")) {
-                enumValueOf(value.getString("bareKing"))
-            } else {
-                // Older v1 games did not terminate when one player had only a king. Preserve
-                // that immutable rules snapshot so replay cannot invent an earlier result.
-                BareKingPolicy.CONTINUE
-            },
-        )
-    }
-
-    private fun encodeTimeControl(value: TimeControl): JSONObject = when (value) {
-        TimeControl.Untimed -> JSONObject().put("kind", "UNTIMED")
-        is TimeControl.Clock -> JSONObject()
-            .put("kind", "CLOCK")
-            .put("initialMillis", value.initialMillis)
-            .put("incrementMillis", value.incrementMillis)
-    }
-
-    private fun decodeTimeControl(value: JSONObject): TimeControl = when (value.getString("kind")) {
-        "UNTIMED" -> TimeControl.Untimed
-        "CLOCK" -> TimeControl.Clock(
-            initialMillis = value.getLong("initialMillis"),
-            incrementMillis = value.getLong("incrementMillis"),
-        )
-        else -> error("Unknown time-control kind")
-    }
-
-    private fun encodeEngineStrength(value: EngineStrength): JSONObject = when (value) {
-        is EngineStrength.ApproximateElo -> JSONObject()
-            .put("kind", "APPROXIMATE_ELO")
-            .put("value", value.elo)
-        is EngineStrength.SkillLevel -> JSONObject()
-            .put("kind", "SKILL_LEVEL")
-            .put("value", value.level)
-    }
-
-    private fun decodeEngineStrength(value: JSONObject): EngineStrength = when (value.getString("kind")) {
-        "APPROXIMATE_ELO" -> EngineStrength.ApproximateElo(value.getInt("value"))
-        "SKILL_LEVEL" -> EngineStrength.SkillLevel(value.getInt("value"))
-        else -> error("Unknown engine-strength kind")
-    }
-
-    private fun encodeOutcome(value: GameOutcome): JSONObject = JSONObject()
-        .put("winner", value.winner.name)
-        .put("loser", value.loser.name)
-        .put("reason", value.reason.name)
-
-    private fun decodeOutcome(value: JSONObject): GameOutcome = GameOutcome(
-        winner = enumValueOf(value.getString("winner")),
-        loser = enumValueOf(value.getString("loser")),
-        reason = enumValueOf(value.getString("reason")),
-    )
-
-    private fun encodeClock(value: CoordinatorClock): JSONObject = JSONObject()
-        .putNullable("whiteRemainingMillis", value.whiteRemainingMillis)
-        .putNullable("blackRemainingMillis", value.blackRemainingMillis)
-        .putNullable("runningSide", value.runningSide?.name)
-        .putNullable("startedAtMonotonicMillis", value.startedAtMonotonicMillis)
-        .putNullable("startedAtEpochMillis", value.startedAtEpochMillis)
-        .put("paused", value.paused)
-
-    private fun decodeClock(value: JSONObject): CoordinatorClock = CoordinatorClock(
-        whiteRemainingMillis = value.requiredNullableLong("whiteRemainingMillis"),
-        blackRemainingMillis = value.requiredNullableLong("blackRemainingMillis"),
-        runningSide = value.requiredNullableString("runningSide")?.let { enumValueOf<Side>(it) },
-        startedAtMonotonicMillis = value.requiredNullableLong("startedAtMonotonicMillis"),
-        startedAtEpochMillis = value.requiredNullableLong("startedAtEpochMillis"),
-        paused = value.getBoolean("paused"),
-    )
-
-    private fun encodeMoveClock(value: MoveClockSnapshot): JSONObject = JSONObject()
-        .put("ply", value.ply)
-        .putNullable("whiteRemainingMillis", value.whiteRemainingMillis)
-        .putNullable("blackRemainingMillis", value.blackRemainingMillis)
-
-    private fun decodeMoveClock(value: JSONObject): MoveClockSnapshot = MoveClockSnapshot(
-        ply = value.getInt("ply"),
-        whiteRemainingMillis = value.requiredNullableLong("whiteRemainingMillis"),
-        blackRemainingMillis = value.requiredNullableLong("blackRemainingMillis"),
-    )
-
-    private fun encodeAssistance(value: AssistanceCounts): JSONObject = JSONObject()
-        .put("hints", value.hints)
-        .put("undos", value.undos)
-        .put("pauses", value.pauses)
-        .put("threatIndication", value.threatIndication)
-
-    private fun decodeAssistance(value: JSONObject): AssistanceCounts = AssistanceCounts(
-        hints = value.getInt("hints"),
-        undos = value.getInt("undos"),
-        pauses = value.getInt("pauses"),
-        threatIndication = value.optionalStrictBoolean("threatIndication", false),
-    )
 }
-
-private fun JSONObject.optionalStrictBoolean(name: String, defaultValue: Boolean): Boolean {
-    if (!has(name)) return defaultValue
-    val rawValue = get(name)
-    require(rawValue is Boolean) { "'$name' must be a JSON boolean" }
-    return rawValue
-}
-
-private fun JSONObject.putNullable(name: String, value: Any?): JSONObject =
-    put(name, value ?: JSONObject.NULL)
-
-private fun JSONObject.requiredNullableObject(name: String): JSONObject? {
-    require(has(name)) { "Missing '$name'" }
-    return if (isNull(name)) null else getJSONObject(name)
-}
-
-private fun JSONObject.requiredNullableLong(name: String): Long? {
-    require(has(name)) { "Missing '$name'" }
-    return if (isNull(name)) null else getLong(name)
-}
-
-private fun JSONObject.requiredNullableString(name: String): String? {
-    require(has(name)) { "Missing '$name'" }
-    return if (isNull(name)) null else getString(name)
-}
-
-private fun JSONObject.optionalNullableString(name: String): String? =
-    if (!has(name) || isNull(name)) null else getString(name)
-
-private inline fun <T> JSONArray.mapObjects(transform: JSONArray.(Int) -> T): List<T> =
-    List(length()) { index -> transform(index) }
 
 private fun mainThreadExecutor(): Executor {
     val handler = Handler(Looper.getMainLooper())

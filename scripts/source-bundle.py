@@ -51,14 +51,21 @@ class IndexEntry:
 class ReleaseIdentity:
     version: str
     build: str
+    platform: str = "ios"
+
+    def __post_init__(self) -> None:
+        if self.platform not in ("ios", "android"):
+            raise BundleError(f"unsupported source platform: {self.platform}")
 
     @property
     def public_tag(self) -> str:
+        if self.platform == "android":
+            return f"v{self.version}"
         return f"ios-v{self.version}-build-{self.build}"
 
     @property
     def archive_name(self) -> str:
-        return f"drawless-chess-ios-{self.version}-build-{self.build}-source.tar.gz"
+        return f"drawless-chess-{self.platform}-{self.version}-build-{self.build}-source.tar.gz"
 
     @property
     def root_name(self) -> str:
@@ -452,7 +459,32 @@ def parse_properties(data: bytes, label: str) -> dict[str, str]:
     return values
 
 
-def release_identity(entries: Mapping[str, ArchiveEntry]) -> ReleaseIdentity:
+def release_identity(
+    entries: Mapping[str, ArchiveEntry], platform: str = "ios"
+) -> ReleaseIdentity:
+    if platform == "android":
+        try:
+            project = entries["android/app/build.gradle.kts"].data.decode("utf-8")
+        except (KeyError, UnicodeDecodeError) as error:
+            raise BundleError("Android release metadata is missing or invalid") from error
+        values: dict[str, str] = {}
+        for key, pattern in (
+            ("applicationId", r'"(com\.drawlesschess)"'),
+            ("versionName", r'"((?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*))"'),
+            ("versionCode", r"([1-9][0-9]*)"),
+        ):
+            assignments = re.findall(rf"^\s*{key}\s*=\s*(.*?)\s*$", project, re.MULTILINE)
+            match = re.fullmatch(pattern, assignments[0]) if len(assignments) == 1 else None
+            if match is None:
+                raise BundleError(
+                    f"android/app/build.gradle.kts must define one literal release {key}"
+                )
+            values[key] = match.group(1)
+        if int(values["versionCode"]) > 2_100_000_000:
+            raise BundleError("Android versionCode exceeds the supported release range")
+        return ReleaseIdentity(values["versionName"], values["versionCode"], "android")
+    if platform != "ios":
+        raise BundleError(f"unsupported source platform: {platform}")
     try:
         package = json.loads(entries["package.json"].data.decode("utf-8"))
         project = entries["iosApp/project.yml"].data.decode("utf-8")
@@ -636,10 +668,14 @@ def add_generated_release_files(
     identity: ReleaseIdentity,
     native_lock: Mapping[str, str],
 ) -> None:
+    platform_properties = (
+        "platform=Android\napplicationId=com.drawlesschess\n"
+        if identity.platform == "android"
+        else "platform=iOS\nbundleIdentifier=com.drawlesschess\n"
+    )
     identity_text = (
         "schemaVersion=1\n"
-        "platform=iOS\n"
-        "bundleIdentifier=com.drawlesschess\n"
+        f"{platform_properties}"
         f"version={identity.version}\n"
         f"build={identity.build}\n"
         f"publicTag={identity.public_tag}\n"
@@ -663,6 +699,20 @@ and unsigned-product inspection instructions are in
 profiles, credentials, portal data, and private workflow
 material are intentionally absent.
 """.encode("utf-8")
+    if identity.platform == "android":
+        readme = f"""# Drawless Chess {identity.version} ({identity.build}) Android corresponding source
+
+This inclusion-only archive is the complete source prepared for the public tag
+`{identity.public_tag}` and the matching Drawless Chess Android binary. It contains
+the exact pinned, patched Fairy-Stockfish staged tree without repository-local
+`.git` data, `.github` administration, or nested `AGENTS.md` instructions.
+
+Verify `SOURCE-MANIFEST.sha256` and its digest before using the archive. Android
+rebuild instructions are in `release/public-source/REBUILD-ANDROID.md`. The
+release binary carries this archive's `SOURCE-IDENTITY` and manifest digest.
+SDKs, caches, signing keys, credentials, portal data, and private workflow
+material are intentionally absent.
+""".encode("utf-8")
     entries["SOURCE-IDENTITY"] = ArchiveEntry(identity_text)
     entries["SOURCE-BUNDLE-README.md"] = ArchiveEntry(readme)
 
@@ -683,6 +733,7 @@ def validate_entry_set(
     entries: Mapping[str, ArchiveEntry],
     policy: LiteralPolicy,
     scanner: ContentScanner,
+    platform: str = "ios",
 ) -> None:
     required = {
         "LICENSE",
@@ -698,17 +749,37 @@ def validate_entry_set(
         "engine/native/upstream/Fairy-Stockfish/Copying.txt",
         "engine/patches/series",
         "engine/variants.ini",
-        "ios-engine/include/drawless_fairy.h",
-        "iosApp/project.yml",
-        "iosApp/DrawlessChess/ContentView.swift",
         "multiplatform/shared-core/build.gradle.kts",
-        "release/public-source/REBUILD-IOS.md",
-        "scripts/build-ios-engine.sh",
-        "scripts/generate-ios-project.sh",
-        "scripts/inspect-ios-release-app.sh",
         "scripts/source-bundle.py",
         "scripts/test-source-bundle.py",
     }
+    if platform == "android":
+        required.update({
+            "android/app/build.gradle.kts",
+            "android/app/src/main/AndroidManifest.xml",
+            "android/build.gradle.kts",
+            "android/settings.gradle.kts",
+            "android/gradlew",
+            "android/gradle/wrapper/gradle-wrapper.jar",
+            "android/gradle/wrapper/gradle-wrapper.properties",
+            "android/engine/build.gradle.kts",
+            "android/engine/src/main/cpp/CMakeLists.txt",
+            "engine/native/upstream.properties",
+            "release/public-source/REBUILD-ANDROID.md",
+            "scripts/native-validate-structure.sh",
+        })
+    elif platform == "ios":
+        required.update({
+            "ios-engine/include/drawless_fairy.h",
+            "iosApp/project.yml",
+            "iosApp/DrawlessChess/ContentView.swift",
+            "release/public-source/REBUILD-IOS.md",
+            "scripts/build-ios-engine.sh",
+            "scripts/generate-ios-project.sh",
+            "scripts/inspect-ios-release-app.sh",
+        })
+    else:
+        raise BundleError(f"unsupported source platform: {platform}")
     missing = sorted(required - entries.keys())
     if missing:
         raise BundleError(f"public source is missing required rebuild material: {', '.join(missing)}")
@@ -831,6 +902,7 @@ def inspect_archive(
     archive_path: Path,
     *,
     expected_root: str | None = None,
+    expected_platform: str | None = None,
 ) -> tuple[str, dict[str, ArchiveEntry]]:
     if not archive_path.is_file() or archive_path.is_symlink():
         raise BundleError("source archive is absent, not regular, or a symbolic link")
@@ -941,9 +1013,52 @@ def inspect_archive(
         )
     except KeyError as error:
         raise BundleError("source archive is missing its public path/content policy") from error
-    validate_entry_set(files, policy, scanner)
+    try:
+        identity_values = parse_properties(files["SOURCE-IDENTITY"].data, "SOURCE-IDENTITY")
+    except KeyError as error:
+        raise BundleError("source archive is missing SOURCE-IDENTITY") from error
+    platform = {"iOS": "ios", "Android": "android"}.get(identity_values.get("platform", ""))
+    if platform is None or (expected_platform is not None and platform != expected_platform):
+        raise BundleError("source archive platform identity is inconsistent")
+    validate_entry_set(files, policy, scanner, platform)
     verify_manifest(files)
-    identity_values = parse_properties(files["SOURCE-IDENTITY"].data, "SOURCE-IDENTITY")
+    validate_archive_identity(files, root_name, identity_values, platform)
+    return root_name, files
+
+
+def validate_archive_identity(
+    files: Mapping[str, ArchiveEntry],
+    root_name: str,
+    identity_values: Mapping[str, str],
+    platform: str,
+) -> None:
+    if platform == "android":
+        identity = release_identity(files, platform)
+        try:
+            native_lock = parse_properties(
+                files["engine/native/upstream.properties"].data, "native lock"
+            )
+            expected_values = {
+                "schemaVersion": "1",
+                "platform": "Android",
+                "applicationId": "com.drawlesschess",
+                "version": identity.version,
+                "build": identity.build,
+                "publicTag": identity.public_tag,
+                "archive": identity.archive_name,
+                "nativeComponent": "Fairy-Stockfish",
+                "nativeRevision": native_lock["revision"],
+                "nativeTree": native_lock["tree"],
+                "nativePatchedTree": native_lock["patchedTree"],
+                "nativePatchSeriesSha256": native_lock["patchSeriesSha256"],
+            }
+        except KeyError as error:
+            raise BundleError("source archive is missing native identity metadata") from error
+        if identity_values != expected_values:
+            raise BundleError("Android source identity differs from the release metadata/native lock")
+        if root_name != identity.root_name:
+            raise BundleError("source archive filename/root identity is inconsistent")
+        return
     if identity_values.get("publicTag") != f"ios-v{identity_values.get('version')}-build-{identity_values.get('build')}":
         raise BundleError("source archive public tag identity is inconsistent")
     expected_name = (
@@ -952,7 +1067,6 @@ def inspect_archive(
     )
     if root_name != expected_name or identity_values.get("archive") != expected_name + ".tar.gz":
         raise BundleError("source archive filename/root identity is inconsistent")
-    return root_name, files
 
 
 def reproducibility_build(
@@ -1012,14 +1126,14 @@ def reproducibility_build(
 
 
 def prepare_bundle_entries(
-    repository: Path, native_source: Path | None = None
+    repository: Path, native_source: Path | None = None, platform: str = "ios"
 ) -> tuple[dict[str, ArchiveEntry], ReleaseIdentity]:
     repository = repository.resolve()
     if not repository.is_dir() or repository.is_symlink():
         raise BundleError("repository root is absent or unsafe")
     validate_clean_repository(repository)
     entries, policy, scanner = load_outer_entries(repository)
-    identity = release_identity(entries)
+    identity = release_identity(entries, platform)
     native_lock = parse_properties(
         entries["engine/native/upstream.properties"].data, "engine/native/upstream.properties"
     )
@@ -1039,7 +1153,7 @@ def prepare_bundle_entries(
     validate_native_source(repository, native_source, native_lock)
     add_native_entries(entries, native_source, native_lock)
     add_generated_release_files(entries, identity, native_lock)
-    validate_entry_set(entries, policy, scanner)
+    validate_entry_set(entries, policy, scanner, platform)
     return entries, identity
 
 
@@ -1059,17 +1173,53 @@ def run_release_rebuild_gate(repository: Path) -> None:
         raise BundleError("release rebuild gate failed; source archive was not created")
 
 
-def create_bundle(repository: Path, output: Path, native_source: Path | None = None) -> str:
+def run_android_source_gate(repository: Path, native_source: Path | None = None) -> None:
+    gate = repository / "scripts" / "test-source-bundle.py"
+    if not gate.is_file() or gate.is_symlink():
+        raise BundleError("Android source gate is absent, not regular, or a symbolic link")
+    environment = os.environ.copy()
+    environment.update({"LC_ALL": "C", "LANG": "C", "TZ": "UTC"})
+    if native_source is not None:
+        environment["DRAWLESS_TEST_NATIVE_SOURCE"] = str(native_source.resolve())
+    result = subprocess.run(
+        [sys.executable, str(gate), "--android-release-gate"],
+        cwd=repository,
+        env=environment,
+        check=False,
+    )
+    if result.returncode != 0:
+        raise BundleError("Android source extraction gate failed; source archive was not created")
+
+
+def create_bundle(
+    repository: Path,
+    output: Path,
+    native_source: Path | None = None,
+    platform: str = "ios",
+) -> str:
     if output.exists() or output.is_symlink():
         raise BundleError(f"output already exists: {output}")
     output = output.resolve()
-    expected_archive = "drawless-chess-ios-1.0.2-build-2-source.tar.gz"
-    if output.name != expected_archive:
-        raise BundleError(f"output filename must be the public release identity {expected_archive}")
+    if platform == "ios":
+        expected_archive = "drawless-chess-ios-1.0.2-build-2-source.tar.gz"
+        if output.name != expected_archive:
+            raise BundleError(f"output filename must be the public release identity {expected_archive}")
+    elif platform != "android":
+        raise BundleError(f"unsupported source platform: {platform}")
     repository = repository.resolve()
     validate_clean_repository(repository)
-    run_release_rebuild_gate(repository)
-    entries, identity = prepare_bundle_entries(repository, native_source)
+    if platform == "android":
+        committed_entries, _, _ = load_outer_entries(repository)
+        identity = release_identity(committed_entries, platform)
+        if output.name != identity.archive_name:
+            raise BundleError(
+                f"output filename must be the public release identity {identity.archive_name}"
+            )
+        run_android_source_gate(repository, native_source)
+        entries, identity = prepare_bundle_entries(repository, native_source, platform)
+    else:
+        run_release_rebuild_gate(repository)
+        entries, identity = prepare_bundle_entries(repository, native_source)
     if output.name != identity.archive_name:
         raise BundleError(
             f"output filename must be the public release identity {identity.archive_name}"
@@ -1081,7 +1231,7 @@ def create_bundle(repository: Path, output: Path, native_source: Path | None = N
 
 def infer_root_for_verification(archive_path: Path) -> str:
     match = re.fullmatch(
-        r"(drawless-chess-ios-[0-9]+\.[0-9]+\.[0-9]+-build-[0-9]+-source)\.tar\.gz",
+        r"(drawless-chess-(?:ios|android)-[0-9]+\.[0-9]+\.[0-9]+-build-[0-9]+-source)\.tar\.gz",
         archive_path.name,
     )
     if not match:
@@ -1096,6 +1246,7 @@ def main(arguments: Sequence[str] | None = None) -> int:
     parser.add_argument("--native-source", type=Path)
     parser.add_argument("--verify", type=Path)
     parser.add_argument("--manifest-digest", action="store_true")
+    parser.add_argument("--platform", choices=("ios", "android"))
     options = parser.parse_args(arguments)
     try:
         if options.verify is not None:
@@ -1107,7 +1258,11 @@ def main(arguments: Sequence[str] | None = None) -> int:
             ):
                 raise BundleError("--verify cannot be combined with build options")
             expected_root = infer_root_for_verification(options.verify)
-            inspect_archive(options.verify.resolve(), expected_root=expected_root)
+            inspect_archive(
+                options.verify.resolve(),
+                expected_root=expected_root,
+                expected_platform=options.platform,
+            )
             digest = hashlib.sha256(options.verify.read_bytes()).hexdigest()
             print(f"source_archive_sha256={digest}")
             print("source_archive_verification=PASS")
@@ -1118,7 +1273,7 @@ def main(arguments: Sequence[str] | None = None) -> int:
                     "--manifest-digest requires --repository-root and does not accept --output"
                 )
             entries, identity = prepare_bundle_entries(
-                options.repository_root, options.native_source
+                options.repository_root, options.native_source, options.platform or "ios"
             )
             manifest_digest = hashlib.sha256(
                 entries["SOURCE-MANIFEST.sha256"].data
@@ -1129,13 +1284,17 @@ def main(arguments: Sequence[str] | None = None) -> int:
             return 0
         if options.repository_root is None or options.output is None:
             raise BundleError("--repository-root and --output are required to build")
-        digest = create_bundle(options.repository_root, options.output, options.native_source)
+        platform = options.platform or "ios"
+        digest = create_bundle(
+            options.repository_root, options.output, options.native_source, platform
+        )
         identity_match = re.fullmatch(
-            r"drawless-chess-ios-([0-9]+\.[0-9]+\.[0-9]+)-build-([0-9]+)-source\.tar\.gz",
+            rf"drawless-chess-{platform}-([0-9]+\.[0-9]+\.[0-9]+)-build-([0-9]+)-source\.tar\.gz",
             options.output.name,
         )
         assert identity_match is not None
-        print(f"public_tag=ios-v{identity_match.group(1)}-build-{identity_match.group(2)}")
+        identity = ReleaseIdentity(identity_match.group(1), identity_match.group(2), platform)
+        print(f"public_tag={identity.public_tag}")
         print(f"source_archive_sha256={digest}")
         print("source_archive_determinism=PASS")
         print("source_archive_verification=PASS")

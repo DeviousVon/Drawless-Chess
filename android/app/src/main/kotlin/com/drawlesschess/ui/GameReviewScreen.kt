@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -20,6 +21,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -28,6 +30,7 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LinearProgressIndicator
@@ -38,7 +41,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -63,12 +66,15 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.drawlesschess.R
 import com.drawlesschess.core.Side
 import com.drawlesschess.core.UciMove
+import com.drawlesschess.core.GameOutcome
+import com.drawlesschess.core.EndReason
 import com.drawlesschess.core.chess.ChessMove
 import com.drawlesschess.core.chess.ChessPosition
 import com.drawlesschess.core.chess.ChessRules
@@ -78,6 +84,7 @@ import com.drawlesschess.core.coordinator.CoordinatorCheckpoint
 import com.drawlesschess.core.engine.GameReviewProgress
 import com.drawlesschess.core.engine.GameReviewResult
 import com.drawlesschess.core.engine.ReviewEvaluation
+import com.drawlesschess.core.engine.ReviewExplanationFacts
 import com.drawlesschess.core.engine.ReviewMoveQuality
 import com.drawlesschess.core.engine.ReviewSideSummary
 import com.drawlesschess.core.engine.ReviewedMove
@@ -87,9 +94,12 @@ import com.drawlesschess.core.presentation.BoardPresenter
 import com.drawlesschess.core.presentation.BoardScreenState
 import com.drawlesschess.core.presentation.BoardTheme
 import com.drawlesschess.core.presentation.ControlPlacement
+import com.drawlesschess.core.presentation.PieceSet
+import com.drawlesschess.core.presentation.PieceSets
 import com.drawlesschess.core.presentation.ResponsiveBoardLayout
 import java.text.NumberFormat
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.StateFlow
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -128,6 +138,7 @@ internal data class ReviewMoveUi(
     val evaluation: ReviewEvaluation? = null,
     val evaluationSide: Side = Side.WHITE,
     val betterMoveArrow: ReviewBetterMoveArrow? = null,
+    val facts: ReviewExplanationFacts? = null,
 )
 
 internal data class GameReviewUiModel(
@@ -137,6 +148,7 @@ internal data class GameReviewUiModel(
     val completedPlayerMoves: Int,
     val status: ReviewAnalysisUiStatus,
     val playerSide: Side,
+    val outcome: GameOutcome? = null,
     val playerSummary: ReviewSideSummary? = null,
     val errorMessage: String? = null,
 ) {
@@ -260,26 +272,87 @@ private fun RuntimeGameReviewRoute(
 ) {
     val checkpoint = remember(runtime) { runtime.reviewCheckpoint() }
     val finalGameModel = remember(runtime) { runtime.controller.model() }
-    val placeholderMoves = remember(checkpoint) { reviewMovePlaceholders(checkpoint) }
+    val state = remember(runtime) { runtime.gameReviewState() }
+    ReviewStateRoute(
+        routeKey = runtime.gameId,
+        initialFen = checkpoint.config.initialFen,
+        gameMoves = checkpoint.moves,
+        playerSide = checkpoint.config.humanSide,
+        outcome = requireNotNull(checkpoint.outcome),
+        pieceSet = finalGameModel.board.pieceSet,
+        reviewState = state,
+        preferences = preferences,
+        selectedTheme = selectedTheme,
+        onSaveAndExit = onSaveAndExit,
+        onRematch = onRematch,
+        onCancel = runtime::cancelGameReview,
+        onRetry = runtime::restartGameReview,
+    )
+}
+
+@Composable
+internal fun HistoricalGameReviewRoute(
+    runtime: HistoricalReviewRuntime,
+    preferences: GamePreferences,
+    selectedTheme: BoardTheme,
+    onSaveAndExit: () -> Unit,
+) {
+    val state = remember(runtime) { runtime.gameReviewState() }
+    ReviewStateRoute(
+        routeKey = "history:${runtime.game.gameId}",
+        initialFen = runtime.game.initialFen,
+        gameMoves = runtime.game.moves,
+        playerSide = runtime.game.playerSide,
+        outcome = runtime.game.outcome,
+        pieceSet = PieceSets.MODERN_FLAT,
+        reviewState = state,
+        preferences = preferences,
+        selectedTheme = selectedTheme,
+        onSaveAndExit = onSaveAndExit,
+        onRematch = null,
+        onCancel = runtime::cancelGameReview,
+        onRetry = runtime::restartGameReview,
+    )
+}
+
+@Composable
+private fun ReviewStateRoute(
+    routeKey: String,
+    initialFen: String,
+    gameMoves: List<UciMove>,
+    playerSide: Side,
+    outcome: GameOutcome,
+    pieceSet: PieceSet,
+    reviewState: StateFlow<RuntimeGameReviewState?>,
+    preferences: GamePreferences,
+    selectedTheme: BoardTheme,
+    onSaveAndExit: () -> Unit,
+    onRematch: (() -> Unit)?,
+    onCancel: () -> Unit,
+    onRetry: () -> Unit,
+) {
+    val placeholderMoves = remember(initialFen, gameMoves, playerSide) {
+        reviewMovePlaceholders(initialFen, gameMoves, playerSide)
+    }
     val defaultSelectedPly = remember(placeholderMoves) {
         initialPlayerReviewPly(placeholderMoves)
     }
-    var orientationOrdinal by rememberSaveable(runtime.gameId) {
-        mutableIntStateOf(BoardOrientation.forSide(checkpoint.config.humanSide).ordinal)
+    var orientationOrdinal by rememberSaveable(routeKey) {
+        mutableIntStateOf(BoardOrientation.forSide(playerSide).ordinal)
     }
     val orientation = BoardOrientation.entries[orientationOrdinal]
-    var selectedPly by rememberSaveable(runtime.gameId) { mutableIntStateOf(defaultSelectedPly) }
-    var showOpponentMoves by rememberSaveable(runtime.gameId) { mutableStateOf(false) }
-    var completedPlayerMoves by remember(runtime) { mutableIntStateOf(0) }
-    var status by remember(runtime) { mutableStateOf(ReviewAnalysisUiStatus.ANALYZING) }
-    var reviewResult by remember(runtime) { mutableStateOf<GameReviewResult?>(null) }
-    var partialReviewedMoves by remember(runtime) {
+    var selectedPly by rememberSaveable(routeKey) { mutableIntStateOf(defaultSelectedPly) }
+    var showOpponentMoves by rememberSaveable(routeKey) { mutableStateOf(false) }
+    var completedPlayerMoves by remember(reviewState) { mutableIntStateOf(0) }
+    var status by remember(reviewState) { mutableStateOf(ReviewAnalysisUiStatus.ANALYZING) }
+    var reviewResult by remember(reviewState) { mutableStateOf<GameReviewResult?>(null) }
+    var partialReviewedMoves by remember(reviewState) {
         mutableStateOf<Map<Int, ReviewedMove>>(emptyMap())
     }
-    var errorMessage by remember(runtime) { mutableStateOf<String?>(null) }
+    var errorMessage by remember(reviewState) { mutableStateOf<String?>(null) }
 
-    LaunchedEffect(runtime) {
-        runtime.gameReviewState().collect { state ->
+    LaunchedEffect(reviewState) {
+        reviewState.collect { state ->
             when (state) {
                 null -> Unit
                 is RuntimeGameReviewState.Analyzing -> {
@@ -290,7 +363,7 @@ private fun RuntimeGameReviewRoute(
                     } ?: 0
                     completedPlayerMoves = maxOf(
                         completedByProgress,
-                        state.partialMoves.values.count { it.mover == checkpoint.config.humanSide },
+                        state.partialMoves.values.count { it.mover == playerSide },
                     )
                     errorMessage = null
                     status = ReviewAnalysisUiStatus.ANALYZING
@@ -312,7 +385,7 @@ private fun RuntimeGameReviewRoute(
                     } ?: 0
                     completedPlayerMoves = maxOf(
                         completedByProgress,
-                        state.partialMoves.values.count { it.mover == checkpoint.config.humanSide },
+                        state.partialMoves.values.count { it.mover == playerSide },
                     )
                     errorMessage = null
                     status = ReviewAnalysisUiStatus.CANCELLED
@@ -321,7 +394,7 @@ private fun RuntimeGameReviewRoute(
                     reviewResult = null
                     partialReviewedMoves = state.partialMoves
                     completedPlayerMoves = state.partialMoves.values.count {
-                        it.mover == checkpoint.config.humanSide
+                        it.mover == playerSide
                     }
                     errorMessage = null
                     status = ReviewAnalysisUiStatus.FAILED
@@ -334,30 +407,31 @@ private fun RuntimeGameReviewRoute(
         reviewResult,
         partialReviewedMoves,
         placeholderMoves,
-        checkpoint.config.humanSide,
+        playerSide,
     ) {
         val reviewedByPly = reviewResult?.moves?.associateBy { move -> move.ply }
             ?: partialReviewedMoves
         reviewMovesWithPartials(
             placeholders = placeholderMoves,
             partialMoves = reviewedByPly,
-            playerSide = checkpoint.config.humanSide,
+            playerSide = playerSide,
         )
     }
     val board = remember(
-        checkpoint,
+        initialFen,
+        gameMoves,
         selectedPly,
         orientation,
         selectedTheme.id,
-        finalGameModel.board.pieceSet.id,
+        pieceSet.id,
     ) {
         BoardPresenter.presentReview(
-            initialFen = checkpoint.config.initialFen,
-            moves = checkpoint.moves.take(selectedPly),
-            humanSide = checkpoint.config.humanSide,
+            initialFen = initialFen,
+            moves = gameMoves.take(selectedPly),
+            humanSide = playerSide,
             orientation = orientation,
             theme = selectedTheme,
-            pieceSet = finalGameModel.board.pieceSet,
+            pieceSet = pieceSet,
         )
     }
 
@@ -368,9 +442,10 @@ private fun RuntimeGameReviewRoute(
             selectedPly = selectedPly,
             completedPlayerMoves = completedPlayerMoves,
             status = status,
-            playerSide = checkpoint.config.humanSide,
+            playerSide = playerSide,
+            outcome = outcome,
             playerSummary = reviewResult?.summary?.let { summary ->
-                if (checkpoint.config.humanSide == Side.WHITE) summary.white else summary.black
+                if (playerSide == Side.WHITE) summary.white else summary.black
             },
             errorMessage = errorMessage,
         ),
@@ -378,8 +453,8 @@ private fun RuntimeGameReviewRoute(
         onSaveAndExit = onSaveAndExit,
         onRematch = onRematch,
         onFlip = { orientationOrdinal = orientation.flipped().ordinal },
-        onCancel = runtime::cancelGameReview,
-        onRetry = runtime::restartGameReview,
+        onCancel = onCancel,
+        onRetry = onRetry,
         onSelectPly = { ply -> selectedPly = ply.coerceIn(0, reviewedMoves.size) },
         showOpponentMoves = showOpponentMoves,
         onShowOpponentMovesChange = { show ->
@@ -404,7 +479,7 @@ internal fun GameReviewScreen(
     model: GameReviewUiModel,
     showBoardCoordinates: Boolean,
     onSaveAndExit: () -> Unit,
-    onRematch: () -> Unit = {},
+    onRematch: (() -> Unit)? = {},
     onFlip: () -> Unit,
     onCancel: () -> Unit,
     onRetry: () -> Unit,
@@ -489,8 +564,7 @@ internal fun GameReviewScreen(
                             modifier = Modifier
                                 .fillMaxHeight()
                                 .width(layout.panelWidthDp.dp)
-                                .testTag("game_side_panel")
-                                .verticalScroll(sideScrollState),
+                                .testTag("game_side_panel"),
                             verticalArrangement = Arrangement.spacedBy(12.dp),
                         ) {
                             ReviewSideHeader(
@@ -506,7 +580,9 @@ internal fun GameReviewScreen(
                                 onRematch = onRematch,
                                 showOpponentMoves = showOpponentMoves,
                                 onShowOpponentMovesChange = onShowOpponentMovesChange,
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = Modifier.fillMaxWidth()
+                                    .weight(1f)
+                                    .verticalScroll(sideScrollState),
                             )
                         }
                     }
@@ -521,32 +597,22 @@ private fun ReviewTopBar(
     onSaveAndExit: () -> Unit,
     onFlip: () -> Unit,
 ) {
-    TopAppBar(
-        title = { ReviewHeaderTitle() },
-        navigationIcon = {
-            TextButton(
-                onClick = onSaveAndExit,
-                modifier = Modifier
-                    .heightIn(min = 48.dp)
-                    .testTag("review_save_exit"),
-            ) {
-                Text(
-                    stringResource(R.string.game_save_exit),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-        },
-        actions = {
-            TextButton(
-                onClick = onFlip,
-                modifier = Modifier
-                    .heightIn(min = 48.dp)
-                    .testTag("review_flip"),
-            ) { Text(stringResource(R.string.game_flip)) }
-        },
-        modifier = Modifier.testTag("review_top_bar"),
-    )
+    Surface(
+        color = MaterialTheme.colorScheme.surface,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+    ) {
+        ReviewHeader(
+            title = stringResource(R.string.review_title),
+            saveAndExitLabel = stringResource(R.string.game_save_exit),
+            flipLabel = stringResource(R.string.game_flip),
+            onSaveAndExit = onSaveAndExit,
+            onFlip = onFlip,
+            modifier = Modifier
+                .windowInsetsPadding(TopAppBarDefaults.windowInsets)
+                .padding(horizontal = 12.dp, vertical = 8.dp)
+                .testTag("review_top_bar"),
+        )
+    }
 }
 
 @Composable
@@ -554,53 +620,125 @@ private fun ReviewSideHeader(
     onSaveAndExit: () -> Unit,
     onFlip: () -> Unit,
 ) {
-    Column(
+    ReviewHeader(
+        title = stringResource(R.string.review_title),
+        saveAndExitLabel = stringResource(R.string.game_save_exit),
+        flipLabel = stringResource(R.string.game_flip),
+        onSaveAndExit = onSaveAndExit,
+        onFlip = onFlip,
         modifier = Modifier
             .fillMaxWidth()
             .testTag("review_side_header"),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            TextButton(
-                onClick = onSaveAndExit,
-                modifier = Modifier
-                    .heightIn(min = 48.dp)
-                    .testTag("review_save_exit"),
-            ) {
-                Text(
-                    stringResource(R.string.game_save_exit),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            Spacer(Modifier.weight(1f))
-            TextButton(
-                onClick = onFlip,
-                modifier = Modifier
-                    .heightIn(min = 48.dp)
-                    .testTag("review_flip"),
-            ) { Text(stringResource(R.string.game_flip)) }
-        }
-        ReviewHeaderTitle(Modifier.padding(horizontal = 8.dp))
-    }
+    )
 }
 
 @Composable
-private fun ReviewHeaderTitle(modifier: Modifier = Modifier) {
-    Column(modifier) {
+internal fun ReviewHeader(
+    title: String,
+    saveAndExitLabel: String,
+    flipLabel: String,
+    onSaveAndExit: () -> Unit,
+    onFlip: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val actionStyle = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
+    val titleStyle = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold)
+    val textMeasurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    // Measure the actual translated/scaled labels instead of guessing from screen width.
+    val saveWidth = with(density) {
+        textMeasurer.measure(saveAndExitLabel, style = actionStyle, maxLines = 1).size.width.toDp()
+    } + 26.dp
+    val flipWidth = maxOf(64.dp, with(density) {
+        textMeasurer.measure(flipLabel, style = actionStyle, maxLines = 1).size.width.toDp()
+    } + 26.dp)
+    val titleWidth = with(density) {
+        textMeasurer.measure(title, style = titleStyle, maxLines = 1).size.width.toDp()
+    }
+
+    @Composable
+    fun HeaderTitle(modifier: Modifier = Modifier) {
         Text(
-            stringResource(R.string.review_title),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
+            title,
+            modifier = modifier
+                .testTag("review_header_title")
+                .semantics { heading() },
+            style = titleStyle,
+            color = MaterialTheme.colorScheme.onSurface,
+            textAlign = TextAlign.Center,
         )
-        Text(
-            stringResource(R.string.review_beta),
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+    }
+
+    @Composable
+    fun HeaderAction(label: String, tag: String, onClick: () -> Unit, modifier: Modifier) {
+        FilledTonalButton(
+            onClick = onClick,
+            modifier = modifier
+                .heightIn(min = 48.dp)
+                .widthIn(min = 64.dp)
+                .testTag(tag),
+            shape = RoundedCornerShape(12.dp),
+            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
+            colors = ButtonDefaults.filledTonalButtonColors(
+                containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+            ),
+        ) {
+            Text(
+                label,
+                modifier = Modifier.fillMaxWidth(),
+                style = actionStyle,
+                textAlign = TextAlign.Center,
+            )
+        }
+    }
+
+    BoxWithConstraints(modifier.fillMaxWidth()) {
+        val availableWidth = maxWidth
+        val actionRailWidth = maxOf(saveWidth, flipWidth)
+        if (actionRailWidth * 2 + titleWidth + 16.dp <= availableWidth) {
+            // Equal reserved side widths keep Review at the geometric center,
+            // even though Save & exit is wider than Flip.
+            Box(Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                HeaderTitle(Modifier.align(Alignment.Center))
+                HeaderAction(
+                    saveAndExitLabel, "review_save_exit", onSaveAndExit,
+                    Modifier.width(saveWidth).align(Alignment.CenterStart),
+                )
+                HeaderAction(
+                    flipLabel, "review_flip", onFlip,
+                    Modifier.width(flipWidth).align(Alignment.CenterEnd),
+                )
+            }
+        } else {
+            Column(
+                Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                HeaderTitle(Modifier.fillMaxWidth())
+                if (saveWidth + flipWidth + 8.dp <= availableWidth) {
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        HeaderAction(
+                            saveAndExitLabel, "review_save_exit", onSaveAndExit,
+                            Modifier.width(saveWidth),
+                        )
+                        HeaderAction(
+                            flipLabel, "review_flip", onFlip, Modifier.width(flipWidth),
+                        )
+                    }
+                } else {
+                    HeaderAction(
+                        saveAndExitLabel, "review_save_exit", onSaveAndExit, Modifier.fillMaxWidth(),
+                    )
+                    HeaderAction(flipLabel, "review_flip", onFlip, Modifier.fillMaxWidth())
+                }
+            }
+        }
     }
 }
 
@@ -655,7 +793,7 @@ private fun ReviewPanel(
     onCancel: () -> Unit,
     onRetry: () -> Unit,
     onSelectPly: (Int) -> Unit,
-    onRematch: () -> Unit,
+    onRematch: (() -> Unit)?,
     showOpponentMoves: Boolean,
     onShowOpponentMovesChange: (Boolean) -> Unit,
     modifier: Modifier,
@@ -674,9 +812,7 @@ private fun ReviewPanel(
         ReviewAnalysisCard(model, onCancel, onRetry, onRematch)
         if (model.status == ReviewAnalysisUiStatus.COMPLETE) {
             model.playerSummary?.let { summary ->
-                ReviewSummaryCard(
-                    summary = summary,
-                )
+                ReviewSummaryCard(summary = summary, outcome = model.outcome)
             }
         } else {
             ReviewMoveFeedback(model.selectedMove, model.status)
@@ -701,7 +837,7 @@ private fun ReviewAnalysisCard(
     model: GameReviewUiModel,
     onCancel: () -> Unit,
     onRetry: () -> Unit,
-    onRematch: () -> Unit,
+    onRematch: (() -> Unit)?,
 ) {
     val totalPlayerMoves = model.totalPlayerMoves
     val progressDenominator = totalPlayerMoves.coerceAtLeast(1)
@@ -777,14 +913,16 @@ private fun ReviewAnalysisCard(
                         ),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    FilledTonalButton(
-                        onClick = onRematch,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 48.dp)
-                            .testTag("review_rematch"),
-                    ) {
-                        Text(stringResource(R.string.action_rematch))
+                    onRematch?.let { rematch ->
+                        FilledTonalButton(
+                            onClick = rematch,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 48.dp)
+                                .testTag("review_rematch"),
+                        ) {
+                            Text(stringResource(R.string.action_rematch))
+                        }
                     }
                 }
 
@@ -827,6 +965,7 @@ private fun ReviewAnalysisCard(
 @Composable
 private fun ReviewSummaryCard(
     summary: ReviewSideSummary,
+    outcome: GameOutcome?,
 ) {
     ElevatedCard(
         modifier = Modifier
@@ -844,6 +983,19 @@ private fun ReviewSummaryCard(
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
             )
+            outcome?.let { result ->
+                Text(
+                    stringResource(
+                        if (result.winner == summary.side) {
+                            R.string.history_result_win
+                        } else {
+                            R.string.history_result_loss
+                        },
+                    ),
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
             ReviewSummarySide(
                 summary = summary,
                 roleTag = "player",
@@ -857,6 +1009,7 @@ private fun ReviewSummarySide(
     summary: ReviewSideSummary,
     roleTag: String,
 ) {
+    var showAccuracyDetails by rememberSaveable { mutableStateOf(false) }
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -880,6 +1033,55 @@ private fun ReviewSummarySide(
             Text(
                 stringResource(R.string.review_summary_graded, summary.gradedMoves),
                 style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag("review_accuracy"),
+            color = MaterialTheme.colorScheme.primaryContainer,
+            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+            shape = RoundedCornerShape(12.dp),
+        ) {
+            Row(
+                modifier = Modifier.padding(start = 12.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        stringResource(R.string.review_accuracy_label),
+                        style = MaterialTheme.typography.labelMedium,
+                    )
+                    Text(
+                        summary.accuracy?.let { accuracy ->
+                            stringResource(R.string.review_accuracy_value, accuracy)
+                        } ?: stringResource(R.string.review_accuracy_unavailable),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
+                TextButton(
+                    onClick = { showAccuracyDetails = !showAccuracyDetails },
+                    modifier = Modifier
+                        .heightIn(min = 48.dp)
+                        .testTag("review_accuracy_info"),
+                ) {
+                    Text(
+                        stringResource(
+                            if (showAccuracyDetails) R.string.review_accuracy_less
+                            else R.string.review_accuracy_about,
+                        ),
+                    )
+                }
+            }
+        }
+        if (showAccuracyDetails) {
+            Text(
+                stringResource(R.string.review_accuracy_limits),
+                modifier = Modifier.testTag("review_accuracy_limits"),
+                style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
@@ -1080,6 +1282,7 @@ private fun ReviewMoveFeedback(
                     }
                 }
                 Text(reviewGradeExplanation(grade))
+                move.facts?.let { facts -> ReviewExplanationFactsList(facts) }
                 move.bestMoveSan
                     ?.takeIf { grade != ReviewGradeUi.BEST && it != move.san }
                     ?.let { best ->
@@ -1111,6 +1314,50 @@ private fun ReviewMoveFeedback(
             }
         }
     }
+}
+
+@Composable
+private fun ReviewExplanationFactsList(facts: ReviewExplanationFacts) {
+    Column(
+        modifier = Modifier.testTag("review_explanation_facts"),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        if (facts.forcedMove) Text(stringResource(R.string.review_fact_forced_move))
+        if (facts.capture) Text(stringResource(R.string.review_fact_capture))
+        if (facts.gaveCheck) Text(stringResource(R.string.review_fact_check))
+        if (facts.materialSwingForMover != 0) {
+            Text(
+                stringResource(
+                    R.string.review_fact_material_swing,
+                    if (facts.materialSwingForMover > 0) "+${facts.materialSwingForMover}"
+                    else facts.materialSwingForMover.toString(),
+                ),
+            )
+        }
+        facts.terminalReason?.let { reason ->
+            Text(reviewTerminalFact(reason, facts.terminalWinner))
+        }
+    }
+}
+
+@Composable
+private fun reviewTerminalFact(reason: EndReason, winner: Side?): String = when (reason) {
+    EndReason.CHECKMATE -> stringResource(R.string.result_checkmate)
+    EndReason.STALEMATE -> stringResource(R.string.review_fact_stalemate)
+    EndReason.REPETITION -> stringResource(R.string.result_threefold_repetition)
+    EndReason.DEAD_POSITION_MATERIAL -> stringResource(R.string.result_dead_position_material)
+    EndReason.DEAD_POSITION_FINAL_CAPTURE ->
+        stringResource(R.string.result_dead_position_final_capture)
+    EndReason.BARE_KING -> winner?.let { winningSide ->
+        stringResource(
+            R.string.result_bare_king,
+            sideNameForReview(winningSide.opposite()),
+            sideNameForReview(winningSide),
+        )
+    } ?: stringResource(R.string.review_fact_game_ended)
+    EndReason.FIFTY_MOVE_LIMIT -> stringResource(R.string.result_fifty_move)
+    EndReason.RESIGNATION -> stringResource(R.string.result_resignation)
+    EndReason.TIMEOUT -> stringResource(R.string.result_timeout)
 }
 
 @Composable
@@ -1482,13 +1729,25 @@ private fun ReviewMoveCell(
 private data class ReviewGradePalette(val container: Color, val content: Color)
 
 private fun reviewMovePlaceholders(checkpoint: CoordinatorCheckpoint): List<ReviewMoveUi> {
-    var position = ChessPosition.fromFen(checkpoint.config.initialFen)
-    return checkpoint.moves.mapIndexed { index, move ->
+    return reviewMovePlaceholders(
+        checkpoint.config.initialFen,
+        checkpoint.moves,
+        checkpoint.config.humanSide,
+    )
+}
+
+private fun reviewMovePlaceholders(
+    initialFen: String,
+    moves: List<UciMove>,
+    playerSide: Side,
+): List<ReviewMoveUi> {
+    var position = ChessPosition.fromFen(initialFen)
+    return moves.mapIndexed { index, move ->
         val placeholder = ReviewMoveUi(
             ply = index + 1,
             moveNumber = position.fullmoveNumber,
             mover = position.sideToMove,
-            role = if (position.sideToMove == checkpoint.config.humanSide) {
+            role = if (position.sideToMove == playerSide) {
                 ReviewMoveRole.PLAYER_DECISION
             } else {
                 ReviewMoveRole.OPPONENT_CONTEXT
@@ -1540,6 +1799,7 @@ private fun reviewMoveUi(move: ReviewedMove, playerSide: Side): ReviewMoveUi {
         },
         evaluation = move.playedEvaluation.takeIf { role == ReviewMoveRole.PLAYER_DECISION },
         evaluationSide = playerSide,
+        facts = move.explanationFacts,
         betterMoveArrow = if (
             role == ReviewMoveRole.PLAYER_DECISION &&
             playerGrade != null &&

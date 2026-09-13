@@ -16,6 +16,7 @@ xcrun swiftc -parse-as-library \
   "$root/iosApp/DrawlessChess/BoardVisuals.swift" \
   "$root/scripts/RenderBoardVisualPreview.swift" \
   -o "$preview_tmp/render-board-visual-preview"
-"$preview_tmp/render-board-visual-preview" "$output"
+DRAWLESS_ASSET_CATALOG_ROOT="$root/iosApp/DrawlessChess/Assets.xcassets" \
+  "$preview_tmp/render-board-visual-preview" "$output"
 
 echo "Rendered iOS board catalog: $output"

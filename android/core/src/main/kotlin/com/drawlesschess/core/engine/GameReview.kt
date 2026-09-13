@@ -20,18 +20,18 @@ import com.drawlesschess.core.UciMove
 import com.drawlesschess.core.chess.ChessAdapter
 import com.drawlesschess.core.chess.ChessPosition
 import com.drawlesschess.core.chess.ChessRules
+import com.drawlesschess.core.chess.PieceType
 import com.drawlesschess.core.chess.RepetitionKey
 import kotlin.math.pow
 
-const val REVIEW_EVIDENCE_SCHEMA_VERSION = 1
-const val REVIEW_ANALYSIS_VERSION = 2
+const val REVIEW_EVIDENCE_SCHEMA_VERSION = 2
+const val REVIEW_ANALYSIS_VERSION = 3
 const val REVIEW_REQUIRED_DRAWLESS_PATCH_VERSION = 2
 
 /**
  * Player coverage is an explicit aggregate scope, so it does not change the evidence schema.
- * Analysis version 2 records the semantic boundary introduced by full native RulesContractV1
- * patch-v2 search. Replacing the root/adjacent evidence contract with constrained-root played
- * searches will require another analysis version.
+ * Analysis version 3 records the semantic boundary introduced by same-position constrained-root
+ * played-move evidence. It retains full native RulesContractV1 patch-v2 search from version 2.
  */
 sealed interface GameReviewScope {
     fun includes(side: Side): Boolean
@@ -69,6 +69,8 @@ enum class ReviewScoreSource {
 
 enum class ReviewLineOrigin {
     ROOT_MULTIPV,
+    CONSTRAINED_ROOT,
+    /** Retained only so older in-memory fixtures fail closed instead of changing enum ordinals. */
     ADJACENT_POSITION,
     AUTHORITATIVE_TERMINAL,
     AUTHORITATIVE_SAFE_ALTERNATIVE,
@@ -94,6 +96,7 @@ data class ReviewLine(
     val source: ReviewScoreSource?,
     val bound: EngineScoreBound,
     val depth: Int?,
+    val nodes: Long? = null,
     val moves: List<UciMove>,
     val origin: ReviewLineOrigin = ReviewLineOrigin.ROOT_MULTIPV,
 ) {
@@ -101,6 +104,7 @@ data class ReviewLine(
         require(rank >= 1)
         require(moves.isNotEmpty() && moves.first() == move)
         require(expectedPoints == null || expectedPoints in 0.0..1.0)
+        require(nodes == null || nodes >= 0)
         require((evaluation == null) == (source == null))
         require(expectedPoints == null || (evaluation != null && bound == EngineScoreBound.EXACT))
         when (source) {
@@ -145,7 +149,10 @@ data class ReviewMoveEvidence(
             (playedLine.origin == ReviewLineOrigin.ROOT_MULTIPV) == (playedLineRank != null),
         )
         require(playedLineRank == null || playedLineRank == playedLine.rank)
-        require(usedAdjacentFallback == (playedLine.origin == ReviewLineOrigin.ADJACENT_POSITION))
+        require(
+            usedAdjacentFallback ==
+                (playedLine.origin == ReviewLineOrigin.CONSTRAINED_ROOT),
+        )
     }
 }
 
@@ -190,12 +197,21 @@ data class ReviewSideSummary(
     val movesWithExpectedPointLoss: Int,
     val meanExpectedPointLoss: Double?,
     val qualityCounts: Map<ReviewMoveQuality, Int>,
+    val accuracyVersion: Int = DRAWLESS_ACCURACY_VERSION,
+    val accuracy: Int? = null,
+    val unscoredMoves: Int = gradedMoves - movesWithExpectedPointLoss,
+    val issuePlies: List<Int> = emptyList(),
+    val strongestPly: Int? = null,
+    val worstPly: Int? = null,
 ) {
     init {
         require(gradedMoves >= 0 && movesWithExpectedPointLoss in 0..gradedMoves)
         require(meanExpectedPointLoss == null || meanExpectedPointLoss in 0.0..1.0)
         require(qualityCounts.values.all { it >= 0 })
         require(qualityCounts.values.sum() == gradedMoves)
+        require(accuracyVersion > 0 && (accuracy == null || accuracy in 0..100))
+        require(unscoredMoves >= 0)
+        require(issuePlies == issuePlies.sorted() && issuePlies.distinct().size == issuePlies.size)
     }
 }
 
@@ -217,12 +233,24 @@ data class GameReviewSummary(
             val sideMoves = moves.filter { it.mover == side }
             val graded = sideMoves.mapNotNull { it.quality }
             val losses = sideMoves.mapNotNull { it.expectedPointLoss }
+            val scoredMoves = sideMoves.filter { it.expectedPointLoss != null }
             return ReviewSideSummary(
                 side = side,
                 gradedMoves = graded.size,
                 movesWithExpectedPointLoss = losses.size,
                 meanExpectedPointLoss = losses.takeIf { it.isNotEmpty() }?.average(),
                 qualityCounts = ReviewMoveQuality.entries.associateWith { quality -> graded.count { it == quality } },
+                accuracy = DrawlessAccuracyV1.calculate(sideMoves),
+                unscoredMoves = sideMoves.size - losses.size,
+                issuePlies = sideMoves.filter { move ->
+                    move.quality in setOf(
+                        ReviewMoveQuality.INACCURACY,
+                        ReviewMoveQuality.MISTAKE,
+                        ReviewMoveQuality.BLUNDER,
+                    )
+                }.map(ReviewedMove::ply),
+                strongestPly = scoredMoves.minByOrNull { it.expectedPointLoss!! }?.ply,
+                worstPly = scoredMoves.maxByOrNull { it.expectedPointLoss!! }?.ply,
             )
         }
     }
@@ -241,6 +269,7 @@ data class ReviewedMove(
     val fenBefore: String,
     val fenAfter: String,
     val evidence: ReviewMoveEvidence? = null,
+    val explanationFacts: ReviewExplanationFacts = ReviewExplanationFacts(),
 ) {
     init {
         require(ply >= 1)
@@ -254,6 +283,15 @@ data class ReviewedMove(
         }
     }
 }
+
+private fun ReviewedMove.hasCompleteExactEvidence(): Boolean =
+    quality != null && expectedPointLoss != null &&
+        evidence?.bestLine?.bound == EngineScoreBound.EXACT &&
+        evidence.playedLine.bound == EngineScoreBound.EXACT &&
+        evidence.bestLine.evaluation != null &&
+        evidence.playedLine.evaluation != null &&
+        evidence.bestLine.expectedPoints != null &&
+        evidence.playedLine.expectedPoints != null
 
 data class GameReviewResult(
     val gameId: String,
@@ -308,6 +346,9 @@ data class GameReviewResult(
             "Review evidence coverage does not match its declared scope"
         }
         require(moves.all { it.evidence != null })
+        require(moves.all(ReviewedMove::hasCompleteExactEvidence)) {
+            "Complete Review Evidence V2 cannot contain an unscored player move"
+        }
         require(moves.all { move ->
             move.evidence?.let {
                 it.evidenceSchemaVersion == evidenceSchemaVersion &&
@@ -345,6 +386,9 @@ data class GameReviewMoveResult(
         require(positionBefore.sideToMove == move.mover)
         require(positionBefore.fen() == move.fenBefore)
         require(ChessRules.apply(positionBefore, move.playedMove).fen() == move.fenAfter)
+        require(move.hasCompleteExactEvidence()) {
+            "A streamed Review Evidence V2 move must contain exact scored evidence"
+        }
     }
 }
 
@@ -433,40 +477,126 @@ class GameReviewRunner(private val engine: ChessEngine) {
         onProgress: (GameReviewProgress) -> Unit = {},
         onResult: (Result<GameReviewResult>) -> Unit,
     ): EngineCancellation {
-        val decisions = replay(gameId, initialFen, moves, rules, outcome)
-        val plan = GameReviewPlanner.plan(gameId, initialFen, moves, rules, moveTimeMillis)
-        check(plan.requests.size == decisions.size)
-        val runId = nextReviewRunId()
-        val requests = buildList {
-            addAll(plan.requests)
-            val finalDecision = decisions.lastOrNull()
-            if (finalDecision != null && finalDecision.outcomeAfter == null) {
-                add(
-                    EngineRequest(
-                        requestId = "$gameId-review-final",
+        // The product UI analyzes one side, but this compatibility API still supports callers
+        // requesting both sides. Run the same exact player pipeline for each side instead of the
+        // former next-position approximation so every grade obeys Evidence V2.
+        replay(gameId, initialFen, moves, rules, outcome)
+        val firstMover = ChessPosition.fromFen(initialFen).sideToMove
+        val rootCounts = listOf(firstMover, firstMover.opposite()).associateWith { side ->
+            GameReviewPlanner.playerPlan(
+                gameId,
+                initialFen,
+                moves,
+                rules,
+                side,
+                moveTimeMillis,
+            ).roots.size
+        }
+        val sides = listOf(firstMover, firstMover.opposite()).filter { rootCounts.getValue(it) > 0 }
+        val lock = ConcurrentLock()
+        val aggregate = mutableListOf<GameReviewResult>()
+        var activeCancellation: EngineCancellation? = null
+        var activeSideIndex = -1
+        var cancelled = false
+        var completedWorkUnits = 0
+        var completedMoves = 0
+
+        fun finishCombined() {
+            val identities = aggregate.mapNotNull(GameReviewResult::engine).distinct()
+            require(identities.size <= 1) { "Review responses came from different engine builds" }
+            val reviewed = aggregate.flatMap(GameReviewResult::moves).sortedBy(ReviewedMove::ply)
+            onResult(
+                Result.success(
+                    GameReviewResult(
                         gameId = gameId,
-                        positionId = "$gameId:review:${moves.size}:${RepetitionKey.of(finalDecision.positionAfter).value}",
                         initialFen = initialFen,
-                        moves = moves,
                         rules = rules,
-                        strength = EngineStrength.SkillLevel(20),
-                        limits = EngineLimits(moveTimeMillis, plan.requests.first().limits.multiPv),
-                        purpose = EnginePurpose.REVIEW,
+                        outcome = outcome,
+                        moves = reviewed,
+                        engine = identities.singleOrNull(),
+                        scope = GameReviewScope.AllMoves,
+                        gameMoves = moves,
                     ),
-                )
+                ),
+            )
+        }
+
+        fun startSide(index: Int) {
+            if (index == sides.size) {
+                finishCombined()
+                return
             }
-        }.map { request -> request.copy(requestId = "${request.requestId}-run-$runId") }
-        return Operation(
-            engine = engine,
-            requests = requests,
-            decisions = decisions,
-            gameId = gameId,
-            initialFen = initialFen,
-            rules = rules,
-            outcome = outcome,
-            onProgress = onProgress,
-            onResult = onResult,
-        ).also(Operation::start)
+            val side = sides[index]
+            val remainingBaseMoves = sides.drop(index + 1).sumOf { rootCounts.getValue(it) }
+            lock.withLock {
+                if (cancelled) return
+                activeSideIndex = index
+                activeCancellation = null
+            }
+            val cancellation = reviewPlayerMoves(
+                gameId = gameId,
+                initialFen = initialFen,
+                moves = moves,
+                rules = rules,
+                outcome = outcome,
+                playerSide = side,
+                moveTimeMillis = moveTimeMillis,
+                onProgress = { progress ->
+                    val shouldDeliver = lock.withLock { !cancelled }
+                    if (shouldDeliver) {
+                        onProgress(
+                            GameReviewProgress(
+                                completedWorkUnits + progress.completedWorkUnits,
+                                completedWorkUnits + progress.totalWorkUnits + remainingBaseMoves,
+                                completedMoves + progress.completedMoves,
+                                moves.size,
+                            ),
+                        )
+                    }
+                },
+                onResult = sideResult@{ result ->
+                    var continueWithNext = false
+                    var failure: Throwable? = null
+                    lock.withLock {
+                        if (cancelled || activeSideIndex != index) return@sideResult
+                        activeSideIndex = -1
+                        activeCancellation = null
+                        result.fold(
+                            onSuccess = { value ->
+                                aggregate += value
+                                val used = value.moves.sumOf { reviewed ->
+                                    if (requireNotNull(reviewed.evidence).usedAdjacentFallback) 2 else 1
+                                }
+                                completedWorkUnits += used
+                                completedMoves += value.moves.size
+                                continueWithNext = true
+                            },
+                            onFailure = { failure = it },
+                        )
+                    }
+                    if (failure != null) onResult(Result.failure(requireNotNull(failure)))
+                    else if (continueWithNext) startSide(index + 1)
+                },
+            )
+            val cancelImmediately = lock.withLock {
+                if (cancelled || activeSideIndex != index) true else {
+                    activeCancellation = cancellation
+                    false
+                }
+            }
+            if (cancelImmediately) cancellation.cancel()
+        }
+
+        startSide(0)
+        return EngineCancellation {
+            val active = lock.withLock {
+                if (cancelled) return@EngineCancellation
+                cancelled = true
+                activeSideIndex = -1
+                activeCancellation.also { activeCancellation = null }
+            }
+            active?.cancel()
+        }
     }
 
     /**
@@ -1491,12 +1621,12 @@ class GameReviewRunner(private val engine: ChessEngine) {
             } else {
                 bestLine = primary
                 playedLine = playedRootLine ?: requireNotNull(adjacentResponse) {
-                    "Review is missing adjacent evidence after ply ${decision.ply}"
+                    "Review is missing constrained played-move evidence at ply ${decision.ply}"
                 }.reviewLines(
-                    position = decision.positionAfter,
-                    session = decision.sessionAfter,
-                    firstGamePly = decision.ply + 1,
-                ).first().asAdjacentPlayedLine(decision.playedMove)
+                    position = decision.positionBefore,
+                    session = decision.sessionBefore,
+                    firstGamePly = decision.ply,
+                ).single().asConstrainedPlayedLine(decision.playedMove)
                 val classified = GameReviewClassifier.classify(bestLine, playedLine)
                 quality = classified?.first
                 expectedLoss = classified?.second
@@ -1523,7 +1653,22 @@ class GameReviewRunner(private val engine: ChessEngine) {
                     },
                     legalMoveCount = legalMoveCount,
                     forced = legalMoveCount == 1,
-                    usedAdjacentFallback = playedLine.origin == ReviewLineOrigin.ADJACENT_POSITION,
+                    usedAdjacentFallback = playedLine.origin == ReviewLineOrigin.CONSTRAINED_ROOT,
+                ),
+                explanationFacts = ReviewExplanationFacts(
+                    capture = ChessAdapter.transition(
+                        decision.positionBefore,
+                        decision.playedMove,
+                    ).moveWasCapture,
+                    gaveCheck = ChessRules.isInCheck(decision.positionAfter),
+                    forcedMove = legalMoveCount == 1,
+                    materialSwingForMover = materialSwingForMover(
+                        decision.positionBefore,
+                        decision.positionAfter,
+                        decision.mover,
+                    ),
+                    terminalReason = decision.outcomeAfter?.reason,
+                    terminalWinner = decision.outcomeAfter?.winner,
                 ),
             )
         }
@@ -1542,6 +1687,24 @@ class GameReviewRunner(private val engine: ChessEngine) {
             return response.variations.none { variation ->
                 variation.moves.firstOrNull() == decision.playedMove
             }
+        }
+
+        private fun materialSwingForMover(
+            before: ChessPosition,
+            after: ChessPosition,
+            mover: Side,
+        ): Int {
+            fun pieceValue(type: PieceType): Int = when (type) {
+                PieceType.PAWN -> 1
+                PieceType.KNIGHT, PieceType.BISHOP -> 3
+                PieceType.ROOK -> 5
+                PieceType.QUEEN -> 9
+                PieceType.KING -> 0
+            }
+            fun balance(position: ChessPosition): Int = position.pieces().sumOf { (_, piece) ->
+                pieceValue(piece.type) * if (piece.side == mover) 1 else -1
+            }
+            return balance(after) - balance(before)
         }
 
         fun EngineResponse.reviewLines(
@@ -1591,10 +1754,12 @@ class GameReviewRunner(private val engine: ChessEngine) {
                     }
                 }
             }
-            return sorted.map { it.reviewLine() }
+            return sorted.map { it.reviewLine(nodes) }
         }
 
-        fun com.drawlesschess.core.PrincipalVariation.reviewLine(): ReviewLine {
+        fun com.drawlesschess.core.PrincipalVariation.reviewLine(
+            searchedNodes: Long? = null,
+        ): ReviewLine {
             val evaluation = if (!evidenceAvailable) null else {
                 scoreCentipawns?.let(ReviewEvaluation::Centipawns)
                     ?: ReviewEvaluation.Mate(requireNotNull(mateIn))
@@ -1622,6 +1787,7 @@ class GameReviewRunner(private val engine: ChessEngine) {
                 source = source,
                 bound = bound,
                 depth = depth,
+                nodes = searchedNodes,
                 moves = moves,
             )
         }
@@ -1644,6 +1810,7 @@ class GameReviewRunner(private val engine: ChessEngine) {
             source = ReviewScoreSource.TERMINAL,
             bound = EngineScoreBound.EXACT,
             depth = null,
+            nodes = null,
             moves = listOf(move),
             origin = origin,
         )
@@ -1656,6 +1823,7 @@ class GameReviewRunner(private val engine: ChessEngine) {
             source = null,
             bound = EngineScoreBound.EXACT,
             depth = null,
+            nodes = null,
             moves = listOf(move),
             origin = ReviewLineOrigin.AUTHORITATIVE_SAFE_ALTERNATIVE,
         )
@@ -1671,11 +1839,12 @@ class GameReviewRunner(private val engine: ChessEngine) {
             origin = ReviewLineOrigin.ADJACENT_POSITION,
         )
 
-        fun ReviewLine.asAdjacentPlayedLine(playedMove: UciMove): ReviewLine = negated().copy(
-            rank = 1,
-            move = playedMove,
-            moves = listOf(playedMove) + moves,
-        )
+        fun ReviewLine.asConstrainedPlayedLine(playedMove: UciMove): ReviewLine {
+            require(move == playedMove && moves.firstOrNull() == playedMove) {
+                "Constrained review response does not begin with the played move"
+            }
+            return copy(rank = 1, origin = ReviewLineOrigin.CONSTRAINED_ROOT)
+        }
 
         fun ReviewEvaluation.negated(): ReviewEvaluation = when (this) {
             is ReviewEvaluation.Centipawns -> ReviewEvaluation.Centipawns(-value)

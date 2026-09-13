@@ -780,25 +780,39 @@ private struct GameView: View {
             let sidePanelWidth = min(360, max(240, proxy.size.width * 0.34))
             let boardWidth = landscape
                 ? min(
-                    max(0, proxy.size.height - 64),
-                    max(0, proxy.size.width - sidePanelWidth - 48)
+                    max(0, proxy.size.height),
+                    max(0, proxy.size.width - sidePanelWidth)
                 )
                 : min(max(0, proxy.size.width - 28), 680)
             Group {
                 if landscape {
-                    HStack(alignment: .top, spacing: 16) {
-                        landscapeBoardColumn(sideLength: boardWidth)
+                    HStack(alignment: .top, spacing: 0) {
+                        ChessBoardView(model: model, sideLength: boardWidth)
                             .frame(width: boardWidth)
                         ScrollView {
                             VStack(spacing: 10) {
+                                gameHeader
                                 opponentStrip
                                 playerStrip
+                                if let game = model.game,
+                                   game.phase == "COMPLETED",
+                                   model.botMovePresentation == nil {
+                                    GamePostGameBar(
+                                        model: model,
+                                        game: game,
+                                        endReason: localizedEndReason(game),
+                                        compact: true
+                                    )
+#if DEBUG
+                                    .onAppear { model.botMoveResultSurfaceDidAppear("postGame") }
+#endif
+                                }
                                 sidePanel
                             }
                         }
                             .frame(width: sidePanelWidth)
                     }
-                    .padding(12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 } else {
                     ScrollView {
                         VStack(spacing: 18) {
@@ -812,19 +826,20 @@ private struct GameView: View {
                     }
                 }
             }
-        }
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            if let game = model.game,
-               game.phase == "COMPLETED",
-               model.botMovePresentation == nil {
-                GamePostGameBar(
-                    model: model,
-                    game: game,
-                    endReason: localizedEndReason(game)
-                )
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                if !landscape,
+                   let game = model.game,
+                   game.phase == "COMPLETED",
+                   model.botMovePresentation == nil {
+                    GamePostGameBar(
+                        model: model,
+                        game: game,
+                        endReason: localizedEndReason(game)
+                    )
 #if DEBUG
-                .onAppear { model.botMoveResultSurfaceDidAppear("postGame") }
+                    .onAppear { model.botMoveResultSurfaceDidAppear("postGame") }
 #endif
+                }
             }
         }
         .accessibilityHidden(shouldHidePostGameContentFromAccessibility)
@@ -921,13 +936,6 @@ private struct GameView: View {
             opponentStrip
             ChessBoardView(model: model, sideLength: sideLength)
             playerStrip
-        }
-    }
-
-    private func landscapeBoardColumn(sideLength: CGFloat) -> some View {
-        VStack(spacing: 8) {
-            gameHeader
-            ChessBoardView(model: model, sideLength: sideLength)
         }
     }
 
@@ -1190,6 +1198,7 @@ private struct GamePostGameBar: View {
     @ObservedObject var model: DrawlessChessModel
     let game: SharedGameView
     let endReason: String
+    var compact = false
 
     private var won: Bool { game.winner == game.humanSide }
 
@@ -1217,7 +1226,7 @@ private struct GamePostGameBar: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: compact ? 6 : 8) {
             HStack(alignment: .firstTextBaseline, spacing: 12) {
                 Text(localized(won ? "Victory" : "Defeat"))
                     .font(.title3.weight(.bold))
@@ -1280,9 +1289,9 @@ private struct GamePostGameBar: View {
             .foregroundStyle(AppPalette.gold)
             .accessibilityIdentifier("game.postGame.home")
         }
-        .padding(.horizontal, 16)
-        .padding(.top, 10)
-        .padding(.bottom, 6)
+        .padding(.horizontal, compact ? 12 : 16)
+        .padding(.top, compact ? 8 : 10)
+        .padding(.bottom, compact ? 4 : 6)
         .background {
             ZStack {
                 AppPalette.panel
@@ -1373,7 +1382,6 @@ private struct PostGameReviewTapGate: View {
 
 private struct GameReviewView: View {
     @ObservedObject var model: DrawlessChessModel
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var selectedPly: Int32?
     @State private var boardFlipped = false
     @State private var showOpponentMoves = false
@@ -1450,20 +1458,7 @@ private struct GameReviewView: View {
     }
 
     private var reviewHeader: some View {
-        Group {
-            if dynamicTypeSize.isAccessibilitySize {
-                VStack(spacing: 2) {
-                    reviewHeaderActions
-                    reviewHeaderTitle
-                        .padding(.bottom, 8)
-                }
-            } else {
-                ZStack {
-                    reviewHeaderActions
-                    reviewHeaderTitle
-                }
-            }
-        }
+        reviewHeaderActions
         .padding(.horizontal, 12)
         .background(AppPalette.panel)
         .overlay(alignment: .bottom) {
@@ -1477,13 +1472,21 @@ private struct GameReviewView: View {
     }
 
     private var reviewHeaderActions: some View {
-        HStack {
+        HStack(spacing: 8) {
             Button { model.exitGame() } label: {
                 Text(localized("Save & exit"))
                     .frame(minHeight: 48)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("review.saveExit")
+            Spacer()
+            Text(localized("ios.game_review"))
+                .font(.headline.weight(.bold))
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+                .accessibilityIdentifier("review.title")
             Spacer()
             Button("Flip") { boardFlipped.toggle() }
                 .frame(minWidth: 44, minHeight: 48)
@@ -1491,17 +1494,6 @@ private struct GameReviewView: View {
                 .accessibilityIdentifier("review.flip")
         }
         .foregroundStyle(.primary)
-    }
-
-    private var reviewHeaderTitle: some View {
-        VStack(spacing: 0) {
-            Text(localized("ios.game_review"))
-                .font(.headline.weight(.bold))
-            Text(localized("ios.review_beta"))
-                .font(.caption2.weight(.semibold))
-                .foregroundStyle(AppPalette.secondaryText)
-        }
-        .accessibilityElement(children: .combine)
     }
 
     @ViewBuilder
@@ -1985,7 +1977,15 @@ private struct ReviewChessBoardView: View {
         }
         .aspectRatio(1, contentMode: .fit)
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 8).stroke(AppPalette.gold, lineWidth: 2))
+        .overlay {
+            if BoardVisualTheme.resolve(themeId).pieceStyle == .celestial {
+                CelestialBoardBezel()
+            } else if BoardVisualTheme.resolve(themeId).pieceStyle == .allHallows {
+                HalloweenBoardBezel(themeId: themeId)
+            } else {
+                RoundedRectangle(cornerRadius: 8).stroke(AppPalette.gold, lineWidth: 2)
+            }
+        }
         .shadow(color: .black.opacity(0.45), radius: 12, y: 6)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(localized("ios.chess_board"))
@@ -2314,6 +2314,7 @@ private struct ChessBoardView: View {
                                             .padding(proxy.size.width * 0.08)
                                     } else {
                                         Circle().fill(Color(argb: highlights.legalMove))
+                                            .overlay(Circle().strokeBorder(Color(argb: highlights.legalMoveOutline), lineWidth: 2))
                                             .frame(width: proxy.size.width * 0.24)
                                     }
                                 }
@@ -2368,7 +2369,15 @@ private struct ChessBoardView: View {
             }
         }
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 8).stroke(AppPalette.gold, lineWidth: 2))
+        .overlay {
+            if BoardVisualTheme.resolve(themeId).pieceStyle == .celestial {
+                CelestialBoardBezel()
+            } else if BoardVisualTheme.resolve(themeId).pieceStyle == .allHallows {
+                HalloweenBoardBezel(themeId: themeId)
+            } else {
+                RoundedRectangle(cornerRadius: 8).stroke(AppPalette.gold, lineWidth: 2)
+            }
+        }
         .shadow(color: .black.opacity(0.45), radius: 16, y: 8)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(localized("ios.chess_board"))
@@ -3018,6 +3027,7 @@ private struct StatisticsView: View {
 private struct BoardHighlightPalette {
     let selected: Int64
     let legalMove: Int64
+    var legalMoveOutline: Int64 = 0x00000000
     let legalCapture: Int64
     let lastMove: Int64
     let check: Int64
@@ -3048,13 +3058,32 @@ private struct BoardHighlightPalette {
                 lastMove: 0x88D8A24A,
                 check: 0xB3C43B3A
             )
-        case "amethyst_geode":
+        case "celestial_observatory", "amethyst_geode":
             BoardHighlightPalette(
-                selected: 0xCCF1C75B,
-                legalMove: 0x99C9A94E,
-                legalCapture: 0x99E25A4F,
-                lastMove: 0x88E9B949,
-                check: 0xB3D9465F
+                selected: 0xCCB88A3E,
+                legalMove: 0xFFF0C96B,
+                legalMoveOutline: 0xFF172637,
+                legalCapture: 0xBBCB5353,
+                lastMove: 0x8893B6C2,
+                check: 0xCCB93646
+            )
+        case "all_hallows_court", "halloween_emberwood":
+            BoardHighlightPalette(
+                selected: 0xCCA8D0C4,
+                legalMove: 0xFFFF941F,
+                legalMoveOutline: 0xFF11161C,
+                legalCapture: 0x99E04E3F,
+                lastMove: 0x888CB7C4,
+                check: 0xB3E33535
+            )
+        case "halloween_witchglass":
+            BoardHighlightPalette(
+                selected: 0xCCD9903D,
+                legalMove: 0xFFFF941F,
+                legalMoveOutline: 0xFF11161C,
+                legalCapture: 0x99E04E3F,
+                lastMove: 0x88E6A23C,
+                check: 0xB3E33535
             )
         default:
             BoardHighlightPalette(
@@ -3279,7 +3308,9 @@ private struct ThemePickerDialog: View {
         case "desert_sandstone": localized("Sun-baked strata and warm grain")
         case "glacier_slate": localized("Riven stone and mica light")
         case "verdigris_copper": localized("Aged copper and ivory limestone")
-        case "amethyst_geode": localized("Violet crystal and gold glints")
+        case "celestial_observatory", "amethyst_geode": localized("Lunar alabaster, midnight enamel, and brass")
+        case "all_hallows_court", "halloween_emberwood": localized("Halloween · Scorched timber and pumpkin amber")
+        case "halloween_witchglass": localized("Halloween · Cloudy sage and mulberry glass")
         default: localized("Carrara white and veined verde")
         }
     }
@@ -3335,7 +3366,8 @@ private struct ThemeMaterialPreview: View {
         case "desert_sandstone": Color(red: 0.18, green: 0.55, blue: 0.45)
         case "glacier_slate": Color(red: 0.16, green: 0.47, blue: 0.82)
         case "verdigris_copper": Color(red: 0.82, green: 0.60, blue: 0.23)
-        case "amethyst_geode": Color(red: 0.95, green: 0.78, blue: 0.36)
+        case "celestial_observatory", "amethyst_geode": Color(red: 0.94, green: 0.79, blue: 0.42)
+        case "all_hallows_court", "halloween_emberwood", "halloween_witchglass": Color(red: 1, green: 148.0 / 255, blue: 31.0 / 255)
         default: Color(red: 0.83, green: 0.69, blue: 0.22)
         }
     }
@@ -3396,7 +3428,15 @@ private struct StartingPositionBoard: View {
             }
         }
         .clipShape(RoundedRectangle(cornerRadius: 8))
-        .overlay(RoundedRectangle(cornerRadius: 8).stroke(AppPalette.gold, lineWidth: 2))
+        .overlay {
+            if BoardVisualTheme.resolve(themeId).pieceStyle == .celestial {
+                CelestialBoardBezel()
+            } else if BoardVisualTheme.resolve(themeId).pieceStyle == .allHallows {
+                HalloweenBoardBezel(themeId: themeId)
+            } else {
+                RoundedRectangle(cornerRadius: 8).stroke(AppPalette.gold, lineWidth: 2)
+            }
+        }
         .shadow(color: .black.opacity(0.45), radius: 16, y: 8)
     }
 }

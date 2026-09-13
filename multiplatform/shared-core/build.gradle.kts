@@ -49,30 +49,17 @@ kotlin {
             dependencies {
                 implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
             }
+            kotlin.srcDir("../../shared/checkpoint-codec/src/main/kotlin")
             kotlin.srcDir("../../android/core/src/main/kotlin")
-            kotlin.include(
-                "com/drawlesschess/core/Model.kt",
-                "com/drawlesschess/core/ConcurrentLock.kt",
-                "com/drawlesschess/core/PositionHistory.kt",
-                "com/drawlesschess/core/Rules.kt",
-                "com/drawlesschess/core/GameSession.kt",
-                "com/drawlesschess/core/EngineApi.kt",
-                "com/drawlesschess/core/GameScoring.kt",
-                "com/drawlesschess/core/SavedGame.kt",
-                "com/drawlesschess/core/chess/**",
-                "com/drawlesschess/core/coordinator/**",
-                "com/drawlesschess/core/engine/AnalysisRequests.kt",
-                "com/drawlesschess/core/engine/DifficultyAndRating.kt",
-                "com/drawlesschess/core/engine/DrawlessRulesUci.kt",
-                "com/drawlesschess/core/engine/FairyUciEngine.kt",
-                "com/drawlesschess/core/engine/GameReview.kt",
-                "com/drawlesschess/core/engine/UciProtocol.kt",
-                "com/drawlesschess/core/presentation/BoardPresentation.kt",
-                "com/drawlesschess/core/presentation/GameHistoryPresentation.kt",
-                "com/drawlesschess/core/presentation/ResponsiveLayout.kt",
-                "com/drawlesschess/core/presentation/Themes.kt",
-                "com/drawlesschess/core/presentation/ThreatIndicators.kt",
-                "com/drawlesschess/shared/**",
+            // Share core sources by default. These are the complete, intentionally reviewed
+            // Android/JVM adapter exceptions; keep them exact and never replace them with a
+            // broad package exclusion. A new platform-specific source therefore enters every
+            // KMP compilation and fails closed until it is either made portable or explicitly
+            // reviewed and added here.
+            kotlin.exclude(
+                "com/drawlesschess/core/engine/BotMovePacingEngine.kt",
+                "com/drawlesschess/core/engine/nativebridge/**",
+                "com/drawlesschess/core/presentation/GameScreenController.kt",
             )
         }
         commonTest {

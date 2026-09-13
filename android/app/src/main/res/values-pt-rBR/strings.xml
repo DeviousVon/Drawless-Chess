@@ -32,6 +32,7 @@
     <string name="home_custom_game">Partida personalizada</string>
     <string name="home_theme">Tema · %1$s</string>
     <string name="home_player_stats">Estatísticas do jogador</string>
+    <string name="home_game_history">Histórico de partidas</string>
     <string name="home_options">Opções</string>
     <string name="home_how_drawless_works">Como funciona o Drawless</string>
     <string name="home_open_source_license">Licença de código aberto</string>
@@ -50,7 +51,23 @@
     <string name="error_loss_not_recorded">Não foi possível registrar a derrota. Mantenha a partida atual e tente novamente.</string>
     <string name="error_stats_not_loaded">Não foi possível carregar as estatísticas. Tente novamente.</string>
     <string name="error_saved_game_not_resumed">Não foi possível retomar a partida salva.</string>
+    <string name="error_game_history_not_loaded">Não foi possível carregar o histórico de partidas. Tente novamente.</string>
+    <string name="error_history_game_not_loaded">Não foi possível carregar essa partida concluída.</string>
     <string name="error_unknown">erro desconhecido</string>
+
+    <string name="history_title">Histórico de partidas</string>
+    <string name="history_unavailable_title">Histórico indisponível</string>
+    <string name="history_empty_title">Ainda não há partidas concluídas</string>
+    <string name="history_empty_body">As partidas concluídas e suas análises aparecerão aqui.</string>
+    <string name="history_result_win">Vitória</string>
+    <string name="history_result_loss">Derrota</string>
+    <string name="history_review_ready">Análise disponível</string>
+    <string name="history_review_not_analyzed">Não analisada</string>
+    <string name="history_review_update_needed">É preciso atualizar a análise</string>
+    <string name="history_custom_opponent">Adversário personalizado · %1$d</string>
+    <string name="history_unknown_opponent">Adversário</string>
+    <string name="history_opponent_and_side">%1$s · Você jogou com %2$s</string>
+    <string name="history_row_accessibility">%1$s contra %2$s. Você jogou com %3$s. %4$s. %5$s.</string>
 
     <!-- Diálogos de regras, informações legais e privacidade -->
     <string name="rules_guide_title">Drawless em um minuto</string>
@@ -148,10 +165,16 @@
     <string name="theme_description_desert_sandstone">Camadas douradas e grão quente</string>
     <string name="theme_glacier_slate">Ardósia glacial</string>
     <string name="theme_verdigris_copper">Cobre com verdete</string>
-    <string name="theme_amethyst_geode">Geodo de ametista</string>
+    <string name="theme_celestial_observatory">Observatório Celeste</string>
     <string name="theme_description_glacier_slate">Pedra clivada e brilho de mica</string>
     <string name="theme_description_verdigris_copper">Cobre patinado e calcário marfim</string>
-    <string name="theme_description_amethyst_geode">Cristal violeta e brilhos dourados</string>
+    <string name="theme_description_celestial_observatory">Alabastro lunar, esmalte azul-meia-noite e latão</string>
+    <string name="theme_halloween_emberwood">Corte das Brasas</string>
+    <string name="theme_description_halloween_emberwood">Halloween · Madeira queimada e âmbar de abóbora</string>
+    <string name="theme_halloween_witchglass">Vidro de Bruxa</string>
+    <string name="theme_description_halloween_witchglass">Halloween · Vidro turvo em tons de sálvia e amora</string>
+    <string name="theme_all_hallows_court">Corte de Todos os Santos</string>
+    <string name="theme_description_all_hallows_court">Pedra à luz de velas e peças góticas esculpidas</string>
 
     <!-- Opções -->
     <string name="options_title">Opções</string>
@@ -209,6 +232,7 @@
 
     <!-- Partida e resultados -->
     <string name="game_save_exit">Salvar e sair</string>
+    <string name="game_save_exit_compact">Salvar\ne sair</string>
     <string name="game_title_summary">%1$s · %2$s</string>
     <string name="rules_label_drawless">Drawless</string>
     <string name="rules_label_escape">Escape</string>
@@ -249,15 +273,20 @@
     <string name="game_none">Nenhuma</string>
     <string name="game_promote_pawn">Promover peão</string>
 
-    <!-- Análise da partida (beta) -->
-    <string name="review_title">Análise da partida</string>
-    <string name="review_beta">Beta</string>
+    <!-- Análise da partida -->
+    <string name="review_title">Análise</string>
     <string name="review_analyzing">Analisando seus lances…</string>
     <string name="review_progress">Seus lances analisados: %1$d de %2$d</string>
     <string name="review_progress_accessibility">Análise dos seus lances %1$d%% concluída</string>
     <string name="review_complete">Análise concluída</string>
     <string name="review_complete_body">Seus lances: %1$d. Lances avaliados: %2$d.</string>
     <string name="review_summary_title">Sua análise</string>
+    <string name="review_accuracy_label">Precisão Drawless</string>
+    <string name="review_accuracy_value">%1$d</string>
+    <string name="review_accuracy_unavailable">Análise insuficiente</string>
+    <string name="review_accuracy_about">Sobre</string>
+    <string name="review_accuracy_less">Menos</string>
+    <string name="review_accuracy_limits">A Precisão Drawless resume a perda exata de pontos esperados segundo este mecanismo offline e esta versão da análise. Não é Elo, um veredito de tablebase nem a fórmula de outro serviço.</string>
     <string name="review_summary_player_side">Você (%1$s)</string>
     <string name="review_summary_graded">Lances avaliados: %1$d</string>
     <string name="review_summary_grade_count">%1$s: %2$d</string>
@@ -299,6 +328,12 @@
     <string name="review_grade_inaccuracy_explanation">Isso cedeu uma pequena parte da vantagem.</string>
     <string name="review_grade_mistake_explanation">Isso deu ao adversário uma oportunidade importante.</string>
     <string name="review_grade_blunder_explanation">Isso mudou a partida de forma significativa.</string>
+    <string name="review_fact_forced_move">Único lance legal.</string>
+    <string name="review_fact_capture">Uma peça foi capturada.</string>
+    <string name="review_fact_check">Deu xeque.</string>
+    <string name="review_fact_material_swing">Variação de material: %1$s.</string>
+    <string name="review_fact_stalemate">Este lance encerrou a partida por afogamento.</string>
+    <string name="review_fact_game_ended">Este lance encerrou a partida.</string>
     <string name="review_move_title_white">%1$d. %2$s</string>
     <string name="review_move_title_black">%1$d… %2$s</string>
     <string name="review_move_accessibility">%1$s. %2$s. %3$s.</string>

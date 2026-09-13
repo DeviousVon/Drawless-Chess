@@ -23,7 +23,11 @@ import com.drawlesschess.core.chess.PieceType
 import com.drawlesschess.core.chess.Square
 import com.drawlesschess.core.coordinator.CoordinatorCheckpoint
 import com.drawlesschess.core.coordinator.MoveClockSnapshot
+import com.drawlesschess.core.engine.BotDifficultyCatalog
 import com.drawlesschess.core.engine.GameReviewPlanner
+import com.drawlesschess.core.engine.OfflineElo
+import com.drawlesschess.core.engine.OfflineRating
+import com.drawlesschess.core.engine.RatedResult
 import com.drawlesschess.core.presentation.BoardEvent
 import com.drawlesschess.core.presentation.BoardInteractionContext
 import com.drawlesschess.core.presentation.BoardInteractionReducer
@@ -115,6 +119,49 @@ class SharedCoreParityTest {
         assertEquals(true, ChessRules.isCheckmate(checkmate))
         assertNull(ongoing.outcome)
         assertEquals(UciMove("e2e4"), ongoing.moves.single().move)
+    }
+
+    @Test
+    fun botDifficultyLadderAndAdaptiveConstantsCompileAsSharedCore() {
+        assertEquals(
+            listOf(
+                "learner" to 550,
+                "casual" to 800,
+                "challenger" to 1_000,
+                "club" to 1_300,
+                "expert" to 1_675,
+                "master" to 2_100,
+                "grandmaster" to 2_550,
+            ),
+            BotDifficultyCatalog.namedLevels.map { it.id to it.approximateElo },
+        )
+        assertEquals(500, BotDifficultyCatalog.MINIMUM_ELO)
+        assertEquals(2_850, BotDifficultyCatalog.MAXIMUM_ELO)
+        assertEquals("adaptive", BotDifficultyCatalog.ADAPTIVE_LEVEL_ID)
+        assertEquals(800, BotDifficultyCatalog.ADAPTIVE_STARTING_ELO)
+        assertEquals(
+            BotDifficultyCatalog.ADAPTIVE_STARTING_ELO,
+            BotDifficultyCatalog.adaptiveLevel().approximateElo,
+        )
+    }
+
+    @Test
+    fun offlineEloWinAndLossOutcomesCompileAsSharedCore() {
+        val upsetWin = OfflineElo.update(
+            current = OfflineRating(rating = 1_200, gamesPlayed = 0),
+            opponentElo = 1_800,
+            result = RatedResult.WIN,
+        )
+        val evenLoss = OfflineElo.update(
+            current = OfflineRating(rating = 1_500, gamesPlayed = 40),
+            opponentElo = 1_500,
+            result = RatedResult.LOSS,
+        )
+
+        assertEquals(OfflineRating(rating = 1_247, gamesPlayed = 1), upsetWin)
+        assertTrue(upsetWin.provisional)
+        assertEquals(OfflineRating(rating = 1_490, gamesPlayed = 41), evenLoss)
+        assertFalse(evenLoss.provisional)
     }
 
     @Test
@@ -301,7 +348,15 @@ class SharedCoreParityTest {
                     ponderMove = null,
                     depth = 12,
                     nodes = 4_096,
-                    variations = listOf(PrincipalVariation(18, null, listOf(bestMove))),
+                    variations = listOf(
+                        PrincipalVariation(18, null, listOf(bestMove)),
+                        PrincipalVariation(
+                            scoreCentipawns = null,
+                            mateIn = 3,
+                            moves = listOf(UciMove("d2d4")),
+                            rank = 2,
+                        ),
+                    ),
                     engine = EngineIdentity("apple-test-engine", "stale-build", 2),
                 ),
             )
@@ -311,6 +366,15 @@ class SharedCoreParityTest {
 
             assertEquals(withEvidence, restored)
             assertEquals(listOf(seeded), restored.reviewPrefetchRoots)
+
+            // Android 1.0.2's JSONObject writer omitted nullable response/PV keys instead of
+            // emitting JSON null. Those released checkpoints must retain their review evidence.
+            val releasedAndroidPayload = SharedCheckpointCodec.encode(withEvidence)
+                .replace("\"ponderMove\":null,", "")
+                .replace("\"cp\":null,", "")
+                .replace(",\"mate\":null", "")
+                .replace(",\"depth\":null", "")
+            assertEquals(withEvidence, SharedCheckpointCodec.decode(releasedAndroidPayload))
 
             game.close()
             resumed = SharedGameRuntime(checkpointJson = SharedCheckpointCodec.encode(withEvidence))
@@ -893,9 +957,19 @@ class SharedCoreParityTest {
         request: EngineRequest,
         engineIdentity: EngineIdentity,
     ): EngineResponse {
-        val candidates = ChessRules.legalMoves(
+        val legalMoves = ChessRules.legalMoves(
             ChessAdapter.replay(request.initialFen, request.moves),
-        ).take(request.limits.multiPv).map { it.toUci() }
+        ).map { it.toUci() }
+        val requestedRoots = request.searchMoves.toSet()
+        val candidates = if (requestedRoots.isEmpty()) {
+            legalMoves.take(request.limits.multiPv)
+        } else {
+            legalMoves.filter { it in requestedRoots }
+                .also { constrained ->
+                    require(constrained.size == requestedRoots.size)
+                }
+                .take(request.limits.multiPv)
+        }
         require(candidates.isNotEmpty())
         return EngineResponse(
             requestId = request.requestId,

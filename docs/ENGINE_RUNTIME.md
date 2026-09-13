@@ -177,60 +177,42 @@ or undo. While a hint runs the board enters `HINT_THINKING`; pause, undo, resign
 or runtime close cancels it, and tagged results are discarded if the position changed.
 Hint failures return to the human turn without poisoning bot UI state. The app presents
 the engine-ranked best move in SAN and, when available, up to two lower-ranked MultiPV
-alternatives. Game review first validates the complete history, then builds full-strength roots
-only for decisions made by the player. Opponent plies remain canonical, selectable board context
-but are not graded or summarized. Each player-root search requests three candidate lines and
-enables UCI WDL output when the engine advertises it. If the played move is outside those three
-lines, the runner dynamically adds one adjacent-position helper rather than analyzing every
-opponent decision. The preliminary
-in-memory evidence schema (schema 1) preserves line rank, score bound, depth, WDL-derived expected
-points, explicit best/played-line origin, separate analysis and grading-policy identities, and
-exact native `RulesContractV1` fidelity. It is a foundation for the planned Review Evidence V2
-contract, not that contract itself. A played move found in the same root MultiPV is compared there;
-otherwise review falls back to the following position and normalizes that score to the mover. Missing, bounded,
-contradictory, or unsafe line evidence is not given a confident grade.
+alternatives.
 
-Review retains one coherent MultiPV snapshot: every selected rank comes from the same completed
-depth/reporting cycle and its primary move must match `bestmove`. Every retained PV is replayed
-from its exact app position and history through `ChessRules` and `GameSession`; an illegal move or
-a continuation beyond an app-authoritative terminal result fails the review instead of becoming a
-recommendation. Effective best and played lines retain whether they came from root MultiPV,
-adjacent-position normalization, an authoritative terminal fact, or a sole legal move.
+Game Review validates canonical history and grades only the player's decisions.
+Each full-strength root requests three coherent, same-depth MultiPV candidates
+and WDL when supported. A played move absent from those candidates is scored by
+a second search from the same root restricted with UCI `searchmoves`, MultiPV 1,
+and the same time budget. It is never estimated from the opponent's next position.
+Missing, bounded, contradictory, or unsafe evidence fails closed before publishing
+a move grade. Natural terminal moves use the authoritative app outcome.
 
-The runner submits one 350 ms search at a time, assigns
-Best/Good/Inaccuracy/Mistake/Blunder from expected-point loss, streams completed player decisions,
-and supports cancellation, safe retry identities, exact seeded-root reuse, progressive results,
-and a cached completed result. Natural terminal moves use the authoritative app outcome instead
-of attempting to search a terminal position. A coordinator-owned prefetch first warms the current
-player root while the visible game is idle on the player's turn. It constructs that root from the
-coordinator's already-validated position instead of replaying the entire history on every turn. If
-the root finishes and an earlier played move was outside its retained MultiPV, at most one
-historical adjacent fallback is attempted in that player-position revision; it is recreated from
-the completed root's stable key rather than another full replay. Moving, pausing, undoing,
-resigning, timing out, backgrounding the app, or closing the runtime cancels stale speculative
-work without making gameplay wait for review startup. Reuse requires the exact game history,
-chosen move, resulting position, rules,
-engine-analysis profile, and position identity. When a foreground game becomes terminal,
-`GameRuntime` begins any remaining review work behind the result presentation instead of waiting
-for the Review action. It owns active and partial review state, so opening Review or recreating the
-activity attaches to the same work without cancelling or duplicating it. Only the player's grade
-summary is derived for presentation; the app intentionally does not display an accuracy percentage
-until a separate formula is calibrated and versioned.
+Evidence V2 retains exact best/played scores, expected points, line origins,
+legal variations, engine identity, rules and analysis settings. Review runs one
+350 ms search at a time with cancellation, retry identities and progress updates.
+Speculative roots are prepared during safe foreground idle time and revisioned
+into the active checkpoint. The historically named adjacent-root cache now holds
+constrained searches; the bumped analysis/cache version prevents reuse of the old
+following-position evidence. Resume validates cache identity without sacrificing
+the playable game's canonical history.
 
-Every completed speculative root or adjacent fallback is also revisioned into the active Room
-checkpoint immediately. Saved-game Resume regenerates the expected root keys from canonical move
-history and restores only byte-for-byte semantic key matches whose response came from the embedded
-engine build. Unknown evidence/analysis versions, malformed entries, stale branches, and engine
-build changes discard only the optional cache; they never make the playable game unavailable.
-Current-position evidence is persisted before the player moves, and unfinished historical fallback
-work is reconstructed from restored roots. This does not persist a completed post-game review or
-make review history available after starting another game.
+Android's `GameRuntime` owns live review state across activity recreation.
+Schema 3 additionally stores complete Review Evidence V2 and exposes completed
+games through History. `HistoricalReviewRuntime` owns an isolated analysis session
+without constructing a playable runtime. Reopening compatible evidence regenerates
+current summaries and explanations; scoring-version changes do not trigger engine
+work. Explicit reanalysis replaces known stale evidence atomically, while unknown
+formats and conflicting current evidence remain protected. All restored variations
+must replay legally. Games with no player decisions reconstruct an empty review
+from canonical history and never invent an engine identity.
 
-This first review remains deliberately labeled Beta even though patch v2 now evaluates the exact
-`RulesContractV1` throughout native search. Rule parity removes one correctness blocker; it does
-not supply constrained-root Evidence V2, calibrated accuracy, durable completed-review/history storage, or
-the complete retry, process-death, accessibility, localization, and device acceptance matrix.
-The app must not present a time-limited local engine review as a tablebase-like verdict.
+Drawless Accuracy V1 is `round(100 × (1 − mean exact expected-point loss))`.
+It is an estimate from a time-limited local engine, not a calibrated player rating,
+win prediction, or tablebase verdict. Copy exposes those limitations.
+
+The compact Review header has no Beta badge. This UI cleanup does not close the
+release qualification gates: designated-device acceptance and owner review remain
+required before production enablement.
 
 ## Offline ratings
 

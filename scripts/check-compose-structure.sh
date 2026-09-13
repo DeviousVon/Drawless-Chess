@@ -64,6 +64,15 @@ fi
 
 rg -q 'fun DrawlessApp\(' "$root/android/app/src/main/kotlin"
 rg -q 'fun GameRoute\(' "$root/android/app/src/main/kotlin"
+piece_renderer="$root/android/app/src/main/kotlin/com/drawlesschess/ui/ChessPiece.kt"
+rg -Fq 'renderAllHallowsAtlasPiece' "$piece_renderer"
+rg -Fq 'AndroidColorMatrix' "$piece_renderer"
+for atlas in all_hallows_ivory_atlas_chroma.png all_hallows_obsidian_atlas_chroma.png; do
+  [[ -f "$root/android/app/src/main/res/drawable-nodpi/$atlas" ]] || {
+    echo "Android is missing high-resolution All Hallows atlas: $atlas" >&2
+    exit 1
+  }
+done
 review_screen="$root/android/app/src/main/kotlin/com/drawlesschess/ui/GameReviewScreen.kt"
 rg -Fq 'enum class ReviewMoveRole' "$review_screen"
 rg -Fq 'ReviewMoveRole.OPPONENT_CONTEXT' "$review_screen"

@@ -6,7 +6,9 @@ private let previewThemes = [
     "desert_sandstone",
     "glacier_slate",
     "verdigris_copper",
-    "amethyst_geode",
+    "celestial_observatory",
+    "halloween_emberwood",
+    "halloween_witchglass",
 ]
 
 private let startingPieces = ["bR", "bN", "bB", "bQ", "bK", "bB", "bN", "bR"]
@@ -39,7 +41,15 @@ private struct SnapshotBoard: View {
             }
         }
         .clipShape(RoundedRectangle(cornerRadius: 7))
-        .overlay(RoundedRectangle(cornerRadius: 7).stroke(Color(red: 0.82, green: 0.71, blue: 0.42), lineWidth: 2))
+        .overlay {
+            if BoardVisualTheme.resolve(themeId).texture == .celestial {
+                CelestialBoardBezel()
+            } else if BoardVisualTheme.resolve(themeId).pieceStyle == .allHallows {
+                HalloweenBoardBezel(themeId: themeId)
+            } else {
+                RoundedRectangle(cornerRadius: 7).stroke(Color(red: 0.82, green: 0.71, blue: 0.42), lineWidth: 2)
+            }
+        }
     }
 }
 

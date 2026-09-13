@@ -42,6 +42,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
@@ -57,6 +58,8 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
@@ -402,17 +405,21 @@ internal fun GameRoute(
                 }
             },
             bottomBar = {
-                postGameResult?.let { result ->
-                    PostGameBar(
-                        result = result,
-                        opponentName = opponentDisplayName,
-                        careerAverageGameScore = playerStatistics
-                            ?.takeIf { it.latestGameId == runtime.gameId }
-                            ?.averageScore,
-                        onHome = exitGame,
-                        onQuickPlay = quickPlayGame,
-                        onRematch = rematchGame,
-                    )
+                if (!headerInSidePanel) {
+                    postGameResult?.let { result ->
+                        PostGameBar(
+                            result = result,
+                            opponentName = opponentDisplayName,
+                            careerAverageGameScore = playerStatistics
+                                ?.takeIf { it.latestGameId == runtime.gameId }
+                                ?.averageScore,
+                            onHome = exitGame,
+                            onQuickPlay = quickPlayGame,
+                            onRematch = rematchGame,
+                            awaitingReview = postGameReviewPending,
+                            reviewTapReady = postGameReviewTapReady,
+                        )
+                    }
                 }
             },
         ) { padding ->
@@ -429,6 +436,25 @@ internal fun GameRoute(
                                 onShowOptions = onShowOptions,
                                 onShowThemes = onShowThemes,
                             )
+                        }
+                    },
+                    sideResult = {
+                        if (headerInSidePanel) {
+                            postGameResult?.let { result ->
+                                PostGameBar(
+                                    result = result,
+                                    opponentName = opponentDisplayName,
+                                    careerAverageGameScore = playerStatistics
+                                        ?.takeIf { it.latestGameId == runtime.gameId }
+                                        ?.averageScore,
+                                    onHome = exitGame,
+                                    onQuickPlay = quickPlayGame,
+                                    onRematch = rematchGame,
+                                    compact = true,
+                                    awaitingReview = postGameReviewPending,
+                                    reviewTapReady = postGameReviewTapReady,
+                                )
+                            }
                         }
                     },
                     onBoardEvent = handleBoardEvent,
@@ -562,25 +588,29 @@ internal fun PostGameReviewTapGate(
                 onClick = onOpenReview,
             )
             .semantics {
+                contentDescription = prompt
                 stateDescription = resultStateDescription
                 liveRegion = LiveRegionMode.Polite
             },
-        contentAlignment = Alignment.BottomCenter,
+    )
+}
+
+@Composable
+internal fun PostGameReviewPrompt(modifier: Modifier = Modifier) {
+    Surface(
+        modifier = modifier.testTag("post_game_review_prompt"),
+        shape = RoundedCornerShape(24.dp),
+        color = MaterialTheme.colorScheme.surface,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        tonalElevation = 8.dp,
+        shadowElevation = 10.dp,
     ) {
-        Surface(
-            modifier = Modifier.padding(24.dp),
-            shape = RoundedCornerShape(24.dp),
-            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f),
-            tonalElevation = 8.dp,
-            shadowElevation = 10.dp,
-        ) {
-            Text(
-                text = prompt,
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-            )
-        }
+        Text(
+            text = stringResource(R.string.game_tap_anywhere_to_review),
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+        )
     }
 }
 
@@ -591,17 +621,85 @@ internal fun GameTopBar(
     onShowOptions: () -> Unit,
     onShowThemes: () -> Unit,
 ) {
-    TopAppBar(
-        title = { GameHeaderTitle(model) },
-        navigationIcon = {
-            TextButton(onClick = onExit, modifier = Modifier.testTag("game_save_exit")) {
-                Text(stringResource(R.string.game_save_exit))
-            }
-        },
-        actions = {
-            GameHeaderActions(onShowOptions, onShowThemes)
-        },
+    val saveLabel = stringResource(R.string.game_save_exit_compact)
+    val fullSaveLabel = stringResource(R.string.game_save_exit)
+    val optionsLabel = stringResource(R.string.options_title)
+    val themeLabel = stringResource(R.string.action_theme)
+    val buttonStyle = MaterialTheme.typography.labelLarge
+    val textMeasurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    val labelLayouts = listOf(saveLabel, optionsLabel, themeLabel).map {
+        textMeasurer.measure(it, style = buttonStyle)
+    }
+    val preferredSideWidth = with(density) { labelLayouts.maxOf { it.size.width }.toDp() } + 16.dp
+    val actionHeight = maxOf(
+        32.dp,
+        with(density) { labelLayouts.drop(1).maxOf { it.size.height }.toDp() } + 8.dp,
     )
+    val headerHeight = maxOf(
+        actionHeight * 2,
+        with(density) { labelLayouts.first().size.height.toDp() } + 16.dp,
+    )
+    Surface(
+        color = MaterialTheme.colorScheme.surface,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+    ) {
+        BoxWithConstraints(
+            modifier = Modifier
+                .fillMaxWidth()
+                .windowInsetsPadding(TopAppBarDefaults.windowInsets)
+                .padding(horizontal = 8.dp)
+                .testTag("game_top_bar"),
+        ) {
+            val sideWidth = maxOf(64.dp, preferredSideWidth)
+                .coerceAtMost((maxWidth - 48.dp).coerceAtLeast(0.dp) / 2)
+            // Two compact, independently clickable rows share the right side of the bar.
+            // Equal side widths keep the title centered regardless of translated labels.
+            CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
+                Row(
+                    Modifier.fillMaxWidth().height(headerHeight),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    TextButton(
+                        onClick = onExit,
+                        modifier = Modifier.width(sideWidth).fillMaxHeight()
+                            .testTag("game_save_exit")
+                            .semantics { contentDescription = fullSaveLabel },
+                        contentPadding = PaddingValues(horizontal = 8.dp),
+                    ) {
+                        Text(
+                            saveLabel,
+                            modifier = Modifier.clearAndSetSemantics { },
+                            textAlign = TextAlign.Center,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                    Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                        ProvideTextStyle(MaterialTheme.typography.titleLarge) {
+                            GameHeaderTitle(model, horizontalAlignment = Alignment.CenterHorizontally)
+                        }
+                    }
+                    Column(Modifier.width(sideWidth).fillMaxHeight()) {
+                        TextButton(
+                            onClick = onShowOptions,
+                            modifier = Modifier.fillMaxWidth().weight(1f).testTag("game_options"),
+                            contentPadding = PaddingValues(horizontal = 8.dp),
+                        ) {
+                            Text(optionsLabel, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
+                        TextButton(
+                            onClick = onShowThemes,
+                            modifier = Modifier.fillMaxWidth().weight(1f).testTag("game_theme_selector"),
+                            contentPadding = PaddingValues(horizontal = 8.dp),
+                        ) {
+                            Text(themeLabel, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 @Composable
@@ -640,8 +738,9 @@ internal fun GameSideHeader(
 private fun GameHeaderTitle(
     model: GameScreenModel,
     horizontalAlignment: Alignment.Horizontal = Alignment.Start,
+    modifier: Modifier = Modifier,
 ) {
-    Column(horizontalAlignment = horizontalAlignment) {
+    Column(modifier = modifier, horizontalAlignment = horizontalAlignment) {
         Text(stringResource(R.string.app_name), maxLines = 1, overflow = TextOverflow.Ellipsis)
         Text(
             stringResource(
@@ -724,6 +823,9 @@ internal fun PostGameBar(
     onHome: () -> Unit,
     onQuickPlay: () -> Unit,
     onRematch: () -> Unit,
+    compact: Boolean = false,
+    awaitingReview: Boolean = false,
+    reviewTapReady: Boolean = false,
 ) {
     val headline = stringResource(if (result.playerWon) R.string.game_victory else R.string.game_defeat)
     val resolvedOpponentName = opponentName ?: stringResource(R.string.opponent_default)
@@ -747,123 +849,188 @@ internal fun PostGameBar(
         val availableHeight = if (constraints.hasBoundedHeight) maxHeight else 420.dp
         val maximumBarHeight = minOf(420.dp, availableHeight * 0.62f)
         val stackPrimaryActions = maxWidth < 480.dp
+        val surfaceModifier = if (compact) {
+            Modifier
+                .fillMaxWidth()
+                .testTag("post_game_side_feedback")
+        } else {
+            Modifier
+                .fillMaxWidth()
+                .heightIn(max = maximumBarHeight)
+        }
         Surface(
-            modifier = Modifier.fillMaxWidth().heightIn(max = maximumBarHeight),
+            modifier = surfaceModifier,
             color = container,
+            shape = RoundedCornerShape(if (compact) 18.dp else 0.dp),
             tonalElevation = 10.dp,
             shadowElevation = 8.dp,
         ) {
-            Column(
-                modifier = Modifier
+            Column {
+                val baseContentModifier = Modifier
                     .fillMaxWidth()
                     .testTag("post_game_feedback")
                     .semantics {
-                        stateDescription =
-                            resultStateDescription
+                        stateDescription = resultStateDescription
                         liveRegion = LiveRegionMode.Polite
                     }
-                    .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                Text(
-                    headline,
-                    modifier = Modifier.semantics { heading() },
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = onContainer,
-                )
-                Text(
-                    if (result.playerWon) {
-                        if (opponentName == null) {
-                            stringResource(R.string.game_you_won)
-                        } else {
-                            stringResource(R.string.game_you_defeated, resolvedOpponentName)
+                val contentModifier = if (compact) {
+                    baseContentModifier
+                } else {
+                    baseContentModifier.weight(1f, fill = false).verticalScroll(rememberScrollState())
+                }
+                Column(
+                    modifier = contentModifier.padding(if (compact) 12.dp else 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(if (compact) 6.dp else 10.dp),
+                ) {
+                    if (compact) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Text(
+                                headline,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .semantics { heading() },
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = onContainer,
+                            )
+                            Text(
+                                text = stringResource(
+                                    R.string.game_score,
+                                    result.score.points,
+                                    result.score.maximumPoints,
+                                ),
+                                modifier = Modifier.testTag("post_game_score"),
+                                maxLines = 1,
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = onContainer,
+                            )
                         }
                     } else {
-                        stringResource(R.string.game_opponent_won, resolvedOpponentName)
-                    },
-                    fontWeight = FontWeight.SemiBold,
-                    color = onContainer,
-                )
-                Text(resultReasonText(result), color = onContainer.copy(alpha = 0.82f))
-                Text(
-                    text = stringResource(R.string.game_score, result.score.points, result.score.maximumPoints),
-                    modifier = Modifier.testTag("post_game_score"),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = onContainer,
-                )
-                careerAverageGameScore?.let { average ->
+                        Text(
+                            headline,
+                            modifier = Modifier.semantics { heading() },
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = onContainer,
+                        )
+                    }
                     Text(
-                        stringResource(R.string.game_career_average, oneDecimal(average)),
-                        modifier = Modifier.testTag("career_average_score"),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = onContainer.copy(alpha = 0.88f),
+                        if (result.playerWon) {
+                            if (opponentName == null) {
+                                stringResource(R.string.game_you_won)
+                            } else {
+                                stringResource(R.string.game_you_defeated, resolvedOpponentName)
+                            }
+                        } else {
+                            stringResource(R.string.game_opponent_won, resolvedOpponentName)
+                        },
+                        fontWeight = FontWeight.SemiBold,
+                        color = onContainer,
                     )
-                }
-                if (result.score.hintPenalty > 0) {
-                    ScorePenaltyLine(
-                        label = stringResource(R.string.game_hints),
-                        points = result.score.hintPenalty,
-                        tag = "hint_score_penalty",
-                        color = onContainer.copy(alpha = 0.82f),
-                    )
-                }
-                if (result.score.undoPenalty > 0) {
-                    ScorePenaltyLine(
-                        label = stringResource(R.string.game_undos),
-                        points = result.score.undoPenalty,
-                        tag = "undo_score_penalty",
-                        color = onContainer.copy(alpha = 0.82f),
-                    )
-                }
-                if (result.score.timedPausePenalty > 0) {
-                    ScorePenaltyLine(
-                        label = stringResource(R.string.game_timed_pauses),
-                        points = result.score.timedPausePenalty,
-                        tag = "pause_score_penalty",
-                        color = onContainer.copy(alpha = 0.82f),
-                    )
-                }
-                if (result.score.threatIndicationPenalty > 0) {
-                    ScorePenaltyLine(
-                        label = stringResource(R.string.game_threat_indication),
-                        points = result.score.threatIndicationPenalty,
-                        tag = "threat_score_penalty",
-                        color = onContainer.copy(alpha = 0.82f),
-                    )
-                }
-                if (stackPrimaryActions) {
-                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        FilledTonalButton(
-                            onClick = onQuickPlay,
-                            modifier = Modifier.fillMaxWidth().testTag("post_game_quick_play"),
-                        ) { Text(stringResource(R.string.action_quick_play)) }
-                        OutlinedButton(
-                            onClick = onRematch,
-                            modifier = Modifier.fillMaxWidth().testTag("post_game_rematch"),
-                        ) { Text(stringResource(R.string.action_rematch)) }
+                    Text(resultReasonText(result), color = onContainer.copy(alpha = 0.82f))
+                    if (!compact) {
+                        Text(
+                            text = stringResource(
+                                R.string.game_score,
+                                result.score.points,
+                                result.score.maximumPoints,
+                            ),
+                            modifier = Modifier.testTag("post_game_score"),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = onContainer,
+                        )
                     }
-                } else {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    ) {
-                        FilledTonalButton(
-                            onClick = onQuickPlay,
-                            modifier = Modifier.weight(1f).testTag("post_game_quick_play"),
-                        ) { Text(stringResource(R.string.action_quick_play)) }
-                        OutlinedButton(
-                            onClick = onRematch,
-                            modifier = Modifier.weight(1f).testTag("post_game_rematch"),
-                        ) { Text(stringResource(R.string.action_rematch)) }
+                    careerAverageGameScore?.let { average ->
+                        Text(
+                            stringResource(R.string.game_career_average, oneDecimal(average)),
+                            modifier = Modifier.testTag("career_average_score"),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = onContainer.copy(alpha = 0.88f),
+                        )
+                    }
+                    if (result.score.hintPenalty > 0) {
+                        ScorePenaltyLine(
+                            label = stringResource(R.string.game_hints),
+                            points = result.score.hintPenalty,
+                            tag = "hint_score_penalty",
+                            color = onContainer.copy(alpha = 0.82f),
+                        )
+                    }
+                    if (result.score.undoPenalty > 0) {
+                        ScorePenaltyLine(
+                            label = stringResource(R.string.game_undos),
+                            points = result.score.undoPenalty,
+                            tag = "undo_score_penalty",
+                            color = onContainer.copy(alpha = 0.82f),
+                        )
+                    }
+                    if (result.score.timedPausePenalty > 0) {
+                        ScorePenaltyLine(
+                            label = stringResource(R.string.game_timed_pauses),
+                            points = result.score.timedPausePenalty,
+                            tag = "pause_score_penalty",
+                            color = onContainer.copy(alpha = 0.82f),
+                        )
+                    }
+                    if (result.score.threatIndicationPenalty > 0) {
+                        ScorePenaltyLine(
+                            label = stringResource(R.string.game_threat_indication),
+                            points = result.score.threatIndicationPenalty,
+                            tag = "threat_score_penalty",
+                            color = onContainer.copy(alpha = 0.82f),
+                        )
+                    }
+                    if (!awaitingReview) {
+                        if (stackPrimaryActions && !compact) {
+                            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                FilledTonalButton(
+                                    onClick = onQuickPlay,
+                                    modifier = Modifier.fillMaxWidth().testTag("post_game_quick_play"),
+                                ) { Text(stringResource(R.string.action_quick_play)) }
+                                OutlinedButton(
+                                    onClick = onRematch,
+                                    modifier = Modifier.fillMaxWidth().testTag("post_game_rematch"),
+                                ) { Text(stringResource(R.string.action_rematch)) }
+                            }
+                        } else {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            ) {
+                                FilledTonalButton(
+                                    onClick = onQuickPlay,
+                                    modifier = Modifier.weight(1f).testTag("post_game_quick_play"),
+                                ) { Text(stringResource(R.string.action_quick_play)) }
+                                OutlinedButton(
+                                    onClick = onRematch,
+                                    modifier = Modifier.weight(1f).testTag("post_game_rematch"),
+                                ) { Text(stringResource(R.string.action_rematch)) }
+                            }
+                        }
+                        TextButton(
+                            onClick = onHome,
+                            modifier = Modifier.align(Alignment.CenterHorizontally).testTag("post_game_home"),
+                        ) { Text(stringResource(R.string.action_home)) }
                     }
                 }
-                TextButton(
-                    onClick = onHome,
-                    modifier = Modifier.align(Alignment.CenterHorizontally).testTag("post_game_home"),
-                ) { Text(stringResource(R.string.action_home)) }
+                if (awaitingReview) {
+                    // Keep a measured footer even while the completion cue plays. The full-window
+                    // tap gate owns input and accessibility; this prompt never covers result text.
+                    PostGameReviewPrompt(
+                        Modifier
+                            .align(Alignment.CenterHorizontally)
+                        .padding(start = 16.dp, end = 16.dp, bottom = 16.dp)
+                        .graphicsLayer { alpha = if (reviewTapReady) 1f else 0f },
+                    )
+                }
             }
         }
     }
@@ -990,6 +1157,7 @@ internal fun GameBody(
     opponent: OpponentProfile,
     modifier: Modifier,
     sideHeader: @Composable () -> Unit = {},
+    sideResult: @Composable ColumnScope.() -> Unit = {},
     onBoardEvent: (BoardEvent) -> Unit,
     onPause: () -> Unit,
     onUndo: () -> Unit,
@@ -1052,7 +1220,7 @@ internal fun GameBody(
                 modifier = Modifier.fillMaxSize().padding(layout.outerPaddingDp.dp),
                 horizontalArrangement = Arrangement.spacedBy(
                     layout.outerPaddingDp.dp,
-                    Alignment.CenterHorizontally,
+                    if (maxWidth > maxHeight) Alignment.Start else Alignment.CenterHorizontally,
                 ),
             ) {
                 ChessBoard(
@@ -1067,6 +1235,7 @@ internal fun GameBody(
                     modifier = Modifier.fillMaxHeight(),
                 ) {
                     sideHeader()
+                    sideResult()
                     ClockRow(model, forceStackCards = layout.panelWidthDp < 320)
                     OpponentStatusCard(
                         model = model,
@@ -1329,9 +1498,19 @@ private fun DraggedPieceOverlay(
     boardPixels: Int,
     boardSizeDp: Int,
 ) {
-    val palette = LocalDrawlessVisualTheme.current.pieces
-    val raster = remember(piece.side, piece.type, palette) {
-        chessPieceRaster(piece.side, piece.type, palette).asAndroidBitmap()
+    val visualTheme = LocalDrawlessVisualTheme.current
+    val palette = visualTheme.pieces
+    val styleId = visualTheme.boardTheme.pieceStyleId
+    val piecePadding = if (isSculptedPieceStyle(styleId)) 1.dp else 5.dp
+    val resources = LocalContext.current.resources
+    val raster = remember(piece.side, piece.type, palette, styleId, resources) {
+        chessPieceRaster(
+            piece.side,
+            piece.type,
+            palette,
+            styleId,
+            resources,
+        ).asAndroidBitmap()
     }
     AndroidView(
         factory = { context ->
@@ -1349,7 +1528,7 @@ private fun DraggedPieceOverlay(
         },
         modifier = Modifier
             .size((boardSizeDp / 8).dp)
-            .padding(5.dp),
+            .padding(piecePadding),
     )
 }
 
@@ -1362,6 +1541,13 @@ private fun MovingPieces(
     progress: Animatable<Float, AnimationVector1D>,
 ) {
     val squarePixels = boardPixels / 8f
+    val piecePadding = if (
+        isSculptedPieceStyle(LocalDrawlessVisualTheme.current.boardTheme.pieceStyleId)
+    ) {
+        1.dp
+    } else {
+        5.dp
+    }
     move.pieces.forEach { motion ->
         val from = cells.single { it.square == motion.from }
         val to = cells.single { it.square == motion.to }
@@ -1380,7 +1566,7 @@ private fun MovingPieces(
                     translationY = startY + (endY - startY) * fraction
                 }
                 .size((boardSizeDp / 8).dp)
-                .padding(5.dp),
+                .padding(piecePadding),
         )
     }
 }
@@ -1421,7 +1607,11 @@ internal fun SquareCell(
         contentAlignment = Alignment.Center,
     ) {
         if (showTargets && cell.target == TargetKind.QUIET) {
-            Box(Modifier.size(14.dp).background(board.theme.legalMove.color(), CircleShape))
+            Box(
+                Modifier.size(14.dp)
+                    .background(board.theme.legalMove.color(), CircleShape)
+                    .border(2.dp, board.theme.legalMoveOutline.color(), CircleShape),
+            )
         }
         if (showTargets && cell.target == TargetKind.CAPTURE) {
             Box(Modifier.fillMaxSize().padding(4.dp).border(4.dp, board.theme.legalCapture.color(), CircleShape))
@@ -1459,7 +1649,11 @@ internal fun SquareCell(
                 ChessPiece(
                     piece.side,
                     piece.type,
-                    Modifier.fillMaxSize().padding(5.dp),
+                    Modifier
+                        .fillMaxSize()
+                        .padding(
+                            if (isSculptedPieceStyle(board.theme.pieceStyleId)) 1.dp else 5.dp,
+                        ),
                 )
             }
         }

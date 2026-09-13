@@ -32,6 +32,7 @@
     <string name="home_custom_game">Partie personnalisée</string>
     <string name="home_theme">Thème · %1$s</string>
     <string name="home_player_stats">Statistiques du joueur</string>
+    <string name="home_game_history">Historique des parties</string>
     <string name="home_options">Options</string>
     <string name="home_how_drawless_works">Fonctionnement de Drawless</string>
     <string name="home_open_source_license">Licence open source</string>
@@ -50,7 +51,23 @@
     <string name="error_loss_not_recorded">La défaite n’a pas pu être enregistrée. Gardez la partie en cours et réessayez.</string>
     <string name="error_stats_not_loaded">Impossible de charger les statistiques. Réessayez.</string>
     <string name="error_saved_game_not_resumed">Impossible de reprendre la partie enregistrée.</string>
+    <string name="error_game_history_not_loaded">Impossible de charger l’historique des parties. Réessayez.</string>
+    <string name="error_history_game_not_loaded">Impossible de charger cette partie terminée.</string>
     <string name="error_unknown">erreur inconnue</string>
+
+    <string name="history_title">Historique des parties</string>
+    <string name="history_unavailable_title">Historique indisponible</string>
+    <string name="history_empty_title">Aucune partie terminée</string>
+    <string name="history_empty_body">Les parties terminées et leurs analyses apparaîtront ici.</string>
+    <string name="history_result_win">Victoire</string>
+    <string name="history_result_loss">Défaite</string>
+    <string name="history_review_ready">Analyse disponible</string>
+    <string name="history_review_not_analyzed">Non analysée</string>
+    <string name="history_review_update_needed">Mise à jour de l’analyse requise</string>
+    <string name="history_custom_opponent">Adversaire personnalisé · %1$d</string>
+    <string name="history_unknown_opponent">Adversaire</string>
+    <string name="history_opponent_and_side">%1$s · Vous aviez les %2$s</string>
+    <string name="history_row_accessibility">%1$s contre %2$s. Vous aviez les %3$s. %4$s. %5$s.</string>
 
     <!-- Rules, legal and privacy dialogs -->
     <string name="rules_guide_title">Drawless en une minute</string>
@@ -148,10 +165,16 @@
     <string name="theme_description_desert_sandstone">Strates dorées et grain chaleureux</string>
     <string name="theme_glacier_slate">Ardoise glaciaire</string>
     <string name="theme_verdigris_copper">Cuivre vert-de-gris</string>
-    <string name="theme_amethyst_geode">Géode d’améthyste</string>
+    <string name="theme_celestial_observatory">Observatoire céleste</string>
     <string name="theme_description_glacier_slate">Pierre clivée et éclats de mica</string>
     <string name="theme_description_verdigris_copper">Cuivre patiné et calcaire ivoire</string>
-    <string name="theme_description_amethyst_geode">Cristal violet et reflets dorés</string>
+    <string name="theme_description_celestial_observatory">Albâtre lunaire, émail bleu nuit et laiton</string>
+    <string name="theme_halloween_emberwood">Cour des Braises</string>
+    <string name="theme_description_halloween_emberwood">Halloween · Bois brûlé et ambre citrouille</string>
+    <string name="theme_halloween_witchglass">Verre Sorcier</string>
+    <string name="theme_description_halloween_witchglass">Halloween · Verre trouble sauge et mûre</string>
+    <string name="theme_all_hallows_court">Cour de la Toussaint</string>
+    <string name="theme_description_all_hallows_court">Pierre éclairée aux bougies et pièces gothiques sculptées</string>
 
     <!-- Options -->
     <string name="options_title">Options</string>
@@ -209,6 +232,7 @@
 
     <!-- In-game shell and results -->
     <string name="game_save_exit">Enregistrer et quitter</string>
+    <string name="game_save_exit_compact">Enregistrer\net quitter</string>
     <string name="game_title_summary">%1$s · %2$s</string>
     <string name="rules_label_drawless">Drawless</string>
     <string name="rules_label_escape">Escape</string>
@@ -249,15 +273,20 @@
     <string name="game_none">Aucune</string>
     <string name="game_promote_pawn">Promouvoir le pion</string>
 
-    <!-- Analyse de partie (bêta) -->
-    <string name="review_title">Analyse de la partie</string>
-    <string name="review_beta">Bêta</string>
+    <!-- Analyse de partie -->
+    <string name="review_title">Analyse</string>
     <string name="review_analyzing">Analyse de vos coups…</string>
     <string name="review_progress">Vos coups analysés : %1$d sur %2$d</string>
     <string name="review_progress_accessibility">Analyse de vos coups terminée à %1$d%%</string>
     <string name="review_complete">Analyse terminée</string>
     <string name="review_complete_body">Vos coups : %1$d. Coups évalués : %2$d.</string>
     <string name="review_summary_title">Votre analyse</string>
+    <string name="review_accuracy_label">Précision Drawless</string>
+    <string name="review_accuracy_value">%1$d</string>
+    <string name="review_accuracy_unavailable">Analyse insuffisante</string>
+    <string name="review_accuracy_about">À propos</string>
+    <string name="review_accuracy_less">Réduire</string>
+    <string name="review_accuracy_limits">La précision Drawless résume la perte exacte de points attendus selon ce moteur hors ligne et cette version d’analyse. Ce n’est ni un Elo, ni un verdict de tablebase, ni la formule d’un autre service.</string>
     <string name="review_summary_player_side">Vous (%1$s)</string>
     <string name="review_summary_graded">Coups évalués : %1$d</string>
     <string name="review_summary_grade_count">%1$s : %2$d</string>
@@ -299,6 +328,12 @@
     <string name="review_grade_inaccuracy_explanation">Ce coup a cédé une petite partie de l’avantage.</string>
     <string name="review_grade_mistake_explanation">Ce coup a donné une réelle occasion à l’adversaire.</string>
     <string name="review_grade_blunder_explanation">Ce coup a considérablement changé la partie.</string>
+    <string name="review_fact_forced_move">Seul coup légal.</string>
+    <string name="review_fact_capture">Une pièce a été capturée.</string>
+    <string name="review_fact_check">Échec donné.</string>
+    <string name="review_fact_material_swing">Variation de matériel : %1$s.</string>
+    <string name="review_fact_stalemate">Ce coup a terminé la partie par un pat.</string>
+    <string name="review_fact_game_ended">Ce coup a terminé la partie.</string>
     <string name="review_move_title_white">%1$d. %2$s</string>
     <string name="review_move_title_black">%1$d… %2$s</string>
     <string name="review_move_accessibility">%1$s. %2$s. %3$s.</string>

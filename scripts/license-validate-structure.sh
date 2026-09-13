@@ -19,13 +19,15 @@ require_text() {
 for required_file in \
     LICENSE APACHE-2.0.txt NOTICE THIRD_PARTY_NOTICES.md \
     docs/RELEASE_LICENSING.md docs/AUDIO_PROVENANCE.md \
+    artwork/all-hallows/README.md \
+    artwork/celestial-observatory/README.md \
     docs/audio/audio_manifest.json docs/audio/licenses/CC0-1.0.txt \
     docs/audio/licenses/ion-sound-MIT.txt \
     release/reports/release-runtime-dependencies.txt \
     release/reports/ios-release-runtime-dependencies.txt \
     release/reports/release-sbom.cdx.json scripts/generate-release-sbom.ps1 \
     scripts/verify-sampled-audio.ps1 scripts/audio/rebuild_lossless_audio.ps1 \
-    release/public-source/REBUILD-IOS.md \
+    release/public-source/REBUILD-IOS.md release/public-source/REBUILD-ANDROID.md \
     release/public-source/include-paths.txt \
     release/public-source/forbidden-paths.txt \
     release/public-source/forbidden-content.sha256 \
@@ -53,6 +55,13 @@ require_text "$REPOSITORY_ROOT/NOTICE" 'Android and iOS'
 require_text "$REPOSITORY_ROOT/NOTICE" 'Android APK/AAB or iOS App Store binary release'
 require_text "$REPOSITORY_ROOT/NOTICE" 'Kotlin/Native 2.4.10'
 require_text "$REPOSITORY_ROOT/NOTICE" 'AAC/M4A resources'
+require_text "$REPOSITORY_ROOT/NOTICE" 'All Hallows’ Court sculpture atlases'
+require_text "$REPOSITORY_ROOT/artwork/all-hallows/README.md" 'Final generation prompts'
+require_text "$REPOSITORY_ROOT/artwork/all-hallows/README.md" '8561a31a9bd5b1e880c8ea3b3a04d1c75af5d23b76214ab370c2ce8f91fccd48'
+require_text "$REPOSITORY_ROOT/artwork/all-hallows/README.md" '7cd157222646e02904386ba7560a4a39626d769258d88e5963f2c0168a62eda5'
+require_text "$REPOSITORY_ROOT/artwork/celestial-observatory/README.md" 'Final generation prompts'
+require_text "$REPOSITORY_ROOT/artwork/celestial-observatory/README.md" '224f6aed0aa519ac7f89fb4023ea1faf584b942b7df10d419ceb47753ef06d66'
+require_text "$REPOSITORY_ROOT/artwork/celestial-observatory/README.md" 'e86c2e74fe57673c5e147cd5fb0b86e8979b2149f20a70bb0ff0b770517ffa53'
 require_text "$REPOSITORY_ROOT/engine/native/SOURCE_NOTICE.txt" 'static Apple bridge on iOS'
 require_text "$REPOSITORY_ROOT/engine/native/SOURCE_NOTICE.txt" 'iOS archive, or'
 require_text "$REPOSITORY_ROOT/engine/native/SOURCE_NOTICE.txt" 'inclusion-only public publisher'
@@ -108,6 +117,7 @@ require_text "$REPOSITORY_ROOT/scripts/source-bundle.py" 'str(gate), "--release-
 require_text "$REPOSITORY_ROOT/scripts/source-bundle.py" '--manifest-digest'
 require_text "$REPOSITORY_ROOT/release/public-source/REBUILD-IOS.md" 'CODE_SIGNING_ALLOWED=NO'
 require_text "$REPOSITORY_ROOT/release/public-source/REBUILD-IOS.md" '--unsigned-rebuild'
+require_text "$REPOSITORY_ROOT/release/public-source/REBUILD-ANDROID.md" 'verifyPublicReleaseSource'
 require_text "$REPOSITORY_ROOT/android/engine/build.gradle.kts" 'legal/drawless-chess'
 require_text "$REPOSITORY_ROOT/android/engine/build.gradle.kts" 'third_party/android-runtime'
 require_text "$REPOSITORY_ROOT/android/engine/build.gradle.kts" 'release/reports/release-sbom.cdx.json'
@@ -119,10 +129,12 @@ require_text "$REPOSITORY_ROOT/scripts/native-verify-apk.sh" 'assets/third_party
 require_text "$REPOSITORY_ROOT/scripts/verify-play-aab.ps1" 'base/assets/legal/drawless-chess/LICENSE'
 require_text "$REPOSITORY_ROOT/scripts/verify-play-aab.ps1" 'repository must be clean so the AAB and corresponding source have one exact identity'
 require_text "$REPOSITORY_ROOT/scripts/verify-play-aab.ps1" 'sourceArchiveMatched = $true'
-require_text "$REPOSITORY_ROOT/scripts/verify-play-aab.ps1" 'base/assets/release/SOURCE-COMMIT'
+require_text "$REPOSITORY_ROOT/scripts/verify-play-aab.ps1" 'base/assets/release/SOURCE-IDENTITY'
+require_text "$REPOSITORY_ROOT/scripts/verify-play-aab.ps1" 'base/assets/release/SOURCE-MANIFEST.sha256.digest'
+require_text "$REPOSITORY_ROOT/scripts/verify-play-aab.ps1" 'bundle must not contain a private source-commit asset'
 require_text "$REPOSITORY_ROOT/scripts/verify-play-aab.ps1" '--manifest-digest'
 require_text "$REPOSITORY_ROOT/scripts/verify-play-aab.ps1" 'canonicalManifestMatched = $true'
-require_text "$REPOSITORY_ROOT/android/app/build.gradle.kts" 'Bundled SOURCE-COMMIT'
+require_text "$REPOSITORY_ROOT/android/app/build.gradle.kts" ':engine:verifyPublicReleaseSource'
 require_text "$REPOSITORY_ROOT/scripts/android-machine-verify.ps1" 'distributionAuthorized = $false'
 require_text "$REPOSITORY_ROOT/iosApp/project.yml" 'path: ../LICENSE'
 require_text "$REPOSITORY_ROOT/iosApp/project.yml" 'path: ../APACHE-2.0.txt'

@@ -310,7 +310,12 @@ class FairyUciEngine(
         val work = active ?: throw UciEngineStateException("Prepared search has no request")
         cancelTimer()
         send(UciCommands.position(work.request.initialFen, work.request.moves))
-        send(UciCommands.goMoveTime(work.request.limits.moveTimeMillis))
+        send(
+            UciCommands.goMoveTime(
+                work.request.limits.moveTimeMillis,
+                work.request.searchMoves,
+            ),
+        )
         stateValue = UciSessionState.SEARCHING
         armTimeout(work.request.limits.moveTimeMillis + policy.searchGraceMillis, "analysis search")
     }
@@ -557,7 +562,12 @@ class FairyUciEngine(
         ): EngineResponse {
             val bestMove = best.move ?: throw UciEngineStateException("Engine returned no move for a live position")
             val position = ChessAdapter.replay(request.initialFen, request.moves)
-            val expectedRanks = minOf(request.limits.multiPv, ChessRules.legalUciMoves(position).size)
+            val legalMoves = ChessRules.legalUciMoves(position)
+            require(request.searchMoves.all { it in legalMoves }) {
+                "A constrained review search contains an illegal root move"
+            }
+            val eligibleRootCount = request.searchMoves.size.takeIf { it > 0 } ?: legalMoves.size
+            val expectedRanks = minOf(request.limits.multiPv, eligibleRootCount)
             val completeSnapshots = reportingCycles.mapNotNull { ranks ->
                 val selected = (1..expectedRanks).mapNotNull(ranks::get)
                 val depths = selected.mapNotNull(UciInfo::depth).distinct()
@@ -623,6 +633,9 @@ class FairyUciEngine(
                     ?.principalVariation
                     ?.first()
                     ?: bestMove
+            }
+            require(request.searchMoves.isEmpty() || responseBestMove in request.searchMoves) {
+                "Engine ignored the constrained review root"
             }
             val responsePonderMove = if (preserveNativeMove) {
                 best.ponder

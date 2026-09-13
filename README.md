@@ -1,12 +1,15 @@
 # Drawless Chess
 
-This repository contains the offline Android and iOS/Kotlin Multiplatform
-implementations of Drawless Chess. Android combines a
-versioned no-draw rules core, Room-backed resume flow, Jetpack Compose UI, and a
+This is the single shared source tree for the offline Android and iOS versions
+of Drawless Chess. Both apps compile the same Kotlin game-law, chess,
+coordinator, scoring, opponent-rating, review, and board-presentation sources.
+Android combines that shared core with a Room-backed resume flow, Jetpack Compose UI, and a
 pinned, patched Fairy-Stockfish engine behind an in-process JNI boundary. iOS
-uses SwiftUI with the existing `multiplatform/shared-core` and Apple engine
-adapter. The older JavaScript/WASM proof of concept remains a fast regression
-lane; it is not either platform's shipped runtime.
+uses SwiftUI with `multiplatform/shared-core` and the Apple engine adapter.
+Compose and SwiftUI, platform persistence, lifecycle, engine transports, and
+store signing remain native adapters; deterministic product behavior has one
+Kotlin authority. The older JavaScript/WASM proof of concept remains a fast
+regression lane; it is not either platform's shipped runtime.
 
 Website: https://drawlesschess.com
 
@@ -15,7 +18,7 @@ Download Drawless Chess:
 - Google Play: https://play.google.com/store/apps/details?id=com.drawlesschess
 - App Store: https://apps.apple.com/app/drawless-chess/id6801584008
 
-Project source: https://github.com/DeviousVon/Drawless-Chess
+Public release source: https://github.com/DeviousVon/Drawless-Chess
 
 The Android and iOS apps share the decisive offline game, eight opponents, custom games,
 themes, local records, and GPL-licensed engine foundation. Android 1.0.2 also includes the
@@ -51,10 +54,15 @@ responsive layout policy, themes, piece-set contracts, and accessibility descrip
 See `docs/BOARD_PRESENTATION.md`.
 
 The Compose application adds Quick Play, custom/advanced setup, a first-run rules guide,
-Room resume, clocks, SAN history, gestures, original code-native pieces, sampled close-board
-move/capture sounds, five persisted visual themes, post-game results, rematches, and local
-career statistics backed by immutable completed-game records. From the current completed-game
-result, Android players can immediately open Game Review for move grades, better-move
+Room resume, clocks, SAN history, gestures, original project-owned piece art, sampled close-board
+move/capture sounds, seven persisted visual themes, post-game results, rematches, and local
+career statistics backed by immutable completed-game records. The two Halloween board
+candidates, Emberwood Court and Witchglass, share the existing All Hallows sculpture pieces;
+the five everyday themes use standard pieces. The Halloween comparison and Celestial
+Observatory are development candidates, not features claimed for the public 1.0.2 binaries.
+The static Halloween sculpture atlases are shared byte-for-byte by Android and iOS. From the
+current completed-game result, Android players can immediately open Game
+Review for move grades, better-move
 suggestions, short principal variations, and an interactive move-by-move board replay. The
 shipped Android 1.0.2 interface labels this first review implementation Beta. Review output is
 not persisted as a history. Its verified and unverified boundaries are documented in

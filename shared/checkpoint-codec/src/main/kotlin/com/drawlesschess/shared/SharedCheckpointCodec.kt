@@ -54,7 +54,7 @@ import kotlinx.serialization.json.long
 import kotlinx.serialization.json.put
 
 /**
- * Platform-neutral form of Android checkpoint payload format 1.
+ * Platform-neutral checkpoint payload format 1 shared by Android and Apple storage.
  *
  * Keeping this codec in common code lets Apple storage persist the same immutable rules,
  * clock history and assistance facts as Room without exposing platform JSON types.
@@ -77,6 +77,13 @@ object SharedCheckpointCodec {
         put("assistance", encodeAssistance(checkpoint.assistance))
         put("reviewPrefetch", encodeReviewPrefetch(checkpoint))
     }.toString()
+
+    /** Encodes the immutable rules snapshot stored beside Android's completed-game facts. */
+    fun encodeRulesForHistory(rules: RulesContractV1): String = encodeRules(rules).toString()
+
+    /** Decodes and validates the immutable rules snapshot stored beside completed-game facts. */
+    fun decodeRulesForHistory(payloadJson: String): RulesContractV1 =
+        decodeRules(Json.parseToJsonElement(payloadJson).jsonObject)
 
     fun decode(payloadJson: String): CoordinatorCheckpoint {
         val payload = Json.parseToJsonElement(payloadJson).jsonObject
@@ -311,7 +318,8 @@ object SharedCheckpointCodec {
             gameId = value.requiredString("gameId"),
             positionId = value.requiredString("positionId"),
             bestMove = UciMove(value.requiredString("bestMove")),
-            ponderMove = value.requiredNullableString("ponderMove")?.let(::UciMove),
+            // Android's released JSONObject encoder omitted keys whose values were null.
+            ponderMove = value.optionalNullableString("ponderMove")?.let(::UciMove),
             depth = value.requiredInt("depth"),
             nodes = value.requiredLong("nodes"),
             variations = value.requiredArray("variations").map { decodeVariation(it.jsonObject) },
@@ -341,8 +349,8 @@ object SharedCheckpointCodec {
     }
 
     private fun decodeVariation(value: JsonObject): PrincipalVariation = PrincipalVariation(
-        scoreCentipawns = value.requiredNullableInt("cp"),
-        mateIn = value.requiredNullableInt("mate"),
+        scoreCentipawns = value.optionalNullableInt("cp"),
+        mateIn = value.optionalNullableInt("mate"),
         moves = value.requiredArray("moves").map { UciMove(it.jsonPrimitive.content) },
         rank = value.requiredInt("rank"),
         bound = enumValueOf<EngineScoreBound>(value.requiredString("bound")),
@@ -353,7 +361,7 @@ object SharedCheckpointCodec {
                 losses = wdl.requiredInt("losses"),
             )
         },
-        depth = value.requiredNullableInt("depth"),
+        depth = value.optionalNullableInt("depth"),
         evidenceAvailable = value.requiredBoolean("evidence"),
     )
 
@@ -558,8 +566,11 @@ private fun JsonObject.requiredNullableString(name: String): String? =
 private fun JsonObject.requiredNullableLong(name: String): Long? =
     required(name).let { if (it is JsonNull) null else it.jsonPrimitive.long }
 
-private fun JsonObject.requiredNullableInt(name: String): Int? =
-    required(name).let { if (it is JsonNull) null else it.jsonPrimitive.int }
+private fun JsonObject.optionalNullableString(name: String): String? =
+    this[name]?.let { if (it is JsonNull) null else it.jsonPrimitive.content }
+
+private fun JsonObject.optionalNullableInt(name: String): Int? =
+    this[name]?.let { if (it is JsonNull) null else it.jsonPrimitive.int }
 
 private fun JsonObject.optionalInt(name: String): Int? =
     (this[name] as? JsonPrimitive)?.intOrNull

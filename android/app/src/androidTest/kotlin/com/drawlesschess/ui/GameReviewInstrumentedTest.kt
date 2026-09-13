@@ -41,11 +41,14 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import com.drawlesschess.core.Side
 import com.drawlesschess.core.UciMove
+import com.drawlesschess.core.EndReason
+import com.drawlesschess.core.GameOutcome
 import com.drawlesschess.core.chess.ChessPosition
 import com.drawlesschess.core.chess.ChessRules
 import com.drawlesschess.core.chess.Square
 import com.drawlesschess.core.engine.GameReviewProgress
 import com.drawlesschess.core.engine.ReviewEvaluation
+import com.drawlesschess.core.engine.ReviewExplanationFacts
 import com.drawlesschess.core.engine.ReviewMoveQuality
 import com.drawlesschess.core.engine.ReviewSideSummary
 import com.drawlesschess.core.engine.ReviewedMove
@@ -387,7 +390,7 @@ class GameReviewInstrumentedTest {
     }
 
     @Test
-    fun completedReviewShowsOnlyPlayerSummaryWithoutInventingAccuracy() {
+    fun completedReviewShowsResultAndVersionedPlayerAccuracy() {
         var rematchClicks = 0
         compose.setContent {
             DrawlessTheme {
@@ -406,6 +409,7 @@ class GameReviewInstrumentedTest {
 
         compose.onNodeWithTag("review_summary").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Your review").assertIsDisplayed()
+        compose.onNodeWithText("Win").assertIsDisplayed()
         compose.onNodeWithText("You (White)").assertIsDisplayed()
         compose.onAllNodesWithText("Opponent (Black)").assertCountEquals(0)
         compose.onAllNodesWithText("Moves graded: 2").assertCountEquals(1)
@@ -418,7 +422,11 @@ class GameReviewInstrumentedTest {
         compose.onAllNodesWithTag("review_summary_opponent_mistake").assertCountEquals(0)
         compose.onNodeWithTag("review_summary_player_blunder")
             .assert(hasContentDescription("Blunder: 0"))
-        compose.onAllNodesWithText("Accuracy", substring = true).assertCountEquals(0)
+        compose.onNodeWithTag("review_accuracy").assertIsDisplayed()
+        compose.onNodeWithText("Drawless Accuracy").assertIsDisplayed()
+        compose.onNodeWithText("96").assertIsDisplayed()
+        compose.onNodeWithTag("review_accuracy_info").performClick()
+        compose.onNodeWithTag("review_accuracy_limits").assertIsDisplayed()
         compose.onNodeWithText("Your moves: 2. Moves graded: 2.").assertIsDisplayed()
         compose.onNodeWithTag("review_rematch")
             .performScrollTo()
@@ -428,6 +436,43 @@ class GameReviewInstrumentedTest {
         compose.runOnIdle { assertEquals(1, rematchClicks) }
         compose.onAllNodesWithTag("review_move_2").assertCountEquals(0)
         compose.onAllNodesWithTag("review_move_4").assertCountEquals(0)
+    }
+
+    @Test
+    fun selectedMoveShowsDeterministicReviewFacts() {
+        val base = reviewModel(selectedPly = 1)
+        val facts = ReviewExplanationFacts(
+            capture = true,
+            gaveCheck = true,
+            forcedMove = true,
+            materialSwingForMover = 5,
+            terminalReason = EndReason.RESIGNATION,
+            terminalWinner = Side.WHITE,
+        )
+        compose.setContent {
+            DrawlessTheme {
+                GameReviewScreen(
+                    model = base.copy(
+                        moves = base.moves.map { move ->
+                            if (move.ply == 1) move.copy(facts = facts) else move
+                        },
+                    ),
+                    showBoardCoordinates = true,
+                    onSaveAndExit = {},
+                    onFlip = {},
+                    onCancel = {},
+                    onRetry = {},
+                    onSelectPly = {},
+                )
+            }
+        }
+
+        compose.onNodeWithTag("review_explanation_facts").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Only legal move.").assertIsDisplayed()
+        compose.onNodeWithText("Captured a piece.").assertIsDisplayed()
+        compose.onNodeWithText("Gave check.").assertIsDisplayed()
+        compose.onNodeWithText("Material swing: +5.").assertIsDisplayed()
+        compose.onNodeWithText("The game ended by resignation.").assertIsDisplayed()
     }
 
     @Test
@@ -890,11 +935,35 @@ class GameReviewInstrumentedTest {
             .assertTextEquals("Save & exit")
             .assertIsDisplayed()
             .performClick()
+        compose.onNodeWithTag("review_header_title")
+            .assertTextEquals("Review")
+            .assertIsDisplayed()
         compose.onNodeWithTag("review_flip").assertIsDisplayed().performClick()
+        compose.onAllNodesWithText("Beta").assertCountEquals(0)
         compose.runOnIdle {
             assertEquals(1, saveExitClicks)
             assertEquals(1, flipClicks)
         }
+
+        val sideHeaderBounds = compose.onNodeWithTag("review_side_header")
+            .fetchSemanticsNode()
+            .boundsInRoot
+        val saveBounds = compose.onNodeWithTag("review_save_exit")
+            .fetchSemanticsNode()
+            .boundsInRoot
+        val titleBounds = compose.onNodeWithTag("review_header_title")
+            .fetchSemanticsNode()
+            .boundsInRoot
+        val flipBounds = compose.onNodeWithTag("review_flip")
+            .fetchSemanticsNode()
+            .boundsInRoot
+        assertTrue(abs(titleBounds.center.x - sideHeaderBounds.center.x) <= 1f)
+        assertTrue(titleBounds.bottom < saveBounds.top)
+        assertTrue(titleBounds.bottom < flipBounds.top)
+        assertTrue(saveBounds.right < flipBounds.left)
+        assertTrue(abs(saveBounds.center.y - flipBounds.center.y) <= 1f)
+        assertTrue(saveBounds.height >= 48f && saveBounds.width >= 48f)
+        assertTrue(flipBounds.height >= 48f && flipBounds.width >= 48f)
 
         val reviewBounds = compose.onNodeWithTag("game_review")
             .fetchSemanticsNode()
@@ -905,6 +974,9 @@ class GameReviewInstrumentedTest {
             .boundsInRoot
         assertTrue(abs(boardBounds.height - reviewBounds.height) <= 1f)
         assertTrue(abs(boardBounds.top - reviewBounds.top) <= 1f)
+        compose.onNodeWithTag("review_show_opponent_moves").performScrollTo()
+        compose.onNodeWithTag("review_save_exit").assertIsDisplayed()
+        compose.onNodeWithTag("review_flip").assertIsDisplayed()
     }
 
     @Test
@@ -1015,6 +1087,7 @@ class GameReviewInstrumentedTest {
             },
             status = ReviewAnalysisUiStatus.COMPLETE,
             playerSide = playerSide,
+            outcome = GameOutcome(playerSide, reason = EndReason.RESIGNATION),
             playerSummary = if (playerSide == Side.WHITE) {
                 sideSummary(
                     Side.WHITE,
@@ -1041,10 +1114,11 @@ class GameReviewInstrumentedTest {
     ): ReviewSideSummary = ReviewSideSummary(
         side = side,
         gradedMoves = qualities.size,
-        movesWithExpectedPointLoss = 0,
-        meanExpectedPointLoss = null,
+        movesWithExpectedPointLoss = qualities.size,
+        meanExpectedPointLoss = 0.04,
         qualityCounts = ReviewMoveQuality.entries.associateWith { quality ->
             qualities.count { it == quality }
         },
+        accuracy = 96,
     )
 }

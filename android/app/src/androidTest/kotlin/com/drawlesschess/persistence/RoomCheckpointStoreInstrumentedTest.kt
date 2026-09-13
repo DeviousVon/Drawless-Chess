@@ -16,6 +16,7 @@ import com.drawlesschess.core.EngineIdentity
 import com.drawlesschess.core.EngineLimits
 import com.drawlesschess.core.EngineRequest
 import com.drawlesschess.core.EngineResponse
+import com.drawlesschess.core.EngineScoreBound
 import com.drawlesschess.core.EngineStrength
 import com.drawlesschess.core.FiftyMovePolicy
 import com.drawlesschess.core.GameMode
@@ -39,9 +40,20 @@ import com.drawlesschess.core.coordinator.MoveClockSnapshot
 import com.drawlesschess.core.coordinator.TimeReading
 import com.drawlesschess.core.engine.BotDifficultyCatalog
 import com.drawlesschess.core.engine.GameReviewPlanner
+import com.drawlesschess.core.engine.GameReviewResult
+import com.drawlesschess.core.engine.GameReviewScope
+import com.drawlesschess.core.engine.ReviewEvaluation
+import com.drawlesschess.core.engine.ReviewExplanationFacts
+import com.drawlesschess.core.engine.ReviewLine
+import com.drawlesschess.core.engine.ReviewMoveEvidence
+import com.drawlesschess.core.engine.ReviewMoveQuality
+import com.drawlesschess.core.engine.ReviewScoreSource
+import com.drawlesschess.core.engine.ReviewedMove
 import com.drawlesschess.core.engine.OfflineElo
 import com.drawlesschess.core.engine.OfflineRating
 import com.drawlesschess.core.engine.RatedResult
+import com.drawlesschess.shared.SharedCheckpointCodec
+import com.drawlesschess.engine.AndroidFairyEngineFactory
 import java.io.IOException
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
@@ -60,15 +72,169 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class RoomCheckpointStoreInstrumentedTest {
     @Test
+    fun completeReviewRoundTripsPersistsIdempotentlyAndReopensFromHistory() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val database = Room.inMemoryDatabaseBuilder(context, DrawlessDatabase::class.java).build()
+        val store = RoomCheckpointStore(
+            database = database,
+            ioExecutor = Executors.newSingleThreadExecutor(),
+            callbackExecutor = java.util.concurrent.Executor { it.run() },
+            localProfileIdSource = { "review-history-profile" },
+        )
+        try {
+            val checkpoint = reviewableCompletedCheckpoint("durable-review")
+            store.activateNewGame().persist(checkpoint)
+            assertEquals(1, loadStats(store).getOrThrow().completedGames)
+            val review = exactReviewResult(checkpoint)
+            val evidence = com.drawlesschess.core.engine.ReviewEvidenceV2.from(review)
+            assertEquals(evidence, GameReviewPayloadCodec.decode(GameReviewPayloadCodec.encode(evidence)))
+
+            assertTrue(saveReview(store, review).isSuccess)
+            assertTrue(saveReview(store, review).isSuccess)
+            val history = loadHistory(store).getOrThrow()
+            assertEquals(1, history.size)
+            assertEquals(HistoricalReviewAvailability.READY, history.single().reviewAvailability)
+            assertEquals(review, loadHistoricalReview(store, review.gameId).getOrThrow()?.review)
+
+            val entity = database.activeGameCheckpointDao().loadGameReview(review.gameId)!!
+            assertNull(GameReviewEntityDecoder.decode(entity, history.single().game.copy(playerSide = Side.BLACK)))
+            database.openHelper.writableDatabase.execSQL(
+                "UPDATE game_review SET derived_review_key = ?, classifier_version = 0, accuracy_version = 0 WHERE game_id = ?",
+                arrayOf("recompute-derived-output", review.gameId),
+            )
+            assertEquals(
+                HistoricalReviewAvailability.READY,
+                loadHistory(store).getOrThrow().single().reviewAvailability,
+            )
+            assertTrue("Derived-version refresh must remain idempotent", saveReview(store, review).isSuccess)
+            database.openHelper.writableDatabase.execSQL(
+                "UPDATE game_review SET evidence_cache_key = ? WHERE game_id = ?",
+                arrayOf("stale-expensive-evidence", review.gameId),
+            )
+            val stale = loadHistoricalReview(store, review.gameId).getOrThrow()!!
+            assertEquals(HistoricalReviewAvailability.STALE, stale.reviewAvailability)
+            assertNull(stale.review)
+            assertTrue("Explicit reanalysis must replace known stale evidence", saveReview(store, review).isSuccess)
+            assertEquals(review, loadHistoricalReview(store, review.gameId).getOrThrow()?.review)
+
+            assertTrue(
+                runCatching {
+                    database.activeGameCheckpointDao().persistGameReview(
+                        entity.copy(evidencePayloadSha256 = "0".repeat(64)),
+                    )
+                }.exceptionOrNull() is GameReviewConflictException,
+            )
+        } finally {
+            store.closeForTest()
+        }
+    }
+
+    @Test
+    fun immediateResignationReopensAnEmptyReviewWithoutEngineEvidence() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val store = RoomCheckpointStore(
+            database = Room.inMemoryDatabaseBuilder(context, DrawlessDatabase::class.java).build(),
+            ioExecutor = Executors.newSingleThreadExecutor(),
+            callbackExecutor = java.util.concurrent.Executor { it.run() },
+        )
+        try {
+            val checkpoint = completedCheckpoint("no-player-moves", false, 800)
+            store.activateNewGame().persist(checkpoint)
+            val game = loadHistory(store).getOrThrow().single().game
+            val review = requireNotNull(game.emptyReviewOrNull())
+            assertTrue(saveReview(store, review).isSuccess)
+            assertNull(review.engine)
+            assertEquals(review, loadHistoricalReview(store, game.gameId).getOrThrow()?.review)
+            assertEquals(HistoricalReviewAvailability.READY, loadHistory(store).getOrThrow().single().reviewAvailability)
+        } finally {
+            store.closeForTest()
+        }
+    }
+
+    @Test
+    fun schemaTwoMigrationAndFileReopenPreserveGamesProfileStatsAndReview() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val name = "room-review-v2-migration-test.db"
+        context.deleteDatabase(name)
+        fun openStore(): RoomCheckpointStore = RoomCheckpointStore(
+            database = Room.databaseBuilder(context, DrawlessDatabase::class.java, name)
+                .addMigrations(MIGRATION_2_3).build(),
+            ioExecutor = Executors.newSingleThreadExecutor(),
+            callbackExecutor = java.util.concurrent.Executor { it.run() },
+            localProfileIdSource = { "review-v2-profile" },
+        )
+        var store = openStore()
+        try {
+            val completed = reviewableCompletedCheckpoint("review-before-upgrade")
+            store.activateNewGame().persist(completed)
+            val expectedStats = loadStats(store).getOrThrow()
+            val active = defaultCheckpoint("active-across-upgrade")
+            store.activateNewGame().persist(active)
+            assertEquals(active, load(store).getOrThrow())
+            store.closeForTest()
+
+            // Schema 3 adds only game_review. Recreate the released schema-2 layout with real
+            // populated rows and its exported identity; no production database is touched.
+            android.database.sqlite.SQLiteDatabase.openDatabase(
+                context.getDatabasePath(name).path, null,
+                android.database.sqlite.SQLiteDatabase.OPEN_READWRITE,
+            ).use { db ->
+                db.execSQL("DROP TABLE game_review")
+                db.execSQL("UPDATE room_master_table SET identity_hash = 'e58e83896ff8c116c28c49a960ff2875' WHERE id = 42")
+                db.version = 2
+            }
+            store = openStore()
+            assertEquals(expectedStats, loadStats(store).getOrThrow())
+            assertEquals(active, load(store).getOrThrow())
+            assertEquals(completed.moves, loadHistory(store).getOrThrow().single().game.moves)
+            val review = exactReviewResult(completed)
+            assertTrue(saveReview(store, review).isSuccess)
+            store.closeForTest()
+            store = openStore()
+            assertEquals(review, loadHistoricalReview(store, review.gameId).getOrThrow()?.review)
+            assertEquals(expectedStats, loadStats(store).getOrThrow())
+            assertEquals(active, load(store).getOrThrow())
+        } finally {
+            store.closeForTest()
+            context.deleteDatabase(name)
+        }
+    }
+
+    @Test
     fun codecRoundTripPreservesTheExactCoordinatorCheckpoint() {
         val checkpoint = withReviewPrefetch(checkpoint(gameId = "codec-game", revision = 7))
         val entity = CoordinatorCheckpointCodec.encode(checkpoint, updatedAtEpochMillis = 99_000L)
 
+        assertEquals(SharedCheckpointCodec.encode(checkpoint), entity.payloadJson)
+        assertEquals(checkpoint, SharedCheckpointCodec.decode(entity.payloadJson))
         val decoded = CoordinatorCheckpointCodec.decode(entity)
         assertEquals(checkpoint, decoded)
         assertEquals(1, decoded.reviewPrefetchRoots.size)
         assertEquals(1, decoded.reviewPrefetchAdjacentRoots.size)
         assertTrue(decoded.assistance.threatIndication)
+        val releasedAndroidPayload = JSONObject(entity.payloadJson).apply {
+            val review = getJSONObject("reviewPrefetch")
+            listOf("roots", "adjacentRoots").forEach { collectionName ->
+                val entries = review.getJSONArray(collectionName)
+                for (entryIndex in 0 until entries.length()) {
+                    val response = entries.getJSONObject(entryIndex).getJSONObject("response")
+                    response.remove("ponderMove")
+                    val variations = response.getJSONArray("variations")
+                    for (variationIndex in 0 until variations.length()) {
+                        val variation = variations.getJSONObject(variationIndex)
+                        listOf("cp", "mate", "depth").forEach { optionalName ->
+                            if (variation.isNull(optionalName)) variation.remove(optionalName)
+                        }
+                    }
+                }
+            }
+        }
+        assertEquals(
+            checkpoint,
+            CoordinatorCheckpointCodec.decode(
+                entity.copy(payloadJson = releasedAndroidPayload.toString()),
+            ),
+        )
         val unknownReviewVersion = JSONObject(entity.payloadJson).apply {
             getJSONObject("reviewPrefetch").put("analysisVersion", 999)
         }
@@ -900,7 +1066,7 @@ class RoomCheckpointStoreInstrumentedTest {
             context,
             DrawlessDatabase::class.java,
             MIGRATION_DATABASE,
-        ).addMigrations(MIGRATION_1_2).build()
+        ).addMigrations(MIGRATION_1_2, MIGRATION_2_3).build()
         val store = RoomCheckpointStore(
             database = database,
             ioExecutor = Executors.newSingleThreadExecutor(),
@@ -933,7 +1099,7 @@ class RoomCheckpointStoreInstrumentedTest {
             context,
             DrawlessDatabase::class.java,
             MIGRATION_NONTERMINAL_DATABASE,
-        ).addMigrations(MIGRATION_1_2).build()
+        ).addMigrations(MIGRATION_1_2, MIGRATION_2_3).build()
         val store = RoomCheckpointStore(
             database = database,
             ioExecutor = Executors.newSingleThreadExecutor(),
@@ -1037,6 +1203,108 @@ class RoomCheckpointStoreInstrumentedTest {
         return result.get()
     }
 
+    private fun saveReview(
+        store: RoomCheckpointStore,
+        review: GameReviewResult,
+    ): Result<Unit> {
+        val result = AtomicReference<Result<Unit>>()
+        val completed = CountDownLatch(1)
+        store.saveCompletedGameReview(review) {
+            result.set(it)
+            completed.countDown()
+        }
+        assertTrue("Review save timed out", completed.await(5, TimeUnit.SECONDS))
+        return result.get()
+    }
+
+    private fun loadHistory(store: RoomCheckpointStore): Result<List<GameHistoryEntry>> {
+        val result = AtomicReference<Result<List<GameHistoryEntry>>>()
+        val completed = CountDownLatch(1)
+        store.loadGameHistory {
+            result.set(it)
+            completed.countDown()
+        }
+        assertTrue("Game-history load timed out", completed.await(5, TimeUnit.SECONDS))
+        return result.get()
+    }
+
+    private fun loadHistoricalReview(
+        store: RoomCheckpointStore,
+        gameId: String,
+    ): Result<HistoricalGameReview?> {
+        val result = AtomicReference<Result<HistoricalGameReview?>>()
+        val completed = CountDownLatch(1)
+        store.loadHistoricalGameReview(gameId) {
+            result.set(it)
+            completed.countDown()
+        }
+        assertTrue("Historical Review load timed out", completed.await(5, TimeUnit.SECONDS))
+        return result.get()
+    }
+
+    private fun reviewableCompletedCheckpoint(gameId: String): CoordinatorCheckpoint {
+        val move = UciMove("e2e4")
+        return defaultCheckpoint(gameId).copy(
+            revision = 1,
+            moves = listOf(move),
+            currentFen = ChessRules.apply(ChessPosition.fromFen(ChessPosition.START_FEN), move).fen(),
+            outcome = GameOutcome(Side.BLACK, reason = EndReason.RESIGNATION),
+        )
+    }
+
+    private fun exactReviewResult(checkpoint: CoordinatorCheckpoint): GameReviewResult {
+        val move = checkpoint.moves.single()
+        val after = ChessRules.apply(ChessPosition.fromFen(checkpoint.config.initialFen), move)
+        val line = ReviewLine(
+            rank = 1,
+            move = move,
+            evaluation = ReviewEvaluation.Centipawns(0),
+            expectedPoints = 0.5,
+            source = ReviewScoreSource.CENTIPAWNS,
+            bound = EngineScoreBound.EXACT,
+            depth = 12,
+            nodes = 1_000L,
+            moves = listOf(move),
+        )
+        val reviewed = ReviewedMove(
+            ply = 1,
+            mover = Side.WHITE,
+            playedMove = move,
+            bestMove = move,
+            quality = ReviewMoveQuality.BEST,
+            bestEvaluation = line.evaluation,
+            playedEvaluation = line.evaluation,
+            expectedPointLoss = 0.0,
+            suggestedLine = line.moves,
+            fenBefore = ChessPosition.START_FEN,
+            fenAfter = after.fen(),
+            evidence = ReviewMoveEvidence(
+                lines = listOf(line),
+                bestLine = line,
+                playedLine = line,
+                playedLineRank = 1,
+                legalMoveCount = 20,
+                forced = false,
+                usedAdjacentFallback = false,
+            ),
+            explanationFacts = ReviewExplanationFacts(),
+        )
+        return GameReviewResult(
+            gameId = checkpoint.config.gameId,
+            initialFen = checkpoint.config.initialFen,
+            rules = checkpoint.config.rules,
+            outcome = requireNotNull(checkpoint.outcome),
+            moves = listOf(reviewed),
+            engine = EngineIdentity(
+                id = "Fairy-Stockfish",
+                build = AndroidFairyEngineFactory.embeddedBuildId(),
+                drawlessPatch = 2,
+            ),
+            scope = GameReviewScope.PlayerMoves(Side.WHITE),
+            gameMoves = checkpoint.moves,
+        )
+    }
+
     private fun completedCheckpoint(
         gameId: String,
         playerWon: Boolean,
@@ -1101,7 +1369,7 @@ class RoomCheckpointStoreInstrumentedTest {
             depth = 8,
             nodes = 1_100,
             variations = listOf(
-                PrincipalVariation(10, null, listOf(UciMove("e7e5"))),
+                PrincipalVariation(null, 3, listOf(UciMove("e7e5"))),
             ),
             engine = engine,
         )

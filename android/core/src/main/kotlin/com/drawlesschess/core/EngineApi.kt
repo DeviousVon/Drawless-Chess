@@ -10,10 +10,18 @@ data class EngineRequest(
     val strength: EngineStrength,
     val limits: EngineLimits,
     val purpose: EnginePurpose = EnginePurpose.BOT_MOVE,
+    /** Optional legal root moves that constrain this search. Empty means every legal move. */
+    val searchMoves: List<UciMove> = emptyList(),
 ) {
     init {
         require(requestId.isNotBlank() && gameId.isNotBlank() && positionId.isNotBlank())
         require(initialFen.isNotBlank())
+        require(searchMoves.distinct().size == searchMoves.size) {
+            "A constrained engine request cannot contain duplicate root moves"
+        }
+        require(searchMoves.isEmpty() || purpose == EnginePurpose.REVIEW) {
+            "Root-move constraints are reserved for review evidence"
+        }
     }
 }
 

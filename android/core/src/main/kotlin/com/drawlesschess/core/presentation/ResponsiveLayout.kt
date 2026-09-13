@@ -24,7 +24,7 @@ object ResponsiveBoardLayout {
         }
         val landscape = widthDp > heightDp
         val shortLandscape = landscape && heightDp < 480
-        val sidePadding = if (shortLandscape) 12 else 24
+        val sidePadding = if (landscape) 0 else 24
         val sidePanel = when {
             shortLandscape && widthClass == WindowWidthClass.COMPACT -> 200
             shortLandscape && widthClass == WindowWidthClass.MEDIUM -> 240
@@ -43,7 +43,7 @@ object ResponsiveBoardLayout {
         }
 
         return if (!useSidePanel) {
-            val padding = 16
+            val padding = if (landscape) 0 else 16
             val availableBoardSize = min(
                 (widthDp - padding * 2).coerceAtLeast(1),
                 (heightDp - padding * 2).coerceAtLeast(1),

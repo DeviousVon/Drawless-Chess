@@ -1710,7 +1710,19 @@ internal class DeterministicOfflineEngine : RuntimeChessEngine {
     ): EngineCancellation {
         val result = runCatching {
             val position = ChessAdapter.replay(request.initialFen, request.moves)
-            val candidates = rankedMoves(position).take(request.limits.multiPv)
+            val ranked = rankedMoves(position)
+            val requestedRoots = request.searchMoves.toSet()
+            val candidates = if (requestedRoots.isEmpty()) {
+                ranked.take(request.limits.multiPv)
+            } else {
+                ranked.filter { move -> move.toUci() in requestedRoots }
+                    .also { constrained ->
+                        require(constrained.size == requestedRoots.size) {
+                            "Constrained Review request contains an illegal root move"
+                        }
+                    }
+                    .take(request.limits.multiPv)
+            }
             val move = candidates.first()
             val encoded = move.toUci()
             EngineResponse(

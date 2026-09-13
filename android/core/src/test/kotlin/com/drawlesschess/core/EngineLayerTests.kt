@@ -208,17 +208,31 @@ private fun reviewResponseFor(
     bestMove: String,
     variations: List<PrincipalVariation> = listOf(reviewVariation(bestMove)),
     engine: EngineIdentity = EngineIdentity("review-test", "1", 2),
-): EngineResponse = EngineResponse(
+): EngineResponse {
+    val constrainedMove = request.searchMoves.singleOrNull()
+    val effectiveBestMove = constrainedMove ?: UciMove(bestMove)
+    val effectiveVariations = if (constrainedMove == null) {
+        variations
+    } else {
+        listOf(
+            variations.first().copy(
+                moves = listOf(constrainedMove),
+                rank = 1,
+            ),
+        )
+    }
+    return EngineResponse(
     requestId = request.requestId,
     gameId = request.gameId,
     positionId = request.positionId,
-    bestMove = UciMove(bestMove),
+    bestMove = effectiveBestMove,
     ponderMove = null,
     depth = 12,
     nodes = 1_000,
-    variations = variations,
+    variations = effectiveVariations,
     engine = engine,
 )
+}
 
 private fun reviewVariation(
     move: String,
@@ -313,8 +327,9 @@ internal fun registerEngineLayerTests(suite: TestSuite) {
         // about the still-unplayed ply-three decision root.
         val openingHelper = engine.active()
         assertThat(openingHelper.request.purpose == EnginePurpose.REVIEW)
-        assertThat(openingHelper.request.moves.map { it.value } == listOf("e2e4"))
-        engine.respond(openingHelper, "e7e5")
+        assertThat(openingHelper.request.moves.isEmpty())
+        assertThat(openingHelper.request.searchMoves.map { it.value } == listOf("e2e4"))
+        engine.respond(openingHelper, "e2e4")
 
         // Spend only one completed review search on each following player turn. The newly started
         // current root is interrupted by the player's move, then recovered as the oldest played
@@ -530,6 +545,24 @@ internal fun registerEngineLayerTests(suite: TestSuite) {
             listOf(UciMove("g1f3"), UciMove("g8f6"), UciMove("f3g1")),
         )
         assertThat(command == "position startpos moves g1f3 g8f6 f3g1")
+    }
+    suite.test("UCI constrained review emits one exact searchmoves root") {
+        val fixture = uciFixture()
+        fixture.engine.start()
+        completeHandshake(fixture)
+        fixture.engine.analyze(
+            productionRequest(
+                purpose = EnginePurpose.REVIEW,
+                multiPv = 1,
+            ).copy(searchMoves = listOf(UciMove("e2e4"))),
+        ) {}
+        fixture.engine.onLine("readyok")
+        assertThat(
+            fixture.transport.commands.takeLast(2) == listOf(
+                "position startpos",
+                "go movetime 100 searchmoves e2e4",
+            ),
+        )
     }
     suite.test("UCI engine queues work through handshake") {
         val fixture = uciFixture()
@@ -1426,7 +1459,7 @@ internal fun registerEngineLayerTests(suite: TestSuite) {
             requireNotNull(completed).copy(outcome = GameOutcome(Side.WHITE, reason = EndReason.CHECKMATE))
         }
     }
-    suite.test("player review adds one adjacent helper for an external final move") {
+    suite.test("player review adds one constrained search for an external final move") {
         listOf(EndReason.RESIGNATION, EndReason.TIMEOUT).forEach { reason ->
             val engine = FakeReviewEngine()
             val progress = mutableListOf<GameReviewProgress>()
@@ -1446,16 +1479,17 @@ internal fun registerEngineLayerTests(suite: TestSuite) {
             engine.respond("d2d4", centipawns = 200)
             assertThat(engine.requests.size == 2 && streamed.isEmpty())
             val helper = engine.requests[1].request
-            assertThat(helper.moves == listOf(UciMove("e2e4")))
-            assertThat(helper.purpose == EnginePurpose.REVIEW && helper.limits.multiPv == GAME_REVIEW_MULTI_PV)
-            engine.respond("e7e5", centipawns = 200)
+            assertThat(helper.moves.isEmpty())
+            assertThat(helper.searchMoves == listOf(UciMove("e2e4")))
+            assertThat(helper.purpose == EnginePurpose.REVIEW && helper.limits.multiPv == 1)
+            engine.respond("e2e4", centipawns = -200)
 
             val reviewed = requireNotNull(completed).moves.single()
             assertThat(streamed.map { it.move.ply } == listOf(1))
             assertThat(reviewed.playedEvaluation == ReviewEvaluation.Centipawns(-200))
             assertThat(reviewed.quality == ReviewMoveQuality.BLUNDER)
             assertThat(reviewed.evidence?.usedAdjacentFallback == true)
-            assertThat(reviewed.evidence?.playedLine?.origin == ReviewLineOrigin.ADJACENT_POSITION)
+            assertThat(reviewed.evidence?.playedLine?.origin == ReviewLineOrigin.CONSTRAINED_ROOT)
             assertThat(
                 progress.map {
                     listOf(it.completedWorkUnits, it.totalWorkUnits, it.completedMoves, it.totalMoves)
@@ -1463,11 +1497,11 @@ internal fun registerEngineLayerTests(suite: TestSuite) {
             )
         }
     }
-    suite.test("player review grades a forced move without a helper or exact score") {
+    suite.test("player review fails closed when a forced move has no exact score") {
         val engine = FakeReviewEngine()
         val progress = mutableListOf<GameReviewProgress>()
         val streamed = mutableListOf<GameReviewMoveResult>()
-        var completed: GameReviewResult? = null
+        var completed: Result<GameReviewResult>? = null
         GameReviewRunner(engine).reviewPlayerMoves(
             gameId = "player-forced",
             initialFen = "r7/7p/8/8/8/2k5/7P/K7 w - - 0 1",
@@ -1477,16 +1511,13 @@ internal fun registerEngineLayerTests(suite: TestSuite) {
             playerSide = Side.WHITE,
             onMoveReviewed = { streamed += it },
             onProgress = { progress += it },
-            onResult = { completed = it.getOrThrow() },
+            onResult = { completed = it },
         )
         engine.respond("a1b1", evidenceAvailable = false)
 
-        val reviewed = requireNotNull(completed).moves.single()
-        assertThat(engine.requests.size == 1 && streamed.size == 1)
-        assertThat(reviewed.quality == ReviewMoveQuality.BEST && reviewed.expectedPointLoss == 0.0)
-        assertThat(reviewed.evidence?.forced == true)
-        assertThat(reviewed.evidence?.bestLine?.origin == ReviewLineOrigin.FORCED_LEGAL_MOVE)
-        assertThat(progress.map { it.completedWorkUnits to it.completedMoves } == listOf(0 to 0, 1 to 1))
+        assertThat(requireNotNull(completed).isFailure)
+        assertThat(engine.requests.size == 1 && streamed.isEmpty())
+        assertThat(progress.map { it.completedWorkUnits to it.completedMoves } == listOf(0 to 0))
     }
     suite.test("player review streams each move only after all of its dynamic work completes") {
         val engine = FakeReviewEngine()
@@ -1513,7 +1544,8 @@ internal fun registerEngineLayerTests(suite: TestSuite) {
 
         assertThat(requireNotNull(completed).moves.map { it.ply } == listOf(1, 3))
         assertThat(streamed.map { it.move.ply } == listOf(1, 3))
-        assertThat(engine.requests.map { it.request.moves.size } == listOf(0, 2, 3))
+        assertThat(engine.requests.map { it.request.moves.size } == listOf(0, 2, 2))
+        assertThat(engine.requests.last().request.searchMoves == listOf(UciMove("g1f3")))
         assertThat(
             progress.map {
                 listOf(it.completedWorkUnits, it.totalWorkUnits, it.completedMoves, it.totalMoves)
@@ -1621,7 +1653,8 @@ internal fun registerEngineLayerTests(suite: TestSuite) {
         val result = requireNotNull(completed)
         assertThat(result.moves.map { it.ply } == listOf(1, 3))
         assertThat(result.engine == seed.response.engine)
-        assertThat(engine.requests.map { it.request.moves.size } == listOf(2, 3))
+        assertThat(engine.requests.map { it.request.moves.size } == listOf(2, 2))
+        assertThat(engine.requests.last().request.searchMoves == listOf(UciMove("g1f3")))
         assertThat(streamed.first().rootKey == seededRoot.key)
         val differentPositionRoot = GameReviewPlanner.playerRoot(
             requestId = "different-position",
@@ -1718,7 +1751,7 @@ internal fun registerEngineLayerTests(suite: TestSuite) {
             )
         }
         val allMovesFailure = requireNotNull(allMovesCompletion).exceptionOrNull()
-        assertThat(allMovesFailure is IllegalStateException)
+        assertThat(allMovesFailure is IllegalArgumentException)
         assertThat(allMovesFailure?.message?.contains("patch 2") == true)
     }
     suite.test("player review rejects engine identity drift between seeded and live roots") {
@@ -1993,7 +2026,8 @@ internal fun registerEngineLayerTests(suite: TestSuite) {
         assertThat(progress.all { it.completedMoves == 42 && it.totalMoves == 43 })
         assertThat(streamed.size == 42)
         assertThat(streamed.none { it.move.ply == 3 })
-        assertThat(engine.requests.single().request.moves == moves.take(3))
+        assertThat(engine.requests.single().request.moves == moves.take(2))
+        assertThat(engine.requests.single().request.searchMoves == listOf(moves[2]))
 
         engine.respond(moves[3].value)
         assertThat(progress.last() == GameReviewProgress(44, 44, 43, 43))
@@ -2004,7 +2038,7 @@ internal fun registerEngineLayerTests(suite: TestSuite) {
                 .evidence?.usedAdjacentFallback == true,
         )
     }
-    suite.test("a seeded root still schedules its required adjacent helper") {
+    suite.test("a seeded root still schedules its required constrained search") {
         val rules = RulesContractV1.drawless()
         val root = GameReviewPlanner.playerRoot(
             requestId = "seed-needs-helper",
@@ -2028,7 +2062,8 @@ internal fun registerEngineLayerTests(suite: TestSuite) {
             onMoveReviewed = { streams++ },
             onResult = { completed = it.getOrThrow() },
         )
-        assertThat(engine.requests.single().request.moves == listOf(UciMove("e2e4")))
+        assertThat(engine.requests.single().request.moves.isEmpty())
+        assertThat(engine.requests.single().request.searchMoves == listOf(UciMove("e2e4")))
         assertThat(engine.requests.single().request.positionId != root.key.positionId)
         assertThat(streams == 0)
         engine.respond("e7e5")
@@ -2368,7 +2403,8 @@ internal fun registerEngineLayerTests(suite: TestSuite) {
             onResult = { completed = it.getOrThrow() },
         )
 
-        assertThat(requests.map { it.moves.size } == listOf(0, 1))
+        assertThat(requests.map { it.moves.size } == listOf(0, 0))
+        assertThat(requests.last().searchMoves == listOf(UciMove("e2e4")))
         assertThat(requireNotNull(completed).moves.single().evidence?.usedAdjacentFallback == true)
         assertThat(progress.last() == GameReviewProgress(2, 2, 1, 1))
     }
@@ -2408,10 +2444,6 @@ internal fun registerEngineLayerTests(suite: TestSuite) {
                 reviewVariation("e2e4", centipawns = -1_000, rank = 2, wdl = EngineWdl(590, 0, 410)),
             ),
         )
-        // External completions still validate the final live-position response, but it must not
-        // replace the same-root score for a played move already present in MultiPV.
-        engine.respond(bestMove = "e7e5", centipawns = 2_000)
-
         val reviewed = requireNotNull(completed).moves.single()
         assertThat(reviewed.quality == ReviewMoveQuality.BEST)
         assertThat(reviewed.playedEvaluation == ReviewEvaluation.Centipawns(-1_000))
@@ -2424,56 +2456,48 @@ internal fun registerEngineLayerTests(suite: TestSuite) {
         assertThat(reviewed.evidence?.playedLine?.move == UciMove("e2e4"))
         assertThat(reviewed.evidence?.playedLine?.origin == ReviewLineOrigin.ROOT_MULTIPV)
     }
-    suite.test("review runner leaves non-exact and missing evidence ungraded") {
+    suite.test("review runner rejects non-exact and missing complete evidence") {
         val boundedEngine = FakeReviewEngine()
-        var boundedResult: GameReviewResult? = null
+        var boundedResult: Result<GameReviewResult>? = null
         GameReviewRunner(boundedEngine).review(
             gameId = "review-bounded",
             initialFen = ChessPosition.START_FEN,
             moves = listOf(UciMove("e2e4")),
             rules = RulesContractV1.drawless(),
             outcome = GameOutcome(Side.BLACK, reason = EndReason.TIMEOUT),
-            onResult = { boundedResult = it.getOrThrow() },
+            onResult = { boundedResult = it },
         )
         boundedEngine.respond("e2e4", centipawns = 30, bound = EngineScoreBound.LOWER)
-        boundedEngine.respond("e7e5", centipawns = 0)
-
-        val bounded = requireNotNull(boundedResult).moves.single()
-        assertThat(bounded.quality == null && bounded.expectedPointLoss == null)
-        assertThat(bounded.evidence?.lines?.single()?.expectedPoints == null)
+        assertThat(requireNotNull(boundedResult).isFailure)
 
         val missingEngine = FakeReviewEngine()
-        var missingResult: GameReviewResult? = null
+        var missingResult: Result<GameReviewResult>? = null
         GameReviewRunner(missingEngine).review(
             gameId = "review-missing",
             initialFen = ChessPosition.START_FEN,
             moves = listOf(UciMove("e2e4")),
             rules = RulesContractV1.drawless(),
             outcome = GameOutcome(Side.BLACK, reason = EndReason.RESIGNATION),
-            onResult = { missingResult = it.getOrThrow() },
+            onResult = { missingResult = it },
         )
         missingEngine.respond("e2e4", centipawns = 0, evidenceAvailable = false)
-        missingEngine.respond("e7e5", centipawns = 0)
-
-        val missing = requireNotNull(missingResult).moves.single()
-        assertThat(missing.bestEvaluation == null && missing.playedEvaluation == null)
-        assertThat(missing.quality == null && missing.expectedPointLoss == null)
+        assertThat(requireNotNull(missingResult).isFailure)
     }
-    suite.test("a forced nonterminal move is Best without exact engine evidence") {
+    suite.test("a forced nonterminal move still requires exact engine evidence") {
         val initialFen = "r7/7p/8/8/8/2k5/7P/K7 w - - 0 1"
         listOf(
             Triple("forced-bounded", EngineScoreBound.LOWER, true),
             Triple("forced-missing", EngineScoreBound.EXACT, false),
         ).forEach { (gameId, bound, evidenceAvailable) ->
             val engine = FakeReviewEngine()
-            var completed: GameReviewResult? = null
+            var completed: Result<GameReviewResult>? = null
             GameReviewRunner(engine).review(
                 gameId = gameId,
                 initialFen = initialFen,
                 moves = listOf(UciMove("a1b1")),
                 rules = RulesContractV1.drawless(),
                 outcome = GameOutcome(Side.BLACK, reason = EndReason.TIMEOUT),
-                onResult = { completed = it.getOrThrow() },
+                onResult = { completed = it },
             )
             engine.respond(
                 bestMove = "a1b1",
@@ -2481,14 +2505,7 @@ internal fun registerEngineLayerTests(suite: TestSuite) {
                 bound = bound,
                 evidenceAvailable = evidenceAvailable,
             )
-            engine.respond(bestMove = "h7h6", centipawns = 0)
-
-            val reviewed = requireNotNull(completed).moves.single()
-            assertThat(reviewed.quality == ReviewMoveQuality.BEST)
-            assertThat(reviewed.expectedPointLoss == 0.0)
-            assertThat(reviewed.evidence?.forced == true)
-            assertThat(reviewed.evidence?.bestLine?.origin == ReviewLineOrigin.FORCED_LEGAL_MOVE)
-            assertThat(reviewed.evidence?.playedLine?.origin == ReviewLineOrigin.FORCED_LEGAL_MOVE)
+            assertThat(requireNotNull(completed).isFailure)
         }
     }
     suite.test("review runner rejects a primary PV that disagrees with bestmove") {
@@ -2506,8 +2523,6 @@ internal fun registerEngineLayerTests(suite: TestSuite) {
             bestMove = "d2d4",
             variations = listOf(reviewVariation("e2e4", centipawns = 20)),
         )
-        engine.respond(bestMove = "e7e5", centipawns = 0)
-
         val error = requireNotNull(completed).exceptionOrNull()
         assertThat(error is IllegalArgumentException)
         assertThat(error?.message?.contains("does not match best move") == true)
@@ -2530,8 +2545,6 @@ internal fun registerEngineLayerTests(suite: TestSuite) {
                 reviewVariation("d2d4", rank = 2, continuation = listOf("d7d5", "d4d5")),
             ),
         )
-        engine.respond(bestMove = "e7e5", centipawns = 0)
-
         val message = requireNotNull(completed).exceptionOrNull()?.message.orEmpty()
         assertThat(message.contains("rank 2"))
         assertThat(message.contains("PV ply 3"))
@@ -2556,15 +2569,16 @@ internal fun registerEngineLayerTests(suite: TestSuite) {
                 continuation = listOf("b1a1"),
             )),
         )
-        engine.respond(bestMove = "b1c1", centipawns = 0)
-
+        assertThat(engine.requests.size == 2)
+        assertThat(engine.requests[1].request.searchMoves == listOf(UciMove("a2a8")))
+        engine.respond("a2a8")
         val message = requireNotNull(completed).exceptionOrNull()?.message.orEmpty()
         assertThat(message.contains("rank 1"))
         assertThat(message.contains("continues after app terminal"))
         assertThat(message.contains("PV ply 2"))
         assertThat(message.contains("game ply 2"))
     }
-    suite.test("review runner analyzes sequentially and inverts the adjacent root score") {
+    suite.test("review runner analyzes best and played moves from the same root") {
         val engine = FakeReviewEngine()
         val moves = listOf(UciMove("e2e4"))
         val progress = mutableListOf<GameReviewProgress>()
@@ -2584,8 +2598,9 @@ internal fun registerEngineLayerTests(suite: TestSuite) {
         assertThat(engine.requests.single().request.limits.moveTimeMillis == 350L)
         engine.respond(bestMove = "d2d4", centipawns = 200)
         assertThat(engine.requests.size == 2)
-        assertThat(engine.requests[1].request.moves == moves)
-        engine.respond(bestMove = "e7e5", centipawns = 200)
+        assertThat(engine.requests[1].request.moves.isEmpty())
+        assertThat(engine.requests[1].request.searchMoves == moves)
+        engine.respond(bestMove = "e2e4", centipawns = -200)
 
         val reviewed = requireNotNull(completed).getOrThrow().moves.single()
         assertThat(reviewed.bestEvaluation == ReviewEvaluation.Centipawns(200))
@@ -2593,12 +2608,12 @@ internal fun registerEngineLayerTests(suite: TestSuite) {
         assertThat(reviewed.quality == ReviewMoveQuality.BLUNDER)
         assertThat(reviewed.evidence?.bestLine?.move == UciMove("d2d4"))
         assertThat(reviewed.evidence?.playedLine?.move == UciMove("e2e4"))
-        assertThat(reviewed.evidence?.playedLine?.moves == listOf(UciMove("e2e4"), UciMove("e7e5")))
-        assertThat(reviewed.evidence?.playedLine?.origin == ReviewLineOrigin.ADJACENT_POSITION)
+        assertThat(reviewed.evidence?.playedLine?.moves == listOf(UciMove("e2e4")))
+        assertThat(reviewed.evidence?.playedLine?.origin == ReviewLineOrigin.CONSTRAINED_ROOT)
         assertThat(progress.map { it.completedPositions } == listOf(0, 1, 2))
         assertThat(engine.requests.map { it.request.requestId }.distinct().size == 2)
         val firstRunIds = engine.requests.map { it.request.requestId }.toSet()
-        assertThat(firstRunIds.all { it.matches(Regex(".+-run-[0-9]+")) })
+        assertThat(firstRunIds.all { "-run-" in it })
 
         val retry = GameReviewRunner(engine).review(
             gameId = "review-resignation",
@@ -2611,27 +2626,22 @@ internal fun registerEngineLayerTests(suite: TestSuite) {
         assertThat(engine.requests.last().request.requestId !in firstRunIds)
         retry.cancel()
     }
-    suite.test("adjacent played evidence swaps lower and upper score bounds") {
+    suite.test("bounded constrained played evidence fails the complete result closed") {
         val engine = FakeReviewEngine()
-        var completed: GameReviewResult? = null
+        var completed: Result<GameReviewResult>? = null
         GameReviewRunner(engine).review(
             gameId = "review-adjacent-bound",
             initialFen = ChessPosition.START_FEN,
             moves = listOf(UciMove("e2e4")),
             rules = RulesContractV1.drawless(),
             outcome = GameOutcome(Side.BLACK, reason = EndReason.TIMEOUT),
-            onResult = { completed = it.getOrThrow() },
+            onResult = { completed = it },
         )
         engine.respond(bestMove = "d2d4", centipawns = 50)
-        engine.respond(bestMove = "e7e5", centipawns = 25, bound = EngineScoreBound.LOWER)
-
-        val playedLine = requireNotNull(completed).moves.single().evidence?.playedLine
-        assertThat(playedLine?.bound == EngineScoreBound.UPPER)
-        assertThat(playedLine?.source == ReviewScoreSource.CENTIPAWNS)
-        assertThat(playedLine?.expectedPoints == null)
-        assertThat(playedLine?.origin == ReviewLineOrigin.ADJACENT_POSITION)
+        engine.respond(bestMove = "e2e4", centipawns = 25, bound = EngineScoreBound.LOWER)
+        assertThat(requireNotNull(completed).isFailure)
     }
-    suite.test("review runner inverts mate scores from the following position") {
+    suite.test("review runner keeps same-root mate scores in the mover perspective") {
         val engine = FakeReviewEngine()
         var completed: GameReviewResult? = null
 
@@ -2644,7 +2654,7 @@ internal fun registerEngineLayerTests(suite: TestSuite) {
             onResult = { completed = it.getOrThrow() },
         )
         engine.respond(bestMove = "d2d4", centipawns = null, mateIn = 3)
-        engine.respond(bestMove = "e7e5", centipawns = null, mateIn = 2)
+        engine.respond(bestMove = "e2e4", centipawns = null, mateIn = -2)
 
         val reviewed = requireNotNull(completed).moves.single()
         assertThat(reviewed.bestEvaluation == ReviewEvaluation.Mate(3))
@@ -2664,8 +2674,6 @@ internal fun registerEngineLayerTests(suite: TestSuite) {
             onResult = { completed = it.getOrThrow() },
         )
         engine.respond(bestMove = "e2e4", centipawns = 12)
-        engine.respond(bestMove = "e7e5", centipawns = 900)
-
         val reviewed = requireNotNull(completed).moves.single()
         assertThat(reviewed.quality == ReviewMoveQuality.BEST)
         assertThat(reviewed.expectedPointLoss == 0.0)
@@ -2689,11 +2697,9 @@ internal fun registerEngineLayerTests(suite: TestSuite) {
                 reviewVariation("e7e5", centipawns = -300, rank = 2),
             ),
         )
-        engine.respond(bestMove = "g1f3", centipawns = 0)
-
         val result = requireNotNull(completed)
         assertThat(result.evidenceSchemaVersion == REVIEW_EVIDENCE_SCHEMA_VERSION)
-        assertThat(REVIEW_ANALYSIS_VERSION == 2)
+        assertThat(REVIEW_ANALYSIS_VERSION == 3)
         assertThat(result.analysisVersion == REVIEW_ANALYSIS_VERSION)
         assertThat(result.gradingPolicyVersion == ReviewGradingPolicy.CURRENT.version)
         assertThat(
@@ -2745,10 +2751,15 @@ internal fun registerEngineLayerTests(suite: TestSuite) {
             outcome = GameOutcome(Side.WHITE, reason = EndReason.REPETITION),
             onResult = { completed = it.getOrThrow() },
         )
-        moves.forEachIndexed { index, move ->
-            assertThat(engine.requests.size == index + 1)
+        while (completed == null) {
+            val pending = engine.requests.first { !it.responded }
+            val plyIndex = pending.request.moves.size
             engine.respond(
-                bestMove = if (index == moves.lastIndex) "f6h5" else move.value,
+                bestMove = if (plyIndex == moves.lastIndex && pending.request.searchMoves.isEmpty()) {
+                    "f6h5"
+                } else {
+                    pending.request.searchMoves.singleOrNull()?.value ?: moves[plyIndex].value
+                },
                 centipawns = 0,
             )
         }
@@ -2775,11 +2786,16 @@ internal fun registerEngineLayerTests(suite: TestSuite) {
             outcome = GameOutcome(Side.WHITE, reason = EndReason.REPETITION),
             onResult = { completed = it.getOrThrow() },
         )
-        moves.forEachIndexed { index, move ->
+        while (completed == null) {
+            val pending = engine.requests.first { !it.responded }
+            val plyIndex = pending.request.moves.size
+            val finalRoot = plyIndex == moves.lastIndex && pending.request.searchMoves.isEmpty()
             engine.respond(
-                bestMove = if (index == moves.lastIndex) "f6h5" else move.value,
-                centipawns = if (index == moves.lastIndex) null else 0,
-                mateIn = if (index == moves.lastIndex) -3 else null,
+                bestMove = if (finalRoot) "f6h5" else {
+                    pending.request.searchMoves.singleOrNull()?.value ?: moves[plyIndex].value
+                },
+                centipawns = if (finalRoot) null else 0,
+                mateIn = if (finalRoot) -3 else null,
             )
         }
 
@@ -2804,10 +2820,15 @@ internal fun registerEngineLayerTests(suite: TestSuite) {
             outcome = GameOutcome(Side.WHITE, reason = EndReason.REPETITION),
             onResult = { completed = it.getOrThrow() },
         )
-        moves.forEachIndexed { index, move ->
+        while (completed == null) {
+            val pending = engine.requests.first { !it.responded }
+            val plyIndex = pending.request.moves.size
+            val finalRoot = plyIndex == moves.lastIndex && pending.request.searchMoves.isEmpty()
             engine.respond(
-                bestMove = if (index == moves.lastIndex) "f6h5" else move.value,
-                centipawns = if (index == moves.lastIndex) -100_000 else 0,
+                bestMove = if (finalRoot) "f6h5" else {
+                    pending.request.searchMoves.singleOrNull()?.value ?: moves[plyIndex].value
+                },
+                centipawns = if (finalRoot) -100_000 else 0,
             )
         }
 
@@ -2860,6 +2881,139 @@ internal fun registerEngineLayerTests(suite: TestSuite) {
         engine.respond(bestMove = "e2e4", centipawns = 0)
         assertThat(!completed)
         assertThat(engine.requests.size == 1)
+    }
+    suite.test("Review Evidence V2 round-trips current derived player review") {
+        val engine = FakeReviewEngine()
+        var completed: GameReviewResult? = null
+        GameReviewRunner(engine).reviewPlayerMoves(
+            gameId = "evidence-round-trip",
+            initialFen = ChessPosition.START_FEN,
+            moves = listOf(UciMove("e2e4")),
+            rules = RulesContractV1.drawless(),
+            outcome = GameOutcome(Side.BLACK, reason = EndReason.RESIGNATION),
+            playerSide = Side.WHITE,
+            onResult = { completed = it.getOrThrow() },
+        )
+        engine.respondWithVariations(
+            bestMove = "d2d4",
+            variations = listOf(
+                reviewVariation("d2d4", centipawns = 120, rank = 1),
+                reviewVariation("e2e4", centipawns = 40, rank = 2),
+            ),
+        )
+        val original = requireNotNull(completed)
+        val evidence = ReviewEvidenceV2.from(original)
+        val rebuilt = evidence.toGameReviewResult(
+            gameId = original.gameId,
+            initialFen = original.initialFen,
+            gameMoves = original.gameMoves,
+            rules = original.rules,
+            outcome = original.outcome,
+        )
+
+        assertThat(evidence.schemaVersion == 2)
+        assertThat(evidence.moves.single().candidates.map { it.rank } == listOf(1, 2))
+        assertThat(evidence.moves.single().played.rank == 2)
+        assertThat(rebuilt == original)
+        val moveEvidence = evidence.moves.single()
+        val illegalLine = moveEvidence.best.copy(
+            principalVariation = listOf(moveEvidence.best.rootMove, UciMove("e2e3")),
+        )
+        assertThat(runCatching {
+            evidence.copy(moves = listOf(moveEvidence.copy(best = illegalLine))).toGameReviewResult(
+                gameId = original.gameId,
+                initialFen = original.initialFen,
+                gameMoves = original.gameMoves,
+                rules = original.rules,
+                outcome = original.outcome,
+            )
+        }.isFailure)
+    }
+    suite.test("review fingerprints are frozen and every evidence setting changes the cache key") {
+        assertThat(
+            ReviewFingerprints.rules(RulesContractV1.drawless()) ==
+                "c16b68c47ec5f3362e6e225b4363594ee151dde76f0feecfd02761673a83c22c",
+        )
+        val engine = FakeReviewEngine()
+        var completed: GameReviewResult? = null
+        GameReviewRunner(engine).reviewPlayerMoves(
+            gameId = "evidence-cache-key",
+            initialFen = ChessPosition.START_FEN,
+            moves = listOf(UciMove("e2e4")),
+            rules = RulesContractV1.drawless(),
+            outcome = GameOutcome(Side.BLACK, reason = EndReason.RESIGNATION),
+            playerSide = Side.WHITE,
+            onResult = { completed = it.getOrThrow() },
+        )
+        engine.respond("e2e4")
+        val evidence = ReviewEvidenceV2.from(requireNotNull(completed))
+        val variants = listOf(
+            evidence,
+            evidence.copy(profile = evidence.profile.copy(moveTimeMillis = 351)),
+            evidence.copy(profile = evidence.profile.copy(multiPv = 4)),
+            evidence.copy(profile = evidence.profile.copy(constrainedRootPolicyVersion = 2)),
+            evidence.copy(profile = evidence.profile.copy(retainedPvLength = 13)),
+            evidence.copy(engine = evidence.engine.copy(id = "another-engine")),
+            evidence.copy(engine = evidence.engine.copy(build = "another-build")),
+        )
+        assertThat(variants.map(ReviewFingerprints::evidenceCacheKey).toSet().size == variants.size)
+        assertThat(
+            ReviewFingerprints.game(
+                ChessPosition.START_FEN,
+                listOf(UciMove("e2e4")),
+                RulesContractV1.drawless(),
+                GameOutcome(Side.BLACK, reason = EndReason.RESIGNATION),
+            ) != ReviewFingerprints.game(
+                ChessPosition.START_FEN,
+                listOf(UciMove("e2e4")),
+                RulesContractV1.drawless(),
+                GameOutcome(Side.BLACK, reason = EndReason.TIMEOUT),
+            ),
+        )
+    }
+    suite.test("Drawless Accuracy V1 is bounded monotonic symmetric and explicit for empty input") {
+        val engine = FakeReviewEngine()
+        var completed: GameReviewResult? = null
+        GameReviewRunner(engine).reviewPlayerMoves(
+            gameId = "accuracy-v1",
+            initialFen = ChessPosition.START_FEN,
+            moves = listOf(UciMove("e2e4")),
+            rules = RulesContractV1.drawless(),
+            outcome = GameOutcome(Side.BLACK, reason = EndReason.RESIGNATION),
+            playerSide = Side.WHITE,
+            onResult = { completed = it.getOrThrow() },
+        )
+        engine.respond("e2e4")
+        val move = requireNotNull(completed).moves.single()
+        val scores = listOf(0.0, 0.25, 0.5, 1.0).map { loss ->
+            DrawlessAccuracyV1.calculate(listOf(move.copy(expectedPointLoss = loss)))
+        }
+        assertThat(scores == listOf(100, 75, 50, 0))
+        assertThat(scores.zipWithNext().all { (left, right) -> requireNotNull(left) >= requireNotNull(right) })
+        assertThat(
+            DrawlessAccuracyV1.calculate(listOf(move.copy(mover = Side.BLACK))) == scores.first(),
+        )
+        assertThat(DrawlessAccuracyV1.calculate(emptyList()) == null)
+        assertThat(DrawlessAccuracyV1.calculate(listOf(move.copy(expectedPointLoss = null))) == null)
+    }
+    suite.test("review explanation facts preserve captures and material swing") {
+        val engine = FakeReviewEngine()
+        var completed: GameReviewResult? = null
+        GameReviewRunner(engine).reviewPlayerMoves(
+            gameId = "review-facts",
+            initialFen = ChessPosition.START_FEN,
+            moves = listOf("e2e4", "d7d5", "e4d5").map(::UciMove),
+            rules = RulesContractV1.drawless(),
+            outcome = GameOutcome(Side.BLACK, reason = EndReason.RESIGNATION),
+            playerSide = Side.WHITE,
+            onResult = { completed = it.getOrThrow() },
+        )
+        engine.respond("e2e4")
+        engine.respond("e4d5")
+        val facts = requireNotNull(completed).moves.last().explanationFacts
+        assertThat(facts.capture)
+        assertThat(facts.materialSwingForMover == 1)
+        assertThat(facts.terminalReason == null && facts.terminalWinner == null)
     }
     suite.test("forced-repetition parity fixture has exactly one completing move") {
         val initialFen = "6k1/7p/5Q2/8/8/8/8/6K1 w - - 0 1"

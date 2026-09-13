@@ -205,17 +205,20 @@ private class FakeChessEngine : ChessEngine {
     }
 }
 
-private fun engineResponse(request: EngineRequest, move: String) = EngineResponse(
+private fun engineResponse(request: EngineRequest, move: String): EngineResponse {
+    val effectiveMove = request.searchMoves.singleOrNull() ?: UciMove(move)
+    return EngineResponse(
     requestId = request.requestId,
     gameId = request.gameId,
     positionId = request.positionId,
-    bestMove = UciMove(move),
+    bestMove = effectiveMove,
     ponderMove = null,
     depth = 2,
     nodes = 20,
-    variations = listOf(PrincipalVariation(10, null, listOf(UciMove(move)))),
+    variations = listOf(PrincipalVariation(10, null, listOf(effectiveMove))),
     engine = EngineIdentity("fairy-stockfish", "test", 2),
 )
+}
 
 private fun coordinatorConfig(
     mode: GameMode = GameMode.CASUAL,
@@ -964,16 +967,17 @@ fun main() {
             restored.close()
         }
     }
-    suite.test("played review roots and adjacent evidence survive saved-game restore") {
+    suite.test("played review roots and constrained evidence survive saved-game restore") {
         val fixture = coordinatorFixture()
         fixture.coordinator.setReviewPrefetchEnabled(true)
         fixture.engine.respond(fixture.engine.requests.single(), "d2d4")
         fixture.coordinator.playHuman(UciMove("e2e4"))
         fixture.engine.respond(fixture.engine.requests.last(), "e7e5")
         fixture.engine.respond(fixture.engine.requests.last(), "g1f3")
-        val adjacent = fixture.engine.requests.last()
-        assertThat(adjacent.request.moves.map { it.value } == listOf("e2e4"))
-        fixture.engine.respond(adjacent, "e7e5")
+        val constrained = fixture.engine.requests.last()
+        assertThat(constrained.request.moves.isEmpty())
+        assertThat(constrained.request.searchMoves.map { it.value } == listOf("e2e4"))
+        fixture.engine.respond(constrained, "e2e4")
 
         val durable = fixture.coordinator.checkpoint()
         assertThat(durable.reviewPrefetchRoots.size == 2)
@@ -1030,7 +1034,7 @@ fun main() {
             restored.close()
         }
     }
-    suite.test("idle review prefetch warms an off-MultiPV played-position fallback after the current root") {
+    suite.test("idle review prefetch warms an off-MultiPV constrained played search after the current root") {
         val fixture = coordinatorFixture()
         fixture.coordinator.setReviewPrefetchEnabled(true)
         val firstRoot = fixture.engine.requests.single()
@@ -1045,19 +1049,20 @@ fun main() {
         assertThat(currentRoot.request.moves.map { it.value } == listOf("e2e4", "e7e5"))
         fixture.engine.respond(currentRoot, "g1f3")
 
-        val adjacent = fixture.engine.requests.last()
-        assertThat(adjacent !== currentRoot)
-        assertThat(adjacent.request.purpose == EnginePurpose.REVIEW)
-        assertThat(adjacent.request.moves.map { it.value } == listOf("e2e4"))
-        assertThat(adjacent.request.positionId.contains(":review:1:"))
-        fixture.engine.respond(adjacent, "e7e5")
+        val constrained = fixture.engine.requests.last()
+        assertThat(constrained !== currentRoot)
+        assertThat(constrained.request.purpose == EnginePurpose.REVIEW)
+        assertThat(constrained.request.moves.isEmpty())
+        assertThat(constrained.request.searchMoves.map { it.value } == listOf("e2e4"))
+        assertThat(constrained.request.positionId.endsWith(":played:e2e4"))
+        fixture.engine.respond(constrained, "e2e4")
 
         assertThat(fixture.coordinator.completedReviewPrefetchRoots().size == 2)
         assertThat(fixture.coordinator.completedReviewPrefetchAdjacentRoots().size == 1)
         assertThat(fixture.coordinator.snapshot().phase == CoordinatorPhase.HUMAN_TURN)
-        assertThat(fixture.engine.requests.last() === adjacent)
+        assertThat(fixture.engine.requests.last() === constrained)
     }
-    suite.test("foregrounding retries an adjacent prefetch interrupted while backgrounded") {
+    suite.test("foregrounding retries a constrained prefetch interrupted while backgrounded") {
         val fixture = coordinatorFixture()
         fixture.coordinator.setReviewPrefetchEnabled(true)
         fixture.engine.respond(fixture.engine.requests.single(), "d2d4")
@@ -1065,7 +1070,8 @@ fun main() {
         fixture.engine.respond(fixture.engine.requests.last(), "e7e5")
         fixture.engine.respond(fixture.engine.requests.last(), "g1f3")
         val interruptedAdjacent = fixture.engine.requests.last()
-        assertThat(interruptedAdjacent.request.moves.map { it.value } == listOf("e2e4"))
+        assertThat(interruptedAdjacent.request.moves.isEmpty())
+        assertThat(interruptedAdjacent.request.searchMoves.map { it.value } == listOf("e2e4"))
 
         fixture.coordinator.setReviewPrefetchEnabled(false)
         fixture.coordinator.setReviewPrefetchEnabled(true)
@@ -1085,7 +1091,8 @@ fun main() {
         fixture.engine.respond(fixture.engine.requests.last(), "e7e5")
         fixture.engine.respond(fixture.engine.requests.last(), "b1c3")
         val firstAdjacentAttempt = fixture.engine.requests.last()
-        assertThat(firstAdjacentAttempt.request.moves.map { it.value } == listOf("e2e4"))
+        assertThat(firstAdjacentAttempt.request.moves.isEmpty())
+        assertThat(firstAdjacentAttempt.request.searchMoves.map { it.value } == listOf("e2e4"))
 
         // Moving preempts the first fallback but retains it as the oldest queued candidate. The
         // newly completed current root contributes a second off-MultiPV candidate.
@@ -1094,7 +1101,8 @@ fun main() {
         fixture.engine.respond(fixture.engine.requests.last(), "b8c6")
         fixture.engine.respond(fixture.engine.requests.last(), "f1b5")
         val retriedAdjacent = fixture.engine.requests.last()
-        assertThat(retriedAdjacent.request.moves.map { it.value } == listOf("e2e4"))
+        assertThat(retriedAdjacent.request.moves.isEmpty())
+        assertThat(retriedAdjacent.request.searchMoves.map { it.value } == listOf("e2e4"))
 
         val requestCount = fixture.engine.requests.size
         fixture.engine.respond(retriedAdjacent, "e7e5")
@@ -1141,13 +1149,15 @@ fun main() {
         // Spend no search budget on this turn. The next human turn now has both the unfinished
         // ply-one adjacent helper and a later missing exact root.
         val cancelledOpeningHelper = fixture.engine.requests.last()
-        assertThat(cancelledOpeningHelper.request.moves.map { it.value } == listOf("e2e4"))
+        assertThat(cancelledOpeningHelper.request.moves.isEmpty())
+        assertThat(cancelledOpeningHelper.request.searchMoves.map { it.value } == listOf("e2e4"))
         fixture.coordinator.playHuman(UciMove("g1f3"))
         assertThat(cancelledOpeningHelper.cancelled)
         fixture.engine.respond(fixture.engine.requests.last(), "b8c6")
 
         val oldestIncompleteMove = fixture.engine.requests.last()
-        assertThat(oldestIncompleteMove.request.moves.map { it.value } == listOf("e2e4"))
+        assertThat(oldestIncompleteMove.request.moves.isEmpty())
+        assertThat(oldestIncompleteMove.request.searchMoves.map { it.value } == listOf("e2e4"))
         fixture.engine.respond(oldestIncompleteMove, "e7e5")
 
         val laterExactGap = fixture.engine.requests.last()
@@ -1216,7 +1226,7 @@ fun main() {
         assertThat(finalEngine.requests.isEmpty(), "Final review repeated in-game engine work")
         assertThat(requireNotNull(finalResult).getOrThrow().moves.size == 3)
     }
-    suite.test("continuous review prefetch drains every queued adjacent fallback while idle") {
+    suite.test("continuous review prefetch drains every queued constrained search while idle") {
         val fixture = coordinatorFixture(drainReviewPrefetchBacklog = true)
         fixture.coordinator.setReviewPrefetchEnabled(true)
         fixture.engine.respond(fixture.engine.requests.single(), "d2d4")
@@ -1225,7 +1235,8 @@ fun main() {
         fixture.engine.respond(fixture.engine.requests.last(), "e7e5")
         val interruptedFirstAdjacent = fixture.engine.requests.last()
         assertThat(
-            interruptedFirstAdjacent.request.moves.map { it.value } == listOf("e2e4"),
+            interruptedFirstAdjacent.request.moves.isEmpty() &&
+                interruptedFirstAdjacent.request.searchMoves.map { it.value } == listOf("e2e4"),
             "The first adjacent helper did not start before the new current root",
         )
 
@@ -1235,7 +1246,8 @@ fun main() {
 
         val retriedFirstAdjacent = fixture.engine.requests.last()
         assertThat(
-            retriedFirstAdjacent.request.moves.map { it.value } == listOf("e2e4"),
+            retriedFirstAdjacent.request.moves.isEmpty() &&
+                retriedFirstAdjacent.request.searchMoves.map { it.value } == listOf("e2e4"),
             "The oldest adjacent helper was not retried first",
         )
         fixture.engine.respond(retriedFirstAdjacent, "e7e5")
@@ -1250,7 +1262,8 @@ fun main() {
         val secondAdjacent = fixture.engine.requests.last()
         assertThat(secondAdjacent !== retriedFirstAdjacent, "The second adjacent helper did not start")
         assertThat(
-            secondAdjacent.request.moves.map { it.value } == listOf("e2e4", "e7e5", "g1f3"),
+            secondAdjacent.request.moves.map { it.value } == listOf("e2e4", "e7e5") &&
+                secondAdjacent.request.searchMoves.map { it.value } == listOf("g1f3"),
             "The second adjacent helper did not target the played ply-three position",
         )
         fixture.engine.respond(secondAdjacent, "b8c6")
@@ -1585,8 +1598,13 @@ fun main() {
         gameplayEngine.respond(gameplayEngine.requests.single(), "e7e5")
 
         assertThat(
-            reviewRequests.map { request -> request.moves.map { it.value } } ==
-                listOf(emptyList(), listOf("e2e4", "e7e5"), listOf("e2e4")),
+            reviewRequests.map { request ->
+                request.moves.map { it.value } to request.searchMoves.map { it.value }
+            } == listOf(
+                emptyList<String>() to emptyList(),
+                listOf("e2e4", "e7e5") to emptyList(),
+                emptyList<String>() to listOf("e2e4"),
+            ),
         )
         assertThat(coordinator.completedReviewPrefetchRoots().size == 2)
         assertThat(coordinator.completedReviewPrefetchAdjacentRoots().size == 1)
@@ -3021,11 +3039,14 @@ fun main() {
         assertThat(key == "modern_flat_black_queen")
     }
     suite.test("built-in theme and piece identifiers are unique") {
-        assertThat(BoardThemes.all.size == 5)
+        assertThat(BoardThemes.all.size == 7)
         assertThat(BoardThemes.all.map { it.id }.distinct().size == BoardThemes.all.size)
         assertThat(BoardThemes.all.all { it.lightSquare != it.darkSquare })
         BoardThemes.all.forEach { theme -> assertThat(BoardThemes.fromId(theme.id) == theme) }
         assertThat(BoardThemes.all.all { it.textureId != null })
+        assertThat(BoardThemes.DEFAULT.pieceStyleId == PieceStyleIds.MODERN_FLAT)
+        assertThat(BoardThemes.ALL_HALLOWS_COURT.pieceStyleId == PieceStyleIds.ALL_HALLOWS)
+        assertThat(BoardThemes.fromId("all_hallows_court") == BoardThemes.ALL_HALLOWS_COURT)
         listOf(
             "obsidian_glass",
             "arctic_slate",
@@ -3039,6 +3060,30 @@ fun main() {
         assertThat(BoardThemes.fromId("removed-or-corrupt") == BoardThemes.DEFAULT)
         assertThat(BoardThemes.fromId(null) == BoardThemes.DEFAULT)
         assertThat(PieceSets.all.map { it.id }.distinct().size == PieceSets.all.size)
+    }
+    suite.test("two Halloween boards keep one piece set and migrate the old selection") {
+        val halloween = BoardThemes.all.filter { it.pieceStyleId == PieceStyleIds.ALL_HALLOWS }
+        assertThat(halloween == listOf(BoardThemes.HALLOWEEN_EMBERWOOD, BoardThemes.HALLOWEEN_WITCHGLASS))
+        assertThat(halloween.map { it.textureId }.toSet() == setOf(BoardTextureIds.EMBERWOOD, BoardTextureIds.WITCHGLASS))
+        assertThat(BoardThemes.fromId("all_hallows_court") == BoardThemes.HALLOWEEN_EMBERWOOD)
+        assertThat(BoardThemes.all.none { it.id == "all_hallows_court" })
+        halloween.forEach { theme ->
+            assertThat(BoardThemes.fromId(theme.id) == theme)
+            assertThat(theme.legalMove.value == 0xFFFF941FL)
+            assertThat(theme.legalMoveOutline.value == 0xFF11161CL)
+        }
+        assertThat(BoardThemes.all.filterNot { it in halloween }.all { it.pieceStyleId == PieceStyleIds.MODERN_FLAT })
+    }
+    suite.test("saved amethyst selection migrates to celestial observatory") {
+        val migrated = BoardThemes.fromId("amethyst_geode")
+        assertThat(migrated == BoardThemes.CELESTIAL_OBSERVATORY)
+        assertThat(migrated.id == "celestial_observatory")
+        assertThat(migrated.textureId == BoardTextureIds.CELESTIAL_OBSERVATORY)
+        assertThat(migrated.pieceStyleId == PieceStyleIds.MODERN_FLAT)
+        assertThat(BoardThemes.fromId(migrated.id) == migrated)
+        assertThat(BoardThemes.all.count { it == migrated } == 1)
+        assertThat(BoardThemes.all.none { it.id == "amethyst_geode" })
+        assertThat(BoardThemes.AMETHYST_GEODE == migrated)
     }
     suite.test("phone layout stacks controls below board") {
         val layout = ResponsiveBoardLayout.calculate(412, 915)
@@ -3066,7 +3111,7 @@ fun main() {
         val landscape = ResponsiveBoardLayout.calculate(1_176, 706)
         assertThat(landscape.widthClass == WindowWidthClass.EXPANDED)
         assertThat(landscape.controlPlacement == ControlPlacement.BESIDE_BOARD)
-        assertThat(landscape.boardSizeDp == 658)
+        assertThat(landscape.boardSizeDp == 706)
         assertThat(landscape.panelWidthDp == 320)
         assertThat(landscape.panelMoveHistoryHeightDp == 240)
         assertThat(landscape.boardSizeDp <= 706 - landscape.outerPaddingDp * 2)
@@ -3075,23 +3120,23 @@ fun main() {
         val expanded = ResponsiveBoardLayout.calculate(891, 347)
         assertThat(expanded.widthClass == WindowWidthClass.EXPANDED)
         assertThat(expanded.controlPlacement == ControlPlacement.BESIDE_BOARD)
-        assertThat(expanded.outerPaddingDp == 12)
+        assertThat(expanded.outerPaddingDp == 0)
         assertThat(expanded.panelWidthDp == 280)
-        assertThat(expanded.boardSizeDp == 323)
+        assertThat(expanded.boardSizeDp == 347)
         assertThat(expanded.panelMoveHistoryHeightDp == 132)
 
         val medium = ResponsiveBoardLayout.calculate(640, 296)
         assertThat(medium.widthClass == WindowWidthClass.MEDIUM)
         assertThat(medium.controlPlacement == ControlPlacement.BESIDE_BOARD)
         assertThat(medium.panelWidthDp == 240)
-        assertThat(medium.boardSizeDp == 272)
+        assertThat(medium.boardSizeDp == 296)
         assertThat(medium.panelMoveHistoryHeightDp == 132)
 
         val compact = ResponsiveBoardLayout.calculate(568, 320)
         assertThat(compact.widthClass == WindowWidthClass.COMPACT)
         assertThat(compact.controlPlacement == ControlPlacement.BESIDE_BOARD)
         assertThat(compact.panelWidthDp == 200)
-        assertThat(compact.boardSizeDp == 296)
+        assertThat(compact.boardSizeDp == 320)
         assertThat(compact.boardSizeDp > 1)
     }
     suite.test("medium portrait keeps controls below a full-width board") {
